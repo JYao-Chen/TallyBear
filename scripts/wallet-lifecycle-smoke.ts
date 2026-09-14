@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {db,transaction} from '../src/server/db';
+import {createAccount,listAssets,changeAccount} from '../src/server/accounts';
+import {mergeAccounts} from '../src/server/merge-accounts';
+import {entry} from '../src/server/model';
+import {insertEntry} from '../src/server/ledger';
+import {reuse} from '../src/server/reuse';
+assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_wallet_test'),'Use an isolated wallet test database');
+const u=randomUUID(),other=randomUUID(),book=randomUUID(),second=randomUUID();
+for(const user of [u,other])await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$3,$4)',[user,user,'钱包测试','unused']);
+for(const id of [book,second]){await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'钱包验证','private',$2)",[id,u]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[id,u]);}
+const source=(await createAccount(u,{name:'微信',opening:0,type:'wechat'})).id,target=(await createAccount(u,{name:'微信',opening:10000,type:'wechat'})).id;
+const e=entry.parse({id:randomUUID(),accountId:source,kind:'income',amount:6600,date:'2026-09-14',category:'工资'});await transaction(c=>insertEntry(c,book,u,e));await reuse(book,u,{id:e.id,version:1,targetBook:second});
+await db.query("INSERT INTO entry_drafts(book_id,user_id,section,value) VALUES($1,$2,'manual',$3)",[book,u,JSON.stringify({accountId:source})]);
+const snapshot=await listAssets(u),s=snapshot.find(a=>a.id===source),t=snapshot.find(a=>a.id===target);
+await assert.rejects(()=>changeAccount(u,{operation:'delete',id:source,version:s.version,expectedBalance:s.balance}),/历史流水/);
+const value={id:source,targetId:target,version:s.version,targetVersion:t.version,expectedBalance:s.balance,expectedTargetBalance:t.balance,balance:s.balance+t.balance};
+await assert.rejects(()=>mergeAccounts(other,value),/管理权限/);
+await assert.rejects(()=>mergeAccounts(u,{...value,expectedBalance:0}),/已变化/);
+await mergeAccounts(u,value);
+assert.equal((await listAssets(u)).length,1);assert.equal((await listAssets(u))[0].balance,16600);
+assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions WHERE account_id=$1',[target])).rows[0].n,2);
+assert.equal((await db.query('SELECT value FROM entry_drafts WHERE book_id=$1',[book])).rows[0].value.accountId,target);
+const empty=(await createAccount(u,{name:'空钱包',opening:0})).id;await changeAccount(u,{operation:'delete',id:empty,version:1,expectedBalance:0});assert.equal((await listAssets(u)).length,1);
+const funds=(await createAccount(u,{name:'不用的钱包',opening:300})).id;await assert.rejects(()=>changeAccount(u,{operation:'delete',id:funds,version:1,expectedBalance:0}),/余额已变化/);await changeAccount(u,{operation:'delete',id:funds,version:1,expectedBalance:300});
+console.log('PASS: empty-wallet deletion, balance confirmation, historical protection, merge permissions, stale data, linked-flow deduplication and draft remapping');
+await db.end();

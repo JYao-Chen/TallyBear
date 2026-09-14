@@ -1,3 +1,4 @@
+import {mergeAccounts} from '@/server/merge-accounts';
 import {organize} from '@/server/organize';
 import {moveEntry,movePreview,moveInTransaction,selectedGroup,withReceiptTransaction} from '@/server/move-entry';
 import {deployment} from '@/lib/deployment';
@@ -78,6 +79,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   if(method==='POST'){const b=z.object({username:name,name,password:z.string().min(1).max(200),avatar:avatar.default('🧸')}).parse(body);await db.query('INSERT INTO users(id,username,name,password,avatar) VALUES($1,$2,$3,$4,$5)',[randomUUID(),b.username,b.name,passwordHash(b.password),b.avatar]);return NextResponse.json({ok:true});}
  }
  if(path[0]==='assets'){
+  if(path[1]==='merge'&&method==='POST')return NextResponse.json(await mergeAccounts(u.id,body));
   if(path[1]==='report'&&method==='GET')return NextResponse.json(await accountReport(u.id,req.nextUrl.searchParams));
   if(path[1]==='history'&&method==='GET')return NextResponse.json(await accountHistory(u.id,uuid.parse(req.nextUrl.searchParams.get('account'))));
   if(method==='GET')return NextResponse.json(await listAssets(u.id));
