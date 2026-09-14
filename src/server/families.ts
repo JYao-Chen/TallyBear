@@ -36,7 +36,7 @@ export async function families(uid:string,method:string,path:string[],body:unkno
    return {...f,members,books,availableBooks,invitations};
   }
   if(path.length===2&&method==='PUT'){requireOwner();const b=z.object({name,description:z.string().trim().max(500),avatar:avatar.optional()}).parse(body);await c.query('UPDATE families SET name=$1,description=$2,avatar=COALESCE($4,avatar) WHERE id=$3',[b.name,b.description,id,b.avatar??null]);return {ok:true};}
-  if(path.length===2&&method==='DELETE'){requireOwner();await c.query('DELETE FROM families WHERE id=$1',[id]);return {ok:true};}
+  if(path.length===2&&method==='DELETE'){requireOwner();if((await c.query('SELECT 1 FROM accounts WHERE family_id=$1',[id])).rowCount)throw new Failure('此家庭仍有共同资产，不能解散');await c.query('DELETE FROM families WHERE id=$1',[id]);return {ok:true};}
   if(path[2]==='invitations'){
    requireOwner();
    if(method==='POST'){const b=z.object({username:name}).parse(body);const target=(await c.query('SELECT id FROM users WHERE username=$1 AND disabled=false',[b.username])).rows[0];if(!target)throw new Failure('账号不存在或已停用，请先由系统管理员创建独立账号');if((await c.query('SELECT 1 FROM family_members WHERE family_id=$1 AND user_id=$2',[id,target.id])).rowCount)throw new Failure('该用户已经是家庭成员');await c.query('INSERT INTO family_invitations(family_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,target.id]);return {ok:true};}

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — independent assets
+
+- Bind accounts to users or families instead of books, with private personal balances and shared family management.
+- Keep payment accounts when moving or reusing transactions; count each linked financial event once.
+- Separate asset navigation, reports, search and AI tools from book classification.
+
 ## 1.0.0 — 2026-09-14
 
 First public TallyBear release.

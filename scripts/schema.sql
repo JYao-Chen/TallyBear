@@ -132,3 +132,51 @@ CREATE TABLE IF NOT EXISTS deployment_settings (
 );
 
 ALTER TABLE category_preferences ADD COLUMN IF NOT EXISTS position integer;
+
+-- Accounts belong to people or families. Books classify entries, never assets.
+BEGIN;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS owner_id uuid REFERENCES users(id);
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS family_id uuid REFERENCES families(id);
+DO $$
+DECLARE item record; mapped record;
+BEGIN
+ IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='accounts' AND column_name='book_id') THEN
+  UPDATE accounts a SET owner_id=b.owner_id FROM books b WHERE b.id=a.book_id;
+  UPDATE accounts a SET owner_id=NULL,family_id=b.family_id FROM books b
+   WHERE b.id=a.book_id AND a.ownership='shared' AND b.family_id IS NOT NULL;
+  -- Remove only the compound account FKs; transaction/book and refund FKs stay.
+  FOR item IN SELECT conrelid::regclass AS tbl,conname FROM pg_constraint
+   WHERE confrelid='accounts'::regclass AND contype='f' AND array_length(conkey,1)=2
+  LOOP EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I',item.tbl,item.conname); END LOOP;
+  -- Explicitly linked legacy wallets are one actual asset, not several balances.
+  FOR mapped IN SELECT a.id,w.primary_account,w.owner_id FROM accounts a JOIN wallets w ON w.id=a.wallet_id WHERE a.id<>w.primary_account
+  LOOP
+   UPDATE transactions SET account_id=mapped.primary_account WHERE account_id=mapped.id;
+   UPDATE transactions SET target_id=mapped.primary_account WHERE target_id=mapped.id;
+   UPDATE account_adjustments SET account_id=mapped.primary_account WHERE account_id=mapped.id;
+   UPDATE entry_drafts SET value=replace(value::text,mapped.id::text,mapped.primary_account::text)::jsonb WHERE value::text LIKE '%'||mapped.id::text||'%';
+   UPDATE entry_templates SET value=replace(value::text,mapped.id::text,mapped.primary_account::text)::jsonb WHERE value::text LIKE '%'||mapped.id::text||'%';
+   UPDATE bill_schedules SET value=replace(value::text,mapped.id::text,mapped.primary_account::text)::jsonb WHERE value::text LIKE '%'||mapped.id::text||'%';
+   DELETE FROM accounts WHERE id=mapped.id;
+  END LOOP;
+  UPDATE accounts a SET owner_id=w.owner_id,family_id=NULL FROM wallets w WHERE a.id=w.primary_account;
+  UPDATE transactions t SET account_id=original.account_id FROM (SELECT DISTINCT ON(event_id) event_id,account_id FROM transactions WHERE event_id IS NOT NULL ORDER BY event_id,created_at,id) original WHERE t.event_id=original.event_id;
+  ALTER TABLE accounts DROP COLUMN book_id;
+  ALTER TABLE account_adjustments DROP COLUMN book_id;
+ END IF;
+END $$;
+ALTER TABLE accounts DROP COLUMN IF EXISTS wallet_id;
+DROP TABLE IF EXISTS wallets;
+ALTER TABLE accounts DROP CONSTRAINT IF EXISTS accounts_asset_owner;
+ALTER TABLE accounts ADD CONSTRAINT accounts_asset_owner CHECK((owner_id IS NOT NULL)::int+(family_id IS NOT NULL)::int=1);
+UPDATE accounts SET ownership=CASE WHEN owner_id IS NOT NULL THEN 'personal' ELSE 'shared' END;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='transactions_asset_account') THEN
+  ALTER TABLE transactions ADD CONSTRAINT transactions_asset_account FOREIGN KEY(account_id) REFERENCES accounts(id);
+  ALTER TABLE transactions ADD CONSTRAINT transactions_asset_target FOREIGN KEY(target_id) REFERENCES accounts(id);
+  ALTER TABLE account_adjustments ADD CONSTRAINT adjustments_asset_account FOREIGN KEY(account_id) REFERENCES accounts(id);
+ END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS accounts_owner_idx ON accounts(owner_id);
+CREATE INDEX IF NOT EXISTS accounts_family_idx ON accounts(family_id);
+COMMIT;

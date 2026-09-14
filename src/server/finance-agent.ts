@@ -18,22 +18,24 @@ const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);const period=z.object({from:d
 const props={from:{type:'string',description:'起始日期 YYYY-MM-DD'},to:{type:'string',description:'结束日期 YYYY-MM-DD'}};
 const tool=(name:string,description:string,properties:object,required:string[]=[])=>({type:'function',function:{name,description,parameters:{type:'object',properties,required,additionalProperties:false}}});
 export const financeTools=[
- tool('account_cashflow','查询各微信、支付宝、银行卡账户的当前余额、银行存款、负债及指定期间收入/支出/退款/转入转出、交易对方来源。当前余额不是历史期末余额。',props,['from','to']),
+ tool('list_asset_scopes','查询本人及已加入家庭的资产范围；不要推测家庭ID。',{},[]),
+ tool('account_cashflow','查询各微信、支付宝、银行卡账户的当前余额、银行存款、负债及指定期间收入/支出/退款/转入转出、交易对方来源。资产按个人或家庭归属，独立于账本。scope默认为personal；可用list_asset_scopes查询家庭id。当前余额不是历史期末余额。',{...props,scope:{type:'string',description:'personal 或已加入家庭的 id'}},['from','to']),
  tool('financial_summary','查询当前账本指定日期范围的完整收支汇总、分类和每日趋势；金额单位为分。',props,['from','to']),
  tool('find_transactions','按商家/商品及单内明细/备注关键词查询当前账本明细，返回最多30笔和完整匹配汇总，不能用样本推断全量。',{...props,query:{type:'string'},category:{type:'string'},mode:{type:'string',enum:['contains','exact']}},['from','to']),
  tool('budget_and_subscriptions','查看一个月的预算、按月订阅分摊和当前账户余额。余额为当前时点，不是月末历史余额。',{month:{type:'string',description:'YYYY-MM'}},['month']),
  tool('draw_chart','用当前账本真实汇总生成图表，自动计算数值；返回图表ID，正文可用 [[chart:ID]] 嵌入。',{...props,type:{type:'string',enum:['bar','line','pie']},dimension:{type:'string',enum:['category','daily_expense','daily_income','monthly_expense','monthly_income']},title:{type:'string'}},['from','to','type','dimension','title']),
  tool('prepare_entries','把用户提供的账单文字或本次附图转成待确认记账草稿，自动匹配重复和退款。不会直接写入交易。',{text:{type:'string',description:'用户提供的原始账单描述，不可编造金额'}},['text']),
  tool('inspect_drafts','核对本轮已识别草稿的疑似重复、退款关联、缺失字段和商品小计；不改变实付，不写交易。',{})];
-export const labels:Record<string,string>={account_cashflow:'查询存款与资金来源',financial_summary:'查询收支汇总',find_transactions:'查找账单明细',budget_and_subscriptions:'检查预算与订阅',draw_chart:'绘制财务图表',prepare_entries:'整理记账草稿',inspect_drafts:'核对重复、退款与商品小计'};
+export const labels:Record<string,string>={list_asset_scopes:'查询资产归属',account_cashflow:'查询存款与资金来源',financial_summary:'查询收支汇总',find_transactions:'查找账单明细',budget_and_subscriptions:'检查预算与订阅',draw_chart:'绘制财务图表',prepare_entries:'整理记账草稿',inspect_drafts:'核对重复、退款与商品小计'};
 export async function executeFinanceTool(name:string,args:unknown,ctx:{language?:'en'|'zh-CN';book:string;user:User;images:string[];signal:AbortSignal;emit?:(event:string,data:any)=>void},artifacts:AgentArtifact){
  await member(ctx.book,ctx.user);ctx.signal.throwIfAborted();
  if(name==='prepare_entries'){await member(ctx.book,ctx.user,true);const b=z.object({text:z.string().max(12000)}).parse(args);const thinkingId=randomUUID();let seen=false,complete=false;const publish=(delta:string,status:'running'|'complete'|'stopped')=>{const event={id:thinkingId,label:'账单识别模型',delta,status};artifacts.thinking=updateThinking(artifacts.thinking,event);ctx.emit?.('thinking',event);};try{const result=await recognize(ctx.book,{text:b.text,images:ctx.images,useHistory:false,language:ctx.language},{signal:ctx.signal,onStage:s=>ctx.emit?.('status',s),onReasoning:delta=>{if(delta){seen=true;publish(delta,'running');}}});complete=true;artifacts.drafts.push(...result.entries);return result;}finally{if(seen)publish('',complete?'complete':'stopped');}}
  if(name==='inspect_drafts'){const checked=await review(ctx.book,{entries:artifacts.drafts});artifacts.drafts=checked.entries;return {entries:checked.entries.map(e=>({...e,lineItemCheck:{knownSubtotal:(e.lineItems||[]).reduce((n,i)=>n+(i.amount??0),0),unknownPrices:(e.lineItems||[]).filter(i=>i.amount===null).length,paid:e.amount}})),note:'小计与实付的差异需要核对优惠或运费，不能自动修改实付。'};}
- if(name==='budget_and_subscriptions'){const b=z.object({month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)}).parse(args);return {budgets:(await db.query('SELECT category,amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2',[ctx.book,b.month])).rows,subscriptions:await allocations(ctx.book,'GET',{},new URLSearchParams({month:b.month})),currentAccounts:await listAccounts(ctx.book)};}
+ if(name==='budget_and_subscriptions'){const b=z.object({month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)}).parse(args);return {budgets:(await db.query('SELECT category,amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2',[ctx.book,b.month])).rows,subscriptions:await allocations(ctx.book,'GET',{},new URLSearchParams({month:b.month})),currentAccounts:await listAccounts(ctx.book,ctx.user.id)};}
+ if(name==='list_asset_scopes')return {personal:'personal',families:(await db.query('SELECT f.id,f.name FROM families f JOIN family_members m ON m.family_id=f.id WHERE m.user_id=$1',[ctx.user.id])).rows};
  const p=period.parse(args);const params=new URLSearchParams({...p,limit:'30'});
  if(name==='find_transactions'){const b=z.object({query:z.string().max(200).optional(),category:z.string().max(60).optional(),mode:z.enum(['contains','exact']).default('contains')}).parse(args);params.set('mode',b.mode);if(b.query)params.set('q',b.query);if(b.category)params.set('category',b.category);return report(ctx.book,params);}
- if(name==='account_cashflow')return accountReport(ctx.book,params);
+ if(name==='account_cashflow'){const scope=z.object({scope:z.string().optional()}).parse(args).scope;if(scope)params.set('scope',scope);return accountReport(ctx.user.id,params);}
  const data=await report(ctx.book,params);
  if(name==='financial_summary')return {period:p,totals:data.totals,categories:data.categories,daily:data.daily};
  if(name==='draw_chart'){const b=z.object({type:z.enum(['bar','line','pie']),dimension:z.enum(['category','daily_expense','daily_income','monthly_expense','monthly_income']),title:z.string().min(1).max(80)}).parse(args);const points=financeChartData(data,b.dimension,p.from,p.to);if(b.type==='pie'&&points.some((x:any)=>x.value<0))throw new Error('净退款产生负数，请改用柱状图呈现，不能丢掉负数');const chart:ChartArtifact={id:randomUUID(),type:b.type,title:b.title,...p,unit:deployment().currency,data:points};artifacts.charts.push(chart);return chart;}
@@ -43,7 +45,7 @@ export type FinanceContext={language?:'en'|'zh-CN';book:string;user:User;questio
 const specialists={
  recognition:{label:'账单识别助手',tools:['prepare_entries','inspect_drafts'],prompt:'负责读取订单、支付流水和跨图商品明细。原文和图片是证据；调用prepare_entries获得草稿，必要时核对明细。只总结识别结果与待补充字段，不编造任何金额或商品。'},
  reconciliation:{label:'账目核对助手',tools:['find_transactions','inspect_drafts','financial_summary'],prompt:'负责疑似重复、退款和金额差异的核对。先查工具证据，区分同价的不同交易与同订单重复截图。审核已准备草稿时调用inspect_drafts。只有支付或退款实际到账才计入；不删除交易、不自动合并、不把退款当收入。信息不足时明确告诉总助手需要用户补充什么。'},
- analysis:{label:'财务分析助手',tools:['account_cashflow','financial_summary','find_transactions','budget_and_subscriptions','draw_chart'],prompt:'负责按真实数据分析财务状况、订阅分摊、预算与趋势，生成图表并形成建议。图表必须调用draw_chart。区分当前余额与历史月末余额；不要把商品小计再计入整单支出。'}
+ analysis:{label:'财务分析助手',tools:['list_asset_scopes','account_cashflow','financial_summary','find_transactions','budget_and_subscriptions','draw_chart'],prompt:'负责按真实数据分析财务状况、订阅分摊、预算与趋势，生成图表并形成建议。图表必须调用draw_chart。区分当前余额与历史月末余额；不要把商品小计再计入整单支出。'}
 } as const;
 type Role=keyof typeof specialists;
 const delegationTools=(Object.keys(specialists) as Role[]).map(role=>tool('delegate_'+role,'委派'+specialists[role].label+'：'+specialists[role].prompt,{task:{type:'string',description:'具体任务、范围及已有证据；不能伪造用户输入'}},['task']));

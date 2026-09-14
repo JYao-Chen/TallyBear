@@ -56,3 +56,9 @@ Use PostgreSQL, Node.js 22, `npm ci`, `.env` and `node --env-file=.env scripts/i
 Renaming a source directory or service does not migrate money or user accounts. Preserve the existing database, persistent image directory, encryption key and language/currency values. Stop web and worker before moving their working directory; update service working directories, environment-file paths, absolute image-storage paths, backup jobs and any deployment scripts together. Then start the renamed services and verify `/api/health` and a saved attachment.
 
 Existing database roles/names and browser storage keys may retain legacy internal names. Do not recreate a database or change an encryption key merely to rename them. New Compose deployments use `tallybear` names. The `scripts/backup.sh` and `restore-drill.sh` helpers target standalone installations with local receipt storage; their database container/user/name can be set with `DB_CONTAINER`, `DB_USER`, `DB_NAME`. Compose users should use the volume-aware backup steps above.
+
+## Person and family asset ownership
+
+The ownership migration in `scripts/schema.sql` removes account/book coupling. Back up the database before upgrading. Personal balances are private; family members manage family assets. Existing explicitly linked wallets consolidate into one asset. Unlinked accounts with matching names remain separate. Books classify transactions; moving or reusing an entry preserves its payment account. Old releases require their matching pre-migration database.
+
+Use `scripts/asset-ownership-smoke.ts` against an isolated database initialized with the current schema to check ownership, permissions, reuse, moves, reports and balance reconciliation.

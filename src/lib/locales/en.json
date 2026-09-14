@@ -1059,5 +1059,22 @@
   "记录已变化，请重新打开移动窗口": "The records have changed. Reopen the move dialog.",
   "请为每个资金账户选择目标账户": "Choose a destination for every funding account",
   "转出与转入账户必须不同": "The outgoing and incoming accounts must be different",
-  "目标账本已有相同流水或关联记录，请先核对": "The destination already has this payment or linked record. Review it first."
+  "目标账本已有相同流水或关联记录，请先核对": "The destination already has this payment or linked record. Review it first.",
+  "资金资产": "Assets",
+  "资产归属": "Asset owner",
+  "我的资产": "My assets",
+  "家庭资产": "Family assets",
+  "归属：我个人": "Owned by me",
+  "归属家庭：": "Family: ",
+  "当前资产净值": "Net assets",
+  "当前资产范围": "Selected assets",
+  "账户余额": "Account balance",
+  "实际付款账户保持不变，资产余额不受移动影响。": "The payment account and asset balance remain unchanged.",
+  "保留实际付款账户，同一笔交易只扣款一次。": "Keep the original payment account. The transaction affects its balance only once.",
+  "个人资产": "Personal assets",
+  "没有此资产的管理权限": "You cannot manage this asset.",
+  "只有家庭成员可以管理家庭资产": "Only family members can manage family assets.",
+  "请选择自己的资产或已加入家庭的共同资产": "Choose your own account or an asset belonging to a family you have joined.",
+  "只有资产所有者或家庭成员可以修改实际收付款信息": "Only the asset owner or a family member can change payment details.",
+  "资产归属个人或家庭，与账本无关。记账时选择实际付款账户和记入账本；移动或复用账单不会重复扣款。个人余额仅本人可见，家庭资产由家庭成员共同管理。信用卡欠款填写负数。": "Assets belong to a person or family, independently of books. Choose the actual payment account and a book when recording a transaction. Moving or reusing it does not charge the account again. Personal balances are private; family members manage family assets. Enter credit card debt as a negative balance."
 }
