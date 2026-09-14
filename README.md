@@ -104,6 +104,35 @@ Choose the Bubu & Yier theme for warm colors and **564 animated stickers**, or s
 
 </details>
 
+## Technology & AI architecture
+
+TallyBear combines a **Next.js full-stack app, PostgreSQL and a dedicated job worker**. The UI and API share TypeScript domain types. Transactions, permissions, job progress and reports live in PostgreSQL; Sharp compresses images into persistent attachment storage.
+
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Interface | React · Next.js App Router | Responsive entry, draft review, conversations and book management |
+| Business & data | Next.js API · PostgreSQL | Permissions, transactional writes, balances, cost allocation and deduplicated totals |
+| AI collaboration | LangGraph · tool calling | A supervisor delegates receipt reading, reconciliation and analysis |
+| Background execution | Node.js worker · PostgreSQL queue | Durable jobs, progress, retries and configurable concurrency |
+| Artifacts & images | Recharts · Markdown · Sharp | Conversational charts, saved reports and compressed vouchers |
+
+### A supervisor with specialist agents
+
+Conversations use a **supervisor + specialists** architecture. Each agent follows a LangGraph loop of model decisions, tool execution and follow-up decisions. The supervisor answers simple questions with tools or delegates focused tasks, then uses the returned evidence to continue or summarize.
+
+| Agent | Capabilities | What you get |
+|---|---|---|
+| Supervisor | Understand requests, select tools, delegate and synthesize | One continuous conversation about your finances |
+| Recognition | Read images and text; assemble orders across images | Merchant titles, line items, discounts and editable drafts |
+| Reconciliation | Inspect drafts, find duplicates, check refunds and totals | Reviewable differences, duplicate matches and linking suggestions |
+| Analysis | Query transactions, accounts, budgets and allocations; draw charts | Data-backed explanations, charts and reports |
+
+**AI interprets the content; business tools calculate the money.** Chart tools query ledger aggregates directly, and amounts use integer minor units. Models select useful questions and explain results. Receipt processing combines structured extraction with amount checks to produce reviewable entries.
+
+Specialists share the current drafts and previous findings through the supervisor. The background queue processes concurrent jobs, while conversations display processing stages, tool activity and streamed answers. Work continues between visits. Provider endpoints, text and vision models, and queue concurrency are configurable.
+
+The result connects **capture → reconcile → save → analyze**: less manual transcription, visible duplicate and amount checks before confirmation, and financial questions turned into charts and reports you can keep.
+
 ## Get started
 
 You’ll need **Docker Compose v2** and **Node.js 22** for the setup helper.

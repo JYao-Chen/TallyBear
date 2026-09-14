@@ -48,3 +48,13 @@ The concurrency setting limits processing jobs; it is not a promise of unlimited
 Receipt vouchers are optional. Extra transaction photos are separate from OCR inputs and can be attached without recognition. The server compresses supported images for storage; long-image recognition also prepares suitable model inputs. Higher resolution does not mean lossless storage. Keep source originals separately when exact archival fidelity matters.
 
 原始凭证与额外生活照片可以分别选择是否保留。保存会进行压缩；识别所需的切片与压缩图不代表原始上传文件被无损归档。对档案保真有要求时，请自行保留原文件。
+
+## Category order and moving records / 分类排序与账单移动
+
+In **Book settings**, use **Reorder** to drag categories or move them with the arrow buttons, then save the order. Each category card has a delete action. Existing transactions keep their category label.
+
+Open a saved transaction and choose **Move to book**. Select the destination book and map each funding account. The original purchase and linked refunds move together, including items, vouchers, photos and allocation settings. The operation removes the records from the source book; use **Record in another book too** to keep them in both. Recurring plans retain their original book settings.
+
+在 **账本设置** 点击 **调整顺序**，拖动分类或使用前后箭头，完成后保存顺序。分类卡片可直接删除；历史账目保留原分类名称。
+
+打开已保存账单，点击 **移动到账本**，选择目标账本及对应资金账户。原消费和关联退款、商品明细、凭证、附图及分摊设置一起移动。移动后原账本不再保留该记录；若需要两本都保留，使用 **同时记入另一本账本**。周期计划继续使用原账本设置。

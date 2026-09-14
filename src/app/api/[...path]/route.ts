@@ -1,3 +1,4 @@
+import {moveEntry,movePreview} from '@/server/move-entry';
 import {deployment} from '@/lib/deployment';
 import {checkDeploymentCurrency} from '@/server/deployment';
 import {language,translate} from '@/lib/i18n';
@@ -90,6 +91,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  }
  const book=uuid.parse(path[1]);const resource=path[2];await member(book,u,method!=='GET'&&resource!=='chat',['members','metadata'].includes(resource)&&method!=='GET');
  if(resource==='chat'){const result=await financeChat(book,u,method,body,req.nextUrl.searchParams,req.signal);return result instanceof Response?result:NextResponse.json(result);}
+ if(resource==='move'){if(method==='GET')return NextResponse.json(await movePreview(book,req.nextUrl.searchParams.get('id')||''));if(method==='POST')return NextResponse.json(await moveEntry(book,u.id,body));}
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));

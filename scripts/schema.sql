@@ -130,3 +130,5 @@ ALTER TABLE families ADD COLUMN IF NOT EXISTS avatar text NOT NULL DEFAULT '🏡
 CREATE TABLE IF NOT EXISTS deployment_settings (
  id integer PRIMARY KEY CHECK(id=1), currency text NOT NULL CHECK(currency IN ('CNY','USD','EUR','GBP'))
 );
+
+ALTER TABLE category_preferences ADD COLUMN IF NOT EXISTS position integer;

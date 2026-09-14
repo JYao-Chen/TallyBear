@@ -1,0 +1,17 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {FolderInput} from 'lucide-react';
+import {useI18n} from './LanguageProvider';
+import {Sheet} from './Sheet';
+import {VisualSelect} from './VisualSelect';
+import {accountLabel} from '@/lib/accounts';
+import type {ManagedBook} from './ManagementPages';
+type Account={id:string;name:string;archived?:boolean};
+type Preview={records:{id:string;version:number;title:string;deleted:boolean}[];accounts:Account[]};
+export function MoveEntry({book,id,books,onSaved}:{book:string;id:string;books:ManagedBook[];onSaved:()=>void}){
+ const {t:tr}=useI18n();const [open,setOpen]=useState(false),[preview,setPreview]=useState<Preview|null>(null),[target,setTarget]=useState(''),[accounts,setAccounts]=useState<Account[]>([]),[mapping,setMapping]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{if(!open)return;const c=new AbortController();setPreview(null);setError('');fetch(`/api/books/${book}/move?id=${id}`,{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);setPreview(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[open,book,id]);
+ useEffect(()=>{setAccounts([]);setMapping({});if(!target)return;const c=new AbortController();fetch(`/api/books/${target}/accounts`,{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);setAccounts(d.filter((a:Account)=>!a.archived));}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[target]);
+ async function save(){if(!preview)return;setBusy(true);setError('');try{const r=await fetch(`/api/books/${book}/move`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,targetBook:target,accounts:mapping,versions:Object.fromEntries(preview.records.map(r=>[r.id,r.version]))})});const d=await r.json();if(!r.ok)throw new Error(d.error);setOpen(false);onSaved();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ return <><button type="button" className="secondary" onClick={()=>setOpen(true)}><FolderInput size={18}/>{tr('移动到账本')}</button>{open&&<Sheet title={tr('移动到账本')} onClose={()=>{if(!busy)setOpen(false);}}><p>{tr('移动后，记录从当前账本移出，目标账本成员可以查看。')}</p>{preview&&<><div className="move-records">{preview.records.filter(r=>!r.deleted).map(r=><div key={r.id}>{r.title}</div>)}</div>{preview.records.length>1&&<p>{tr('关联的原消费与退款一起移动。')}</p>}<label>{tr('目标账本')}<VisualSelect label={tr('目标账本')} disabled={busy} value={target} onChange={setTarget} options={books.filter(b=>b.id!==book&&b.role!=='viewer').map(b=>({value:b.id,label:b.name,icon:b.icon}))}/></label>{target&&preview.accounts.map(a=><label key={a.id}>{tr('「{0}」对应的目标账户',[accountLabel(a)])}<VisualSelect label={tr('目标资金账户')} disabled={busy} value={mapping[a.id]||''} onChange={value=>setMapping(v=>({...v,[a.id]:value}))} options={accounts.map(a=>({value:a.id,label:accountLabel(a),account:true}))}/></label>)}<details className="usage-help"><summary>{tr('移动内容')}</summary><p>{tr('商品明细、图片凭证、生活附图与费用分摊一起移动；周期计划继续使用原来的账本设置。')}</p></details></>}{error&&<p className="error" role="alert">{tr(error)}</p>}<div className="sheet-actions"><button className="secondary" disabled={busy} onClick={()=>setOpen(false)}>{tr('取消')}</button><button disabled={busy||!target||!preview||preview.accounts.some(a=>!mapping[a.id])} onClick={save}>{busy?tr('正在移动…'):tr('确认移动')}</button></div></Sheet>}</>;
+}
