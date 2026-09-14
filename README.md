@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="public/brand/tallybear-logo.png" width="140" alt="TallyBear" />
+<img src="public/brand/tallybear-logo.png" width="140" alt="TallyBear — Bubu & Yier bear-themed AI bookkeeping" />
 
 # TallyBear
 
 **Your receipts, understood. Your finances, in view.**
 
-An AI-powered home for personal and family finances.
-Self-hosted · Itemized receipts · Financial conversations · Bear companions
+An AI-powered personal and family finance app with a **Bubu & Yier (布布一二 / 一二布布) bear theme**.
+Self-hosted · Itemized receipts · Financial conversations · Bubu & Yier companions
 
 English · [简体中文](README.zh-CN.md)
 
@@ -18,6 +18,8 @@ English · [简体中文](README.zh-CN.md)
 [Get started](#get-started) · [Explore the features](#from-receipt-to-insight) · [Deployment guide](docs/deployment.md) · [Latest release](https://github.com/JYao-Chen/TallyBear/releases)
 
 </div>
+
+**Bookkeeping with Bubu & Yier.** White and brown bear illustrations, animated stickers and customizable category icons bring a playful touch to everyday finances. Choose the bear theme or switch to a clean, minimal interface.
 
 ![Spending analysis](docs/screenshots/desktop-analysis.png)
 

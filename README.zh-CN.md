@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="public/brand/tallybear-logo.png" width="140" alt="TallyBear" />
+<img src="public/brand/tallybear-logo.png" width="140" alt="TallyBear — 布布一二主题 AI 记账" />
 
 # TallyBear
 
 **让 AI 读懂账单，让每一笔生活清晰可见。**
 
-AI 驱动的个人与家庭记账应用。
-自主部署 · 精细记账 · 财务对话 · 小熊陪伴
+带有 **布布一二（一二布布）小熊主题**的 AI 个人与家庭记账应用。
+自主部署 · 精细记账 · 财务对话 · 布布一二陪伴
 
 [English](README.md) · 简体中文
 
@@ -18,6 +18,8 @@ AI 驱动的个人与家庭记账应用。
 [开始使用](#开始使用) · [探索功能](#从一张账单到一份洞察) · [部署指南](docs/deployment.md) · [版本下载](https://github.com/JYao-Chen/TallyBear/releases)
 
 </div>
+
+**和布布、一二一起记账。** 白熊与棕熊插画、动态表情包和可自定义的分类图标，让日常记账多一点可爱。可以选择布布一二主题，也可以切换为简洁的无小熊界面。
 
 ![收支分析：收入、支出与消费构成](docs/screenshots/zh-desktop-analysis.png)
 
