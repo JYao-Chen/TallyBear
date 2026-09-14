@@ -117,7 +117,7 @@ APP_CURRENCY=CNY
 docker compose up -d --build
 ```
 
-打开 **http://localhost:3016**，使用 `.env` 中的 `ADMIN_USERNAME` 与自动生成的 `ADMIN_PASSWORD` 登录，创建第一本账本即可开始记录。
+打开 [**localhost:3016**](http://localhost:3016)，使用 `.env` 中的 `ADMIN_USERNAME` 与自动生成的 `ADMIN_PASSWORD` 登录，创建第一本账本即可开始记录。
 
 <details>
 <summary><strong>语言、币种与公网部署</strong></summary>

@@ -126,7 +126,7 @@ APP_CURRENCY=USD
 docker compose up -d --build
 ```
 
-Open **http://localhost:3016**. Sign in with `ADMIN_USERNAME` and the generated `ADMIN_PASSWORD` from `.env`, create your first book, and start recording.
+Open [**localhost:3016**](http://localhost:3016). Sign in with `ADMIN_USERNAME` and the generated `ADMIN_PASSWORD` from `.env`, create your first book, and start recording.
 
 <details>
 <summary><strong>Language, currency & public deployment</strong></summary>
