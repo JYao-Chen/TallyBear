@@ -55,6 +55,10 @@ Upload multiple images or a long screenshot. TallyBear groups related orders, ex
 - **Refunds** — full or partial refunds linked to the original purchase.
 - **Search & memories** — search merchants, categories and individual items; attach compressed vouchers or everyday photos.
 
+### Consistent entries for everyday spending
+
+Transport, dining, shopping and groceries share structured forms across AI drafts, manual entry and saved presets. Stations, merchants, branches, meal types and product summaries produce concise titles while unknown facts stay blank. Optional preference matching selects relevant, deduplicated examples from the current book and your presets; the model resolves category ambiguity without filling missing prices or routes from history.
+
 ### A conversation that works with your books
 
 > “Compare this month with last month, show where spending changed, and save a report.”

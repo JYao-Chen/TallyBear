@@ -180,3 +180,5 @@ END $$;
 CREATE INDEX IF NOT EXISTS accounts_owner_idx ON accounts(owner_id);
 CREATE INDEX IF NOT EXISTS accounts_family_idx ON accounts(family_id);
 COMMIT;
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS scene jsonb NOT NULL DEFAULT '{}'::jsonb;

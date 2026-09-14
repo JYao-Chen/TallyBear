@@ -24,11 +24,11 @@ export async function executeJob(job:any){
   const user=(await db.query('SELECT id,username,name,admin,avatar,theme FROM users WHERE id=$1 AND NOT disabled',[job.user_id])).rows[0] as User;if(!user)throw new Error('用户已停用');
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');
   emit('status',job.kind==='assistant'?'正在识别订单与商品明细':job.kind==='chat'?'正在分析问题':'正在测试连接');
-  if(job.kind==='assistant')result=await recognize(job.book_id,job.payload,{signal,onDelta:t=>emit('delta',t),onStage:s=>emit('status',s),checkpoint:{get:async key=>(await db.query('SELECT result FROM ai_job_steps WHERE job_id=$1 AND step=$2',[job.id,key])).rows[0]?.result,set:async(key,value)=>{await db.query('INSERT INTO ai_job_steps VALUES($1,$2,$3) ON CONFLICT(job_id,step) DO UPDATE SET result=$3',[job.id,key,JSON.stringify(value)]);}}});
+  if(job.kind==='assistant')result=await recognize(job.book_id,job.payload,{signal,onDelta:t=>emit('delta',t),onStage:s=>emit('status',s),checkpoint:{get:async key=>(await db.query('SELECT result FROM ai_job_steps WHERE job_id=$1 AND step=$2',[job.id,key])).rows[0]?.result,set:async(key,value)=>{await db.query('INSERT INTO ai_job_steps VALUES($1,$2,$3) ON CONFLICT(job_id,step) DO UPDATE SET result=$3',[job.id,key,JSON.stringify(value)]);}}},user.id);
   else if(job.kind==='connection'){if(!user.admin)throw new Error('需要管理员权限');result=await testModelConnections({signal,onStage:s=>emit('status',s)});}
   else if(job.kind==='chat'){
    const b=job.payload;const prior=(await db.query("SELECT question,answer FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
-   result=await runFinanceAgent({language:b.language,book:job.book_id,user,question:b.text||'请识别附图账单并整理待确认草稿',month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
+   result=await runFinanceAgent({useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:b.text||'请识别附图账单并整理待确认草稿',month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
    if(!result.text&&!result.artifacts.charts.length&&!result.artifacts.drafts.length)throw new Error('模型未生成可用回答');
   }else throw new Error('任务类型无效');
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');

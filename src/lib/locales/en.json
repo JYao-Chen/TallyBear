@@ -782,7 +782,7 @@
   "例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元": "e.g. Today I spent CNY 86.50 on groceries and CNY 18 on coffee using my wallet",
   "添加订单 / 流水图片": "Add order / Statement images",
   "自动分批识别 · 支持长截图": "Automatic batching · Long screenshots supported",
-  "允许模型参考当前账本最近60条商家与分类记录": "Allow the model to reference the last 60 merchants and categories in this book",
+  "允许模型参考当前账本最近60条商家与分类记录": "Use relevant merchants and category preferences from this book",
   "提交后会将输入内容和授权历史发送给已配置模型。照片不设张数和文件体积上限。系统分批读取后统一核对合并；新结果追加到待确认草稿；重复识别会提示跳过，已有修改会保留。": "Your input and authorized history are sent to the configured model. There is no image count or file-size limit. Images are processed in batches, then reconciled and merged. New results append to drafts; duplicate recognition prompts you to skip, and existing edits are preserved.",
   "等待模型响应": "Waiting for the model",
   "转到后台继续": "Continue in background",
@@ -1138,5 +1138,18 @@
   "路线或备注": "Route or notes",
   "例如：家附近站 → 公司站，单程4元": "For example: home station → office station, one-way fare 4",
   "保存预设不会新增账单。点选预设后自动填写今天的日期，确认保存才入账。": "Saving a preset does not create an entry. Tap it to fill today’s date, then confirm to record the transaction.",
-  "保存预设": "Save preset"
+  "保存预设": "Save preset",
+  "消费场景": "Spending context",
+  "通用": "General",
+  "交通出行": "Transport",
+  "交通方式": "Transport mode",
+  "始发站": "Departure station",
+  "终点站": "Arrival station",
+  "商家简称": "Merchant name",
+  "门店": "Branch",
+  "用餐类型": "Meal type",
+  "商品概括": "Product category",
+  "未识别可留空": "Leave blank if unknown",
+  "参考相关记账习惯": "Use relevant bookkeeping preferences",
+  "交易时间（选填）": "Transaction time (optional)"
 }
