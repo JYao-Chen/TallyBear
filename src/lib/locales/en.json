@@ -1123,5 +1123,20 @@
   "没有这些钱包的管理权限": "You cannot manage these wallets.",
   "只能合并同一个人或同一个家庭的钱包": "Merge wallets belonging to the same person or family.",
   "钱包余额或信息已变化，请刷新后重新合并": "Wallet balances or details changed. Refresh before merging.",
-  "两个钱包之间有转账，请先处理这些转账后再合并": "There are transfers between these wallets. Resolve those transfers before merging."
+  "两个钱包之间有转账，请先处理这些转账后再合并": "There are transfers between these wallets. Resolve those transfers before merging.",
+  "新增预设": "New preset",
+  "把通勤、早餐、工资存成预设，下次点选即可填写。": "Save commutes, breakfast or salary as presets and tap to fill next time.",
+  "请选择可用的资金账户": "Choose an available account.",
+  "新增记账预设": "New entry preset",
+  "预设名称": "Preset name",
+  "例如：上班地铁、下班地铁、每月工资": "For example: morning commute, evening commute, salary",
+  "预设收支类型": "Preset type",
+  "预设分类": "Preset category",
+  "预设资金账户": "Preset payment account",
+  "请先在资金资产中添加一个钱包，再保存预设。": "Add a wallet in Assets before saving a preset.",
+  "例如：上班地铁": "For example: morning commute",
+  "路线或备注": "Route or notes",
+  "例如：家附近站 → 公司站，单程4元": "For example: home station → office station, one-way fare 4",
+  "保存预设不会新增账单。点选预设后自动填写今天的日期，确认保存才入账。": "Saving a preset does not create an entry. Tap it to fill today’s date, then confirm to record the transaction.",
+  "保存预设": "Save preset"
 }

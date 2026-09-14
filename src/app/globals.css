@@ -196,3 +196,4 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 .organize-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.organize-options button{padding:12px 8px;white-space:normal}
 .move-records{max-height:230px;overflow:auto;overflow-wrap:anywhere}.move-records>div{padding:8px 0;border-bottom:1px solid var(--border,#e9e1d9)}
 @media(max-width:600px){.records-actions{gap:10px}.records-actions>button:last-child{flex-basis:100%}.transaction-selectable{gap:8px}.organize-options button{font-size:.8rem}.entry-destination{padding:12px}}
+.template-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.template-toolbar .secondary{white-space:nowrap}.template-panel> .muted{margin:8px 0;font-size:.85rem}.template-panel fieldset{border:0;padding:0;min-width:0}
