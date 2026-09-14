@@ -185,3 +185,14 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 .category-manager .category-card-actions button{min-height:44px;min-width:36px;flex:1;flex-direction:row;justify-content:center;padding:6px;background:transparent;font-size:12px;border-radius:8px}
 .category-manager .category-card-actions button:hover{transform:none;background:var(--soft)}
 .category-manager .category-card-actions button{color:var(--muted)}
+
+/* Book assignment stays beside the entry, independent of the payment asset. */
+.entry-destination{padding:16px;background:var(--surface-soft,#f5f1eb);border-radius:16px;margin-bottom:24px;min-width:0}
+.entry-destination>label{margin:0}.entry-destination p{margin:10px 0 0;font-size:.85rem}
+.records-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 0;border-bottom:1px solid var(--border,#e9e1d9)}
+.records-actions .check{margin:0}.records-actions>span{font-size:.85rem;color:var(--muted,#7c746d)}
+.transaction-selectable{display:flex;align-items:center;gap:12px;min-width:0}.transaction-selectable>.transaction{flex:1;min-width:0;width:100%}
+.record-checkbox{width:20px!important;height:20px!important;flex:0 0 20px;accent-color:var(--accent,#355f58);margin:0 0 0 4px}
+.organize-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.organize-options button{padding:12px 8px;white-space:normal}
+.move-records{max-height:230px;overflow:auto;overflow-wrap:anywhere}.move-records>div{padding:8px 0;border-bottom:1px solid var(--border,#e9e1d9)}
+@media(max-width:600px){.records-actions{gap:10px}.records-actions>button:last-child{flex-basis:100%}.transaction-selectable{gap:8px}.organize-options button{font-size:.8rem}.entry-destination{padding:12px}}
