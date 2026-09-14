@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createElement as h} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {calendarDays,validCalendarValue} from '../src/lib/calendar';
+import {DateField} from '../src/components/DateField';
+test('manual date validation rejects rollover and incomplete values',()=>{assert.ok(validCalendarValue('2024-02-29','date'));assert.equal(validCalendarValue('2025-02-29','date'),false);assert.equal(validCalendarValue('2026-04-31','date'),false);assert.equal(validCalendarValue('2026-13','month'),false);assert.equal(validCalendarValue('26-09','month'),false);assert.ok(validCalendarValue('2026-09','month'));});
+test('calendar is Monday first and covers adjacent months without missing days',()=>{const days=calendarDays(2026,8);assert.equal(days.length,42);assert.equal(days[0].value,'2026-08-31');assert.equal(days.filter(d=>d.current).length,30);assert.equal(new Set(days.map(d=>d.value)).size,42);const leap=calendarDays(2024,1);assert.equal(leap.filter(d=>d.current).length,29);});
+test('date field preserves form values and required semantics without native popup',()=>{const html=renderToStaticMarkup(h(DateField,{type:'date',name:'date',defaultValue:'2026-09-13',required:true}));const input=html.match(/<input[^>]*>/)![0];for(const attribute of ['hidden=""','type="date"','name="date"','required=""','value="2026-09-13"'])assert.ok(input.includes(attribute));assert.match(html,/<button type="button"[^>]*aria-haspopup="dialog"/);});
+test('controlled month wins over default and disabled state reaches trigger',()=>{const html=renderToStaticMarkup(h(DateField,{type:'month',name:'month',value:'2026-10',defaultValue:'2026-09',disabled:true}));assert.match(html,/value="2026-10"/);assert.match(html,/<button[^>]*disabled=""/);assert.doesNotMatch(html,/value="2026-09"/);});

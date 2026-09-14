@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS category_preferences(book_id uuid REFERENCES books ON DELETE CASCADE,name text NOT NULL,icon text NOT NULL DEFAULT '🧸',archived boolean NOT NULL DEFAULT false,PRIMARY KEY(book_id,name));
+CREATE TABLE IF NOT EXISTS entry_templates(id uuid PRIMARY KEY,book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,name text NOT NULL,value jsonb NOT NULL,version integer NOT NULL DEFAULT 1,created_at timestamptz NOT NULL DEFAULT now());

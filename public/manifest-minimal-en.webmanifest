@@ -1,0 +1,17 @@
+{
+  "name": "TallyBear",
+  "short_name": "TallyBear",
+  "lang": "en",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#f5f7fa",
+  "icons": [
+    {
+      "src": "/ledger-minimal.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

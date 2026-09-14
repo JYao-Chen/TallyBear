@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {lineItemsSchema,settlementTotals,verifyItemTotal} from '../src/lib/line-items';
+import {entry} from '../src/server/model';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {createElement} from 'react';
+import {TransactionList} from '../src/components/TransactionList';
+test('105 less 5 is 100; only the paid amount is reconciled',()=>{const items=lineItemsSchema.parse([{name:'商品',amount:10500,kind:'item'},{name:'抹零',amount:-500,kind:'discount'}]);assert.deepEqual(settlementTotals(items),{goods:10500,discount:500,fees:0,net:10000,missing:0});assert.equal(verifyItemTotal(items,10000).status,'verified');assert.equal(verifyItemTotal(items,10500).status,'mismatch');});
+test('fees, multiple discounts, and unknown values remain distinct',()=>{const items=lineItemsSchema.parse([{name:'商品',amount:10500},{name:'优惠券',kind:'discount',amount:-300},{name:'抹零',kind:'discount',amount:-200},{name:'配送',kind:'fee',amount:600}]);assert.equal(verifyItemTotal(items,10600).status,'verified');assert.equal(settlementTotals(items).discount,500);assert.equal(verifyItemTotal([...items,{name:'未知',quantity:null,unitPrice:null,amount:null}],10600).status,'incomplete');assert.throws(()=>lineItemsSchema.parse([{name:'优惠',kind:'discount',amount:500}]));});
+test('merchant is the fallback title; explicit manual title wins over product details',()=>{const row={id:'test',title:'',payee:'七鲜',product:'牛奶鸡蛋水果洗衣液等一长串',category:'购物',amount:10000,kind:'expense',account_name:'微信',date:'2026-09-13',note:''} as any;let html=renderToStaticMarkup(createElement(TransactionList,{rows:[row],onSelect:()=>{}}));assert.match(html,/查看七鲜详情/);html=renderToStaticMarkup(createElement(TransactionList,{rows:[{...row,title:'周末买菜'}],onSelect:()=>{}}));assert.match(html,/查看周末买菜详情/);});

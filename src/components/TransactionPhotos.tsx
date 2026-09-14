@@ -1,0 +1,11 @@
+'use client';
+import {useI18n} from './LanguageProvider';
+import {useRef,useState} from 'react';
+import {ImagePlus,X} from 'lucide-react';
+import {uploadReceipt} from '@/lib/upload-receipt';
+export function TransactionPhotos({book,ids,onChange,disabled=false,onBusy}:{book:string;ids:string[];onChange?:(ids:string[])=>void|Promise<void>;disabled?:boolean;onBusy?:(busy:boolean)=>void}){const {t:tr,locale}=useI18n();
+ const [busy,setBusy]=useState(false),[error,setError]=useState('');const working=useRef(false);
+ async function change(next:string[]){if(working.current)return;working.current=true;setBusy(true);onBusy?.(true);setError('');try{await onChange?.(next);}catch(e){setError(e instanceof Error?e.message:'保存未完成');}finally{working.current=false;setBusy(false);onBusy?.(false);}}
+ async function upload(files:File[]){if(working.current)return;working.current=true;setBusy(true);onBusy?.(true);setError('');let next=[...ids];try{for(const file of files){const saved=await uploadReceipt(book,file,'photo');next=[...next,saved.data.split('/').at(-1)!];await onChange?.(next);}}catch(e){setError(e instanceof Error?e.message:'图片上传未完成');}finally{working.current=false;setBusy(false);onBusy?.(false);}}
+ return <section className="transaction-photos"><div className="panel-title"><strong>{tr("生活附图")}<small className="muted">{tr("选填")}</small></strong>{onChange&&<label className="upload"><ImagePlus size={18}/>{busy?tr("保存中…"):tr("添加照片")}<input type="file" accept="image/png,image/jpeg,image/webp" multiple disabled={(disabled || busy)} onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';void upload(files);}}/></label>}</div>{!!ids.length&&<div className="life-photo-grid">{ids.map((id,i)=><figure key={id}><a href={('/api/receipts/' + id)} target="_blank" rel="noreferrer"><img loading="lazy" src={('/api/receipts/' + id)} alt={tr("生活附图 {0}",[i+1])}/></a>{onChange&&<button type="button" className="photo-remove" aria-label={tr("移除附图 {0}",[i+1])} disabled={(busy || disabled)} onClick={()=>void change(ids.filter(v=>v!==id))}><X size={16}/></button>}</figure>)}</div>}{onChange&&<details className="usage-help"><summary>{tr("图片保存方式")}</summary><p>{tr("菜品、商品等照片随账目保存，不用于自动识别。最长边保留至3840像素，以高质量WebP压缩，小图不放大。点击照片可查看大图。")}</p></details>}{error&&<p role="alert" className="error">{tr(error)}</p>}</section>;
+}

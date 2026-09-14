@@ -1,0 +1,56 @@
+name: tallybear
+x-app-environment: &app-environment
+  DATABASE_URL: postgres://tallybear:${POSTGRES_PASSWORD:?Run npm run setup first}@db:5432/tallybear
+  APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3016}
+  APP_LANGUAGE: ${APP_LANGUAGE:-en}
+  APP_CURRENCY: ${APP_CURRENCY:-USD}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Run npm run setup first}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_NAME: ${ADMIN_NAME:-Admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Run npm run setup first}
+  RECEIPT_DIR: /app/data/receipts
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tallybear
+      POSTGRES_DB: tallybear
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run setup first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U tallybear -d tallybear']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  init:
+    build: .
+    image: tallybear:1.0.0
+    command: [node, scripts/init.mjs]
+    environment: *app-environment
+    depends_on:
+      db: {condition: service_healthy}
+    restart: 'no'
+  web:
+    image: tallybear:1.0.0
+    environment: *app-environment
+    ports:
+      - '127.0.0.1:${APP_PORT:-3016}:3016'
+    volumes:
+      - receipts:/app/data/receipts
+    depends_on:
+      init: {condition: service_completed_successfully}
+    restart: unless-stopped
+  worker:
+    image: tallybear:1.0.0
+    command: [node, worker.mjs]
+    environment: *app-environment
+    volumes:
+      - receipts:/app/data/receipts
+    depends_on:
+      init: {condition: service_completed_successfully}
+    restart: unless-stopped
+volumes:
+  database:
+  receipts:

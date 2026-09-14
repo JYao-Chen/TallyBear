@@ -1,0 +1,2 @@
+// The field expression and parameter placeholder are supplied by server code only.
+export function textMatch(fields:string,parameter:string,mode:string){return mode==='exact'?`EXISTS(SELECT 1 FROM unnest(${fields}) f WHERE lower(btrim(f))=lower(${parameter}))`:`NOT EXISTS(SELECT 1 FROM unnest(regexp_split_to_array(lower(${parameter}),'[[:space:]]+')) word WHERE NOT EXISTS(SELECT 1 FROM unnest(${fields}) f WHERE strpos(lower(f),word)>0))`;}

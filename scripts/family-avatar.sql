@@ -1,0 +1,1 @@
+ALTER TABLE families ADD COLUMN IF NOT EXISTS avatar text NOT NULL DEFAULT '🏡';

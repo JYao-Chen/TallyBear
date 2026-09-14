@@ -1,0 +1,1 @@
+export async function uploadReceipt(book:string,file:File,purpose='receipt'){const r=await fetch('/api/receipts?book='+encodeURIComponent(book)+'&purpose='+purpose,{method:'POST',headers:{'x-file-name':encodeURIComponent(file.name),'Content-Type':file.type},body:file});const d=await r.json();if(!r.ok)throw new Error(d.error||'图片上传未完成，请重试');return d as {name:string;data:string};}

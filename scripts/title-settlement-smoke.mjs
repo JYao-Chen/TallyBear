@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';import pg from 'pg';import {randomUUID,randomBytes,scryptSync} from 'node:crypto';
+const db=new pg.Client({connectionString:process.env.DATABASE_URL});await db.connect();const base=process.env.APP_ORIGIN,uid=randomUUID(),username='settle_'+uid.slice(0,8),password=randomBytes(16).toString('hex'),salt=randomBytes(16).toString('hex');let book;
+async function req(path,method='GET',body,cookie='',expected=200){const r=await fetch(base+'/api/'+path,{method,headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie},body:body?JSON.stringify(body):undefined});assert.equal(r.status,expected,r.status!==expected?await r.text():'');return {data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]};}
+try{await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$2,$3)',[uid,username,salt+':'+scryptSync(password,salt,64).toString('hex')]);const cookie=(await req('login','POST',{username,password})).cookie;book=(await req('books','POST',{name:'结算测试',kind:'private'},cookie)).data.id;const prefix='books/'+book;const account=(await req(prefix+'/accounts','GET',undefined,cookie)).data[0];
+const item={id:randomUUID(),title:'七鲜买菜',payee:'七鲜超市',product:'牛奶、鸡蛋、水果',accountId:account.id,kind:'expense',amount:10000,date:'2026-09-13',category:'餐饮',note:'',lineItems:[{kind:'item',name:'商品合计',amount:10500},{kind:'discount',name:'结算抹零',amount:-500}]};await req(prefix+'/transactions','POST',{entries:[item]},cookie);
+let r=(await req(prefix+'/report?from=2026-09-01&to=2026-09-30','GET',undefined,cookie)).data;assert.equal(r.rows[0].title,'七鲜买菜');assert.equal(r.totals.expense,10000);assert.equal(r.rows[0].line_items[1].amount,-500);
+await req(prefix+'/transactions','PUT',{...item,title:'周末采购',version:1},cookie);
+r=(await req('search?book='+book+'&q='+encodeURIComponent('周末采购'),'GET',undefined,cookie)).data;assert.equal(r.total,1);assert.equal(r.rows[0].title,'周末采购');
+await req(prefix+'/transactions','POST',{entries:[{...item,id:randomUUID(),amount:10500}]},cookie,400);
+assert.equal((await req(prefix+'/accounts','GET',undefined,cookie)).data[0].balance,-10000);
+console.log('PASS: title create/edit/report/search; 105-5=100 saved; mismatched total rejected; account debited only100');
+}finally{if(book){await db.query('DELETE FROM transactions WHERE book_id=$1',[book]);await db.query('DELETE FROM books WHERE id=$1',[book]);}await db.query('DELETE FROM users WHERE id=$1',[uid]);await db.query('DELETE FROM login_attempts WHERE username=$1',[username]);await db.end();}

@@ -1,0 +1,10 @@
+BEGIN;
+ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_kind_check;
+ALTER TABLE transactions ADD CONSTRAINT transactions_kind_check CHECK(kind IN ('income','expense','transfer','refund'));
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS platform text NOT NULL DEFAULT '';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS order_id text NOT NULL DEFAULT '';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS product text NOT NULL DEFAULT '';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS occurred_at text NOT NULL DEFAULT '';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT '';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS refund_of uuid REFERENCES transactions(id);
+COMMIT;

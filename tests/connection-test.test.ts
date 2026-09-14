@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {testModelConnections} from '../src/server/connection-test';
+test('text success does not hide a broken vision model',async()=>{const calls:boolean[]=[];const result=await testModelConnections({},async(_,image)=>{calls.push(!!image);if(image)throw new Error('vision not found');return {ok:true};});assert.deepEqual(calls,[false,true]);assert.equal(result.ok,false);assert.equal(result.checks[0].ok,true);assert.equal(result.checks[1].error,'vision not found');});
+test('vision test verifies content rather than only HTTP success',async()=>{const result=await testModelConnections({},async(_,image)=>image?{color:'blue'}:{ok:true});assert.equal(result.checks[1].ok,false);});

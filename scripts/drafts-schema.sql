@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS entry_drafts(book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,section text NOT NULL CHECK(section IN ('intake','images','manual')),value jsonb NOT NULL,version integer NOT NULL DEFAULT 1,updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(book_id,user_id,section));

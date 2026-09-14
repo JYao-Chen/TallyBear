@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {nextOccurrence} from '../src/lib/recurrence';
+test('月末周期经过二月仍恢复原31日',()=>{const feb=nextOccurrence('2026-01-31','monthly',31);assert.equal(feb,'2026-02-28');assert.equal(nextOccurrence(feb,'monthly',31),'2026-03-31');assert.equal(nextOccurrence('2026-12-31','monthly',31),'2027-01-31');});
+test('闰日年度周期与每周跨年',()=>{assert.equal(nextOccurrence('2024-02-29','yearly',29),'2025-02-28');assert.equal(nextOccurrence('2027-02-28','yearly',29),'2028-02-29');assert.equal(nextOccurrence('2026-12-29','weekly',29),'2027-01-05');});
