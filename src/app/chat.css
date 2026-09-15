@@ -47,3 +47,5 @@
 @media(prefers-reduced-motion:reduce){.composer-box,.composer-icon,.composer-send,.finance-suggestions button{transition:none}.composer-spinner{animation:none}.finance-suggestions button:hover{transform:none}}
 
 .finance-history-row{display:flex;align-items:center;gap:6px;min-width:0}.finance-history-row>button:first-child{flex:1;min-width:0}.finance-history .finance-history-row>.history-delete{display:grid;place-items:center;flex:none;width:40px;height:40px;min-height:40px;padding:0;border-radius:10px;color:var(--muted)}.finance-history .history-delete:hover{color:#b94343;background:#b9434310}
+
+.composer-tools .composer-scope{display:flex;align-items:center;gap:5px;min-height:36px;padding:6px 8px;background:var(--soft);color:var(--accent);border-radius:10px;font-size:12px;white-space:nowrap}.scope-shortcuts{display:flex;gap:8px;margin-bottom:12px}.scope-books{display:grid;gap:6px;margin-bottom:18px}.scope-books button{display:flex;align-items:center;gap:10px;text-align:left;background:var(--paper);color:var(--ink)}.scope-books button span{flex:1;overflow-wrap:anywhere}.scope-books button[aria-pressed=true]{background:var(--soft);color:var(--accent)}

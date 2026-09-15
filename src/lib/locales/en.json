@@ -1318,5 +1318,9 @@
   "正在上传图片…": "Uploading images…",
   "移除图片": "Remove image",
   "Enter 发送 · Shift + Enter 换行": "Enter to send · Shift + Enter for a new line",
-  "回到最新消息": "Latest messages"
+  "回到最新消息": "Latest messages",
+  "分析范围": "Analysis scope",
+  "全部账本": "All books",
+  "已选账本": "Selected books",
+  "完成": "Done"
 }
