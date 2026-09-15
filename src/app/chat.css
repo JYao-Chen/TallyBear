@@ -45,3 +45,5 @@
  html[data-keyboard] .chat-page .workspace>main{padding-bottom:0}html[data-keyboard] .chat-page .workspace>header{display:none}
 }
 @media(prefers-reduced-motion:reduce){.composer-box,.composer-icon,.composer-send,.finance-suggestions button{transition:none}.composer-spinner{animation:none}.finance-suggestions button:hover{transform:none}}
+
+.finance-history-row{display:flex;align-items:center;gap:6px;min-width:0}.finance-history-row>button:first-child{flex:1;min-width:0}.finance-history .finance-history-row>.history-delete{display:grid;place-items:center;flex:none;width:40px;height:40px;min-height:40px;padding:0;border-radius:10px;color:var(--muted)}.finance-history .history-delete:hover{color:#b94343;background:#b9434310}
