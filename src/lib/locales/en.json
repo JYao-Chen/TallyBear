@@ -1306,5 +1306,17 @@
   "核验说明": "Verification note",
   "当前预算": "Current budget",
   "按覆盖周期分摊": "Allocate across the coverage period",
-  "不分摊": "No allocation"
+  "不分摊": "No allocation",
+  "想记什么，聊聊就好": "Your money, in a conversation",
+  "记账、整理订阅，或看看最近的开销。": "Record a purchase, organize subscriptions or explore your spending.",
+  "描述一笔消费，或问问你的账本…": "Describe a purchase, or ask about your finances…",
+  "添加账单图片": "Attach receipt images",
+  "对话偏好": "Conversation preferences",
+  "确认卡片后才会保存账单。": "Transactions are saved after you confirm the card.",
+  "展开输入框": "Expand composer",
+  "收起输入框": "Collapse composer",
+  "正在上传图片…": "Uploading images…",
+  "移除图片": "Remove image",
+  "Enter 发送 · Shift + Enter 换行": "Enter to send · Shift + Enter for a new line",
+  "回到最新消息": "Latest messages"
 }

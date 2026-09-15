@@ -1,0 +1,47 @@
+/* One conversation surface; history and reports are opened on demand. */
+.chat-page .workspace{display:flex;flex-direction:column;min-height:0}
+.chat-page .workspace>main{display:flex;flex:1;flex-direction:column;min-height:0;max-width:none;width:100%;margin:0;padding:0}
+.chat-page .finance-workspace{display:flex;flex:1;min-height:0;border:0;border-radius:0;background:var(--surface);overflow:hidden}
+.finance-main{position:relative;flex:1;min-width:0;min-height:0}
+.finance-main .finance-toolbar{height:52px;min-height:52px;flex:none;padding:6px 20px;display:flex;flex-wrap:nowrap;gap:14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.finance-toolbar .finance-library-toggle{display:inline-flex;flex:none;min-height:36px;padding:7px 10px;background:transparent;font-size:12px;gap:6px}
+.finance-toolbar .finance-conversation-title{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:550}
+.finance-toolbar .finance-toolbar-actions{display:flex;width:auto;flex:none;gap:2px;flex-wrap:nowrap}
+.finance-toolbar-actions .icon-button{width:36px;height:36px;min-height:36px;padding:8px}
+.finance-main .finance-messages{width:100%;flex:1;min-height:0;height:auto;overflow-y:auto;overflow-x:hidden;padding:24px clamp(16px,4vw,52px);scrollbar-gutter:stable;overscroll-behavior:contain}
+.finance-messages>.finance-turn,.finance-messages>.finance-progress,.finance-messages>.report-body{max-width:960px;margin-left:auto;margin-right:auto}
+.finance-messages .finance-empty{max-width:720px;margin:clamp(8px,4vh,44px) auto;padding:12px 0;text-align:center}
+.finance-empty>img{width:52px;height:52px;object-fit:contain}
+.finance-empty h2{font-family:'LXGW WenKai',sans-serif;font-size:28px;margin:14px 0 6px}
+.finance-empty .finance-welcome-caption{font-size:13px;color:var(--muted);margin:0}
+.finance-empty .finance-suggestions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:24px 0 0}
+.finance-suggestions button{min-height:56px;padding:12px 16px;border:1px solid var(--line);background:var(--paper);font-size:13px;text-align:left;line-height:1.5;color:var(--ink);transition:background .16s,transform .16s,border-color .16s}
+.finance-suggestions button:hover{background:var(--soft);border-color:var(--accent);transform:translateY(-2px)}
+.finance-turn .finance-question{max-width:84%;width:fit-content;margin-left:auto;border-radius:16px 16px 4px 16px;padding:12px 16px}
+.finance-main .finance-composer{flex:none;width:100%;max-width:1020px;max-height:none;overflow:visible;margin:0 auto;padding:10px 24px 8px;background:var(--surface);border:0}
+.composer-box{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:10px 12px 8px;box-shadow:0 3px 16px #453d3806;transition:border-color .16s,box-shadow .16s}
+.composer-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent)}
+.composer-box.is-dragging{outline:2px dashed var(--accent);background:var(--soft)}
+.finance-composer .composer-box textarea{display:block;width:100%;min-height:0!important;max-height:none!important;resize:none;box-sizing:border-box;border:0;border-radius:0;box-shadow:none!important;outline:none!important;background:transparent;padding:6px 6px 4px;line-height:1.55;font-size:16px;color:var(--ink)}
+.composer-tools{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}.composer-tools-left{display:flex;align-items:center;gap:3px;min-width:0}
+.composer-tools .composer-icon,.composer-options>summary{display:grid;place-items:center;width:36px;height:36px;min-height:36px;padding:0;border:0;background:transparent;color:var(--muted);border-radius:10px;cursor:pointer;flex:none;transition:background .15s,color .15s}
+.composer-tools .composer-icon:hover,.composer-options>summary:hover{background:var(--soft);color:var(--accent)}
+.composer-options{position:relative}.composer-options>summary{list-style:none;position:relative}.composer-options>summary::-webkit-details-marker{display:none}.composer-options summary i{position:absolute;right:5px;top:5px;width:5px;height:5px;background:var(--accent);border-radius:50%}
+.composer-options>div{position:absolute;bottom:44px;left:0;width:250px;max-width:calc(100vw - 60px);padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px #302c321c;z-index:5}.composer-options .check{margin:0;gap:8px;font-size:13px}.composer-options small{display:block;color:var(--muted);margin-top:10px;font-size:12px}
+.composer-tools .composer-send{display:grid;place-items:center;width:36px;height:36px;min-height:36px;padding:0;border-radius:12px;background:var(--accent);color:white;transition:transform .15s,opacity .15s}.composer-send:active{transform:scale(.92)}
+.composer-tools .composer-background{display:flex;align-items:center;gap:6px;font-size:12px;min-height:36px;padding:7px 10px;border-radius:10px;background:var(--soft);color:var(--accent)}
+.composer-shortcut{display:block;font-size:10px;line-height:16px;text-align:right;color:var(--muted);margin:5px 4px 0}
+.composer-previews{display:flex;gap:10px;overflow-x:auto;padding:4px 4px 8px;max-height:104px}.composer-preview{position:relative;flex:none;width:72px}.composer-preview>img{display:block;width:72px;height:60px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}.composer-preview>button{position:absolute;right:-3px;top:-3px;display:grid;place-items:center;min-height:22px;width:22px;height:22px;border-radius:50%;padding:0;background:var(--ink);color:var(--surface)}.composer-preview>span{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:72px;font-size:10px;color:var(--muted)}
+.finance-main .chat-reply-target{margin:0 0 8px;font-size:12px;padding:4px 10px}.chat-reply-target button{width:28px}
+.finance-jump{position:absolute;right:24px;bottom:calc(var(--composer-height,120px) + 10px);z-index:3;border:1px solid var(--line);background:var(--surface);color:var(--accent);font-size:12px;min-height:34px;padding:7px 12px;border-radius:20px;box-shadow:0 3px 10px #0001}
+.composer-spinner{animation:composer-spin 1s linear infinite}@keyframes composer-spin{to{transform:rotate(360deg)}}
+.detail-sheet .finance-library{height:auto;min-height:300px}.finance-library .finance-history{overflow:auto;max-height:55dvh}.finance-library .finance-history button{min-height:54px;text-align:left}
+@media(min-width:731px){.chat-page{height:100dvh;min-height:0;overflow:hidden}.chat-page .workspace>header{min-height:64px;height:64px;padding-block:8px}.chat-page .workspace>main{padding:0}.chat-page .page-heading{display:none}}
+@media(max-width:730px){
+ .chat-page .workspace>main{padding:0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))}
+ .finance-main .finance-toolbar{height:46px;min-height:46px;padding:4px 10px;gap:6px}.finance-toolbar .finance-library-toggle{font-size:0;width:36px;padding:8px}.finance-toolbar .finance-library-toggle svg{width:18px;height:18px}.finance-toolbar .finance-conversation-title{font-size:13px}.finance-toolbar-actions .icon-button{min-width:32px;width:32px;padding:6px}
+ .finance-main .finance-messages{padding:16px 14px;scrollbar-gutter:auto}.finance-messages .finance-empty{margin:12px auto;padding:4px 0}.finance-empty h2{font-size:23px}.finance-empty>img{width:44px;height:44px}.finance-empty .finance-suggestions{gap:8px;margin-top:18px}.finance-suggestions button{padding:10px;min-height:60px;font-size:12px}
+ .finance-main .finance-composer{padding:8px 10px 8px}.composer-box{border-radius:18px;padding:6px 8px}.composer-tools .composer-icon,.composer-options>summary,.composer-tools .composer-send{width:40px;height:40px;min-height:40px}.finance-composer>.composer-shortcut{display:none}.finance-jump{right:14px}
+ html[data-keyboard] .chat-page .workspace>main{padding-bottom:0}html[data-keyboard] .chat-page .workspace>header{display:none}
+}
+@media(prefers-reduced-motion:reduce){.composer-box,.composer-icon,.composer-send,.finance-suggestions button{transition:none}.composer-spinner{animation:none}.finance-suggestions button:hover{transform:none}}
