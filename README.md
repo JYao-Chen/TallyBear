@@ -238,3 +238,9 @@ Enjoying TallyBear? A ⭐ helps others find their new bookkeeping companion.
 [MIT](LICENSE) · [Credits & artwork](THIRD_PARTY_NOTICES.md)
 
 </div>
+
+## Installments, debt and monthly costs
+
+Credit purchases record spending once. Principal repayments move money from a wallet to a credit account; interest and fees are separate expenses. Create a plan from a new or existing purchase, confirm partial or early repayments, revise future installments, and reverse incorrect repayments. Personal and family credit accounts follow the same ownership permissions as assets.
+
+Cost allocation is independent of repayment scheduling: spread a purchase over its useful period without changing wallet balances or outstanding debt. Early settlement leaves that period intact. Refunds credited to the debt account reduce the plan’s principal. The AI assistant can inspect accessible plans and distinguish consumption, repayments and allocated costs.

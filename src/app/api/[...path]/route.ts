@@ -1,3 +1,4 @@
+import {listInstallments,changeInstallment} from '@/server/installments';
 import {mergeAccounts} from '@/server/merge-accounts';
 import {organize} from '@/server/organize';
 import {moveEntry,movePreview,moveInTransaction,selectedGroup,withReceiptTransaction} from '@/server/move-entry';
@@ -78,6 +79,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   if(method==='PATCH')return NextResponse.json(await manageUser(u,body));
   if(method==='POST'){const b=z.object({username:name,name,password:z.string().min(1).max(200),avatar:avatar.default('🧸')}).parse(body);await db.query('INSERT INTO users(id,username,name,password,avatar) VALUES($1,$2,$3,$4,$5)',[randomUUID(),b.username,b.name,passwordHash(b.password),b.avatar]);return NextResponse.json({ok:true});}
  }
+ if(path[0]==='installments'){if(method==='GET')return NextResponse.json(await listInstallments(u.id));if(method==='POST')return NextResponse.json(await changeInstallment(u.id,body));}
  if(path[0]==='assets'){
   if(path[1]==='merge'&&method==='POST')return NextResponse.json(await mergeAccounts(u.id,body));
   if(path[1]==='report'&&method==='GET')return NextResponse.json(await accountReport(u.id,req.nextUrl.searchParams));
@@ -171,5 +173,5 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  }
 
  throw new Failure('操作不存在',404);
-}catch(e){if(e instanceof Error&&e.name==='VerificationError')return NextResponse.json({error:tr(e.message)},{status:400});if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'填写内容无效'},{status:400});if(e instanceof Failure)return NextResponse.json({error:tr(e.message)},{status:e.status});const code=(e as {code?:string}).code;if(code==='23505')return NextResponse.json({error:tr('名称或账号已存在')},{status:409});if(code==='23503')return NextResponse.json({error:tr('账户不存在或不属于当前账本')},{status:400});console.error('API operation failed',e instanceof Error?e.name:'unknown');return NextResponse.json({error:tr('操作未完成，请稍后重试')},{status:500});}}
+}catch(e){if(e instanceof Error&&e.name==='VerificationError')return NextResponse.json({error:tr(e.message)},{status:400});if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'填写内容无效'},{status:400});if(e instanceof Failure)return NextResponse.json({error:tr(e.message)},{status:e.status});const code=(e as {code?:string}).code;if(code==='P0001')return NextResponse.json({error:tr((e as Error).message)},{status:409});if(code==='23505')return NextResponse.json({error:tr('名称或账号已存在')},{status:409});if(code==='23503')return NextResponse.json({error:tr('账户不存在或不属于当前账本')},{status:400});console.error('API operation failed',e instanceof Error?e.name:'unknown');return NextResponse.json({error:tr('操作未完成，请稍后重试')},{status:500});}}
 export {handle as GET,handle as POST,handle as PUT,handle as PATCH,handle as DELETE};

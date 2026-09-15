@@ -17,6 +17,7 @@ export async function mergeAccounts(user:string,body:unknown){
   if(source.owner_id!==target.owner_id||source.family_id!==target.family_id)throw new Failure('只能合并同一个人或同一个家庭的钱包');
   if(source.version!==b.version||target.version!==b.targetVersion||source.balance!==b.expectedBalance||target.balance!==b.expectedTargetBalance)throw new Failure('钱包余额或信息已变化，请刷新后重新合并',409);
   if((await c.query('SELECT 1 FROM transactions WHERE (account_id=$1 AND target_id=$2) OR (account_id=$2 AND target_id=$1)',ids)).rowCount)throw new Failure('两个钱包之间有转账，请先处理这些转账后再合并');
+  if((await c.query('SELECT 1 FROM installment_plans WHERE account_id=ANY($1::uuid[])',[ids])).rowCount)throw new Failure('钱包有关联分期，请先处理分期计划后再合并');
   await c.query('UPDATE transactions SET account_id=$2,version=version+1 WHERE account_id=$1',[b.id,b.targetId]);
   await c.query('UPDATE transactions SET target_id=$2,version=version+1 WHERE target_id=$1',[b.id,b.targetId]);
   await c.query('UPDATE account_adjustments SET account_id=$2 WHERE account_id=$1',[b.id,b.targetId]);
