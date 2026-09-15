@@ -1,3 +1,4 @@
+import type {PoolClient} from 'pg';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {db,transaction,lockBook} from './db';
@@ -10,7 +11,7 @@ import {advancePeriod as calculatePeriod,type PeriodUnit} from '../lib/period';
 const unitOf=(frequency:string)=>({daily:'day',weekly:'week',monthly:'month',yearly:'year'}[frequency] as PeriodUnit);
 function advancePeriod(start:string,unit:PeriodUnit,count:number,anchor?:number){try{return calculatePeriod(start,unit,count,anchor);}catch(e){throw new Failure(e instanceof Error?e.message:'周期无效');}}
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s,'日期无效');
-export async function schedules(book:string,user:string,method:string,body:unknown){
+export async function schedules(book:string,user:string,method:string,body:unknown, connection?:PoolClient){
  if(method==='GET')return (await db.query("SELECT id,name,value,frequency,interval_count,interval_months,amortize,to_char(next_date,'YYYY-MM-DD') AS next_date,paused,version FROM bill_schedules WHERE book_id=$1 AND user_id=$2 ORDER BY paused,next_date,name",[book,user])).rows;
  const b=z.object({id:z.string().uuid().optional(),version:z.number().int().optional(),operation:z.enum(['save','pause','confirm','skip','delete']).default('save'),name:z.string().trim().min(1).max(80).optional(),value:z.unknown().optional(),frequency:z.enum(['daily','weekly','monthly','yearly']).optional(),nextDate:date.optional(),dueDate:date.optional(),paidDate:date.optional(),amount:z.number().int().positive().max(100000000000).optional(),intervalCount:z.number().int().positive().safe().optional(),intervalMonths:z.number().int().min(1).optional(),startDate:date.optional(),amortize:z.boolean().default(false),startMonth:z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/).optional(),paused:z.boolean().optional()}).parse(body);
  return transaction(async c=>{await lockBook(c,book);const old=b.id?(await c.query("SELECT *,to_char(next_date,'YYYY-MM-DD') AS next_date FROM bill_schedules WHERE id=$1 AND book_id=$2 AND user_id=$3",[b.id,book,user])).rows[0]:null;if(b.id&&!old)throw new Failure('周期账单不存在',404);
@@ -31,5 +32,5 @@ export async function schedules(book:string,user:string,method:string,body:unkno
   const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'});if(old.next_date>today)throw new Failure('本期还未到期，如需提前处理请先修改日期');
   let transactionId:string|null=null;if(b.operation==='confirm'){if(!b.paidDate||!b.amount)throw new Failure('请核对实际日期和金额');transactionId=randomUUID();const item=entry.parse({...old.value,id:transactionId,date:b.paidDate,amount:b.amount});await insertEntry(c,book,user,item);if(old.amortize){const unit=unitOf(old.frequency),start=unit==='day'||unit==='week'?(b.startDate||b.paidDate):(b.startMonth||b.paidDate.slice(0,7))+'-01';advancePeriod(start,unit,old.interval_count);await c.query('INSERT INTO expense_allocations(transaction_id,start_month,months,start_date,period_unit,period_count) VALUES($1,$2,$3,$4,$5,$6)',[transactionId,start.slice(0,7)+'-01',Math.max(1,old.interval_months),start,unit,old.interval_count]);}}
   await c.query('INSERT INTO schedule_occurrences(schedule_id,due_date,transaction_id) VALUES($1,$2,$3)',[old.id,b.dueDate,transactionId]);const next=advancePeriod(old.next_date,unitOf(old.frequency),old.interval_count,old.anchor_day);await c.query('UPDATE bill_schedules SET next_date=$1,version=version+1 WHERE id=$2',[next,old.id]);return {ok:true,nextDate:next,transactionId};
- });
+ },connection);
 }

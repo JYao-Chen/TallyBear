@@ -12,7 +12,7 @@ import {callModel} from './ai';
 
 export async function executeJob(job:any){
  const controller=new AbortController();const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(15*60*1000)]);
- let liveText='',liveArtifacts:any={charts:[],tools:[],drafts:[],thinking:[]};
+ let liveText='',liveArtifacts:any={charts:[],tools:[],drafts:[],thinking:[],actions:job.payload.previousActions||[],images:job.payload.images||[]};
  let pending:{event:string;data:any}[]=[],saving=Promise.resolve(),stage='正在准备',cancelled=false;
  const emit=(event:string,data:any)=>{if(event==='status'&&typeof data==='string')data=translate(data,deployment().language);if(event==='delta'&&job.kind==='chat')liveText+=data;if(data?.artifacts)liveArtifacts=JSON.parse(JSON.stringify(data.artifacts));if(event==='thinking'){liveArtifacts.thinking=updateThinking(liveArtifacts.thinking,data);stage=data.label+(data.status==='running'?' · 思考中':' · 思考结束');}const last=pending.at(-1);if(event==='delta'&&last?.event==='delta')last.data+=data;else if(event==='thinking'&&data.delta&&last?.event==='thinking'&&last.data.id===data.id&&last.data.delta)last.data.delta+=data.delta;else pending.push({event,data:typeof data==='object'&&data!==null?JSON.parse(JSON.stringify(data)):data});if(event==='status')stage=String(data);if(event==='tool_start')stage=String(data.label)+'…';if(event==='agent_start')stage=String(data.role)+'正在处理';if(event==='agent_done')stage=String(data.role)+'已返回结果';if(event==='delta'&&stage==='正在准备')stage='模型正在生成';};
  const flush=()=>{saving=saving.then(async()=>{const batch=pending.splice(0);if(batch.length)await transaction(async c=>{for(const e of batch)await c.query('INSERT INTO ai_job_events(job_id,event,data) VALUES($1,$2,$3)',[job.id,e.event,JSON.stringify(e.data)]);await c.query('UPDATE ai_jobs SET stage=$1 WHERE id=$2',[stage,job.id]);if(job.kind==='chat')await c.query("UPDATE finance_turns SET answer=$1,artifacts=$2 WHERE id=$3 AND status='running'",[liveText,liveArtifacts,job.id]);});});return saving;};
@@ -28,7 +28,7 @@ export async function executeJob(job:any){
   else if(job.kind==='connection'){if(!user.admin)throw new Error('需要管理员权限');result=await testModelConnections({signal,onStage:s=>emit('status',s)});}
   else if(job.kind==='chat'){
    const b=job.payload;const prior=(await db.query("SELECT question,answer FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
-   result=await runFinanceAgent({deviceTime:b.deviceTime,useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:b.text||'请识别附图账单并整理待确认草稿',month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
+   result=await runFinanceAgent({previousImages:b.previousImages,previousActions:b.previousActions,deviceTime:b.deviceTime,useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:(b.text||'请识别附图账单并整理待确认草稿')+(b.actionId?'\n用户正在修改待确认卡片 actionId='+b.actionId:''),month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
    if(!result.text&&!result.artifacts.charts.length&&!result.artifacts.drafts.length)throw new Error('模型未生成可用回答');
   }else throw new Error('任务类型无效');
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');

@@ -63,7 +63,7 @@ Transport, dining, shopping and groceries share structured forms across AI draft
 
 > “Compare this month with last month, show where spending changed, and save a report.”
 
-A LangGraph-powered assistant queries your accessible books, coordinates recognition and reconciliation tools, generates charts and saves reports. Background jobs keep running between visits, with live progress, retries and administrator-controlled concurrency.
+A LangGraph-powered assistant queries your accessible books, coordinates recognition, reconciliation and entry tools, generates charts and saves reports. Describe transactions, recurring subscriptions, presets, budgets, allocations or installment payments in text, with receipt images when useful. The assistant fills in the details, asks for missing information and presents confirmation cards in the conversation. Revise them in plain language, then confirm to save. Background jobs keep running between visits, with live progress, retries and administrator-controlled concurrency.
 
 Choose your own OpenAI-compatible provider and text/vision models, then test the connection in settings.
 

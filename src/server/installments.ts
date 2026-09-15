@@ -17,7 +17,7 @@ async function writeBook(c:PoolClient,book:string,user:string){const role=(await
 async function readPlans(user:string,c:{query:PoolClient['query']}=db,id?:string){return (await c.query(`SELECT ${totals} FROM installment_plans p JOIN accounts a ON a.id=p.account_id LEFT JOIN families f ON f.id=a.family_id LEFT JOIN users u ON u.id=a.owner_id WHERE ${accountAccess('$1')} AND ($2::uuid IS NULL OR p.id=$2) ORDER BY p.created_at DESC`,[user,id||null])).rows.map(p=>({...p,remaining:remainingPrincipal(p.principal,p.paid,p.refunded),dues:dueProgress(p.schedule,Math.max(0,p.paid+p.refunded-p.schedule_base))}));}
 export async function listInstallments(user:string){const plans=await readPlans(user);const payments=(await db.query(`SELECT r.id,r.plan_id,r.principal::float8 AS principal,r.fee::float8 AS fee,to_char(r.date,'YYYY-MM-DD') AS date,r.voided,r.created_at FROM installment_payments r WHERE plan_id=ANY($1::uuid[]) ORDER BY r.date DESC,r.created_at DESC`,[plans.map(p=>p.id)])).rows;return {plans:plans.map(p=>({...p,payments:payments.filter(r=>r.plan_id===p.id)})),summary:{remaining:plans.reduce((n,p)=>n+p.remaining,0),paid:plans.reduce((n,p)=>n+p.paid,0),fees:plans.reduce((n,p)=>n+p.paid_fees,0)}};}
 const terms={terms:z.number().int().min(1).max(600),firstDate:date,fees:money.default(0)};
-export async function changeInstallment(user:string,body:unknown){
+export async function changeInstallment(user:string,body:unknown, connection?:PoolClient){
  const b=z.discriminatedUnion('operation',[
  z.object({operation:z.literal('create'),requestId:z.string().uuid(),book:z.string().uuid(),name:z.string().trim().min(1).max(80),transactionId:z.string().uuid().optional(),purchase:z.unknown().optional(),...terms,allocate:z.boolean().default(false),allocationStart:date.optional(),allocationMonths:z.number().int().positive().max(1200).optional()}),
  z.object({operation:z.literal('schedule'),id:z.string().uuid(),version:z.number().int(),name:z.string().trim().min(1).max(80),...terms,schedule:z.array(z.object({date,principal:money,fee:money})).min(1).max(600).optional()}),
@@ -77,5 +77,5 @@ export async function changeInstallment(user:string,body:unknown){
   if(fe)await insertEntry(c,b.book,user,entry.parse({id:randomUUID(),kind:'expense',accountId:b.accountId,amount:b.fee,date:b.date,title:p.name+' · 利息与手续费',category:b.feeCategory}),fe);
   await c.query('INSERT INTO installment_payments(id,plan_id,principal,fee,date,principal_event,fee_event,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[b.requestId,p.id,b.principal,b.fee,b.date,pe,fe,user]);
   await c.query('UPDATE installment_plans SET version=version+1 WHERE id=$1',[p.id]);return {ok:true};
- });
+ },connection);
 }
