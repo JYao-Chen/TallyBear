@@ -24,7 +24,12 @@ html{scrollbar-gutter:stable}
 .choice-option:focus-visible{outline-offset:-3px}
 .choice-option:disabled{cursor:not-allowed}
 .choice-search .icon-button{flex:none}
-.visual-trigger>span:not(.symbol-icon){white-space:normal;overflow-wrap:anywhere;line-height:1.45;text-overflow:clip}
+.visual-trigger>span:not(.symbol-icon){white-space:nowrap;overflow:hidden;overflow-wrap:normal;line-height:1.45;text-overflow:ellipsis}
+.date-field .visual-trigger{font-variant-numeric:tabular-nums;gap:8px;justify-content:flex-start}
+.date-field .visual-trigger>span{flex:1;white-space:nowrap;overflow:visible;text-overflow:clip}
+.date-field .visual-trigger>svg{width:18px;height:18px;flex:none}
+.date-range{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:730px){.date-range .visual-trigger{padding-inline:10px;font-size:14px}.date-range label{margin-bottom:10px}}
 .visual-trigger{align-items:center}
 .finance-empty .usage-help>summary{margin-inline:auto}
 .finance-empty>img{display:block;margin-inline:auto}
@@ -40,9 +45,9 @@ html{scrollbar-gutter:stable}
  .page-heading{flex-wrap:wrap;align-items:flex-start;gap:16px;margin-bottom:24px}
  .page-heading>div:first-child{flex:1 1 220px;min-width:0}
  .page-heading h1{font-size:clamp(24px,2.1vw,30px);overflow-wrap:anywhere}
- .page-heading>.inline{flex:0 1 auto;max-width:100%;gap:10px;align-items:stretch}
- .page-heading .date-field{width:190px;flex:1 1 160px}
- .page-heading>.inline>button{flex:0 1 auto}
+ .page-heading>.inline{flex:0 1 auto;width:max-content;max-width:100%;gap:10px;align-items:stretch;flex-wrap:nowrap}
+ .page-heading>.inline>.date-field{width:190px;min-width:140px;flex:0 1 190px}
+ .page-heading>.inline>button{flex:none;white-space:nowrap}
  .inline>.date-field{flex:1 1 160px;width:auto}
  .inline>button{max-width:100%;min-width:0;white-space:normal}
  .ledger-sidebar{padding-top:20px;padding-bottom:16px;scrollbar-gutter:stable;overscroll-behavior:contain}
@@ -172,3 +177,6 @@ html{scrollbar-gutter:stable}
  .calendar-year input{width:82px}
  .calendar-navigation .calendar-year{flex:none}
 }
+
+/* Metadata labels remain intact; long values have their own flexible column. */
+.detail-fields>div{grid-template-columns:minmax(100px,max-content) minmax(0,1fr);align-items:baseline}.detail-fields dt{white-space:nowrap;overflow-wrap:normal}
