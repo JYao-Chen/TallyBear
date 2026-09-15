@@ -180,3 +180,5 @@ html{scrollbar-gutter:stable}
 
 /* Metadata labels remain intact; long values have their own flexible column. */
 .detail-fields>div{grid-template-columns:minmax(100px,max-content) minmax(0,1fr);align-items:baseline}.detail-fields dt{white-space:nowrap;overflow-wrap:normal}
+
+.detail-entity{display:flex;justify-content:flex-end;align-items:center;gap:8px;min-width:0}.detail-entity>.symbol-icon,.detail-entity>.account-logo{flex:none}.visual-trigger>.account-logo{flex:none}.choice-option .symbol-icon{border-radius:8px;overflow:hidden}
