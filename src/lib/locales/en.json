@@ -1322,5 +1322,15 @@
   "分析范围": "Analysis scope",
   "全部账本": "All books",
   "已选账本": "Selected books",
-  "完成": "Done"
+  "完成": "Done",
+  "环形图": "Donut chart",
+  "条形图": "Bar chart",
+  "折线图": "Line chart",
+  "账单明细": "Transaction details",
+  "返回列表": "Back to list",
+  "图表金额": "Chart amount",
+  "以下为当前账目": "Current records below",
+  "当前合计": "Current total",
+  "每日净支出": "Daily net spending",
+  "每日收入": "Daily income"
 }

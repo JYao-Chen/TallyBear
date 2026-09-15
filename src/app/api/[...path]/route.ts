@@ -107,6 +107,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));
+ if(resource==='chart-details'&&method==='GET'){const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams));}
  if(resource==='report'&&method==='GET')return NextResponse.json(await report(book,req.nextUrl.searchParams));
  if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
  if(resource==='categories'){if(method==='GET')return NextResponse.json(await listCategories(book));if(method==='PUT')return NextResponse.json(await changeCategory(book,body));}

@@ -7,9 +7,10 @@ import {db} from './db';
 import {Failure} from './access';
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s,'日期无效');
 export function reportFilter(book:string|string[],params:URLSearchParams){
- const input=z.object({from:date,to:date,kind:z.enum(['all','expense','income','refund','transfer']).default('all'),account:z.union([z.literal('all'),z.string().uuid()]).default('all'),category:z.string().max(60).default(''),q:z.string().trim().max(200).default(''),mode:z.enum(['contains','exact']).default('contains'),offset:z.coerce.number().int().min(0).default(0),limit:z.coerce.number().int().min(1).max(200).default(50)}).parse(Object.fromEntries(params));if(input.to<input.from)throw new Failure('结束日期不能早于开始日期');
+ const input=z.object({from:date,to:date,kind:z.enum(['all','expense','income','refund','transfer','net_expense']).default('all'),account:z.union([z.literal('all'),z.string().uuid()]).default('all'),category:z.string().max(60).default(''),q:z.string().trim().max(200).default(''),mode:z.enum(['contains','exact']).default('contains'),offset:z.coerce.number().int().min(0).default(0),limit:z.coerce.number().int().min(1).max(200).default(50)}).parse(Object.fromEntries(params));if(input.to<input.from)throw new Failure('结束日期不能早于开始日期');
  const values:unknown[]=[book,input.from,input.to];let where=(Array.isArray(book)?'t.book_id=ANY($1::uuid[])':'t.book_id=$1')+' AND NOT t.deleted AND t.date BETWEEN $2::date AND $3::date';
- if(input.kind!=='all'){values.push(input.kind);where+=' AND t.kind=$'+values.length;}
+ if(input.kind==='net_expense')where+=" AND t.kind IN ('expense','refund')";
+ else if(input.kind!=='all'){values.push(input.kind);where+=' AND t.kind=$'+values.length;}
  if(input.account!=='all'){values.push(input.account);where+=' AND (t.account_id=$'+values.length+' OR t.target_id=$'+values.length+')';}
  if(input.category){values.push(input.category);where+=' AND t.category=$'+values.length;}
  if(input.q){values.push(input.q);where+=' AND '+textMatch("ARRAY[t.title,t.scene->>'origin',t.scene->>'destination',t.scene->>'branch',t.payee,t.product,t.note,t.category,t.platform,a.name,t.order_id,t.external_id]||ARRAY(SELECT i->>'name' FROM jsonb_array_elements(t.line_items) i)",'$'+values.length,input.mode);}

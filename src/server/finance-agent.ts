@@ -15,7 +15,7 @@ import {db} from './db';
 import {recognize,review} from './recognize';
 import {Annotation,StateGraph,START,END} from '@langchain/langgraph';
 import {member,type User} from './access';
-export type ChartArtifact={id:string;type:'bar'|'line'|'pie';title:string;from:string;to:string;unit:string;data:{name:string;value:number}[]};
+export type ChartArtifact={dimension?:string;books?:string[];id:string;type:'bar'|'line'|'pie';title:string;from:string;to:string;unit:string;data:{name:string;value:number}[]};
 export type AgentArtifact={analysisBooks?:{id:string;name:string}[];actions?:ChatAction[];images?:string[];thinking?:ThinkingBlock[];month?:string;charts:ChartArtifact[];drafts:any[];tools:{name:string;label:string;args:unknown;result:unknown}[];agents?:{id:string;role:string;task:string;status:string;summary:string;model:string}[]};
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);const period=z.object({from:date,to:date}).refine(v=>v.to>=v.from,'结束日期不能早于开始日期');
 const props={from:{type:'string',description:'起始日期 YYYY-MM-DD'},to:{type:'string',description:'结束日期 YYYY-MM-DD'}};
@@ -48,7 +48,7 @@ export async function executeFinanceTool(name:string,args:unknown,ctx:{analysisB
  if(name==='account_cashflow'){const scope=z.object({scope:z.string().optional()}).parse(args).scope;if(scope)params.set('scope',scope);return {scopeNote:'Asset totals span the owner’s wallets, independently of the selected books. Differences from book totals do NOT imply missing entries.',data:await accountReport(ctx.user.id,params)};}
  const data=await report(selected,params);
  if(name==='financial_summary')return {period:p,totals:data.totals,categories:data.categories,daily:data.daily};
- if(name==='draw_chart'){const b=z.object({type:z.enum(['bar','line','pie']),dimension:z.enum(['category','daily_expense','daily_income','monthly_expense','monthly_income']),title:z.string().min(1).max(80)}).parse(args);const points=financeChartData(data,b.dimension,p.from,p.to);if(b.type==='pie'&&points.some((x:any)=>x.value<0))throw new Error('净退款产生负数，请改用柱状图呈现，不能丢掉负数');const chart:ChartArtifact={id:randomUUID(),type:b.type,title:b.title,...p,unit:deployment().currency,data:points};artifacts.charts.push(chart);return chart;}
+ if(name==='draw_chart'){const b=z.object({type:z.enum(['bar','line','pie']),dimension:z.enum(['category','daily_expense','daily_income','monthly_expense','monthly_income']),title:z.string().min(1).max(80)}).parse(args);const points=financeChartData(data,b.dimension,p.from,p.to);if(b.type==='pie'&&points.some((x:any)=>x.value<0))throw new Error('净退款产生负数，请改用柱状图呈现，不能丢掉负数');const chart:ChartArtifact={dimension:b.dimension,books:selected,id:randomUUID(),type:b.type,title:b.title,...p,unit:deployment().currency,data:points};artifacts.charts.push(chart);return chart;}
  throw new Error('未提供此工具');
 }
 export type FinanceContext={analysisBooks?:string[];previousImages?:string[];previousActions?:ChatAction[];deviceTime?:string;useHistory?:boolean;language?:'en'|'zh-CN';book:string;user:User;question:string;month:string;history:ChatMessage[];images:string[];signal:AbortSignal;emit:(event:string,data:any)=>void};
