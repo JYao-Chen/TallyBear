@@ -1,3 +1,4 @@
+import {withDeviceTime} from '@/lib/entry-time';
 import {sceneInstructions} from '@/lib/entry-scene';
 import {applyPreferences} from './receipt-preferences';
 import {cleanReceiptNote} from './receipt-note';
@@ -75,5 +76,5 @@ export async function recognize(book:string,body:unknown,progress:ModelProgress=
  },message=>progress.onStage?.(message),progress.signal));
  return {extracted:{...e,proposals:checked.entries,message:e.message+(english?` Amount verification: repaired ${checked.repaired}; ${checked.unresolved} still need review.`:`。金额核验：重新处理修正${checked.repaired}笔，${checked.unresolved}笔仍需核对。`)}};})
  .addEdge(START,'read_receipt').addEdge('read_receipt','check_amounts').addEdge('check_amounts','normalize').addEdge('normalize','reconcile').addEdge('reconcile',END).compile();
- const output=await graph.invoke({},{signal:progress.signal});const ids=[...((body as any).images||[]),...((body as any).image?[(body as any).image]:[])].map(receiptId).filter(Boolean);return {...output.result,entries:output.result.entries.map(e=>({...e,attachmentIds:ids,retainReceipts:false,verificationReason:''}))};
+ const output=await graph.invoke({},{signal:progress.signal});const ids=[...((body as any).images||[]),...((body as any).image?[(body as any).image]:[])].map(receiptId).filter(Boolean);return {...output.result,entries:output.result.entries.map(e=>{const timed=withDeviceTime(e,(body as {deviceTime?:string}).deviceTime);return {...timed,missing:missingFields(timed),attachmentIds:ids,retainReceipts:false,verificationReason:''};})};
 }

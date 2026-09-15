@@ -1172,5 +1172,8 @@
   "晚餐": "Dinner",
   "夜宵": "Late-night meal",
   "标题与备注": "Title and notes",
-  "正在读取钱包…": "Loading wallets…"
+  "正在读取钱包…": "Loading wallets…",
+  "交易时间": "Transaction time",
+  "创建时间": "Created",
+  "最后修改时间": "Last modified"
 }

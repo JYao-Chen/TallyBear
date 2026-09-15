@@ -28,7 +28,7 @@ export async function executeJob(job:any){
   else if(job.kind==='connection'){if(!user.admin)throw new Error('需要管理员权限');result=await testModelConnections({signal,onStage:s=>emit('status',s)});}
   else if(job.kind==='chat'){
    const b=job.payload;const prior=(await db.query("SELECT question,answer FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
-   result=await runFinanceAgent({useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:b.text||'请识别附图账单并整理待确认草稿',month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
+   result=await runFinanceAgent({deviceTime:b.deviceTime,useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:b.text||'请识别附图账单并整理待确认草稿',month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),signal,emit});
    if(!result.text&&!result.artifacts.charts.length&&!result.artifacts.drafts.length)throw new Error('模型未生成可用回答');
   }else throw new Error('任务类型无效');
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');
