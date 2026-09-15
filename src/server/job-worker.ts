@@ -13,10 +13,11 @@ import {callModel} from './ai';
 export async function executeJob(job:any){
  const controller=new AbortController();const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(15*60*1000)]);
  let liveText='',liveArtifacts:any={charts:[],tools:[],drafts:[],thinking:[],actions:job.payload.previousActions||[],images:job.payload.images||[]};
- let pending:{event:string;data:any}[]=[],saving=Promise.resolve(),stage='正在准备',cancelled=false;
+ let pending:{event:string;data:any}[]=[],saving=Promise.resolve(),stage='正在准备',cancelled=false,lastSnapshot=0;
  const emit=(event:string,data:any)=>{if(event==='status'&&typeof data==='string')data=translate(data,deployment().language);if(event==='delta'&&job.kind==='chat')liveText+=data;if(data?.artifacts)liveArtifacts=JSON.parse(JSON.stringify(data.artifacts));if(event==='thinking'){liveArtifacts.thinking=updateThinking(liveArtifacts.thinking,data);stage=data.label+(data.status==='running'?' · 思考中':' · 思考结束');}const last=pending.at(-1);if(event==='delta'&&last?.event==='delta')last.data+=data;else if(event==='thinking'&&data.delta&&last?.event==='thinking'&&last.data.id===data.id&&last.data.delta)last.data.delta+=data.delta;else pending.push({event,data:typeof data==='object'&&data!==null?JSON.parse(JSON.stringify(data)):data});if(event==='status')stage=String(data);if(event==='tool_start')stage=String(data.label)+'…';if(event==='agent_start')stage=String(data.role)+'正在处理';if(event==='agent_done')stage=String(data.role)+'已返回结果';if(event==='delta'&&stage==='正在准备')stage='模型正在生成';};
- const flush=()=>{saving=saving.then(async()=>{const batch=pending.splice(0);if(batch.length)await transaction(async c=>{for(const e of batch)await c.query('INSERT INTO ai_job_events(job_id,event,data) VALUES($1,$2,$3)',[job.id,e.event,JSON.stringify(e.data)]);await c.query('UPDATE ai_jobs SET stage=$1 WHERE id=$2',[stage,job.id]);if(job.kind==='chat')await c.query("UPDATE finance_turns SET answer=$1,artifacts=$2 WHERE id=$3 AND status='running'",[liveText,liveArtifacts,job.id]);});});return saving;};
- const timer=setInterval(()=>{flush().catch(()=>controller.abort());db.query('SELECT cancel_requested FROM ai_jobs WHERE id=$1',[job.id]).then(r=>{if(!r.rows[0]||r.rows[0].cancel_requested){cancelled=true;controller.abort();}}).catch(()=>controller.abort());},750);
+ const flush=()=>{saving=saving.then(async()=>{const batch=pending.splice(0);if(batch.length)await transaction(async c=>{for(const e of batch)await c.query('INSERT INTO ai_job_events(job_id,event,data) VALUES($1,$2,$3)',[job.id,e.event,JSON.stringify(e.data)]);await c.query('UPDATE ai_jobs SET stage=$1 WHERE id=$2',[stage,job.id]);if(job.kind==='chat'&&Date.now()-lastSnapshot>=750){lastSnapshot=Date.now();await c.query("UPDATE finance_turns SET answer=$1,artifacts=$2 WHERE id=$3 AND status='running'",[liveText,liveArtifacts,job.id]);}});});return saving;};
+ const streamTimer=setInterval(()=>{flush().catch(()=>controller.abort());},50);
+ const timer=setInterval(()=>{db.query('SELECT cancel_requested FROM ai_jobs WHERE id=$1',[job.id]).then(r=>{if(!r.rows[0]||r.rows[0].cancel_requested){cancelled=true;controller.abort();}}).catch(()=>controller.abort());},750);
  let result:any=null,status='complete',error='';
  try{
   await checkDeploymentCurrency();
@@ -35,7 +36,7 @@ export async function executeJob(job:any){
   if(signal.aborted)throw new Error('任务已停止');
  }catch(e){result=(e as any).partial||result;status=cancelled?'cancelled':'error';error=cancelled?'任务已取消':signal.aborted?'处理超时或后台连接中断，请重试':e instanceof Error?(e.name==='ZodError'?'识别信息不完整，请补充后重试':e.message):'任务未完成';}
  finally{
-  clearInterval(timer);await flush();
+  clearInterval(timer);clearInterval(streamTimer);await flush();
   if(job.kind==='chat'){result={id:job.id,text:liveText,artifacts:liveArtifacts,model:'',...result,status:status==='complete'?'complete':status==='cancelled'?'stopped':'error',error};}
   await transaction(async c=>{
    if(job.kind==='chat'){await c.query('UPDATE finance_turns SET answer=$1,artifacts=$2,model=$3,status=$4,error=$5 WHERE id=$6',[result.text,result.artifacts,result.model,result.status,error,job.id]);await c.query('UPDATE finance_conversations SET updated_at=now() WHERE id=$1',[job.payload.id]);}
