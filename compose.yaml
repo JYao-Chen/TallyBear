@@ -26,14 +26,14 @@ services:
     restart: unless-stopped
   init:
     build: .
-    image: tallybear:1.0.0
+    image: tallybear:1.5.0
     command: [node, scripts/init.mjs]
     environment: *app-environment
     depends_on:
       db: {condition: service_healthy}
     restart: 'no'
   web:
-    image: tallybear:1.0.0
+    image: tallybear:1.5.0
     environment: *app-environment
     ports:
       - '127.0.0.1:${APP_PORT:-3016}:3016'
@@ -43,7 +43,7 @@ services:
       init: {condition: service_completed_successfully}
     restart: unless-stopped
   worker:
-    image: tallybear:1.0.0
+    image: tallybear:1.5.0
     command: [node, worker.mjs]
     environment: *app-environment
     volumes:

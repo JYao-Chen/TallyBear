@@ -7,11 +7,11 @@
 **Your receipts, understood. Your finances, in view.**
 
 An AI-powered personal and family finance app with a **Bubu & Yier (布布一二 / 一二布布) bear theme**.
-Self-hosted · Itemized receipts · Financial conversations · Bubu & Yier companions
+Self-hosted · Conversational bookkeeping · Family transfers · Bubu & Yier companions
 
 English · [简体中文](README.zh-CN.md)
 
-[![Version](https://img.shields.io/badge/v1.0.0-78618f?style=flat-square)](https://github.com/JYao-Chen/TallyBear/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/v1.5.0-78618f?style=flat-square)](https://github.com/JYao-Chen/TallyBear/releases/tag/v1.5.0)
 [![MIT](https://img.shields.io/badge/code-MIT-43755e?style=flat-square)](LICENSE)
 [![Docker](https://img.shields.io/badge/deploy-Docker-d2a363?style=flat-square)](docs/deployment.md)
 
@@ -22,6 +22,14 @@ English · [简体中文](README.zh-CN.md)
 **Bookkeeping with Bubu & Yier.** White and brown bear illustrations, animated stickers and customizable category icons bring a playful touch to everyday finances. Choose the bear theme or switch to a clean, minimal interface.
 
 ![Spending analysis](docs/screenshots/desktop-analysis.png)
+
+## New in 1.5
+
+**From receipt recognition to conversational bookkeeping and family finance.**
+
+Editable AI action cards · Private recipient wallet confirmation · Personal-book transfer views · Installments and exact cost allocation · Scoped analysis with chart drilldown · A redesigned mobile/desktop conversation workspace.
+
+[Read the 1.5 release notes →](docs/releases/v1.5.0.md) · [Upgrade an existing installation →](docs/deployment.md#upgrading-to-150)
 
 ## From receipt to insight
 
@@ -47,36 +55,81 @@ Ask questions, explore charts.<br/>Save the reports that matter.
 </tr>
 </table>
 
-### Keep every useful detail
+### Capture a receipt, describe a purchase, or tap a preset
 
-Upload multiple images or a long screenshot. TallyBear groups related orders, extracts line items, summarizes product names and compares the checkout total with the amount paid. Review editable drafts and duplicate suggestions before saving.
+Upload several receipts, order screenshots or one long image. AI distinguishes separate purchases from overlapping pages of the same order and produces editable drafts. Manual forms and reusable presets cover fixed commutes, routine purchases and regular income.
 
-- **Itemized purchases** — quantities, unit prices, checkout discounts and extra fees.
-- **Refunds** — full or partial refunds linked to the original purchase.
-- **Search & memories** — search merchants, categories and individual items; attach compressed vouchers or everyday photos.
-
-### Consistent entries for everyday spending
-
-Transport, dining, shopping and groceries share structured forms across AI drafts, manual entry and saved presets. Stations, merchants, branches, meal types and product summaries produce concise titles while unknown facts stay blank. Optional preference matching selects relevant, deduplicated examples from the current book and your presets; the model resolves category ambiguity without filling missing prices or routes from history.
-
-### A conversation that works with your books
-
-> “Compare this month with last month, show where spending changed, and save a report.”
-
-A LangGraph-powered assistant queries your accessible books, coordinates recognition, reconciliation and entry tools, generates charts and saves reports. Describe transactions, recurring subscriptions, presets, budgets, allocations or installment payments in text, with receipt images when useful. The assistant fills in the details, asks for missing information and presents confirmation cards in the conversation. Revise them in plain language, then confirm to save. Background jobs keep running between visits, with live progress, retries and administrator-controlled concurrency.
-
-Choose your own OpenAI-compatible provider and text/vision models, then test the connection in settings.
-
-### Your money, your household, your view
-
-| What you want to manage | How TallyBear helps |
+| Detail | How it works |
 |---|---|
-| Personal and shared finances | Independent users, families, private books and shared books. |
-| Who paid | Assets belong to a person or family, independently of books. Choose the actual payment account when recording an expense; moving or reusing an entry preserves that account and counts its movement once. |
-| Family transfers | Describe a transfer or upload a receipt in chat. Edit and confirm cards for gifts, shared-wallet contributions, AA settlements and loans. Recipients confirm incoming payments; duplicate references and similar transfers are checked without counting internal movements as income or spending. |
-| Different reporting views | Link one transaction to several books and count that event once in cross-book totals. |
-| Subscriptions and plans | Flexible daily, weekly, monthly and yearly periods; exact cost allocation and category budgets. |
-| Your preferred workspace | English or Chinese deployment, familiar currency formatting and responsive desktop/mobile layouts. |
+| Merchants and products | Merchant-led titles, concise product summaries and separate itemized rows. |
+| Checkout | Quantities, unit prices, subtotals, discounts, rounding and extra fees; the paid total remains the transaction amount. |
+| Partial screenshots | Distinguish incomplete checkout evidence from conflicting amounts. Confirm the actual payment with an explanation instead of inventing a balancing discount. |
+| Duplicates and refunds | Compare existing records, review potential duplicates, and link full or partial refunds to the original purchase. |
+| Dates and notes | Keep transaction, creation and modification timestamps; use device time when transaction time is missing. Notes focus on useful context. |
+| Attachments and search | Optionally retain compressed vouchers and everyday photos; search merchants, categories, amounts, dates and individual items. |
+
+Transport, dining, shopping and groceries use structured scene fields: departure and arrival stops, merchants and branches, meal types and product summaries. AI drafts, manual forms and presets share those fields, with editable titles.
+
+Optional preference matching selects relevant history and presets to keep categories and descriptions consistent, rather than simply passing the latest records to the model.
+
+### AI that prepares the action, not just the answer
+
+> “I took the bus from Central Station to Riverside. It cost $2, paid from my wallet.”
+>
+> “Record this annual subscription and spread its cost over the coverage period.”
+>
+> “I sent my partner my share of the rent. Help me record the family transfer.”
+
+The assistant looks up real books, categories, wallets and family members, then uses tools to prepare **editable confirmation cards**. Fill missing or ambiguous details in conversation or directly on the card: wallet, category, amount, scene and line items. Confirm the card to save.
+
+| In conversation | Supported actions |
+|---|---|
+| Everyday records | Expenses, income, refunds, transfers and itemized purchases |
+| Repeatable tasks | Quick-entry presets, recurring subscriptions and category budgets |
+| Longer-term costs | Cost allocations, installment purchases and actual repayments |
+| Family movements | Transfers, gifts, AA shares and settlement, loans, repayments, shared-wallet contributions and receipt confirmation |
+| Financial insights | Selected-book analysis, transaction and asset queries, interactive charts and saved reports |
+
+Cards stay with their originating turn. Delete conversations and reports from history. The responsive composer expands with your text and brings attachments and options into the input area on desktop and mobile.
+
+### Assets hold the money. Books organize the view.
+
+- Wallets belong to a person or a family, independently of books. Manage multiple payment wallets and bank accounts with recognizable account and bank icons.
+- Users sign in independently and can join families with several books. Users, families and books have separate management, avatars and permissions.
+- A personal wallet can pay for a shared-book expense. Moving a record preserves its funding account; linked reuse across books counts the same event once in consolidated totals.
+- Create, edit, delete and reorder categories with custom icons. Organize entries in batches, move them or link them to another book.
+
+### One family transfer, two personal views
+
+The sender selects **their own funding wallet and the recipient**. The recipient confirms receipt into **their own wallet**, which can differ from the sender’s payment platform. Neither party sees the other’s private wallets; authorized members manage shared family wallets.
+
+Each person independently selects a personal display book, with a remembered default. Its **Records → Fund movements** section shows incoming/outgoing transfers and confirmation status. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
+
+| Shared-rent example | Where it appears | Household spending |
+|---|---|---|
+| One member sends the other their 1,500 share | Family history and each selected personal book | None |
+| The payer pays the landlord 3,000 | The shared book selected for the expense | 3,000 |
+| Each member contributes 500 to a shared wallet | Family history and their selected personal books | None |
+
+Gifts, loans, partial repayments, AA settlements and shared contributions use the same movement model. AA links to the original expense and agreed shares; repayments link to the loan. Payment references and similar transfers are checked before posting. A movement remains one underlying record, with balances updated after confirmation and no extra income or spending.
+
+### Subscriptions, installments and allocation answer different questions
+
+| Feature | Question | Accounting behavior |
+|---|---|---|
+| Recurring schedules | When is payment due? | Custom day/week/month/year intervals; review the actual payment when due. |
+| Installments and debt | What is owed and repaid? | Record consumption at purchase, principal repayments as transfers, and interest/fees as expenses. |
+| Cost allocation | How long does the paid cost cover? | Distribute cost over the selected period with exact rounding, without another wallet debit. |
+
+Use credit or BNPL accounts, create a plan from a new or existing purchase, record partial or early repayments, revise future installments and reverse an incorrect repayment. Allocation remains independent of debt repayment: early settlement does not shorten the coverage period. Refunds into the debt account reduce principal.
+
+### Explore the chart, then the entries behind it
+
+Choose the **current book, selected books or all accessible books** in the conversation composer. Consolidated analysis deduplicates linked records; asset queries use personal/family ownership scopes, keeping differing reporting scopes distinct from missing entries.
+
+Explore multicolor category, doughnut, bar and trend views. Charts with a query dimension let you select a category or time point to inspect related transactions. Save useful analysis as a report and return to it later.
+
+Recognition and chat run as durable background jobs with progress, streaming responses, retries and administrator-controlled concurrency. Leave the page and return when the result is ready.
 
 ## A little company for everyday money
 
@@ -130,22 +183,25 @@ Conversations use a **supervisor + specialists** architecture. Each agent follow
 | Agent | Capabilities | What you get |
 |---|---|---|
 | Supervisor | Understand requests, select tools, delegate and synthesize | One continuous conversation about your finances |
+| Entry & plans | Prepare editable entry, subscription, budget, installment and family-movement proposals | Confirm a completed form in conversation |
 | Recognition | Read images and text; assemble orders across images | Merchant titles, line items, discounts and editable drafts |
 | Reconciliation | Inspect drafts, find duplicates, check refunds and totals | Reviewable differences, duplicate matches and linking suggestions |
 | Analysis | Query transactions, accounts, budgets and allocations; draw charts | Data-backed explanations, charts and reports |
 
-**AI interprets the content; business tools calculate the money.** Chart tools query ledger aggregates directly, and amounts use integer minor units. Models select useful questions and explain results. Receipt processing combines structured extraction with amount checks to produce reviewable entries.
+**AI interprets the content; business tools calculate the money and enforce permissions.** Chart tools query ledger aggregates directly, and amounts use integer minor units. Models select useful questions and explain results. Receipt processing combines structured extraction with amount checks to produce reviewable entries.
 
 Specialists share the current drafts and previous findings through the supervisor. The background queue processes concurrent jobs, while conversations display processing stages, tool activity and streamed answers. Work continues between visits. Provider endpoints, text and vision models, and queue concurrency are configurable.
 
-The result connects **capture → reconcile → save → analyze**: less manual transcription, visible duplicate and amount checks before confirmation, and financial questions turned into charts and reports you can keep.
+Cards are proposals until the user confirms. Confirmation validates permissions and current data inside a database transaction; family movements keep a single record with separate per-user book display links. PostgreSQL stores job progress and conversation artifacts so the worker can keep running while the browser is closed.
+
+The result connects **capture → reconcile → confirm → save → analyze**: less manual transcription, visible duplicate and amount checks before confirmation, and financial questions turned into charts and reports you can keep.
 
 ## Get started
 
 You’ll need **Docker Compose v2** and **Node.js 22** for the setup helper.
 
 ```sh
-git clone https://github.com/JYao-Chen/TallyBear.git
+git clone --branch v1.5.0 https://github.com/JYao-Chen/TallyBear.git
 cd TallyBear
 npm run setup
 ```
@@ -239,9 +295,3 @@ Enjoying TallyBear? A ⭐ helps others find their new bookkeeping companion.
 [MIT](LICENSE) · [Credits & artwork](THIRD_PARTY_NOTICES.md)
 
 </div>
-
-## Installments, debt and monthly costs
-
-Credit purchases record spending once. Principal repayments move money from a wallet to a credit account; interest and fees are separate expenses. Create a plan from a new or existing purchase, confirm partial or early repayments, revise future installments, and reverse incorrect repayments. Personal and family credit accounts follow the same ownership permissions as assets.
-
-Cost allocation is independent of repayment scheduling: spread a purchase over its useful period without changing wallet balances or outstanding debt. Early settlement leaves that period intact. Refunds credited to the debt account reduce the plan’s principal. The AI assistant can inspect accessible plans and distinguish consumption, repayments and allocated costs.

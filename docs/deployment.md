@@ -31,6 +31,29 @@ Sign in as administrator and set an OpenAI-compatible base URL, text model, visi
 
 Back up first. Stop web and worker, obtain the desired release and run `docker compose up -d --build`. Initialization reruns the bundled idempotent schema updates before services start. Never restore an older database over newer changes without also restoring its matching files/configuration.
 
+## Upgrading to 1.5.0
+
+1. Back up the database, receipt files and `.env` using the steps below.
+2. Stop web and worker before changing the schema.
+3. Fetch and select the release, then rebuild and start:
+
+```sh
+docker compose stop web worker
+git fetch origin --tags
+git checkout v1.5.0
+docker compose up -d --build
+docker compose ps
+curl --fail http://localhost:3016/api/health
+```
+
+Compose uses the `tallybear:1.5.0` image and runs `scripts/init.mjs` before web/worker startup. Keep the existing database and receipts volumes, encryption key, language and currency. Initialization applies the bundled ownership, installment, family-movement and per-user book-display tables; existing users remain intact.
+
+For standalone installations, stop both processes, install dependencies with `npm ci`, run `node --env-file=.env scripts/init.mjs`, build with `npm run build`, and deploy the resulting web/worker artifacts together. Preserve persistent receipt storage.
+
+Family movements remain separate from ordinary transactions. Each participant can assign an existing movement to their own private book using **Display book**. The book shows it under fund movements, outside income/expense totals. Sender and recipient preferences are independent; no historical display book is guessed during the upgrade.
+
+For rollback across the asset-ownership change, restore the matching pre-upgrade database, attachments, configuration and application release together.
+
 ## Backups
 
 Back up the PostgreSQL database, the receipts volume and `.env` together. The encryption key in `.env` is required to read saved AI credentials. Keep backups private. A simple full backup while services are stopped:
