@@ -51,6 +51,7 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  if(v.status!=='pending')return {ok:true};
  if(op==='cancel'){await c.query("UPDATE family_movements SET status='cancelled' WHERE id=$1",[v.id]);return {ok:true};}
  if(v.recipient_id!==user)throw new Failure('请由收款人确认到账',403);
+ if(v.kind==='aa'){const t=await expense(c,v.expense_id,family,user);const shares=(await c.query('SELECT shares FROM family_expense_shares WHERE transaction_id=$1',[t.id])).rows[0]?.shares||[];if(shares.reduce((n:number,s:any)=>n+s.amount,0)!==Number(t.amount)||t.owner_id!==user)throw new Failure('原消费已调整，请取消本次结算并重新核对分担');}
  const target=await wallet(c,uuid.parse(b.targetId),user,family);if(target.owner_id!==user)throw new Failure('请选择自己的到账钱包');
  await wallet(c,v.source_id,v.sender_id,family);
  await c.query("UPDATE family_movements SET target_id=$2,status='confirmed',confirmed_by=$3,confirmed_at=now() WHERE id=$1",[v.id,target.id,user]);return {ok:true};
