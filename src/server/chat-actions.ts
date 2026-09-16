@@ -1,3 +1,4 @@
+import {sceneSchema} from '@/lib/entry-scene';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {db,transaction,lockBook} from './db';
@@ -40,7 +41,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
  const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,true);
  const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data},missing:[],warnings:[],summary:[]};
- const d=a.data;for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind)&&!d.date&&ctx.deviceTime){d.date=ctx.deviceTime.slice(0,10);d.occurredAt||=ctx.deviceTime;}
+ const d=a.data;if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind)&&!d.date&&ctx.deviceTime){d.date=ctx.deviceTime.slice(0,10);d.occurredAt||=ctx.deviceTime;}
  if(d.refundOf&&a.kind==='entry'){const original=(await db.query("SELECT title,payee,category,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",[uuid.parse(d.refundOf),book])).rows[0]||actions.find(v=>v.id===d.refundOf&&v.bookId===book&&v.kind==='entry'&&v.data.kind==='expense'&&v.status!=='cancelled')?.data;if(!original)throw new Failure('关联的原消费不存在');d.category=original.category;d.refundTitle=original.title||original.payee;}
  a.missing=actionMissing(a);
  const options=await actionOptions(book,ctx.user);const tr=(s:string)=>translate(s,deployment().language);
@@ -52,6 +53,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  if(d.category){const c=options.categories.find(c=>c.name===d.category);if(!c)a.missing.push('分类');add('分类',d.category,{icon:c?.icon||'🏷️'});}
  for(const [key,label] of [['amount','金额'],['principal','本次还款本金'],['fee','本次手续费'],['fees','总手续费']])if(d[key]!==undefined)add(label,fmt(d[key]));
  for(const [key,label] of [['date','交易日期'],['occurredAt','交易时间'],['payee','商家'],['nextDate','首次扣款日期'],['month','预算月份'],['startDate','分摊开始日期'],['firstDate','首次还款日期'],['terms','分期期数'],['allocationStart','分摊开始日期'],['allocationMonths','分摊月数'],['product','商品摘要'],['note','备注']])add(label,key==='occurredAt'&&d[key]&&Number.isFinite(Date.parse(d[key]))?new Date(d[key]).toLocaleString(deployment().language,{timeZone:'Asia/Shanghai',hour12:false}):d[key]);
+ if(d.scene)for(const [key,label] of [['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d.scene[key]);
  if(d.frequency)add('重复周期',`${d.intervalCount??'?'} ${tr(({daily:'天',weekly:'周',monthly:'月',yearly:'年'} as any)[d.frequency]||d.frequency)}`);
  if(d.periodUnit)add('覆盖周期',`${d.periodCount??'?'} ${tr(({day:'天',week:'周',month:'月',year:'年'} as any)[d.periodUnit]||d.periodUnit)}`);
  add('关联原消费',d.refundTitle);add('核验说明',d.verificationReason);if(d.attachmentIds?.length)add('保留图片凭证',tr(d.retainReceipts?'是':'否'));
@@ -64,12 +66,13 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  a.missing=Array.from(new Set([...actionMissing(a),...a.missing.filter(m=>m!=='最新记录版本')]));if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
 }
 export async function confirmChatAction(book:string,user:User,body:unknown){
- const b=z.object({id:uuid,turnId:uuid,actionId:uuid,operation:z.enum(['confirm_action','cancel_action']),acknowledgeWarnings:z.boolean().default(false)}).parse(body);
+ const b=z.object({id:uuid,turnId:uuid,actionId:uuid,operation:z.enum(['confirm_action','cancel_action','edit_action']),data:z.record(z.unknown()).optional(),acknowledgeWarnings:z.boolean().default(false)}).parse(body);
  return transaction(async c=>{
   const conversation=(await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND book_id=$2 AND user_id=$3 FOR UPDATE',[b.id,book,user.id])).rows[0];if(!conversation)throw new Failure('对话不存在',404);
   if((await c.query("SELECT 1 FROM ai_jobs WHERE kind='chat' AND payload->>'id'=$1 AND status IN ('queued','running')",[b.id])).rowCount)throw new Failure('助手正在更新内容，请完成后确认',409);
   const t=(await c.query('SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE',[b.id])).rows[0];if(!t||t.id!==b.turnId)throw new Failure('已有更新的对话，请核对最新确认卡片',409);
   const a=(t.artifacts.actions as ChatAction[]|undefined)?.find(a=>a.id===b.actionId);if(!a)throw new Failure('待确认操作不存在',404);if(a.status!=='pending')return {ok:true,status:a.status,result:a.result};
+  if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');await prepareChatAction({actionId:a.id,kind:a.kind,bookId:a.bookId,data:b.data||{}},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
   if(b.operation==='cancel_action')a.status='cancelled';else{
    if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');
    await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);

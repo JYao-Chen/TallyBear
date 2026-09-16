@@ -559,7 +559,7 @@
   "正在保存…": "Saving…",
   "保存修改": "Save changes",
   "记好了，保存这一笔": "Save transaction",
-  "取消修改": "Discard changes",
+  "取消修改": "Cancel editing",
   "附图加载失败": "Could not load attachments",
   "附图保存失败": "Could not save attachments",
   "账单凭证 ·": "Receipt images · ",
@@ -1332,5 +1332,10 @@
   "以下为当前账目": "Current records below",
   "当前合计": "Current total",
   "每日净支出": "Daily net spending",
-  "每日收入": "Daily income"
+  "每日收入": "Daily income",
+  "更新卡片": "Update card",
+  "通过对话修改": "Revise in chat",
+  "请补充信息": "Complete the missing details",
+  "覆盖数量": "Coverage count",
+  "间隔数量": "Interval count"
 }

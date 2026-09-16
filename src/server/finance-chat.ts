@@ -1,4 +1,4 @@
-import {confirmChatAction} from './chat-actions';
+import {confirmChatAction,actionOptions} from './chat-actions';
 import {deployment} from '@/lib/deployment';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
@@ -7,10 +7,10 @@ import {Failure,type User,member} from './access';
 import {enqueue,watchJob} from './jobs';
 const uuid=z.string().uuid();
 export async function financeChat(book:string,u:User,method:string,body:any,params:URLSearchParams,signal:AbortSignal){
- if(method==='GET'){const id=params.get('id');if(id){uuid.parse(id);const c=(await db.query('SELECT * FROM finance_conversations WHERE id=$1 AND book_id=$2 AND user_id=$3',[id,book,u.id])).rows[0];if(!c)throw new Failure('对话不存在',404);return {conversation:c,turns:(await db.query('SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at,id',[id])).rows};}return {conversations:(await db.query('SELECT id,title,updated_at FROM finance_conversations WHERE book_id=$1 AND user_id=$2 ORDER BY updated_at DESC',[book,u.id])).rows,reports:(await db.query('SELECT * FROM finance_reports WHERE book_id=$1 AND user_id=$2 ORDER BY created_at DESC',[book,u.id])).rows};}
+ if(method==='GET'){if(params.has('options'))return actionOptions(uuid.parse(params.get('options')),u);const id=params.get('id');if(id){uuid.parse(id);const c=(await db.query('SELECT * FROM finance_conversations WHERE id=$1 AND book_id=$2 AND user_id=$3',[id,book,u.id])).rows[0];if(!c)throw new Failure('对话不存在',404);return {conversation:c,turns:(await db.query('SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at,id',[id])).rows};}return {conversations:(await db.query('SELECT id,title,updated_at FROM finance_conversations WHERE book_id=$1 AND user_id=$2 ORDER BY updated_at DESC',[book,u.id])).rows,reports:(await db.query('SELECT * FROM finance_reports WHERE book_id=$1 AND user_id=$2 ORDER BY created_at DESC',[book,u.id])).rows};}
  body.language=deployment().language;
- const op=z.enum(['confirm_action','cancel_action','create','rename','delete','send','save_report','edit_report','delete_report']).parse(body.operation);
- if(op==='confirm_action'||op==='cancel_action')return confirmChatAction(book,u,body);
+ const op=z.enum(['confirm_action','cancel_action','edit_action','create','rename','delete','send','save_report','edit_report','delete_report']).parse(body.operation);
+ if(op==='confirm_action'||op==='cancel_action'||op==='edit_action')return confirmChatAction(book,u,body);
  if(op==='create'){const id=randomUUID();await db.query('INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,$4)',[id,book,u.id,body.language==='en'?'New conversation':'新的财务对话']);return {id};}
  if(op==='edit_report'||op==='delete_report'){const b=z.object({id:uuid,version:z.number().int(),title:z.string().trim().min(1).max(100).optional(),content:z.string().max(80000).optional()}).parse(body);const q=op==='delete_report'?await db.query('DELETE FROM finance_reports WHERE id=$1 AND book_id=$2 AND user_id=$3 AND version=$4',[b.id,book,u.id,b.version]):await db.query('UPDATE finance_reports SET title=COALESCE($5,title),content=COALESCE($6,content),version=version+1 WHERE id=$1 AND book_id=$2 AND user_id=$3 AND version=$4',[b.id,book,u.id,b.version,b.title,b.content]);if(!q.rowCount)throw new Failure('报告已变化或不存在，请刷新',409);return {ok:true};}
  if(op==='save_report'){const turn=uuid.parse(body.turnId);const t=(await db.query("SELECT t.* FROM finance_turns t JOIN finance_conversations c ON c.id=t.conversation_id WHERE t.id=$1 AND c.book_id=$2 AND c.user_id=$3 AND t.status='complete'",[turn,book,u.id])).rows[0];if(!t)throw new Failure('请选择一条已完成的回答');const id=randomUUID(),title=z.string().trim().min(1).max(100).parse(body.title||t.question.slice(0,60));await db.query('INSERT INTO finance_reports(id,book_id,user_id,title,content,artifacts,model) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,book,u.id,title,t.answer,t.artifacts,t.model]);return {id};}

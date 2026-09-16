@@ -40,4 +40,8 @@ const pending=await prepareChatAction({kind:'entry',data:{title:'七鲜晚餐',k
 const sub=await prepareChatAction({kind:'schedule',data:{...schedule.data,name:'云盘续费'}},ctx,[]);
 await db.query('INSERT INTO sessions(id,user_id,expires_at) VALUES($1,$2,now()+interval \'1 day\')',['chat-ui-session',user.id]);
 await db.query("INSERT INTO finance_turns(id,conversation_id,question,answer,artifacts,status) VALUES($1,$2,'帮我记晚餐56元，再建立一个云盘年费订阅','晚餐和云盘订阅已整理好，请核对后分别确认。',$3,'complete')",[randomUUID(),conversation,{actions:[pending,sub],charts:[],drafts:[],tools:[]}]);
+const bus=await prepareChatAction({kind:'entry',data:{title:'公交通勤',kind:'expense',amount:200,category:'交通',scene:{type:'transport',transport:'公交',origin:'朝阳公园桥北',destination:'中关村一街'}}},ctx,actions);await persist();
+const beforeEdit=await amount();await confirmChatAction(book,user,{id:conversation,turnId:turn,actionId:bus.id,operation:'edit_action',data:{accountId:account}});
+const edited=(await db.query('SELECT artifacts FROM finance_turns WHERE id=$1',[turn])).rows[0].artifacts.actions.find((x:any)=>x.id===bus.id);assert.deepEqual(edited.missing,[]);assert.equal(edited.data.scene.transport,'公交');assert.equal(edited.data.scene.origin,'朝阳公园桥北');assert.equal(await amount(),beforeEdit);
+await confirmChatAction(book,user,{id:conversation,turnId:turn,actionId:bus.id,operation:'confirm_action'});assert.equal((await db.query('SELECT scene FROM transactions WHERE id=$1',[bus.id])).rows[0].scene.destination,'中关村一街');
 console.log(JSON.stringify({ok:true,book,conversation,user:user.id,checks:'seven operations, missing information, revisions, exactly-once, duplicates, rollback, stale cards, permissions'}));await db.end();
