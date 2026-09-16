@@ -1,3 +1,4 @@
+import {movementBookOptions,linkMovementBook} from './family-books';
 import {z} from 'zod';
 import {transaction} from './db';
 import {Failure} from './access';
@@ -15,9 +16,10 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  const movements=(await c.query(`SELECT v.*,CASE WHEN a.owner_id=$2 OR a.family_id=$1 THEN v.source_id ELSE NULL END AS source_id,CASE WHEN t.owner_id=$2 OR t.family_id=$1 THEN v.target_id ELSE NULL END AS target_id,v.amount::float8 AS amount,to_char(v.date,'YYYY-MM-DD') AS date,s.name AS sender_name,r.name AS recipient_name,CASE WHEN a.owner_id=$2 OR a.family_id=$1 THEN a.name ELSE NULL END AS source_name,CASE WHEN t.owner_id=$2 OR t.family_id=$1 THEN t.name ELSE NULL END AS target_name FROM family_movements v JOIN users s ON s.id=v.sender_id LEFT JOIN users r ON r.id=v.recipient_id JOIN accounts a ON a.id=v.source_id LEFT JOIN accounts t ON t.id=v.target_id WHERE v.family_id=$1 AND (v.sender_id=$2 OR v.recipient_id=$2 OR a.family_id=$1 OR t.family_id=$1) ORDER BY v.created_at DESC`,[family,user])).rows;
  const expenses=(await c.query(`SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.id,t.title,t.payee,t.amount::float8 AS amount,a.owner_id,u.name AS payer_name,fs.shares FROM transactions t JOIN books b ON b.id=t.book_id JOIN members m ON m.book_id=b.id AND m.user_id=$2 JOIN accounts a ON a.id=t.account_id LEFT JOIN users u ON u.id=a.owner_id LEFT JOIN family_expense_shares fs ON fs.transaction_id=t.id WHERE b.family_id=$1 AND t.kind='expense' AND NOT t.deleted ORDER BY COALESCE(t.event_id,t.id),t.created_at`,[family,user])).rows;
  for(const e of expenses){if(e.shares){const paid=(await c.query("SELECT sender_id,sum(amount)::float8 AS paid FROM family_movements WHERE expense_id=$1 AND status='confirmed' GROUP BY sender_id",[e.id])).rows;e.shares=e.shares.map((s:any)=>({...s,paid:paid.find(p=>p.sender_id===s.userId)?.paid||0}));}}
- return {userId:user,people,wallets,movements,expenses};
+ const display=await movementBookOptions(c,user);const links=(await c.query('SELECT movement_id,book_id FROM family_movement_books WHERE user_id=$1',[user])).rows;return {userId:user,people,wallets,movements:movements.map(v=>({...v,displayBookId:links.find(l=>l.movement_id===v.id)?.book_id||null})),expenses,...display};
  }
- const op=z.object({operation:z.enum(['create','confirm','cancel','shares'])}).parse(body).operation;
+ const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display'])}).parse(body).operation;
+ if(op==='display'){const b=z.object({id:uuid,displayBookId:uuid.nullable()}).parse(body);const v=(await c.query('SELECT sender_id,recipient_id FROM family_movements WHERE id=$1 AND family_id=$2',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('只能调整自己的往来展示',403);await linkMovementBook(c,user,b.id,b.displayBookId);return {ok:true};}
  if(op==='shares'){
  const b=z.object({transactionId:uuid,shares:z.array(z.object({userId:uuid,amount:z.number().int().nonnegative()})).min(1)}).parse(body),t=await expense(c,b.transactionId,family,user);
  if(t.owner_id!==user)throw new Failure('由实际付款人设置费用承担份额',403);
@@ -27,7 +29,7 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  await c.query('INSERT INTO family_expense_shares(transaction_id,family_id,shares,created_by) VALUES($1,$2,$3,$4) ON CONFLICT(transaction_id) DO UPDATE SET shares=EXCLUDED.shares,updated_at=now()',[t.id,family,JSON.stringify(b.shares),user]);return {ok:true};
  }
  if(op==='create'){
- const b=z.object({id:uuid,sourceId:uuid,targetId:uuid.optional(),recipientId:uuid.optional(),kind:z.enum(['transfer','gift','aa','loan','repayment','contribution']),amount:money,date,note:z.string().max(500).default(''),expenseId:uuid.optional(),loanId:uuid.optional(),externalId:z.string().trim().max(200).optional(),platform:z.string().trim().max(60).default(''),allowSimilar:z.boolean().default(false)}).parse(body);
+ const b=z.object({id:uuid,displayBookId:uuid.nullable().optional(),sourceId:uuid,targetId:uuid.optional(),recipientId:uuid.optional(),kind:z.enum(['transfer','gift','aa','loan','repayment','contribution']),amount:money,date,note:z.string().max(500).default(''),expenseId:uuid.optional(),loanId:uuid.optional(),externalId:z.string().trim().max(200).optional(),platform:z.string().trim().max(60).default(''),allowSimilar:z.boolean().default(false)}).parse(body);
  const existing=(await c.query('SELECT sender_id FROM family_movements WHERE id=$1',[b.id])).rows[0];if(existing){if(existing.sender_id!==user)throw new Failure('记录不可用',403);return {ok:true};}
  if(b.externalId&&(await c.query("SELECT 1 FROM family_movements WHERE family_id=$1 AND platform=$2 AND external_id=$3 AND status<>'cancelled'",[family,b.platform,b.externalId])).rowCount)throw new Failure('这笔转账流水已记录，请使用已有往来记录',409);
  if(b.externalId&&(await c.query("SELECT 1 FROM transactions t JOIN members m ON m.book_id=t.book_id WHERE m.user_id=$1 AND t.external_id=$2 AND NOT t.deleted",[user,b.externalId])).rowCount)throw new Failure('此流水已在账单中记录，请先核对已有账单，避免重复影响余额',409);
@@ -49,14 +51,14 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  const loan=(await c.query("SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 AND kind='loan' AND status='confirmed'",[uuid.parse(b.loanId),family])).rows[0];if(!loan||loan.recipient_id!==user||loan.sender_id!==b.recipientId)throw new Failure('请选择对应的已确认借款');
  const paid=Number((await c.query("SELECT COALESCE(sum(amount),0) AS amount FROM family_movements WHERE loan_id=$1 AND status<>'cancelled'",[loan.id])).rows[0].amount);if(b.amount+paid>Number(loan.amount))throw new Failure('还款金额超过剩余借款');
  }
- await c.query(`INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,note,expense_id,loan_id,status,confirmed_by,confirmed_at,external_id,platform) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CASE WHEN $13='confirmed' THEN now() ELSE NULL END,$15,$16)`,[b.id,family,user,target?null:b.recipientId,b.sourceId,b.targetId||null,b.kind,b.amount,b.date,b.note,b.kind==='aa'?b.expenseId:null,b.kind==='repayment'?b.loanId:null,target?'confirmed':'pending',target?user:null,b.externalId||null,b.platform]);return {ok:true};
+ await c.query(`INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,note,expense_id,loan_id,status,confirmed_by,confirmed_at,external_id,platform) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CASE WHEN $13='confirmed' THEN now() ELSE NULL END,$15,$16)`,[b.id,family,user,target?null:b.recipientId,b.sourceId,b.targetId||null,b.kind,b.amount,b.date,b.note,b.kind==='aa'?b.expenseId:null,b.kind==='repayment'?b.loanId:null,target?'confirmed':'pending',target?user:null,b.externalId||null,b.platform]);await linkMovementBook(c,user,b.id,b.displayBookId);return {ok:true};
  }
- const b=z.object({id:uuid,targetId:uuid.optional()}).parse(body),v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('无权处理此记录',403);
+ const b=z.object({id:uuid,displayBookId:uuid.nullable().optional(),targetId:uuid.optional()}).parse(body),v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('无权处理此记录',403);
  if(v.status!=='pending')return {ok:true};
  if(op==='cancel'){await c.query("UPDATE family_movements SET status='cancelled' WHERE id=$1",[v.id]);return {ok:true};}
  if(v.recipient_id!==user)throw new Failure('请由收款人确认到账',403);
  if(v.kind==='aa'){const t=await expense(c,v.expense_id,family,user);const shares=(await c.query('SELECT shares FROM family_expense_shares WHERE transaction_id=$1',[t.id])).rows[0]?.shares||[];if(shares.reduce((n:number,s:any)=>n+s.amount,0)!==Number(t.amount)||t.owner_id!==user)throw new Failure('原消费已调整，请取消本次结算并重新核对分担');}
  const target=await wallet(c,uuid.parse(b.targetId),user,family);if(target.owner_id!==user)throw new Failure('请选择自己的到账钱包');
  await wallet(c,v.source_id,v.sender_id,family);
- await c.query("UPDATE family_movements SET target_id=$2,status='confirmed',confirmed_by=$3,confirmed_at=now() WHERE id=$1",[v.id,target.id,user]);return {ok:true};
+ await c.query("UPDATE family_movements SET target_id=$2,status='confirmed',confirmed_by=$3,confirmed_at=now() WHERE id=$1",[v.id,target.id,user]);await linkMovementBook(c,user,v.id,b.displayBookId);return {ok:true};
  };return client?run(client):transaction(run);}

@@ -262,3 +262,6 @@ CREATE INDEX IF NOT EXISTS family_movements_target ON family_movements(target_id
 ALTER TABLE family_movements ADD COLUMN IF NOT EXISTS external_id text;
 ALTER TABLE family_movements ADD COLUMN IF NOT EXISTS platform text;
 CREATE UNIQUE INDEX IF NOT EXISTS family_movement_reference ON family_movements(family_id,platform,external_id) WHERE external_id IS NOT NULL AND external_id<>'' AND status<>'cancelled';
+CREATE TABLE IF NOT EXISTS family_movement_books(movement_id uuid NOT NULL REFERENCES family_movements(id) ON DELETE CASCADE,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,book_id uuid NOT NULL REFERENCES books(id) ON DELETE CASCADE,PRIMARY KEY(movement_id,user_id));
+CREATE INDEX IF NOT EXISTS family_movement_books_book ON family_movement_books(book_id,user_id);
+CREATE TABLE IF NOT EXISTS family_book_preferences(user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,book_id uuid REFERENCES books(id) ON DELETE CASCADE);

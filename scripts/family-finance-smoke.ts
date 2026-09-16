@@ -51,6 +51,18 @@ try{
  const missing=await prepareChatAction({kind:'family',data:{operation:'create',familyId:f,kind:'contribution',amount:500}},{book,user:user(a),deviceTime:'2026-09-17T12:00:00+08:00'},[]);assert.ok(missing.missing.includes('转出钱包'));
  const editCards=[card];await prepareChatAction({actionId:card.id,kind:'family',data:{recipientId:null,targetId:wf,kind:'contribution'}},{book,user:user(a)},editCards);assert.equal(editCards[0].data.recipientId,undefined);
  const rollbackId=randomUUID();const {transaction}=await import('../src/server/db');await assert.rejects(()=>transaction(async c=>{await api(a,f,'POST',{operation:'create',id:rollbackId,sourceId:wa,targetId:wf,kind:'contribution',amount:987,date:'2026-09-18'},c);throw new Error('rollback-test');}),/rollback-test/);assert.equal((await db.query('SELECT 1 FROM family_movements WHERE id=$1',[rollbackId])).rowCount,0);
+
+ const [pa,pb,pa2]=[randomUUID(),randomUUID(),randomUUID()];for(const [id,owner] of [[pa,a],[pa2,a],[pb,b]]){await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'private','private',$2)",[id,owner]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[id,owner]);}
+ const {bookMovements}=await import('../src/server/family-books');const params=new URLSearchParams({from:'2026-09-01',to:'2026-09-30'});
+ const balanceBefore=(await listAssets(a)).find(x=>x.id===wa).balance;
+ await api(a,f,'POST',{operation:'display',id:card.id,displayBookId:pa});await api(b,f,'POST',{operation:'display',id:card.id,displayBookId:pb});
+ assert.equal((await bookMovements(a,pa,params)).rows[0].direction,'out');assert.equal((await bookMovements(b,pb,params)).rows[0].direction,'in');
+ await assert.rejects(()=>api(a,f,'POST',{operation:'display',id:card.id,displayBookId:pb}),/自己的个人账本/);await assert.rejects(()=>bookMovements(a,pb,params),/无权/);
+ const privateView:any=await api(a,f,'GET',{});assert.equal(privateView.movements.find((x:any)=>x.id===card.id).displayBookId,pa);assert.ok(!privateView.books.some((x:any)=>x.id===pb));
+ await api(a,f,'POST',{operation:'display',id:card.id,displayBookId:pa2});assert.equal((await bookMovements(a,pa,params)).total,0);assert.equal((await bookMovements(a,pa2,params)).total,1);assert.equal((await bookMovements(b,pb,params)).total,1);assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,balanceBefore);
+ const next=randomUUID();await api(a,f,'POST',{operation:'create',id:next,sourceId:wa,recipientId:b,kind:'transfer',amount:111,date:'2026-09-19'});assert.equal((await bookMovements(a,pa2,params)).total,2);await api(b,f,'POST',{operation:'confirm',id:next,targetId:wb});assert.equal((await bookMovements(b,pb,params)).total,2);
+ await api(a,f,'POST',{operation:'display',id:card.id,displayBookId:null});assert.equal((await bookMovements(a,pa2,params)).total,1);assert.equal((await bookMovements(b,pb,params)).total,2);assert.equal(Number((await db.query('SELECT count(*) FROM transactions')).rows[0].count),1);
+ console.log('PASS independent personal books, defaults, private permissions, display moves without balance changes');
  console.log('PASS chat proposals, editable cards, sender/recipient confirmation, repeat confirmation and cross-upload duplicates');
  console.log('PASS AA, shared contributions, idempotency, privacy, permission rejection, wallet balances and no duplicate expense');
 }finally{await db.end();await admin.query(`DROP DATABASE ${dbName} WITH (FORCE)`);await admin.end();}
