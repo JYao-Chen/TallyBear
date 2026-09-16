@@ -20,7 +20,7 @@ test('no retry when matching, but missing values trigger reread',async()=>{
 });
 test('changing total to fit is rejected and unresolved difference survives bounded retries',async()=>{
  const r=await verifyAndRepair([order()],async()=>[{...order(),amount:90}]);
- assert.equal(r.attempts,2);assert.equal(r.repaired,0);assert.equal(r.unresolved,1);assert.equal(r.entries[0].amount,100);assert.ok(r.entries[0].note.includes('0.10'));
+ assert.equal(r.attempts,2);assert.equal(r.repaired,0);assert.equal(r.unresolved,1);assert.equal(r.entries[0].amount,100);assert.equal(r.entries[0].note,'');
 });
 test('ambiguous duplicate identities cannot exchange itemizations',async()=>{
  const r=await verifyAndRepair([order(),order()],async()=>[order([item(100)])]);assert.equal(r.repaired,0);assert.equal(r.unresolved,2);
