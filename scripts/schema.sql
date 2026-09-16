@@ -265,3 +265,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS family_movement_reference ON family_movements(
 CREATE TABLE IF NOT EXISTS family_movement_books(movement_id uuid NOT NULL REFERENCES family_movements(id) ON DELETE CASCADE,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,book_id uuid NOT NULL REFERENCES books(id) ON DELETE CASCADE,PRIMARY KEY(movement_id,user_id));
 CREATE INDEX IF NOT EXISTS family_movement_books_book ON family_movement_books(book_id,user_id);
 CREATE TABLE IF NOT EXISTS family_book_preferences(user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,book_id uuid REFERENCES books(id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS family_movement_details(
+ movement_id uuid NOT NULL REFERENCES family_movements(id) ON DELETE CASCADE,
+ user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ title text NOT NULL DEFAULT '', note text NOT NULL DEFAULT '',
+ transaction_time text NOT NULL DEFAULT '', platform text NOT NULL DEFAULT '',
+ external_id text NOT NULL DEFAULT '', updated_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(movement_id,user_id)
+);
+ALTER TABLE receipt_files ALTER COLUMN book_id DROP NOT NULL;
+ALTER TABLE receipt_files ADD COLUMN IF NOT EXISTS movement_id uuid REFERENCES family_movements(id) ON DELETE CASCADE;
+ALTER TABLE receipt_files ADD COLUMN IF NOT EXISTS movement_purpose text;

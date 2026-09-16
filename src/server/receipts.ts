@@ -13,20 +13,21 @@ async function readReceiptFile(id:string){try{return await readFile(path.join(re
 export function receiptId(s:string){return /^\/api\/receipts\/([0-9a-f-]{36})$/.exec(s)?.[1];}
 export async function receiptRoute(req:Request,parts:string[],u:User){
  if(req.method==='POST'){
-  const book=new URL(req.url).searchParams.get('book')||'';await member(book,u,true);
+  const params=new URL(req.url).searchParams,book=params.get('book')||'',movement=params.get('movement');
+  if(movement){if(!(await db.query('SELECT 1 FROM family_movements v JOIN family_members m ON m.family_id=v.family_id AND m.user_id=$2 WHERE v.id=$1 AND (v.sender_id=$2 OR v.recipient_id=$2)',[movement,u.id])).rowCount)throw new Failure('无权为此往来添加附件',403);}else await member(book,u,true);
   if(!req.body)throw new Failure('请选择图片');
   const id=randomUUID(),file=path.join(receiptDirectory(),id),incoming=file+'.upload';await mkdir(receiptDirectory(),{recursive:true});
   try{
    await pipeline(Readable.fromWeb(req.body as any),createWriteStream(incoming,{flags:'wx'}));
    const compressed=await compressReceipt(incoming,file,new URL(req.url).searchParams.get('purpose')==='photo');
    const name=decodeURIComponent(req.headers.get('x-file-name')||'小票').slice(0,500);
-   await db.query('INSERT INTO receipt_files(id,book_id,user_id,name,mime,temporary) VALUES($1,$2,$3,$4,$5,true)',[id,book,u.id,name,compressed.mime]);
+   await db.query('INSERT INTO receipt_files(id,book_id,user_id,name,mime,temporary,movement_id,movement_purpose) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,movement?null:book,u.id,name,compressed.mime,!movement,movement, movement?(params.get('purpose')==='photo'?'photo':'receipt'):null]);
    return Response.json({name,data:'/api/receipts/'+id,...compressed});
   }catch(e){await unlink(file).catch(()=>{});throw e;}finally{await unlink(incoming).catch(()=>{});}
  }
  if(req.method!=='GET')throw new Failure('操作不存在',404);
  const id=parts[1];if(!/^[0-9a-f-]{36}$/.test(id||''))throw new Failure('附件不存在',404);
- const row=(await db.query('SELECT * FROM receipt_files WHERE id=$1',[id])).rows[0];if(!row)throw new Failure('附件不存在',404);await member(row.book_id,u);
+ const row=(await db.query('SELECT * FROM receipt_files WHERE id=$1',[id])).rows[0];if(!row)throw new Failure('附件不存在',404);if(row.movement_id){if(row.user_id!==u.id||!(await db.query('SELECT 1 FROM family_movements v JOIN family_members m ON m.family_id=v.family_id AND m.user_id=$2 WHERE v.id=$1 AND (v.sender_id=$2 OR v.recipient_id=$2)',[row.movement_id,u.id])).rowCount)throw new Failure('无权查看此附件',403);}else if(row.book_id)await member(row.book_id,u);else if(row.user_id!==u.id)throw new Failure('无权查看此附件',403);
  if(row.user_id!==u.id&&!(await db.query('SELECT 1 FROM transaction_receipts r JOIN transactions t ON t.id=r.transaction_id WHERE r.file_id=$1 AND t.book_id=$2',[id,row.book_id])).rowCount)throw new Failure('附件尚未共享',403);
  return new Response(await readReceiptFile(id),{headers:{'Content-Type':row.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 }
