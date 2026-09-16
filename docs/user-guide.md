@@ -71,7 +71,7 @@ Describe a purchase, subscription, preset, budget, allocation, installment or fa
 2. Choose a purpose: transfer, gift, AA settlement, loan, loan repayment or shared-wallet contribution.
 3. The sender selects their own wallet and the recipient, plus their personal display book. Shared contributions select the common wallet instead of a recipient.
 4. For a member-to-member payment, the recipient selects their actual receiving wallet and personal display book when confirming receipt. These choices are private to each participant.
-5. After confirmation the movement updates balances once. Find it in family history and each selected personal book's fund-movement section; it is excluded from income/expense totals.
+5. After confirmation the movement updates balances once. Find it in family history and each selected personal book’s daily records. Gifts count as personal income/expenses; household consolidation eliminates them. Other internal movements remain transfers.
 
 在 **记一笔 → 家庭往来** 手动操作，或点击 **用 AI 记往来** 描述并上传截图。付款方选自己的钱包及收款人；收款方确认时选实际到账钱包，可以是微信、支付宝或银行卡。双方独立选择个人展示账本，系统记住默认值。选择“仅家庭往来”则不在个人账本展示。
 
@@ -96,3 +96,9 @@ Use a credit/BNPL account for the purchase, record the expense once, and create 
 Create a quick-entry preset from the entry workspace for fixed transit fares, everyday purchases or income. Scene fields keep stops, merchants, branches and product summaries consistent across presets, manual entry and AI cards. Optional history matching retrieves related examples to assist classification; current amounts and routes come from the current input.
 
 在“常用一笔”新增、管理固定消费或收入预设；使用时可以再修改。交通、餐饮、购物和买菜共用场景字段。开启相关记账习惯参考后，用相关样例辅助分类与表达，本次金额和路线以本次提供的信息为准。
+
+### Gift statistics and home receipt confirmation / 红包统计与首页收款
+
+红包赠与确认后，在双方选择的个人账本日常流水中分别计为支出和收入，个人资产统计也采用同样口径。家庭合并视角抵消内部收支；借还款、AA 结算、共同钱包入金不当作消费。首页“待收款”显示所有家庭待确认转账，不受当前账本和月份限制；收款人直接选择自己的到账钱包与个人账本确认。
+
+Confirmed gifts appear as personal expenses and income in each participant’s selected book and personal wallet reports. Household consolidation excludes internal income and expenses. Loans, repayments, AA settlements and shared-wallet contributions are not consumption. The home inbox shows pending receipts across families, independently of the current book or month; recipients select their own wallet and personal book there.

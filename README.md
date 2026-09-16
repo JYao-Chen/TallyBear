@@ -103,7 +103,7 @@ Cards stay with their originating turn. Delete conversations and reports from hi
 
 The sender selects **their own funding wallet and the recipient**. The recipient confirms receipt into **their own wallet**, which can differ from the sender’s payment platform. Neither party sees the other’s private wallets; authorized members manage shared family wallets.
 
-Each person independently selects a personal display book, with a remembered default. Its **Records → Fund movements** section shows incoming/outgoing transfers and confirmation status. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
+Each person independently selects a personal display book, with a remembered default. Its **Home and Records** views show movements alongside everyday records. The home **Incoming transfers** inbox lets recipients choose their own wallet and book and confirm receipt. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
 
 | Shared-rent example | Where it appears | Household spending |
 |---|---|---|
@@ -111,7 +111,7 @@ Each person independently selects a personal display book, with a remembered def
 | The payer pays the landlord 3,000 | The shared book selected for the expense | 3,000 |
 | Each member contributes 500 to a shared wallet | Family history and their selected personal books | None |
 
-Gifts, loans, partial repayments, AA settlements and shared contributions use the same movement model. AA links to the original expense and agreed shares; repayments link to the loan. Payment references and similar transfers are checked before posting. A movement remains one underlying record, with balances updated after confirmation and no extra income or spending.
+Gifts, loans, partial repayments, AA settlements and shared contributions use the same movement model. AA links to the original expense and agreed shares; repayments link to the loan. Payment references and similar transfers are checked before posting. A movement remains one underlying record, with balances updated after confirmation. Gifts count as personal expenses for the sender and income for the recipient; consolidated household reporting eliminates internal income and expenses. Transfers, loans, repayments, AA settlements and shared contributions remain non-consumption flows.
 
 ### Subscriptions, installments and allocation answer different questions
 

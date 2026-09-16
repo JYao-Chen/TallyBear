@@ -1,3 +1,4 @@
+import {familyInbox} from '@/server/family-inbox';
 import {bookMovements} from '@/server/family-books';
 import {familyFinance} from '@/server/family-finance';
 import {listInstallments,changeInstallment} from '@/server/installments';
@@ -56,6 +57,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   await db.query('DELETE FROM login_attempts WHERE username=$1',[input.username]);await session(rows[0].id);return NextResponse.json({ok:true});
  }
  const u=await user();
+ if(path[0]==='family-inbox'&&method==='GET')return NextResponse.json(await familyInbox(u.id,req.nextUrl.searchParams));
  if(path[0]==='book-movements'&&method==='GET')return NextResponse.json(await bookMovements(u.id,path[1],req.nextUrl.searchParams));
  if(path[0]==='family-finance')return NextResponse.json(await familyFinance(u.id,path[1],method,body));
  if(path[0]==='families')return NextResponse.json(await families(u.id,method,path,body));
