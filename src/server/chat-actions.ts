@@ -1,3 +1,4 @@
+import {receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
 import {familyFinance} from './family-finance';
 import {familyActionSchema,prepareFamilySummary} from './family-actions';
 import {sceneSchema} from '@/lib/entry-scene';
@@ -52,6 +53,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
  const target=options.books.find(b=>b.id===book);add('记入账本',target?.name,{icon:target?.icon||'📒'});
+ const origin=receiptOriginSchema.safeParse(d.receiptOrigin);if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d.accountId&&d.walletCandidates?.length>1)a.warnings.push(deployment().language==='en'?'Multiple wallets match the payment details. Choose one in the card.':'有多个钱包符合付款信息，请在卡片中选择。');}
  add('账目标题',d.title||d.name);add('收支类型',d.kind?tr(({expense:'支出',income:'收入',refund:'退款',transfer:'转账'} as any)[d.kind]||d.kind):undefined);
  for(const [key,label] of [['accountId','资金钱包'],['targetId','转入钱包']]){const wallet=options.accounts.find(v=>v.id===d[key]);if(d[key]&&!wallet)a.missing.push(label);if(wallet)add(label,[wallet.name,wallet.suffix].filter(Boolean).join(' · '),{account:[wallet.institution,wallet.name,wallet.type].filter(Boolean).join(' ')});}
  if(d.category){const c=options.categories.find(c=>c.name===d.category);if(!c)a.missing.push('分类');add('分类',d.category,{icon:c?.icon||'🏷️'});}

@@ -99,6 +99,8 @@ Cards stay with their originating turn. Delete conversations and reports from hi
 - A personal wallet can pay for a shared-book expense. Moving a record preserves its funding account; linked reuse across books counts the same event once in consolidated totals.
 - Create, edit, delete and reorder categories with custom icons. Organize entries in batches, move them or link them to another book.
 
+Receipt recognition separates **order platforms, payment channels and funding evidence**. Logos and distinctive layouts can identify sources such as WeChat, Alipay, JD and Douyin without a written app name. Explicit balance or bank details match the user’s wallets; ambiguous candidates remain editable before confirmation.
+
 ### One family transfer, two personal views
 
 The sender selects **their own funding wallet and the recipient**. The recipient confirms receipt into **their own wallet**, which can differ from the sender’s payment platform. Neither party sees the other’s private wallets; authorized members manage shared family wallets.
