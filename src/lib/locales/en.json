@@ -1337,5 +1337,6 @@
   "通过对话修改": "Revise in chat",
   "请补充信息": "Complete the missing details",
   "覆盖数量": "Coverage count",
-  "间隔数量": "Interval count"
+  "间隔数量": "Interval count",
+  "按所选个人或家庭资产汇总，不受当前账本影响。余额是当前账面余额，包含已归档账户；收支和转账按所选日期统计。银行存款仅包含银行卡正余额，零钱与现金包含微信、支付宝和现金正余额；负余额列为负债，净资产为所有账户余额之和。账户转账不计收入或支出，退款冲减支出。来源按类别和交易对方汇总，按金额排序并分页展示，合计包含全部记录。": "Summarizes the selected personal or family assets independently of the current book. Balances include archived wallets; flows use the selected date range. Positive bank balances count as deposits; positive payment wallet and cash balances count as cash. Negative balances are liabilities. Transfers are excluded from income and expenses; refunds reduce expenses. Sources are grouped by category and counterparty, sorted by amount and paginated. Totals include all records."
 }

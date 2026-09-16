@@ -55,3 +55,9 @@
 .chart-data-legend .symbol-icon,.chart-drill-list .symbol-icon{flex:none}.chart-data-legend button{justify-content:flex-start}.chart-data-legend button>span:not(.symbol-icon){text-align:left}
 
 .chat-inline-editor{border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0;background:var(--paper)}.chat-inline-editor .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.chat-inline-editor label{min-width:0}.chat-inline-editor input{width:100%;min-width:0}.chat-inline-editor .scene-options{flex-wrap:wrap}.chat-inline-editor .inline{margin-top:12px;gap:8px}@media(max-width:550px){.chat-inline-editor .form-grid{grid-template-columns:1fr}.chat-inline-editor{padding:12px}}
+
+/* Shared compact pagination for growing display collections. */
+.list-pagination{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;padding:12px 0;margin-top:8px;border-top:1px solid var(--border,#e8e1d9);font-size:12px;color:var(--muted,#827970)}
+.list-pagination>div{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.list-pagination button.secondary{padding:8px;min-width:36px;min-height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}
+.account-source-row>span{min-width:0}.account-source-row small{overflow-wrap:anywhere}.account-source-row>b{white-space:nowrap;flex-shrink:0}.account-source-grid>div{min-width:0}
