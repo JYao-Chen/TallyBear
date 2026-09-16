@@ -2,6 +2,8 @@
 import {useEffect,useState} from 'react';
 import type {ChatAction} from '@/lib/chat-actions';
 import {VisualSelect} from './VisualSelect';
+import {LineItemsEditor} from './LineItems';
+import {lineItemsSchema} from '@/lib/line-items';
 import {SceneFields} from './SceneFields';
 import {useI18n} from './LanguageProvider';
 import {amountToCents} from '@/server/model';
@@ -15,6 +17,7 @@ export function ChatActionEditor({action,onSave,onCancel}:{action:ChatAction;onS
  {options&&<div className="form-grid">{!['budget','allocation'].includes(action.kind)&&<label>{t('资金钱包')}<VisualSelect label={t('资金钱包')} value={data.accountId||''} onChange={v=>update('accountId',v)} options={[{value:'',label:t('请选择')},...options.accounts.map((a:any)=>({value:a.id,label:[a.name,a.suffix].filter(Boolean).join(' · '),account:true,accountName:[a.institution,a.name].join(' ')}))]}/></label>}{!['allocation','repayment'].includes(action.kind)&&<label>{t('分类')}<VisualSelect label={t('分类')} value={data.category||''} onChange={v=>update('category',v)} options={[{value:'',label:t('请选择')},...options.categories.map((c:any)=>({value:c.name,label:c.name,icon:c.icon}))]}/></label>}</div>}
  {['entry','template','schedule'].includes(action.kind)&&<SceneFields value={data.scene} onChange={(scene,title)=>setData(d=>({...d,scene,...(title?{title}:{})}))}/>}
  <div className="form-grid">{keys.map(key=><label key={key}>{t(fields[key])}<input name={key} value={['amount','principal','fee','fees'].includes(key)?data[key+'Input']??(data[key]==null?'':String(data[key]/100)):data[key]??''} onChange={e=>update(['amount','principal','fee','fees'].includes(key)?key+'Input':key,e.target.value)} inputMode={['amount','principal','fee','fees'].includes(key)?'decimal':undefined}/></label>)}</div>
+ {['entry','template','schedule'].includes(action.kind)&&<LineItemsEditor items={lineItemsSchema.safeParse(data.lineItems).success?lineItemsSchema.parse(data.lineItems):data.lineItems||[]} total={data.amountInput!==undefined?Number(data.amountInput)*100:data.amount||0} onChange={items=>update('lineItems',items)} onTotal={amount=>setData(d=>({...d,amount,amountInput:String(amount/100)}))}/>}
  {error&&<p className="error" role="alert">{error}</p>}<div className="inline"><button disabled={busy||!options}>{t('更新卡片')}</button><button type="button" className="secondary" disabled={busy} onClick={onCancel}>{t('取消修改')}</button></div>
  </form>;
 }
