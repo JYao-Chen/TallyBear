@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import pg from 'pg';
+process.loadEnvFile('.env');
+const original=process.env.DATABASE_URL!;const admin=new pg.Client({connectionString:original});await admin.connect();const dbName='tallybear_family_test_'+Date.now();await admin.query(`CREATE DATABASE ${dbName}`);const url=new URL(original);url.pathname='/'+dbName;process.env.DATABASE_URL=url.toString();
+const {db}=await import('../src/server/db');
+try{
+ await db.query(readFileSync('scripts/schema.sql','utf8'));
+ const {familyFinance:api}=await import('../src/server/family-finance');const {listAssets,accountReport}=await import('../src/server/accounts');
+ const [a,b,outsider,f,wa,wb,wf,book,expense]=Array.from({length:9},()=>randomUUID());
+ for(const u of [a,b,outsider])await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$2,$2)',[u,u]);
+ await db.query("INSERT INTO families(id,name,owner_id) VALUES($1,'test',$2)",[f,a]);for(const u of [a,b])await db.query('INSERT INTO family_members VALUES($1,$2)',[f,u]);
+ for(const [id,owner] of [[wa,a],[wb,b]])await db.query("INSERT INTO accounts(id,name,owner_id,ownership,opening) VALUES($1,'private',$2,'personal',1000000)",[id,owner]);
+ await db.query("INSERT INTO accounts(id,name,family_id,ownership) VALUES($1,'shared',$2,'shared')",[wf,f]);
+ await db.query("INSERT INTO books(id,name,kind,owner_id,family_id) VALUES($1,'home','shared',$2,$3)",[book,b,f]);for(const u of [a,b])await db.query("INSERT INTO members VALUES($1,$2,'editor')",[book,u]);
+ await db.query("INSERT INTO transactions(id,book_id,account_id,kind,amount,date,created_by) VALUES($1,$2,$3,'expense',300000,'2026-09-16',$4)",[expense,book,wb,b]);
+ await api(b,f,'POST',{operation:'shares',transactionId:expense,shares:[{userId:a,amount:150000},{userId:b,amount:150000}]});
+ const id=randomUUID(),request={operation:'create',id,sourceId:wa,recipientId:b,kind:'aa',amount:150000,date:'2026-09-16',expenseId:expense};await api(a,f,'POST',request);await api(a,f,'POST',request);
+ assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,1000000);
+ await assert.rejects(()=>api(a,f,'POST',{operation:'confirm',id,targetId:wa}),/收款人/);
+ await assert.rejects(()=>api(outsider,f,'GET',{}),/无权/);
+ await api(b,f,'POST',{operation:'confirm',id,targetId:wb});await api(b,f,'POST',{operation:'confirm',id,targetId:wb});
+ assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,850000);assert.equal((await listAssets(b)).find(x=>x.id===wb).balance,850000);
+ await assert.rejects(()=>api(a,f,'POST',{...request,id:randomUUID()}),/超过/);
+ for(const [u,w] of [[a,wa],[b,wb]])await api(u,f,'POST',{operation:'create',id:randomUUID(),sourceId:w,targetId:wf,kind:'contribution',amount:10000,date:'2026-09-16'});
+ assert.equal((await listAssets(a)).find(x=>x.id===wf).balance,20000);
+ const view=await api(a,f,'GET',{}) as any;assert.ok(!view.wallets.some((x:any)=>x.id===wb));assert.equal(view.movements.filter((x:any)=>x.id===id).length,1);
+ const report=await accountReport(b,new URLSearchParams({scope:'personal',from:'2026-09-01',to:'2026-09-30'}));assert.equal(report.summary.expense,300000);assert.equal(report.summary.income,0);
+ const loan=randomUUID();await api(a,f,'POST',{operation:'create',id:loan,sourceId:wa,recipientId:b,kind:'loan',amount:5000,date:'2026-09-16'});await api(b,f,'POST',{operation:'confirm',id:loan,targetId:wb});
+ const repay={operation:'create',id:randomUUID(),sourceId:wb,recipientId:a,kind:'repayment',loanId:loan,amount:2000,date:'2026-09-16'};await api(b,f,'POST',repay);await api(a,f,'POST',{operation:'confirm',id:repay.id,targetId:wa});
+ await assert.rejects(()=>api(b,f,'POST',{...repay,id:randomUUID(),amount:4000}),/超过/);
+ await assert.rejects(()=>api(a,f,'POST',{operation:'create',id:randomUUID(),sourceId:wb,recipientId:b,kind:'gift',amount:100,date:'2026-09-16'}),/自己的钱包/);
+ const gift=randomUUID();await api(a,f,'POST',{operation:'create',id:gift,sourceId:wa,recipientId:b,kind:'gift',amount:100,date:'2026-09-16'});await api(b,f,'POST',{operation:'cancel',id:gift});
+ assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,837000);
+ console.log('PASS AA, shared contributions, idempotency, privacy, permission rejection, wallet balances and no duplicate expense');
+}finally{await db.end();await admin.query(`DROP DATABASE ${dbName} WITH (FORCE)`);await admin.end();}

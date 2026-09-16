@@ -36,7 +36,7 @@ export async function families(uid:string,method:string,path:string[],body:unkno
    return {...f,members,books,availableBooks,invitations};
   }
   if(path.length===2&&method==='PUT'){requireOwner();const b=z.object({name,description:z.string().trim().max(500),avatar:avatar.optional()}).parse(body);await c.query('UPDATE families SET name=$1,description=$2,avatar=COALESCE($4,avatar) WHERE id=$3',[b.name,b.description,id,b.avatar??null]);return {ok:true};}
-  if(path.length===2&&method==='DELETE'){requireOwner();if((await c.query('SELECT 1 FROM accounts WHERE family_id=$1',[id])).rowCount)throw new Failure('此家庭仍有共同资产，不能解散');await c.query('DELETE FROM families WHERE id=$1',[id]);return {ok:true};}
+  if(path.length===2&&method==='DELETE'){requireOwner();if((await c.query('SELECT 1 FROM family_movements WHERE family_id=$1 UNION ALL SELECT 1 FROM family_expense_shares WHERE family_id=$1',[id])).rowCount)throw new Failure('此家庭有资金往来或费用分担记录，请保留家庭以便查询');if((await c.query('SELECT 1 FROM accounts WHERE family_id=$1',[id])).rowCount)throw new Failure('此家庭仍有共同资产，不能解散');await c.query('DELETE FROM families WHERE id=$1',[id]);return {ok:true};}
   if(path[2]==='invitations'){
    requireOwner();
    if(method==='POST'){const b=z.object({username:name}).parse(body);const target=(await c.query('SELECT id FROM users WHERE username=$1 AND disabled=false',[b.username])).rows[0];if(!target)throw new Failure('账号不存在或已停用，请先由系统管理员创建独立账号');if((await c.query('SELECT 1 FROM family_members WHERE family_id=$1 AND user_id=$2',[id,target.id])).rowCount)throw new Failure('该用户已经是家庭成员');await c.query('INSERT INTO family_invitations(family_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,target.id]);return {ok:true};}
@@ -46,6 +46,7 @@ export async function families(uid:string,method:string,path:string[],body:unkno
    const b=z.object({userId:uuid}).parse(body);if(b.userId!==uid)requireOwner();if(b.userId===f.owner_id)throw new Failure('负责人请先转交家庭，或解散家庭');
    // A departed book owner keeps their independent book; detach it from the family.
    await c.query('UPDATE books SET family_id=NULL WHERE family_id=$1 AND owner_id=$2',[id,b.userId]);
+   if((await c.query("SELECT 1 FROM family_movements WHERE family_id=$1 AND status='pending' AND (sender_id=$2 OR recipient_id=$2)",[id,b.userId])).rowCount)throw new Failure('请先处理该成员待确认的资金往来');
    await c.query('DELETE FROM family_members WHERE family_id=$1 AND user_id=$2',[id,b.userId]);return {ok:true};
   }
   if(path[2]==='owner'&&method==='PUT'){requireOwner();const b=z.object({userId:uuid}).parse(body);if(!(await c.query('SELECT 1 FROM family_members m JOIN users u ON u.id=m.user_id WHERE family_id=$1 AND user_id=$2 AND u.disabled=false',[id,b.userId])).rowCount)throw new Failure('请选择已加入且可用的家庭成员');await c.query('UPDATE families SET owner_id=$1 WHERE id=$2',[b.userId,id]);return {ok:true};}
