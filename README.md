@@ -73,6 +73,7 @@ Choose your own OpenAI-compatible provider and text/vision models, then test the
 |---|---|
 | Personal and shared finances | Independent users, families, private books and shared books. |
 | Who paid | Assets belong to a person or family, independently of books. Choose the actual payment account when recording an expense; moving or reusing an entry preserves that account and counts its movement once. |
+| Family transfers | Describe a transfer or upload a receipt in chat. Edit and confirm cards for gifts, shared-wallet contributions, AA settlements and loans. Recipients confirm incoming payments; duplicate references and similar transfers are checked without counting internal movements as income or spending. |
 | Different reporting views | Link one transaction to several books and count that event once in cross-book totals. |
 | Subscriptions and plans | Flexible daily, weekly, monthly and yearly periods; exact cost allocation and category budgets. |
 | Your preferred workspace | English or Chinese deployment, familiar currency formatting and responsive desktop/mobile layouts. |

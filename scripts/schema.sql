@@ -259,3 +259,6 @@ CREATE TABLE IF NOT EXISTS family_movements (
 CREATE INDEX IF NOT EXISTS family_movements_family ON family_movements(family_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS family_movements_source ON family_movements(source_id) WHERE status='confirmed';
 CREATE INDEX IF NOT EXISTS family_movements_target ON family_movements(target_id) WHERE status='confirmed';
+ALTER TABLE family_movements ADD COLUMN IF NOT EXISTS external_id text;
+ALTER TABLE family_movements ADD COLUMN IF NOT EXISTS platform text;
+CREATE UNIQUE INDEX IF NOT EXISTS family_movement_reference ON family_movements(family_id,platform,external_id) WHERE external_id IS NOT NULL AND external_id<>'' AND status<>'cancelled';

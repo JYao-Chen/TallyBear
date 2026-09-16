@@ -22,7 +22,7 @@ try{
  await assert.rejects(()=>api(outsider,f,'GET',{}),/无权/);
  await api(b,f,'POST',{operation:'confirm',id,targetId:wb});await api(b,f,'POST',{operation:'confirm',id,targetId:wb});
  assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,850000);assert.equal((await listAssets(b)).find(x=>x.id===wb).balance,850000);
- await assert.rejects(()=>api(a,f,'POST',{...request,id:randomUUID()}),/超过/);
+ await assert.rejects(()=>api(a,f,'POST',{...request,id:randomUUID()}),/超过|已有/);
  for(const [u,w] of [[a,wa],[b,wb]])await api(u,f,'POST',{operation:'create',id:randomUUID(),sourceId:w,targetId:wf,kind:'contribution',amount:10000,date:'2026-09-16'});
  assert.equal((await listAssets(a)).find(x=>x.id===wf).balance,20000);
  const view=await api(a,f,'GET',{}) as any;assert.ok(!view.wallets.some((x:any)=>x.id===wb));assert.equal(view.movements.filter((x:any)=>x.id===id).length,1);
@@ -33,5 +33,24 @@ try{
  await assert.rejects(()=>api(a,f,'POST',{operation:'create',id:randomUUID(),sourceId:wb,recipientId:b,kind:'gift',amount:100,date:'2026-09-16'}),/自己的钱包/);
  const gift=randomUUID();await api(a,f,'POST',{operation:'create',id:gift,sourceId:wa,recipientId:b,kind:'gift',amount:100,date:'2026-09-16'});await api(b,f,'POST',{operation:'cancel',id:gift});
  assert.equal((await listAssets(a)).find(x=>x.id===wa).balance,837000);
+
+ const {prepareChatAction,confirmChatAction,actionMissing}=await import('../src/server/chat-actions');
+ const user=(id:string)=>({id,username:id,name:id,admin:false,avatar:'',theme:'bear' as const});
+ async function saveCard(uid:string,card:any){const conversation=randomUUID(),turn=randomUUID();await db.query('INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,$4)',[conversation,book,uid,'test']);await db.query("INSERT INTO finance_turns(id,conversation_id,question,status,artifacts) VALUES($1,$2,'test','complete',$3)",[turn,conversation,JSON.stringify({actions:[card]})]);const body={id:conversation,turnId:turn,actionId:card.id,operation:'confirm_action'};await confirmChatAction(book,user(uid),body);await confirmChatAction(book,user(uid),body);}
+ const cards:any[]=[];
+ const card=await prepareChatAction({kind:'family',data:{operation:'create',familyId:f,sourceId:wa,recipientId:b,kind:'gift',amount:1234,date:'2026-09-17',externalId:'test-ref',platform:'微信'}},{book,user:user(a)},cards);
+ assert.deepEqual(card.missing,[]);assert.deepEqual(actionMissing(card),[]);
+ await saveCard(a,card);
+ assert.equal(Number((await db.query('SELECT count(*) FROM family_movements WHERE id=$1',[card.id])).rows[0].count),1);
+ const incoming=await prepareChatAction({kind:'family',data:{operation:'confirm',familyId:f,movementId:card.id,targetId:wb}},{book,user:user(b)},[]);assert.deepEqual(incoming.missing,[]);await saveCard(b,incoming);
+ assert.equal((await db.query('SELECT status FROM family_movements WHERE id=$1',[card.id])).rows[0].status,'confirmed');
+ const senderView:any=await api(a,f,'GET',{}),receiverView:any=await api(b,f,'GET',{});assert.equal(senderView.movements.find((x:any)=>x.id===card.id).target_id,null);assert.equal(senderView.movements.find((x:any)=>x.id===card.id).target_name,null);assert.equal(receiverView.movements.find((x:any)=>x.id===card.id).source_id,null);assert.equal(receiverView.movements.find((x:any)=>x.id===card.id).source_name,null);
+ const wrong=await prepareChatAction({kind:'family',data:{operation:'confirm',familyId:f,movementId:card.id,targetId:wa}},{book,user:user(a)},[]);assert.ok(wrong.missing.length);
+ await assert.rejects(()=>api(a,f,'POST',{operation:'create',id:randomUUID(),sourceId:wa,recipientId:b,kind:'gift',amount:1234,date:'2026-09-17'}),/已有/);
+ await assert.rejects(()=>api(a,f,'POST',{operation:'create',id:randomUUID(),sourceId:wa,recipientId:b,kind:'gift',amount:1234,date:'2026-09-18',externalId:'test-ref',platform:'微信',allowSimilar:true}),/流水已记录/);
+ const missing=await prepareChatAction({kind:'family',data:{operation:'create',familyId:f,kind:'contribution',amount:500}},{book,user:user(a),deviceTime:'2026-09-17T12:00:00+08:00'},[]);assert.ok(missing.missing.includes('转出钱包'));
+ const editCards=[card];await prepareChatAction({actionId:card.id,kind:'family',data:{recipientId:null,targetId:wf,kind:'contribution'}},{book,user:user(a)},editCards);assert.equal(editCards[0].data.recipientId,undefined);
+ const rollbackId=randomUUID();const {transaction}=await import('../src/server/db');await assert.rejects(()=>transaction(async c=>{await api(a,f,'POST',{operation:'create',id:rollbackId,sourceId:wa,targetId:wf,kind:'contribution',amount:987,date:'2026-09-18'},c);throw new Error('rollback-test');}),/rollback-test/);assert.equal((await db.query('SELECT 1 FROM family_movements WHERE id=$1',[rollbackId])).rowCount,0);
+ console.log('PASS chat proposals, editable cards, sender/recipient confirmation, repeat confirmation and cross-upload duplicates');
  console.log('PASS AA, shared contributions, idempotency, privacy, permission rejection, wallet balances and no duplicate expense');
 }finally{await db.end();await admin.query(`DROP DATABASE ${dbName} WITH (FORCE)`);await admin.end();}

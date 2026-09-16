@@ -5,7 +5,7 @@ import {Check,CalendarClock,NotebookPen,Repeat,ChartPie,Wallet,Bookmark,ArrowRig
 import {actionNames,type ChatAction} from '@/lib/chat-actions';
 import {useI18n} from './LanguageProvider';
 import {SymbolIcon,AccountIcon} from './VisualSelect';
-const icons={entry:NotebookPen,schedule:CalendarClock,template:Bookmark,budget:ChartPie,allocation:Repeat,installment:Wallet,repayment:ArrowRightLeft};
+const icons={family:ArrowRightLeft,entry:NotebookPen,schedule:CalendarClock,template:Bookmark,budget:ChartPie,allocation:Repeat,installment:Wallet,repayment:ArrowRightLeft};
 export function ChatActionCards({onEdit,actions,disabled,confirmable,onConfirm,onCancel,onRevise}:{onEdit:(id:string,data:Record<string,any>)=>Promise<void>;actions:ChatAction[];disabled:boolean;confirmable:boolean;onConfirm:(id:string,ack:boolean)=>Promise<void>;onCancel:(id:string)=>Promise<void>;onRevise:(a:ChatAction)=>void}){
  const {t:tr}=useI18n();const [editing,setEditing]=useState('');const [saving,setSaving]=useState(''),[errors,setErrors]=useState<Record<string,string>>({}),[ack,setAck]=useState<Record<string,boolean>>({});
  async function execute(a:ChatAction,cancel=false){if(saving)return;setSaving(a.id);setErrors(v=>({...v,[a.id]:''}));try{await (cancel?onCancel(a.id):onConfirm(a.id,!!ack[a.id]));}catch(e){setErrors(v=>({...v,[a.id]:(e as Error).message}));}finally{setSaving('');}}
