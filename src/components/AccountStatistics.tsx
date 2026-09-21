@@ -1,21 +1,40 @@
 'use client';
+import {useEffect,useState} from 'react';
+import {Landmark,Wallet,ArrowDownLeft,ArrowUpRight} from 'lucide-react';
 import {PagedList} from './PagedList';
-
 import {DateField} from './DateField';
-import {deployment,formatMoney,currencySymbol} from '@/lib/deployment';
+import {deployment} from '@/lib/deployment';
 import {getLocale} from '@/lib/i18n';
 import {useI18n} from './LanguageProvider';
 import {AccountIcon} from './VisualSelect';
-import {useEffect,useState} from 'react';
-import {Landmark,Wallet,ArrowDownLeft,ArrowUpRight} from 'lucide-react';
-import {accountLabel,walletOwnership,type WalletOwnership,type AccountIdentity} from '@/lib/accounts';
+import {accountLabel,type AccountIdentity} from '@/lib/accounts';
 import {monthRange} from '@/lib/ledger-types';
-const yuan=(n:number)=>new Intl.NumberFormat(getLocale(),{style:'currency',currency:deployment().currency}).format(n/100);
+
+const money=(n:number)=>new Intl.NumberFormat(getLocale(),{style:'currency',currency:deployment().currency}).format(n/100);
 type Flow=AccountIdentity&{id:string;balance:number;income:number;expense:number;refund:number;transferIn:number;transferOut:number;archived:boolean};
-type Data={ownershipGroups:{ownership:WalletOwnership;count:number;netAssets:number;expense:number}[];summary:{cashPaid:number;debtPurchases:number;bankDeposits:number;walletAndCash:number;assets:number;liabilities:number;netAssets:number;income:number;expense:number;refund:number};accounts:Flow[];sources:{kind:string;category:string;counterparty:string;amount:number;count:number}[]};
-export function AccountStatistics({scope,month,revision}:{scope:string;month:string;revision:unknown}){const {t:tr,locale}=useI18n();
+type Data={scope:'personal';summary:{cashPaid:number;debtPurchases:number;bankDeposits:number;walletAndCash:number;assets:number;liabilities:number;netAssets:number;income:number;expense:number;refund:number};accounts:Flow[];sources:{kind:string;category:string;counterparty:string;amount:number;count:number}[]};
+
+export function AccountStatistics({month,revision}:{month:string;revision:unknown}){
+ const {t:tr}=useI18n();
  const range=monthRange(month),[from,setFrom]=useState(range.from),[to,setTo]=useState(range.to),[data,setData]=useState<Data|null>(null),[error,setError]=useState('');
  useEffect(()=>{const r=monthRange(month);setFrom(r.from);setTo(r.to);},[month]);
- useEffect(()=>{const c=new AbortController();setError('');setData(null);if(!from||!to||to<from){setError('请选择有效的日期范围');return;}fetch(`/api/assets/report?`+new URLSearchParams({from,to,scope}),{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);setData(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[scope,from,to,revision]);
- return <>{error&&<p className="error">{tr(error)}</p>}{data&&<section className="account-metrics">{[[Landmark,'银行存款',data.summary.bankDeposits],[Wallet,'零钱与现金',data.summary.walletAndCash],[ArrowUpRight,'负债',data.summary.liabilities],[ArrowDownLeft,'当前资产净值',data.summary.netAssets]].map(([Icon,label,value])=>{const I=Icon as typeof Wallet;return <article className="panel" key={tr(String(label))}><small><I size={18}/>{tr(String(label))}</small><h2>{yuan(Number(value))}</h2></article>;})}</section>}<section className="panel"><div className="panel-title"><h2>{tr("资金流向")}</h2><small>{tr("当前资产范围")}</small></div><div className="date-range asset-date-range"><label>{tr("从")}<DateField type="date" value={from} onChange={value=>setFrom(value)}/></label><label>{tr("到")}<DateField type="date" value={to} onChange={value=>setTo(value)}/></label></div>{!data&&!error&&<p role="status">{tr("正在汇总资金账户…")}</p>}{data&&<><div className="filtered-summary"><span>{tr("收入")}<strong className="income">{yuan(data.summary.income)}</strong></span><span>{tr("净支出")}<strong className="expense">{yuan(data.summary.expense-data.summary.refund)}</strong></span><span>{tr("现金实际支付")}<strong>{yuan(data.summary.cashPaid)}</strong></span><span>{tr("负债账户消费")}<strong>{yuan(data.summary.debtPurchases)}</strong></span><span>{tr("已退回")}{yuan(data.summary.refund)}</span></div><div className="wallet-groups">{data.ownershipGroups.filter(g=>g.count>0).map(g=><article key={g.ownership}><small>{tr(walletOwnership[g.ownership])}</small><strong>{yuan(g.netAssets)}</strong><small>{tr("账面净额 · 期间净支出")}{yuan(g.expense)}</small></article>)}</div><PagedList items={data.accounts} resetKey={scope+from+to} container={rows=><div className="account-flow-table"><table><thead><tr>{['资金账户','收入到账','消费支出','退款到账','转入','转出','账户余额'].map(v=><th key={v}>{v}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>}>{a=><tr key={a.id}><td><AccountIcon name={(a.institution || a.name)} size={20}/> {accountLabel(a)}{a.archived&&<small> {tr("· 已归档")}</small>}</td>{[a.income,a.expense,a.refund,a.transferIn,a.transferOut,a.balance].map((v,i)=><td key={i}>{yuan(v)}</td>)}</tr>}</PagedList><div className="account-source-grid">{[['income','收入来源'],['expense','支出去向'],['refund','退款来源']].map(([kind,title])=><div key={kind}><h3>{title}</h3>{data.sources.filter(s=>s.kind===kind).length?<PagedList items={data.sources.filter(s=>s.kind===kind)} resetKey={scope+from+to}>{(s,i)=><div className="account-source-row" key={i}><span><strong>{s.category}</strong><small>{s.counterparty} · {s.count}{tr("笔")}</small></span><b>{yuan(s.amount)}</b></div>}</PagedList>:<p className="muted">{tr("此期间暂无记录")}</p>}</div>)}</div></>}<details className="usage-help"><summary>{tr("统计口径")}</summary><p>{tr("按所选个人或家庭资产汇总，不受当前账本影响。余额是当前账面余额，包含已归档账户；收支和转账按所选日期统计。银行存款仅包含银行卡正余额，零钱与现金包含微信、支付宝和现金正余额；负余额列为负债，净资产为所有账户余额之和。账户转账不计收入或支出，退款冲减支出。来源按类别和交易对方汇总，按金额排序并分页展示，合计包含全部记录。")}</p><p>{tr("通过微信或支付宝使用绑定银行卡付款，请选择实际扣款银行卡。充值、提现、自有账户互转及信用卡还款记为转账，利息和手续费另记支出。同一资产只需创建一次，可用于多本账本；跨账本复用的同一笔交易只影响一次余额。")}</p></details></section></>;
+ useEffect(()=>{const c=new AbortController();setError('');setData(null);if(!from||!to||to<from){setError('请选择有效的日期范围');return;}fetch(`/api/assets/report?`+new URLSearchParams({from,to}),{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);setData(d);}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[from,to,revision]);
+ return <>
+  <div className="panel-title"><h2>{tr('个人钱包资产')}</h2><small>{tr('跨全部账本')}</small></div>
+  {error&&<p className="error" role="alert">{tr(error)}</p>}
+  {data&&<section className="account-metrics">{[[Landmark,'银行存款',data.summary.bankDeposits],[Wallet,'零钱与现金',data.summary.walletAndCash],[ArrowUpRight,'负债',data.summary.liabilities],[ArrowDownLeft,'当前资产净值',data.summary.netAssets]].map(([Icon,label,value])=>{const I=Icon as typeof Wallet;return <article className="panel" key={tr(String(label))}><small><I size={18}/>{tr(String(label))}</small><h2>{money(Number(value))}</h2></article>;})}</section>}
+  <section className="panel">
+   <div className="panel-title"><h2>{tr('个人钱包实际收支')}</h2><small>{tr('不包含家庭共同钱包')}</small></div>
+   <div className="date-range asset-date-range"><label>{tr('从')}<DateField type="date" value={from} onChange={setFrom}/></label><label>{tr('到')}<DateField type="date" value={to} onChange={setTo}/></label></div>
+   {!data&&!error&&<p role="status">{tr('正在汇总个人钱包…')}</p>}
+   {data&&<>
+    <div className="filtered-summary"><span>{tr('收入')}<strong className="income">{money(data.summary.income)}</strong></span><span>{tr('净支出')}<strong className="expense">{money(data.summary.expense-data.summary.refund)}</strong></span><span>{tr('现金实际支付')}<strong>{money(data.summary.cashPaid)}</strong></span><span>{tr('负债账户消费')}<strong>{money(data.summary.debtPurchases)}</strong></span><span>{tr('已退回')}{money(data.summary.refund)}</span></div>
+    {!data.accounts.length?<div className="empty"><p>{tr('还没有个人钱包，请先在“我的资产”中添加钱包。')}</p></div>:<>
+     <PagedList items={data.accounts} resetKey={from+to} container={rows=><div className="account-flow-table"><table><thead><tr>{['资金账户','收入到账','消费支出','退款到账','转入','转出','账户余额'].map(v=><th key={v}>{tr(v)}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>}>{a=><tr key={a.id}><td><AccountIcon name={a.institution||a.name} size={20}/> {accountLabel(a)}{a.archived&&<small> {tr('· 已归档')}</small>}</td>{[a.income,a.expense,a.refund,a.transferIn,a.transferOut,a.balance].map((v,i)=><td key={i}>{money(v)}</td>)}</tr>}</PagedList>
+     <div className="account-source-grid">{[['income','收入来源'],['expense','支出去向'],['refund','退款来源']].map(([kind,title])=><div key={kind}><h3>{tr(title)}</h3>{data.sources.filter(s=>s.kind===kind).length?<PagedList items={data.sources.filter(s=>s.kind===kind)} resetKey={from+to}>{(s,i)=><div className="account-source-row" key={i}><span><strong>{s.category}</strong><small>{s.counterparty} · {s.count}{tr('笔')}</small></span><b>{money(s.amount)}</b></div>}</PagedList>:<p className="muted">{tr('此期间暂无记录')}</p>}</div>)}</div>
+    </>}
+   </>}
+   <details className="usage-help"><summary>{tr('统计口径')}</summary><p>{tr('只汇总当前用户持有的个人钱包，跨全部账本统计，不包含家庭共同钱包或其他成员钱包。余额是当前账面余额，包含已归档钱包；收支和转账按所选日期统计。账户转账不计收入或支出，退款冲减支出；同一笔交易出现在多个账本时只计算一次。')}</p><p>{tr('通过微信或支付宝使用绑定银行卡付款，请选择实际扣款银行卡。充值、提现、自有账户互转及信用卡还款记为转账，利息和手续费另记支出。')}</p></details>
+  </section>
+ </>;
 }
