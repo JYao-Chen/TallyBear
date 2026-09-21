@@ -8,6 +8,7 @@ import {moveEntry,movePreview,moveInTransaction,selectedGroup,withReceiptTransac
 import {deployment} from '@/lib/deployment';
 import {checkDeploymentCurrency} from '@/server/deployment';
 import {language,translate} from '@/lib/i18n';
+import {LIST_PAGE_SIZE} from '@/lib/pagination';
 import {families} from '@/server/families';
 import {search,searchOptions} from '@/server/search';
 
@@ -131,7 +132,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  }
 
  if(resource==='accounts'&&method==='GET')return NextResponse.json(await listAccounts(book,u.id));
- if(resource==='attention'&&method==='GET'){const trash=req.nextUrl.searchParams.get('mode')==='trash';const offset=z.coerce.number().int().min(0).parse(req.nextUrl.searchParams.get('offset')||0);return NextResponse.json((await db.query(`SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,a.name AS account_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND t.deleted=$2 AND ($2 OR (jsonb_array_length(t.line_items)>0 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(t.line_items) item WHERE item->>'amount' IS NULL) OR (SELECT sum((item->>'amount')::bigint) FROM jsonb_array_elements(t.line_items) item)<>t.amount))) ORDER BY t.created_at DESC,t.id LIMIT 50 OFFSET $3`,[book,trash,offset])).rows);}
+ if(resource==='attention'&&method==='GET'){const trash=req.nextUrl.searchParams.get('mode')==='trash';const offset=z.coerce.number().int().min(0).parse(req.nextUrl.searchParams.get('offset')||0);return NextResponse.json((await db.query(`SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,a.name AS account_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND t.deleted=$2 AND ($2 OR (jsonb_array_length(t.line_items)>0 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(t.line_items) item WHERE item->>'amount' IS NULL) OR (SELECT sum((item->>'amount')::bigint) FROM jsonb_array_elements(t.line_items) item)<>t.amount))) ORDER BY t.created_at DESC,t.id LIMIT $4 OFFSET $3`,[book,trash,offset,LIST_PAGE_SIZE])).rows);}
  if(resource==='receipts'&&method==='GET')return NextResponse.json((await db.query('SELECT f.id,f.name,r.purpose FROM receipt_files f JOIN transaction_receipts r ON r.file_id=f.id JOIN transactions t ON t.id=r.transaction_id WHERE t.book_id=$1 AND t.id=$2',[book,uuid.parse(req.nextUrl.searchParams.get('transaction'))])).rows);
  if(resource==='photos'&&(method==='POST'||method==='DELETE')){
   const b=z.object({transaction:uuid,ids:z.array(uuid)}).parse(body);

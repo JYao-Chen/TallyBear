@@ -2,9 +2,10 @@
 import {Fragment,useState,type ReactNode} from 'react';
 import {ChevronLeft,ChevronRight} from 'lucide-react';
 import {useI18n} from './LanguageProvider';
+import {LIST_PAGE_SIZE} from '@/lib/pagination';
 
 /** Paginate display collections without changing the data used for totals. */
-export function PagedList<T>({items,children,pageSize=8,label,resetKey='',container}:{items:readonly T[];children:(item:T,index:number)=>ReactNode;pageSize?:number;label?:string;resetKey?:string;container?:(rows:ReactNode)=>ReactNode}) {
+export function PagedList<T>({items,children,pageSize=LIST_PAGE_SIZE,label,resetKey='',container}:{items:readonly T[];children:(item:T,index:number)=>ReactNode;pageSize?:number;label?:string;resetKey?:string;container?:(rows:ReactNode)=>ReactNode}) {
  const {locale}=useI18n();
  const [position,setPosition]=useState({key:resetKey,page:0});
  const pages=Math.max(1,Math.ceil(items.length/pageSize));
