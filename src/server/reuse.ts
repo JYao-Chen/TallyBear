@@ -1,4 +1,3 @@
-import {movementReportSource} from './movement-report';
 import {copyFile} from 'node:fs/promises';
 import path from 'node:path';
 import {receiptDirectory} from './receipts';
@@ -6,7 +5,7 @@ import {withReceiptTransaction} from './move-entry';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import type {PoolClient} from 'pg';
-import {db,transaction,lockBook} from './db';
+import {lockBook} from './db';
 import {Failure} from './access';
 import {entry} from './model';
 import {insertEntry,validateRefund,type Entry} from './ledger';
@@ -30,9 +29,4 @@ export async function reuseInTransaction(c:PoolClient,book:string,user:string,so
 export async function reuse(book:string,user:string,body:unknown){
  const b=z.object({id:z.string().uuid(),version:z.number().int(),targetBook:z.string().uuid()}).parse(body);if(book===b.targetBook)throw new Failure('请选择另一本账本');
  return withReceiptTransaction(async(c,copied)=>{for(const id of [book,b.targetBook].sort())await lockBook(c,id);for(const id of [book,b.targetBook]){const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[id,user])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('需要拥有两个账本的记账权限',403);}return reuseInTransaction(c,book,user,b.id,b.version,b.targetBook,copied);});
-}
-export async function overview(user:string,params:URLSearchParams){
- const month=z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).parse(params.get('month'));
- const books=(await db.query('SELECT book_id FROM members WHERE user_id=$1',[user])).rows.map(r=>r.book_id);
- const result=(await db.query(`${movementReportSource}, visible AS (SELECT * FROM ledger_source WHERE book_id=ANY($1::uuid[]) AND NOT deleted AND date>=$2::date AND date<$2::date+interval '1 month'), unique_records AS (SELECT DISTINCT ON (COALESCE(event_id,id)) * FROM visible ORDER BY COALESCE(event_id,id),created_at,id) SELECT (SELECT count(*)::int FROM visible) AS appearances,count(*)::int AS count,COALESCE(sum(amount) FILTER(WHERE kind='expense'),0)::float8 AS expense,COALESCE(sum(amount) FILTER(WHERE kind='refund'),0)::float8 AS refund,COALESCE(sum(amount) FILTER(WHERE kind='income'),0)::float8 AS income FROM unique_records`,[books,month+'-01'])).rows[0];return result;
 }

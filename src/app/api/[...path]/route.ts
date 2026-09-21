@@ -16,7 +16,7 @@ import {receiptRoute,linkReceipts,authorizeImages} from '@/server/receipts';
 import {checkVerification} from '@/lib/verification';
 import {enqueue,ownedJob,watchJob} from '@/server/jobs';
 import {financeChat} from '@/server/finance-chat';
-import {reuse,overview,lockRelatedBooks,syncFinancialFacts} from '@/server/reuse';
+import {reuse,lockRelatedBooks,syncFinancialFacts} from '@/server/reuse';
 import {profile,manageUser,bookMetadata,avatar} from '@/server/management';
 import {allocations} from '@/server/allocations';
 import { NextRequest,NextResponse } from 'next/server';
@@ -27,7 +27,7 @@ import { db,transaction } from '@/server/db';
 import { user,member,session,passwordHash,verifyPassword,Failure } from '@/server/auth';
 import { entry } from '@/server/model';
 import {schedules} from '@/server/schedules';
-import {report,exportCSV} from '@/server/reports';
+import {report,personalWalletReport,exportCSV} from '@/server/reports';
 import {listCategories,changeCategory,checkCategory,defaultCategories} from '@/server/categories';
 import {templates} from '@/server/templates';
 import {getDraft,saveDraft} from '@/server/drafts';
@@ -95,7 +95,6 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   if(method==='POST')return NextResponse.json(await createAccount(u.id,body));
   if(method==='PATCH')return NextResponse.json(await changeAccount(u.id,body));
  }
- if(path[0]==='overview'&&method==='GET')return NextResponse.json(await overview(u.id,req.nextUrl.searchParams));
  if(path[0]==='ai-settings'){
   if(!u.admin)throw new Failure('需要管理员权限',403);
   if(method==='GET'){const {rows}=await db.query('SELECT base_url AS "baseUrl",model,vision_model AS "visionModel",true AS "hasKey" FROM ai_settings WHERE id=1');return NextResponse.json(rows[0]||{});}
@@ -114,9 +113,9 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));
- if(resource==='chart-details'&&method==='GET'){const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams));}
- if(resource==='report'&&method==='GET')return NextResponse.json(await report(book,req.nextUrl.searchParams));
- if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
+ if(resource==='chart-details'&&method==='GET'){if(req.nextUrl.searchParams.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,req.nextUrl.searchParams));const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams));}
+ if(resource==='report'&&method==='GET')return NextResponse.json(req.nextUrl.searchParams.get('scope')==='personal_wallet'?await personalWalletReport(u.id,req.nextUrl.searchParams):await report(book,req.nextUrl.searchParams));
+ if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale,req.nextUrl.searchParams.get('scope')==='personal_wallet'?u.id:undefined),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
  if(resource==='categories'){if(method==='GET')return NextResponse.json(await listCategories(book));if(method==='PUT')return NextResponse.json(await changeCategory(book,body));}
  if(resource==='schedules')return NextResponse.json(await schedules(book,u.id,method,body));
  if(resource==='templates')return NextResponse.json(await templates(book,u.id,method,body));

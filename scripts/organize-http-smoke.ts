@@ -29,7 +29,6 @@ await req(`books/${source}/organize`,'POST',{ids:[a.id,b.id],operation:'copy',ta
 await req(`books/${source}/organize`,'POST',{ids:[a.id,b.id],operation:'copy',targetBook:target,versions:versions(p)});
 assert.equal(await balance(),before);assert.equal((await rows(target)).length,3);
 const copiedExpense=(await rows(target)).find((r:any)=>r.kind==='expense'&&r.amount===1200);const attachments=await req(`books/${target}/receipts?transaction=${copiedExpense.id}`);assert.equal(attachments.length,1);assert.notEqual(attachments[0].id,fileId);assert.equal((await fetch(base+'/api/receipts/'+attachments[0].id,{headers:{Cookie:cookie}})).status,200);assert.equal((await req(`books/${target}/allocations?month=2026-09`)).items.length,1);
-assert.equal((await req('overview?month=2026-09')).expense,3000);
 p=await preview([a.id,b.id]);const repeat=await req(`books/${source}/organize`,'POST',{ids:[a.id,b.id],operation:'copy',targetBook:target,versions:versions(p)});assert.equal(repeat.skipped,3);
 await req(`books/${source}/organize`,'POST',{ids:[a.id,b.id],operation:'move',targetBook:third,versions:{...versions(p),[b.id]:-1}},409);assert.equal((await rows(source)).length,3);
 await req(`books/${source}/organize`,'POST',{ids:[a.id,b.id],operation:'move',targetBook:third,versions:versions(p)});assert.equal((await rows(source)).length,0);assert.equal(await balance(),before);

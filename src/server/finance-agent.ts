@@ -18,7 +18,7 @@ import {db} from './db';
 import {recognize,review} from './recognize';
 import {Annotation,StateGraph,START,END} from '@langchain/langgraph';
 import {member,type User} from './access';
-export type ChartArtifact={dimension?:string;books?:string[];id:string;type:'bar'|'line'|'pie';title:string;from:string;to:string;unit:string;data:{name:string;value:number}[]};
+export type ChartArtifact={dimension?:string;books?:string[];scope?:'personal_wallet';id:string;type:'bar'|'line'|'pie';title:string;from:string;to:string;unit:string;data:{name:string;value:number}[]};
 export type AgentArtifact={analysisBooks?:{id:string;name:string}[];actions?:ChatAction[];images?:string[];thinking?:ThinkingBlock[];month?:string;charts:ChartArtifact[];drafts:any[];tools:{name:string;label:string;args:unknown;result:unknown}[];agents?:{id:string;role:string;task:string;status:string;summary:string;model:string}[]};
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/);const period=z.object({from:date,to:date}).refine(v=>v.to>=v.from,'结束日期不能早于开始日期');
 const props={from:{type:'string',description:'起始日期 YYYY-MM-DD'},to:{type:'string',description:'结束日期 YYYY-MM-DD'}};

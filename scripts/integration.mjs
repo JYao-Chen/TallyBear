@@ -167,8 +167,6 @@ try{
  await req(`books/${sourceBook}/transactions`,'POST',{entries:[uniqueExpense]},a);
  const copy=(await req(`books/${sourceBook}/reuse`,'POST',{id:uniqueExpense.id,version:1,targetBook,accountId:dstAcc},a)).data;
  assert.equal((await req(`books/${sourceBook}/reuse`,'POST',{id:uniqueExpense.id,version:2,targetBook,accountId:dstAcc},a)).data.alreadyExists,true);
- let whole=(await req('overview?month=2021-02','GET',undefined,a)).data;assert.equal(whole.expense,10000);assert.equal(whole.appearances,2);assert.equal(whole.count,1);
- assert.equal((await req('overview?month=2021-02','GET',undefined,b)).data.expense,10000);
  await req(`books/${targetBook}/transactions`,'PUT',{...uniqueExpense,id:copy.id,accountId:dstAcc,amount:12000,version:1},b,403);
  await req(`books/${sourceBook}/transactions`,'PUT',{...uniqueExpense,amount:12000,version:2},a);
  assert.equal((await db.query('SELECT amount::int FROM transactions WHERE id=$1',[copy.id])).rows[0].amount,12000);
@@ -180,15 +178,11 @@ try{
  await req(`books/${sourceBook}/transactions`,'PUT',{...uniqueExpense,amount:12000,date:'2021-02-02',version:3},a);
  const deletedCopy=(await db.query("SELECT version,to_char(date,'YYYY-MM-DD') AS date FROM transactions WHERE id=$1",[copy.id])).rows[0];assert.equal(deletedCopy.date,'2021-02-02');
  await req(`books/${targetBook}/transactions`,'PATCH',{id:copy.id,version:deletedCopy.version,deleted:false},a);
- assert.equal((await req('overview?month=2021-02','GET',undefined,a)).data.expense,12000);
  const sharedRefund={...uniqueExpense,id:randomUUID(),kind:'refund',amount:7000,refundOf:uniqueExpense.id,date:'2021-02-04'};
  await req(`books/${sourceBook}/transactions`,'POST',{entries:[sharedRefund]},a);
  await req(`books/${sourceBook}/reuse`,'POST',{id:sharedRefund.id,version:1,targetBook,accountId:dstAcc},a);
- whole=(await req('overview?month=2021-02','GET',undefined,a)).data;assert.equal(whole.refund,7000);assert.equal(whole.expense,12000);assert.equal(whole.count,2);
  await req(`books/${targetBook}/transactions`,'POST',{entries:[{...sharedRefund,id:randomUUID(),accountId:dstAcc,refundOf:copy.id,amount:6000}]},a,400);
  await req(`books/${sourceBook}/transactions`,'POST',{entries:[{...uniqueExpense,id:randomUUID(),amount:12000}]},a);
- assert.equal((await req('overview?month=2021-02','GET',undefined,a)).data.expense,24000);
- assert.equal((await req('overview?month=2021-02','GET',undefined,b)).data.expense,12000);
  const blockedUsername='test_disabled_'+randomBytes(6).toString('hex');users.push(blockedUsername);await req('users','POST',{username:blockedUsername,name:'停用测试',password},admin);
  const blocked=(await req('users','GET',undefined,admin)).data.find(u=>u.username===blockedUsername);
  const prior=(await req('login','POST',{username:blockedUsername,password})).cookie;

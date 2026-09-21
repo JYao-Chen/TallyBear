@@ -7,6 +7,7 @@ import {insertEntry} from '../src/server/ledger';
 import {reuse,syncFinancialFacts} from '../src/server/reuse';
 import {moveEntry,movePreview} from '../src/server/move-entry';
 import {search,searchOptions} from '../src/server/search';
+import {personalWalletReport} from '../src/server/reports';
 import {schedules} from '../src/server/schedules';
 import {templates} from '../src/server/templates';
 const ids=Array.from({length:6},()=>randomUUID());const [alice,bob,outsider,book,other,family]=ids;
@@ -29,7 +30,8 @@ try{
  const preview=await movePreview(book,cashTx);await moveEntry(book,alice,{id:cashTx,targetBook:other,versions:Object.fromEntries(preview.records.map(r=>[r.id,r.version]))});
  assert.equal((await db.query('SELECT account_id,book_id FROM transactions WHERE id=$1',[cashTx])).rows[0].account_id,personal);assert.equal((await listAssets(alice)).find(a=>a.id===personal).balance,9900);
  const report=await accountReport(alice,new URLSearchParams({from:'2026-09-01',to:'2026-09-30'}));assert.equal(report.summary.expense,100);assert.equal(report.summary.netAssets,9900);
- assert.equal((await accountReport(bob,new URLSearchParams({from:'2026-09-01',to:'2026-09-30',scope:family}))).summary.expense,1200);
+ const ledgerReport=await personalWalletReport(alice,new URLSearchParams({from:'2026-09-01',to:'2026-09-30'}));assert.equal(ledgerReport.totals.expense,100);assert.equal(ledgerReport.rows.length,1);assert.equal(ledgerReport.rows[0].book_id,other);assert.equal(ledgerReport.rows[0].book_name,'asset test');
+ assert.equal((await accountReport(bob,new URLSearchParams({from:'2026-09-01',to:'2026-09-30',scope:family}))).summary.expense,0);
  const asset=(await listAssets(alice)).find(a=>a.id===personal);await changeAccount(alice,{operation:'reconcile',id:personal,version:asset.version,expectedBalance:9900,balance:10000,note:'test reconcile'});
  assert.equal((await listAssets(alice)).find(a=>a.id===personal).balance,10000);
  await assert.rejects(()=>changeAccount(bob,{operation:'edit',id:personal,version:asset.version,name:'bad',opening:0}),/管理权限/);

@@ -64,7 +64,6 @@ try{
  await api(a,f,'POST',{operation:'display',id:card.id,displayBookId:null});assert.equal((await bookMovements(a,pa2,params)).total,1);assert.equal((await bookMovements(b,pb,params)).total,2);assert.equal(Number((await db.query('SELECT count(*) FROM transactions')).rows[0].count),1);
  const {report:ledgerReport,exportCSV}=await import('../src/server/reports');
  const {familyInbox}=await import('../src/server/family-inbox');
- const {overview}=await import('../src/server/reuse');
  await api(a,f,'POST',{operation:'display',id:loan,displayBookId:pa});
  await api(a,f,'POST',{operation:'display',id,displayBookId:pa});
  await api(a,f,'POST',{operation:'display',id:card.id,displayBookId:pa});
@@ -74,7 +73,6 @@ try{
  assert.equal((await ledgerReport([pa,pb,book],params)).totals.expense,300000);
  assert.equal((await ledgerReport([pa,pb,book],params)).totals.income,0);
  assert.ok((await exportCSV(pa,params)).includes('12.34'));
- assert.equal((await overview(a,new URLSearchParams({month:'2026-09'}))).expense,300000);
  assert.equal((await ledgerReport(pa,new URLSearchParams({...Object.fromEntries(params),kind:'expense'}))).totals.count,1);
  assert.equal((await ledgerReport(pa,new URLSearchParams({...Object.fromEntries(params),category:'人情往来'}))).totals.expense,1234);
  assert.equal((await accountReport(a,new URLSearchParams({...Object.fromEntries(params),scope:'personal'}))).summary.expense,1234);
