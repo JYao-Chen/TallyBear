@@ -54,8 +54,10 @@ Recognize platforms from explicit text or distinctive visual evidence following 
  const parsed=output.entries.map((raw:unknown)=>{const item=proposed.parse(raw);return {...item,categorySource:item.categorySource||'model' as const,accountId:'',targetId:null};});if(parsed.some((entry:z.infer<typeof proposed>)=>entry.currency&&entry.currency!==deployment().currency))throw new Failure(b.language==='en'?`Receipt currency does not match ${deployment().currency}. No currency conversion was performed.`:`图片币种与账本${deployment().currency}不同，未进行汇率换算，请核对后单独处理。`);if(!cached)await progress.checkpoint?.set(`batch:${batch}`,{entries:parsed});
  recognized[batch]=parsed;
  }};
- const workers=Array.from({length:Math.min(3,batches.length)},()=>readBatches());
- const settled=await Promise.allSettled(workers),failed=settled.find((result):result is PromiseRejectedResult=>result.status==='rejected');if(failed)throw failed.reason;
+ const runRound=async()=>{nextBatch=0;return Promise.allSettled(Array.from({length:Math.min(3,batches.length)},()=>readBatches()));};
+ let settled=await runRound(),failed=settled.find((result):result is PromiseRejectedResult=>result.status==='rejected');
+ if(failed){progress.onStage?.(b.language==='en'?'Retrying only unfinished image sections':'识别助手：仅重试未完成的图片片段');settled=await runRound();failed=settled.find((result):result is PromiseRejectedResult=>result.status==='rejected');}
+ if(failed)throw failed.reason;
  for(const parsed of recognized){all.push(...parsed);if(all.length>1000)throw new Failure('本次识别超过1000条记录，请分批处理');}
  for(const e of all){e.accountId='';e.targetId=null;if(e.date&&(!/^\d{4}-\d{2}-\d{2}$/.test(e.date)||Number.isNaN(Date.parse(e.date))||new Date(e.date).toISOString().slice(0,10)!==e.date))e.date='';}
  const merged=await mergeReceipts(all,raw=>proposed.parse(raw),progress);

@@ -13,13 +13,16 @@ test('ordinary images remain separate and invalid input is actionable',async()=>
  assert.deepEqual(receiptSlices(1000,1800),[{top:0,height:1800}]);await assert.rejects(()=>prepareReceiptImages(['data:image/png;base64,invalid']),/第1张图片无法读取/);
  const signal=AbortSignal.abort();await assert.rejects(()=>prepareReceiptImages(['data:image/png;base64,invalid'],signal));
 });
+test('large screenshots are downscaled before model calls without dropping height',async()=>{
+ const input=await sharp({create:{width:1440,height:4000,channels:3,background:'white'}}).png().toBuffer(),prepared=await prepareReceiptImages(['data:image/png;base64,'+input.toString('base64')]);
+ const first=await sharp(Buffer.from(prepared.images[0].split(',')[1],'base64')).metadata();assert.equal(first.width,1200);assert.equal(prepared.labels.length,prepared.images.length);assert.ok(prepared.labels.at(-1)?.includes('3333'));
+});
 test('more than 24 fragments are accepted for downstream batching',async()=>{
  const input=await sharp({create:{width:32,height:32,channels:3,background:'white'}}).png().toBuffer();
  const result=await prepareReceiptImages(Array(25).fill('data:image/png;base64,'+input.toString('base64')));assert.equal(result.images.length,25);assert.ok(result.labels[24].includes('原图25'));
 });
-test('image batches stay small and preserve one neighboring overlap',async()=>{
+test('each model request receives one image while source slices retain their own overlap',async()=>{
  const input=await sharp({create:{width:32,height:32,channels:3,background:'white'}}).png().toBuffer(),image='data:image/png;base64,'+input.toString('base64'),batches=[];
  for await(const batch of receiptImageBatches(Array(7).fill(image)))batches.push(batch);
- assert.deepEqual(batches.map(batch=>batch.images.length),[3,3,3]);
- assert.equal(batches[0].images.at(-1),batches[1].images[0]);
+ assert.deepEqual(batches.map(batch=>batch.images.length),Array(7).fill(1));
 });
