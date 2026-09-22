@@ -26,10 +26,11 @@ export async function prepareReceiptImages(images:string[],signal?:AbortSignal,r
 }
 
 export async function* receiptImageBatches(images:string[],signal?:AbortSignal,resolve?:(s:string)=>Promise<string>){
+ const batchSize=3;
  let data:string[]=[],labels:string[]=[],emitted=false;
  for(let i=0;i<images.length;i++){
   const prepared=await prepareReceiptImages([images[i]],signal,resolve);
-  for(let j=0;j<prepared.images.length;j++){data.push(prepared.images[j]);labels.push(prepared.labels[j].replace('原图1，',`原图${i+1}，`));if(data.length===6){yield {images:data,labels};emitted=true;data=data.slice(-1);labels=labels.slice(-1);}}
+  for(let j=0;j<prepared.images.length;j++){data.push(prepared.images[j]);labels.push(prepared.labels[j].replace('原图1，',`原图${i+1}，`));if(data.length===batchSize){yield {images:data,labels};emitted=true;data=data.slice(-1);labels=labels.slice(-1);}}
  }
  if(data.length>1||!emitted)yield {images:data,labels};
 }

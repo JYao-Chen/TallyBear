@@ -1388,6 +1388,8 @@
   "这个范围还没有资金钱包。": "There are no wallets in this asset scope yet.",
   "只汇总所选家庭的共同钱包；家庭成员的个人钱包不会混入。账户转账不计收入或支出，退款冲减支出，同一笔关联交易只计算一次。": "Only shared wallets belonging to the selected family are included. Members’ personal wallets stay separate. Transfers are excluded from income and expenses, refunds reduce spending, and each linked transaction is counted once.",
   "智能核对账单": "Reconcile statements",
-  "我会上传一组支付账单截图，请按流水号、订单号、时间和前后顺序智能核对漏记。": "I will upload payment statement screenshots. Reconcile them for missing entries using reference IDs, order IDs, timestamps, and transaction sequence.",
-  "请上传需要核对的支付账单截图，然后发送消息。": "Upload the payment statement screenshots you want to reconcile, then send the message."
+  "请读取我附上的支付账单截图，按流水号、订单号、时间和前后顺序智能核对漏记。": "Read the attached payment statement screenshots and reconcile them for missing entries using reference IDs, order IDs, timestamps, and transaction sequence.",
+  "请上传需要核对的支付账单截图，然后发送消息。": "Upload the payment statement screenshots you want to reconcile, then send the message.",
+  "已附 {0} 张图片": "{0} images attached",
+  "已添加 {0} 张图片，发送时会一并提交": "{0} images added and ready to send"
 }
