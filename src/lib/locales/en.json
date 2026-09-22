@@ -789,6 +789,9 @@
   "已追加到待确认草稿，请核对后保存": "Added to review drafts. Check before saving.",
   "分类已更新；如有未同步草稿，请重新读取云端版本。": "Category updated. Reload cloud drafts if you have unsynced changes.",
   "AI 模型设置": "AI model settings",
+  "AI 助手模型": "AI assistant models",
+  "用于“记一笔”中的 AI 文字／截图识别，不影响小熊对话。": "Used for AI text and screenshot recognition under Record. Does not affect Bear Chat.",
+  "用于小熊对话的问答、工具调用，以及对话内的图片识别与后续核对。": "Used for Bear Chat responses, tool calls, in-chat image recognition and subsequent verification.",
   "模型配置已保存": "Model settings saved",
   "兼容接口地址": "Compatible API endpoint",
   "文字模型": "Text model",
@@ -797,6 +800,12 @@
   "已保存，留空保持不变": "Saved; leave blank to keep",
   "尚未配置": "Not configured",
   "保存设置": "Save settings",
+  "保存识别模型": "Save recognition models",
+  "保存助手模型": "Save assistant models",
+  "账单识别模型配置已保存": "Receipt recognition model settings saved",
+  "AI 助手模型配置已保存": "AI assistant model settings saved",
+  "账单识别模型连接测试已提交，请在后台任务查看结果": "Receipt recognition connection test queued. Check Background tasks for results.",
+  "AI 助手模型连接测试已提交，请在后台任务查看结果": "AI assistant connection test queued. Check Background tasks for results.",
   "连接测试已提交，请在后台任务查看结果": "Connection test queued. Check Background tasks for results.",
   "测试已保存的连接": "Test saved connection",
   "手机导航": "Mobile navigation",
@@ -1343,5 +1352,8 @@
   "实付与已展示明细不同，不一定是账单错误。截图可能未包含全部优惠或附加费用。": "The payment differs from the visible items. The screenshot may omit discounts or additional charges.",
   "已确认实付 · 点击撤销": "Payment confirmed · Undo",
   "实付金额正确，按实付保存": "Payment is correct; use the paid amount",
-  "补充说明（选填）": "Additional context (optional)"
+  "补充说明（选填）": "Additional context (optional)",
+  "已按支付渠道自动选择，请核对是否为实际扣款账户。": "Selected automatically from the payment channel. Confirm that this is the account actually charged.",
+  "已根据明确扣款信息自动选择。": "Selected automatically from the explicit funding details.",
+  "找到多个符合付款信息的钱包，请选择实际扣款账户。": "Multiple wallets match the payment details. Select the account that was actually charged."
 }

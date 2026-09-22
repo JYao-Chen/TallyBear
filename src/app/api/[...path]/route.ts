@@ -95,11 +95,12 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   if(method==='POST')return NextResponse.json(await createAccount(u.id,body));
   if(method==='PATCH')return NextResponse.json(await changeAccount(u.id,body));
  }
- if(path[0]==='ai-settings'){
+ if(path[0]==='ai-settings'||path[0]==='assistant-ai-settings'){
   if(!u.admin)throw new Failure('需要管理员权限',403);
-  if(method==='GET'){const {rows}=await db.query('SELECT base_url AS "baseUrl",model,vision_model AS "visionModel",true AS "hasKey" FROM ai_settings WHERE id=1');return NextResponse.json(rows[0]||{});}
-  if(method==='PUT'){const b=z.object({baseUrl:z.string().url().refine(s=>s.startsWith('https://'),'模型地址需使用HTTPS'),model:name,visionModel:name,key:z.string().max(500).optional()}).parse(body);const old=(await db.query('SELECT encrypted_key FROM ai_settings WHERE id=1')).rows[0];if(!b.key&&!old)throw new Failure('首次配置需要填写API Key');await db.query('INSERT INTO ai_settings VALUES(1,$1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET base_url=$1,model=$2,vision_model=$3,encrypted_key=$4',[b.baseUrl,b.model,b.visionModel,b.key?encrypt(b.key):old.encrypted_key]);return NextResponse.json({ok:true});}
-  if(method==='POST'){const id=await enqueue(u,null,'connection',{});return body.background?NextResponse.json({jobId:id},{status:202}):watchJob(id,req.signal);}
+  const assistant=path[0]==='assistant-ai-settings',table=assistant?'assistant_ai_settings':'ai_settings';
+  if(method==='GET'){const {rows}=await db.query(`SELECT base_url AS "baseUrl",model,vision_model AS "visionModel",true AS "hasKey" FROM ${table} WHERE id=1`);return NextResponse.json(rows[0]||{});}
+  if(method==='PUT'){const b=z.object({baseUrl:z.string().url().refine(s=>s.startsWith('https://'),'模型地址需使用HTTPS'),model:name,visionModel:name,key:z.string().max(500).optional()}).parse(body);const old=(await db.query(`SELECT encrypted_key FROM ${table} WHERE id=1`)).rows[0];if(!b.key&&!old)throw new Failure('首次配置需要填写API Key');await db.query(`INSERT INTO ${table} VALUES(1,$1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET base_url=$1,model=$2,vision_model=$3,encrypted_key=$4`,[b.baseUrl,b.model,b.visionModel,b.key?encrypt(b.key):old.encrypted_key]);return NextResponse.json({ok:true});}
+  if(method==='POST'){const id=await enqueue(u,null,'connection',{scope:assistant?'assistant':'recognition'});return body.background?NextResponse.json({jobId:id},{status:202}):watchJob(id,req.signal);}
  }
  if(path[0]!=='books')throw new Failure('页面不存在',404);
  if(path.length===1){

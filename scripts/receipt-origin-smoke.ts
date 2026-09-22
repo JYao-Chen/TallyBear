@@ -3,19 +3,23 @@ import {receiptOriginSchema,receiptPlatform,matchReceiptWallet,mergeReceiptOrigi
 const wallets=[{id:'wechat-1',name:'微信',type:'wechat',owner_id:'me'},{id:'bank-1',name:'工商银行',type:'bank',institution:'工商银行',suffix:'1234',owner_id:'me'},{id:'private-other',name:'微信',type:'wechat',owner_id:'other'},{id:'shared',name:'共同钱包',type:'wechat',owner_id:null}];
 const make=(value:unknown)=>receiptOriginSchema.parse(value);
 const jd=make({orderPlatform:{name:'京东',basis:'visual',cues:['订单导航布局','京东订单服务图标']},paymentChannel:{name:'微信',basis:'explicit',cues:['支付方式：微信支付']}});
-assert.equal(receiptPlatform(jd),'京东');assert.equal(matchReceiptWallet(jd,wallets,'me').accountId,'');
+assert.equal(receiptPlatform(jd),'京东');assert.equal(matchReceiptWallet(jd,wallets,'me').accountId,'wechat-1');
+assert.equal(matchReceiptWallet(jd,wallets,'me').basis,'channel');
+assert.equal(matchReceiptWallet(jd,[...wallets,{...wallets[0],id:'wechat-2'}],'me').accountId,'');
+assert.deepEqual(matchReceiptWallet(jd,[...wallets,{...wallets[0],id:'wechat-2'}],'me').candidates,['wechat-1','wechat-2']);
 const bank={...jd,funding:{type:'bank' as const,institution:'工商银行',suffix:'1234',evidence:'付款方式 工商银行储蓄卡(1234)'}};
 assert.equal(matchReceiptWallet(bank,wallets,'me').accountId,'bank-1');
 assert.equal(matchReceiptWallet({...bank,funding:{...bank.funding,suffix:'9999'}},wallets,'me').accountId,'');
 const balance=make({paymentChannel:{name:'微信',basis:'visual',cues:['微信支付账单布局','微信支付图标']},funding:{type:'wechat_balance',evidence:'支付方式：零钱'}});
 assert.equal(receiptPlatform(balance),'微信');assert.equal(matchReceiptWallet(balance,wallets,'me').accountId,'wechat-1');
+assert.equal(matchReceiptWallet(balance,wallets,'me').basis,'funding');
 assert.equal(matchReceiptWallet(balance,[...wallets,{...wallets[0],id:'wechat-2'}],'me').accountId,'');
 assert.deepEqual(matchReceiptWallet(balance,[...wallets,{...wallets[0],id:'wechat-2'}],'me').candidates,['wechat-1','wechat-2']);
-assert.equal(matchReceiptWallet({...balance,funding:{...balance.funding,evidence:''}},wallets,'me').accountId,'');
+assert.equal(matchReceiptWallet({...balance,funding:{...balance.funding,evidence:''}},wallets,'me').accountId,'wechat-1');
 assert.equal(receiptPlatform(make({orderPlatform:{name:'抖音',basis:'unknown',cues:[]}})),'');
 assert.equal(matchReceiptWallet(make({funding:{type:'bank',evidence:'银行卡'}}),wallets,'me').accountId,'');
 assert.equal(matchReceiptWallet(balance, wallets.map(w=>({...w,archived:true})),'me').accountId,'');
-console.log('PASS platform/channel separation, explicit funding, bank suffix, multiple wallets, ownership and archived accounts');
+console.log('PASS channel fallback, explicit funding, bank suffix, multiple wallets, ownership and archived accounts');
 
 const combined=mergeReceiptOrigins(jd,balance)!;assert.equal(receiptPlatform(combined),'京东');assert.equal(matchReceiptWallet(combined,wallets,'me').accountId,'wechat-1');
 assert.equal(matchReceiptWallet(mergeReceiptOrigins(bank,balance),wallets,'me').accountId,'');

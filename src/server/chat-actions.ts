@@ -1,4 +1,4 @@
-import {receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
+import {matchReceiptWallet,receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
 import {familyFinance} from './family-finance';
 import {familyActionSchema,prepareFamilySummary} from './family-actions';
 import {sceneSchema} from '@/lib/entry-scene';
@@ -48,12 +48,17 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const d=a.data;if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind)&&!d.date&&ctx.deviceTime){d.date=ctx.deviceTime.slice(0,10);d.occurredAt||=ctx.deviceTime;}
  if(a.kind==='family'){for(const key of Object.keys(d))if(key!=='displayBookId'&&(d[key]===null||d[key]===''))delete d[key];if(!d.date&&ctx.deviceTime)d.date=ctx.deviceTime.slice(0,10);await prepareFamilySummary(a,ctx.user.id);a.missing=[...new Set([...actionMissing(a),...a.missing])];if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;}
  if(d.refundOf&&a.kind==='entry'){const original=(await db.query("SELECT title,payee,category,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",[uuid.parse(d.refundOf),book])).rows[0]||actions.find(v=>v.id===d.refundOf&&v.bookId===book&&v.kind==='entry'&&v.data.kind==='expense'&&v.status!=='cancelled')?.data;if(!original)throw new Failure('关联的原消费不存在');d.category=original.category;d.refundTitle=original.title||original.payee;}
- a.missing=actionMissing(a);
- const options=await actionOptions(book,ctx.user);const tr=(s:string)=>translate(s,deployment().language);
+ const options=await actionOptions(book,ctx.user);
+ const parsedOrigin=receiptOriginSchema.safeParse(d.receiptOrigin);
+ const explicitChannel=typeof d.paymentChannel==='string'?d.paymentChannel.trim():'';
+ const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
+ if(!d.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);d.walletCandidates=match.candidates;if(match.accountId){d.accountId=match.accountId;d.walletMatch=match.basis;}}
+ a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
  const target=options.books.find(b=>b.id===book);add('记入账本',target?.name,{icon:target?.icon||'📒'});
- const origin=receiptOriginSchema.safeParse(d.receiptOrigin);if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d.accountId&&d.walletCandidates?.length>1)a.warnings.push(deployment().language==='en'?'Multiple wallets match the payment details. Choose one in the card.':'有多个钱包符合付款信息，请在卡片中选择。');}
+ const origin=matchedOrigin;if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d.accountId&&d.walletCandidates?.length>1)a.warnings.push(tr('找到多个符合付款信息的钱包，请选择实际扣款账户。'));}
+ if(d.accountId&&d.walletMatch==='channel')a.warnings.push(tr('已按支付渠道自动选择，请核对是否为实际扣款账户。'));
  add('账目标题',d.title||d.name);add('收支类型',d.kind?tr(({expense:'支出',income:'收入',refund:'退款',transfer:'转账'} as any)[d.kind]||d.kind):undefined);
  for(const [key,label] of [['accountId','资金钱包'],['targetId','转入钱包']]){const wallet=options.accounts.find(v=>v.id===d[key]);if(d[key]&&!wallet)a.missing.push(label);if(wallet)add(label,[wallet.name,wallet.suffix].filter(Boolean).join(' · '),{account:[wallet.institution,wallet.name,wallet.type].filter(Boolean).join(' ')});}
  if(d.category){const c=options.categories.find(c=>c.name===d.category);if(!c)a.missing.push('分类');add('分类',d.category,{icon:c?.icon||'🏷️'});}

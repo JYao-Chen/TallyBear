@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS transactions(id uuid PRIMARY KEY,book_id uuid NOT NUL
 CREATE INDEX IF NOT EXISTS transactions_book_date ON transactions(book_id,date DESC);
 CREATE TABLE IF NOT EXISTS budgets(book_id uuid REFERENCES books,month text NOT NULL,category text NOT NULL,amount bigint NOT NULL CHECK(amount>=0),PRIMARY KEY(book_id,month,category));
 CREATE TABLE IF NOT EXISTS ai_settings(id integer PRIMARY KEY CHECK(id=1),base_url text NOT NULL,model text NOT NULL,vision_model text NOT NULL,encrypted_key text NOT NULL);
+CREATE TABLE IF NOT EXISTS assistant_ai_settings(id integer PRIMARY KEY CHECK(id=1),base_url text NOT NULL,model text NOT NULL,vision_model text NOT NULL,encrypted_key text NOT NULL);
+-- Existing installations start with identical settings; administrators can then separate them safely.
+INSERT INTO assistant_ai_settings SELECT * FROM ai_settings WHERE id=1 ON CONFLICT(id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS login_attempts(username text PRIMARY KEY,count integer NOT NULL DEFAULT 0,window_start timestamptz NOT NULL DEFAULT now());
 
 BEGIN;
