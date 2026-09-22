@@ -225,3 +225,6 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 .installment-form>.sheet-actions{position:sticky;bottom:0;background:var(--paper,#fffdfa);padding:12px 0;margin-bottom:0;z-index:2;border-top:1px solid #e8dfd6}
 
 .installment-due-edit>label{margin:0;gap:4px;font-size:12px}.installment-due-edit>span,.installment-due-edit>small{white-space:nowrap;font-variant-numeric:tabular-nums}.installment-due-edit.is-editable{align-items:end}.installment-due-edit.is-editable>span{align-self:center}
+
+.welcome .reconcile-launch{margin-top:16px;min-height:42px;padding:10px 16px;background:var(--accent);color:#fff}.welcome .reconcile-launch:hover{filter:brightness(.96)}
+@media(max-width:700px){.welcome .reconcile-launch{width:100%;justify-content:center;margin-top:12px}}

@@ -25,7 +25,7 @@ async function api(book:string,body?:unknown,id?:string){const r=await fetch(`/a
 function requestUUID(){const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;}
 function toolScope(args:unknown){const a=(args||{}) as Record<string,unknown>;return [['from','开始'],['to','结束'],['month','月份'],['query','关键词'],['category','分类'],['title','图表']].filter(([key])=>a[key]).map(([key,label])=>label+'：'+String(a[key])).join(' · ');}
 const empty=():AgentArtifact=>({charts:[],tools:[],drafts:[]});
-export function FinanceChat({books,book,month,canWrite,onDrafts,onChanged,initialTarget,onTargetOpened}:{books:{id:string;name:string}[];onChanged?:()=>Promise<unknown>;initialTarget?:{id:string;entity:string};onTargetOpened?:()=>void;book:string;month:string;canWrite:boolean;onDrafts:(d:Draft[])=>void}){const {t:tr,locale}=useI18n();
+export function FinanceChat({books,book,month,canWrite,onDrafts,onChanged,initialTarget,onTargetOpened,initialPrompt,onPromptOpened}:{books:{id:string;name:string}[];onChanged?:()=>Promise<unknown>;initialTarget?:{id:string;entity:string};onTargetOpened?:()=>void;initialPrompt?:{id:string;text:string};onPromptOpened?:()=>void;book:string;month:string;canWrite:boolean;onDrafts:(d:Draft[])=>void}){const {t:tr,locale}=useI18n();
  const {theme}=useTheme();
  const [useHistory,setUseHistory]=useState(true),[uploading,setUploading]=useState(false),[showLatest,setShowLatest]=useState(false);
  const [analysisBooks,setAnalysisBooks]=useState<string[]>([book]);
@@ -38,6 +38,7 @@ export function FinanceChat({books,book,month,canWrite,onDrafts,onChanged,initia
  async function load(next:string){setError('');setReplyAction(null);try{const d=await api(book,undefined,next);setId(next);setTurns(d.turns);setReport(null);setTab('chat');}catch(e){setError((e as Error).message);}}
  useEffect(()=>{refresh().catch(e=>setError(e.message));return()=>abort.current?.abort();},[book]);
  useEffect(()=>{if(!initialTarget||!['report','conversation'].includes(initialTarget.entity))return;let alive=true;abort.current?.abort();api(book,undefined,initialTarget.entity==='conversation'?initialTarget.id:undefined).then(d=>{if(!alive)return;if(initialTarget.entity==='conversation'){setId(initialTarget.id);setTurns(d.turns);setReport(null);setTab('chat');}else{const r=d.reports.find((r:Report)=>r.id===initialTarget.id);if(!r)throw new Error('报告已删除或没有访问权限');setReport(r);setTab('reports');}onTargetOpened?.();}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[book,initialTarget?.id]);
+ useEffect(()=>{if(!initialPrompt)return;setReport(null);setTab('chat');setText(tr(initialPrompt.text));setNotice(tr('请上传需要核对的支付账单截图，然后发送消息。'));onPromptOpened?.();requestAnimationFrame(()=>bodyRef.current?.parentElement?.querySelector('textarea')?.focus());},[initialPrompt?.id]);
  useEffect(()=>{if(nearBottom.current)bodyRef.current?.scrollTo({top:bodyRef.current.scrollHeight});},[turns,status]);
  useEffect(()=>{if(!id||busy)return;let alive=true;const t=setInterval(()=>api(book,undefined,id).then(d=>{if(alive)setTurns(d.turns);}).catch(()=>{}),2000);return()=>{alive=false;clearInterval(t);};},[book,id,busy]);
  async function send(prompt=text){
