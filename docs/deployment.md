@@ -25,11 +25,29 @@ Currency is recorded in the database; a mismatch is rejected. Use a fresh databa
 
 ## AI configuration
 
-Sign in as administrator and set an OpenAI-compatible base URL, text model, vision model and API key. Connection testing uses the configured provider and can incur its normal charges. Set queue concurrency in the admin interface. The worker must run for recognition, chat and background connection tests.
+Sign in as administrator and configure two independent OpenAI-compatible scopes in **Book settings**:
+
+- **Receipt recognition models** handle quick text/image intake, OCR extraction, cross-image order merge, amount verification and recognition connection tests.
+- **AI assistant models** handle assistant chat, tool decisions, images uploaded inside chat, receipt reading initiated by the assistant, delegated/nested assistant calls and assistant connection tests.
+
+Each scope has its own base URL, API key, text model and vision model. The assistant text model must support tool calling and streaming; vision models must support image input. Keys are encrypted with `ENCRYPTION_KEY`. Connection tests call the selected provider and can incur its normal charges. Queue concurrency is shared between scopes. The worker must run for recognition, chat and background connection tests.
 
 ## Upgrades
 
 Back up first. Stop web and worker, obtain the desired release and run `docker compose up -d --build`. Initialization reruns the bundled idempotent schema updates before services start. Never restore an older database over newer changes without also restoring its matching files/configuration.
+
+## Upgrading current `main` after 1.5.0
+
+Current `main` adds separate assistant-model settings and personal category-learning feedback. Apply the bundled `scripts/schema.sql` (or let the Compose `init` service apply it) before starting the new web and worker together. The migration creates `assistant_ai_settings` and `category_feedback` without rewriting existing transactions. Historical entries created by a user remain usable as lower-weight personal evidence; new confirmations and corrections populate feedback after the upgrade.
+
+After startup:
+
+1. Configure and test both **Receipt recognition models** and **AI assistant models**. The existing recognition configuration is not silently copied into the assistant scope.
+2. Confirm **Spending analysis → My personal wallets** and **Records → My personal wallets** return only the signed-in user's owned wallets.
+3. Create a receipt draft with **Use my category habits** enabled, verify any suggestion explanation, change its category, save it, and confirm the next matching draft can learn from the correction.
+4. Check a long records list shows page controls and verify sign-out from mobile navigation.
+
+Rollback requires the matching application release. The added tables are harmless to 1.5.0, but do not rely on a partial code-only rollback after making unrelated newer schema changes.
 
 ## Upgrading to 1.5.0
 
@@ -48,7 +66,7 @@ curl --fail http://localhost:3016/api/health
 
 Compose uses the `tallybear:1.5.0` image and runs `scripts/init.mjs` before web/worker startup. Keep the existing database and receipts volumes, encryption key, language and currency. Initialization applies the bundled ownership, installment, family-movement and per-user book-display tables; existing users remain intact.
 
-For standalone installations, stop both processes, install dependencies with `npm ci`, run `node --env-file=.env scripts/init.mjs`, build with `npm run build`, and deploy the resulting web/worker artifacts together. Preserve persistent receipt storage.
+For standalone installations, stop both processes, install dependencies with `npm ci`, run `node --env-file=.env scripts/init.mjs`, build with `npm run build`, and deploy the resulting web/worker artifacts together. Preserve persistent receipt storage. A standalone build emits `server.js` and `worker.mjs` inside `.next/standalone`; copy `public` and `.next/static` into that same release directory.
 
 Family movements remain separate from ordinary transactions. Each participant can assign an existing movement to their own private book using **Display book**. The book shows it under fund movements, outside income/expense totals. Sender and recipient preferences are independent; no historical display book is guessed during the upgrade.
 

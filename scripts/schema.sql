@@ -31,7 +31,7 @@ COMMIT;
 
 CREATE TABLE IF NOT EXISTS entry_drafts(book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,section text NOT NULL CHECK(section IN ('intake','images','manual')),value jsonb NOT NULL,version integer NOT NULL DEFAULT 1,updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(book_id,user_id,section));
 
-CREATE TABLE IF NOT EXISTS category_preferences(book_id uuid REFERENCES books ON DELETE CASCADE,name text NOT NULL,icon text NOT NULL DEFAULT '🧸',archived boolean NOT NULL DEFAULT false,PRIMARY KEY(book_id,name));
+CREATE TABLE IF NOT EXISTS category_preferences(user_id uuid REFERENCES users ON DELETE CASCADE,name text NOT NULL,icon text NOT NULL DEFAULT '🧸',archived boolean NOT NULL DEFAULT false,PRIMARY KEY(user_id,name));
 CREATE TABLE IF NOT EXISTS entry_templates(id uuid PRIMARY KEY,book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,name text NOT NULL,value jsonb NOT NULL,version integer NOT NULL DEFAULT 1,created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS category_feedback(
  transaction_id uuid PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
@@ -145,6 +145,38 @@ CREATE TABLE IF NOT EXISTS deployment_settings (
 );
 
 ALTER TABLE category_preferences ADD COLUMN IF NOT EXISTS position integer;
+
+-- Categories are personal. Merge every legacy book catalogue visible to each
+-- member, including labels that survived only in transactions or budgets.
+DO $$
+BEGIN
+ IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='category_preferences' AND column_name='book_id') THEN
+  CREATE TABLE category_preferences_by_user(
+   user_id uuid REFERENCES users ON DELETE CASCADE,
+   name text NOT NULL,
+   icon text NOT NULL DEFAULT '🧸',
+   archived boolean NOT NULL DEFAULT false,
+   deleted boolean NOT NULL DEFAULT false,
+   position integer,
+   PRIMARY KEY(user_id,name)
+  );
+  INSERT INTO category_preferences_by_user(user_id,name,icon,archived,deleted,position)
+  SELECT m.user_id,cp.name,
+   (array_agg(cp.icon ORDER BY cp.deleted,cp.archived,(b.owner_id=m.user_id AND b.kind='private') DESC,(b.owner_id=m.user_id) DESC,cp.position NULLS LAST,cp.book_id))[1],
+   bool_and(cp.archived),bool_and(cp.deleted),min(cp.position)
+  FROM category_preferences cp JOIN books b ON b.id=cp.book_id JOIN members m ON m.book_id=cp.book_id
+  GROUP BY m.user_id,cp.name;
+  INSERT INTO category_preferences_by_user(user_id,name,icon,archived,deleted)
+  SELECT DISTINCT m.user_id,used.name,'🧸',false,false
+  FROM members m JOIN (
+   SELECT book_id,category AS name FROM transactions WHERE category<>''
+   UNION SELECT book_id,category AS name FROM budgets WHERE category<>''
+  ) used ON used.book_id=m.book_id
+  ON CONFLICT(user_id,name) DO NOTHING;
+  DROP TABLE category_preferences;
+  ALTER TABLE category_preferences_by_user RENAME TO category_preferences;
+ END IF;
+END $$;
 
 -- Accounts belong to people or families. Books classify entries, never assets.
 BEGIN;

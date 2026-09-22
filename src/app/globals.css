@@ -191,6 +191,9 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 .category-manager .category-card-actions button{min-height:44px;min-width:36px;flex:1;flex-direction:row;justify-content:center;padding:6px;background:transparent;font-size:12px;border-radius:8px}
 .category-manager .category-card-actions button:hover{transform:none;background:var(--soft)}
 .category-manager .category-card-actions button{color:var(--muted)}
+.category-manager{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:1050px) and (min-width:731px){.category-manager{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:730px){.category-manager{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* Book assignment stays beside the entry, independent of the payment asset. */
 .entry-destination{padding:16px;background:var(--surface-soft,#f5f1eb);border-radius:16px;margin-bottom:24px;min-width:0}

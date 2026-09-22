@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — current `main`
+
+### Added
+
+- A unified **Spending analysis** workspace combines charts with searchable, filterable and paginated records. Its charts and totals follow the same active filters, including personal-wallet reporting across books.
+- Asset analysis adds balance distribution, daily income/spending and spending-category charts for either personal wallets or a selected family's shared wallets, alongside the existing wallet table.
+- Deterministic personal category learning shared by receipt recognition and AI action cards. It uses the current user's confirmed entries, presets and corrections across accessible books; ranks route, merchant, item and scene evidence; applies recency decay and confidence thresholds; and never overrides an explicitly selected category.
+- Visible category-suggestion explanations in review cards, including basis, confidence and evidence count. Saving a changed category records a stronger correction signal for future suggestions.
+- A dedicated AI-assistant model configuration, separate from receipt-recognition text/vision models. Assistant image understanding and nested assistant calls stay within the assistant configuration.
+- Automatic personal-wallet matching when receipt evidence identifies an unambiguous funding source or a unique WeChat/Alipay wallet. Ambiguous wallets remain unselected for review.
+
+### Changed
+
+- Categories now belong to the signed-in user instead of an individual book. Upgrade merges categories from every accessible book into each user's personal catalogue, while preserving other members' independent catalogues.
+- Expanded the default catalogue from existing user practice with Drinks, Clothing & accessories, Delivery fees, and Gifts & social.
+- Growing record, search, management and history lists use bounded pages instead of indefinitely extending the page.
+- The separate **Records** navigation entry was removed; global search and record-return flows now open the unified Spending analysis workspace.
+- The old cross-book overview page was removed; book-scoped reporting remains in the normal analysis views, while actual personal cash flow is available through the personal-wallet scope.
+- The category-history option is now **Use my category habits**, enabled by default for new recognition drafts and assistant conversations. Matching runs on the server without sending personal history to the model.
+
+### Fixed
+
+- Added an accessible mobile logout action; sign-out flushes local drafts before ending the session.
+- Kept order/payment platform detection separate from the actual funding wallet, avoiding arbitrary wallet selection when several accounts match.
+- Treated absent and `null` optional fields consistently when merging complementary receipt screenshots, so valid duplicate orders are not retained twice.
+
 ## 1.5.0 — 2026-09-16
 
 **Conversational bookkeeping and independent personal/family finance.**

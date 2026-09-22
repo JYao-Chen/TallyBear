@@ -11,15 +11,17 @@
 
 用户独立登录；家庭组织成员和账本；账本决定记录与统计范围；资金账户说明钱实际从哪里来、到哪里去。个人账户可以支付公账消费，共享账本不会自动把付款钱包变成家庭共有。不要把不同人的支付宝或银行卡关联为同一个钱包。
 
+Account actions are available from the profile/navigation area. On mobile, open the navigation drawer and choose **Sign out**; TallyBear flushes pending local draft changes before ending the current session. / 账户相关操作位于个人资料与导航区域。手机端打开导航抽屉即可直接选择 **退出登录**；系统会先尝试同步当前本地草稿，再结束会话。
+
 ## Receipt workflow / 账单识别流程
 
 1. Open Record and choose AI text/screenshots. Upload one or several images; overlapping screenshots and long receipts are supported.
 2. The worker extracts candidate orders, combines complementary evidence and checks item totals. Possible duplicates and unresolved differences stay reviewable.
 3. Check merchant/title, payment date, paid total, category and line items. Explicit fees are positive; checkout discounts are negative. Unknown item amounts remain unknown.
-4. Select the actual funding account. A visible platform such as Alipay does not prove which balance or bank card was debited. OCR does not require that information to prepare a draft.
+4. Check the actual funding account. Explicit balance/bank/suffix evidence can preselect one owned wallet. A visible WeChat/Alipay payment channel selects automatically only when exactly one matching personal wallet exists; several candidates remain unselected. OCR does not require a wallet to prepare a draft.
 5. Resolve duplicate suggestions and refund links. Choose whether to retain receipt vouchers, then confirm saving.
 
-上传图片后先生成草稿，不会因为识别完成就自动扣款或转账。一个订单可以保留多个商品明细，但整单实付只记一次。原图编号用于跨图关联与核对，不等于资金来源。票面不足时可以手动补充，不应编造折扣来强行配平。
+上传图片后先生成草稿，不会因为识别完成就自动扣款或转账。一个订单可以保留多个商品明细，但整单实付只记一次。原图编号用于跨图关联与核对，不等于资金来源。明确的余额、银行卡或尾号证据可预选唯一的本人钱包；仅看到微信／支付宝渠道时，只有一个匹配钱包才自动选择，多个候选不猜。票面不足时可以手动补充，不应编造折扣来强行配平。
 
 ## Refunds and reused entries / 退款与复用
 
@@ -43,6 +45,52 @@ The concurrency setting limits processing jobs; it is not a promise of unlimited
 
 对话输入区可选择当前、多个或全部可访问账本，跨账本分析对关联事件去重。点击支持下钻的图表分类或时间点查看账单明细，分析可以保存成报告。资产按钱包归属统计，与账本范围不同不等于漏记。网页关闭后，已提交任务由 worker 继续处理。并发设置控制任务处理数量，仍受模型服务本身的速率限制影响。遇到失败先检查后台任务中的错误，再决定是否重试。
 
+## Unified analysis and records / 收支分析与明细合并
+
+Open **Spending analysis** for both charts and records. The record filters below the charts—date range, type, wallet, category and keyword—update the totals and charts as well as the paginated list. CSV export uses the same result set. Switch from **Current book** to **My personal wallets** to aggregate your own wallets across books; there is no separate Records navigation entry.
+
+This scope follows money through accounts, not book membership:
+
+- It includes only personal wallets owned by the signed-in user, across all books. Family/shared wallets and other members' wallets are excluded.
+- One event reused in several books is counted once. Moving an entry between books does not change its funding wallet.
+- Income, expenses and received refunds affect cash flow; transfers are shown as transfers and do not become income or spending. Credit purchases and repayments keep the debt semantics described below.
+- Current balances include archived personal wallets. Date filters control period flows, not a reconstructed historical closing balance.
+
+进入 **收支分析** 即可同时使用图表和明细。下方的日期、类型、钱包、分类与关键词筛选会同步更新汇总、图表、分页明细和 CSV 导出结果；无需再进入单独的“收支明细”。把范围从 **当前账本** 切换到 **我的个人钱包**，即可跨全部账本查看本人钱包的真实资金收支。这一范围只认当前用户本人持有的个人钱包，排除家庭共同钱包与其他成员钱包；关联复用到多本账本的同一事件只计算一次。转账会展示但不计入收支，退款冲减支出。当前余额包含已归档的本人钱包；日期范围用于期间流水，不代表历史期末余额。
+
+In **Assets**, choose **My assets** or a family asset scope. Balance distribution, daily spending, daily income and category charts use the selected wallet ownership scope and date range; the wallet cash-flow table remains available below. Family scope includes only that family's shared wallets, not members' personal wallets. / 在 **资金资产** 中选择“我的资产”或某个家庭资产范围，余额分布、每日支出、每日收入和分类图表会按所选钱包归属及日期统计，下方仍保留钱包收支表。家庭范围只包含该家庭的共同钱包，不会混入成员个人钱包。
+
+## Personal category learning / 个人分类习惯学习
+
+**Use my category habits** is enabled by default for new receipt drafts and assistant conversations and can be turned off from the input options. The matcher runs on the TallyBear server; personal history is not appended to the model prompt.
+
+The evidence and decision rules are:
+
+- Only the current user's confirmed entries, saved presets and later category corrections across books they can access participate. Another member's habits in a shared book do not become this user's habits.
+- Transfers and refunds are not auto-classified. WeChat and Alipay are payment channels, not merchant identities.
+- Exact transport routes are strongest context; merchant plus item/product context separates multipurpose stores; merchant-only and similar-scene matches are fallback levels.
+- Presets and direct corrections carry more weight than routine confirmations. Recent evidence carries more weight than old evidence.
+- The top category must have enough support and a clear margin. Weak or conflicting history leaves the recognizer/model category unchanged. A category explicitly chosen by the user is never overridden.
+
+When a suggestion is applied, the review card shows its basis, match confidence and personal evidence count. Selecting a different category marks a correction; it receives priority only after the card is saved. Changing the merchant, items, scene or transaction type clears a stale explanation. There is currently no separate learning-record administration page: correct habits from the normal review card, or disable the option for a run.
+
+“使用我的分类习惯”对新的识图草稿和助手对话默认开启，也可在输入选项中关闭。匹配完全在 TallyBear 服务端进行，不会把个人历史拼接进模型提示词。系统只学习当前用户本人确认过的记录、常用预设和后续分类修正；共享账本中其他成员的习惯不会混入。路线、商家、商品／明细和消费场景按层次匹配，预设与主动纠正权重更高，旧证据会衰减；支持不足或分类冲突时不覆盖模型结果，用户明确指定的分类永远优先。草稿会展示依据、匹配度与个人证据数量；改分类并保存后才形成高权重纠正。目前没有单独的学习记录管理页，日常在确认卡片中纠正，或按次关闭该选项。
+
+[Detailed matching and feedback design / 详细匹配与反馈设计](category-learning.md)
+
+## AI model scopes / AI 模型配置范围
+
+Administrators configure two independent OpenAI-compatible scopes in **Book settings**:
+
+| Scope | Uses |
+|---|---|
+| Receipt recognition | Quick receipt text/images, OCR extraction, cross-image merge, amount verification and recognition connection tests |
+| AI assistant | Assistant chat, tool decisions, images attached in chat, receipt reading initiated by the assistant, delegated/nested assistant calls and assistant connection tests |
+
+Each scope stores its own base URL, API key, text model and vision model. Configure a tool-calling/streaming text model for the assistant and an image-capable vision model for every scope that receives images. The shared queue concurrency controls background jobs but does not merge the model settings.
+
+管理员在 **账本设置** 中分别配置 **账单识别模型** 和 **AI 助手模型**。快速识图、跨图归并与金额复核走识别配置；助手文字对话、助手附件图片、由助手发起的账单读取及内部委派调用全部走助手配置。两套配置各自保存服务地址、API Key、文字模型和视觉模型，连接测试也分别执行；后台队列并发为共用设置，但不会混用模型。
+
 ## Images / 图片保存
 
 Receipt vouchers are optional. Extra transaction photos are separate from OCR inputs and can be attached without recognition. The server compresses supported images for storage; long-image recognition also prepares suitable model inputs. Higher resolution does not mean lossless storage. Keep source originals separately when exact archival fidelity matters.
@@ -51,11 +99,13 @@ Receipt vouchers are optional. Extra transaction photos are separate from OCR in
 
 ## Category order and moving records / 分类排序与账单移动
 
-In **Book settings**, use **Reorder** to drag categories or move them with the arrow buttons, then save the order. Each category card has a delete action. Existing transactions keep their category label.
+In **Book settings**, use **Reorder** to drag categories or move them with the arrow buttons, then save the order. Categories belong to your user account and the same catalogue is available in every book, including read-only shared books; another member's catalogue remains independent. Each category card has a delete action. Existing transactions keep their category label.
 
 Open a saved transaction and choose **Move to book**. Select the destination book; the original funding account is preserved. The original purchase and linked refunds move together, including items, vouchers, photos and allocation settings. The operation removes the records from the source book; use **Record in another book too** to keep them in both. Recurring plans retain their original book settings.
 
-在 **账本设置** 点击 **调整顺序**，拖动分类或使用前后箭头，完成后保存顺序。分类卡片可直接删除；历史账目保留原分类名称。
+在 **账本设置** 点击 **调整顺序**，拖动分类或使用前后箭头，完成后保存顺序。分类属于当前用户账号，在所有个人／共享账本中使用同一套；即使当前共享账本是只读，也可以管理自己的分类，其他成员的分类互不影响。分类卡片可直接删除；历史账目保留原分类名称。
+
+Growing record, search, category, wallet, family, schedule and history views use page controls instead of extending indefinitely. Changing filters returns a list to its first page. / 收支明细、搜索、分类、钱包、家庭、计划和历史记录等增长型列表使用分页控件，不再无限延长页面；切换筛选条件后会回到第一页。
 
 打开已保存账单，点击 **移动到账本**，选择目标账本，保留原来的实际付款账户。原消费和关联退款、商品明细、凭证、附图及分摊设置一起移动。移动后原账本不再保留该记录；若需要两本都保留，使用 **同时记入另一本账本**。周期计划继续使用原账本设置。
 
@@ -93,9 +143,9 @@ Use a credit/BNPL account for the purchase, record the expense once, and create 
 
 ## Presets and consistent descriptions / 常用一笔与统一格式
 
-Create a quick-entry preset from the entry workspace for fixed transit fares, everyday purchases or income. Scene fields keep stops, merchants, branches and product summaries consistent across presets, manual entry and AI cards. Optional history matching retrieves related examples to assist classification; current amounts and routes come from the current input.
+Create a quick-entry preset from the entry workspace for fixed transit fares, everyday purchases or income. Scene fields keep stops, merchants, branches and product summaries consistent across presets, manual entry and AI cards. When personal category habits are enabled, presets act as strong personal evidence; current amounts, merchants, items and routes still come from the current input.
 
-在“常用一笔”新增、管理固定消费或收入预设；使用时可以再修改。交通、餐饮、购物和买菜共用场景字段。开启相关记账习惯参考后，用相关样例辅助分类与表达，本次金额和路线以本次提供的信息为准。
+在“常用一笔”新增、管理固定消费或收入预设；使用时可以再修改。交通、餐饮、购物和买菜共用场景字段。开启个人分类习惯后，常用预设会作为高权重的本人分类证据；本次金额、商家、商品和路线仍以本次输入为准。
 
 ### Gift statistics and home receipt confirmation / 红包统计与首页收款
 

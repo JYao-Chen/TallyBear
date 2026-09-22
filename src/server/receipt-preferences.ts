@@ -23,7 +23,7 @@ async function learningEvidence(book:string,userId:string):Promise<CategoryEvide
 }
 
 export async function applyPreferences<T extends LearnedEntry>(book:string,entries:T[],enabled:boolean,english:boolean,progress:ModelProgress={},userId?:string){
- const valid=new Set((await listCategories(book)).filter(row=>!row.archived).map(row=>row.name));
+ const valid=new Set((await listCategories(userId)).filter(row=>!row.archived).map(row=>row.name));
  const evidence=enabled&&userId?await learningEvidence(book,userId):[];const result:(T&{categorySuggestion?:CategorySuggestion})[]=[];
  for(const entry of entries){progress.signal?.throwIfAborted();const suggestion=enabled?recommendCategory(entry,evidence,valid):null;result.push({...entry,title:sceneTitle(entry.scene,english)||entry.title,...(suggestion?{category:suggestion.category,categorySuggestion:suggestion}:{})});}
  return result;

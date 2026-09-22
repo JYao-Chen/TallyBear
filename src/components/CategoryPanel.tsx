@@ -16,6 +16,7 @@ export function CategoryPanel({items,canWrite,onSave}:{items:Category[];canWrite
  const visible=(order||items).filter(c=>(order||all||!c.archived)&&c.name.includes(query));
  return <section className="panel">
   <div className="panel-title category-toolbar"><h2>{tr('我的分类小伙伴')}</h2>{canWrite&&<div className="inline">{order?<><button className="secondary" disabled={busy} onClick={()=>setOrder(null)}>{tr('取消排序')}</button><button disabled={busy} onClick={()=>save({operation:'reorder',names:order.map(c=>c.name)})}>{tr('保存顺序')}</button></>:<><button className="text-button" onClick={()=>{setOrder([...items]);setQuery('');setError('');}}><GripVertical size={18}/>{tr('调整顺序')}</button><button className="text-button" onClick={()=>edit(null)}>{tr('＋ 添加分类')}</button></>}</div>}</div>
+  <p className="muted">{tr('个人分类适用于你的所有账本，不会改变其他成员的分类。')}</p>
   {error&&!open&&!deleting&&<p className="error" role="alert">{tr(error)}</p>}
   {!order&&<input aria-label={tr('搜索分类')} placeholder={tr('搜索分类名称…')} value={query} onChange={e=>setQuery(e.target.value)}/>}
   <div className="category-manager">{<PagedList items={visible} pageSize={12} resetKey={query+String(all)+String(!!order)}>{(c,index)=><div className="category-card" key={c.name} draggable={!!order&&!busy} onDragStart={()=>setDragged(c.name)} onDragOver={e=>{if(order)e.preventDefault();}} onDrop={e=>{e.preventDefault();if(dragged&&!busy)move(dragged,c.name);setDragged(null);}} onDragEnd={()=>setDragged(null)}>

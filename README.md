@@ -23,7 +23,22 @@ English · [简体中文](README.zh-CN.md)
 
 ![Spending analysis](docs/screenshots/desktop-analysis.png)
 
-## New in 1.5
+## Current main
+
+The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
+
+- **Spending analysis** now combines charts and records in one workspace. Date, type, wallet, category and keyword filters update the totals, charts and paginated list together; its personal-wallet scope combines the signed-in user's own wallets across every book.
+- **Assets** now includes balance, daily cash-flow and spending-category charts for personal or selected family-shared wallets, while retaining the detailed wallet table.
+- **Personal category catalogues** now follow the user across every private and shared book. Existing book catalogues are merged per user during upgrade; another member's category edits do not change yours.
+- **Adaptive personal categories** run on the server for receipt drafts and AI action cards. Confirmed entries, presets and corrections are matched by route, merchant, item and scene, with recency decay and confidence thresholds. An explicit category is never overwritten.
+- Review cards show why a category was suggested, its confidence and supporting personal-record count. Changing the category teaches the next suggestion with higher weight.
+- Receipt recognition and the AI assistant have **independent text/vision provider settings**. Images attached inside the assistant stay within the assistant model configuration.
+- Explicit funding evidence can preselect a unique personal wallet; WeChat or Alipay alone only selects when exactly one matching personal wallet exists. Ambiguous cases remain open for review.
+- Growing lists are paginated, and mobile navigation includes a direct sign-out action.
+
+[See every current-main change →](CHANGELOG.md#unreleased--current-main) · [Category-learning design →](docs/category-learning.md)
+
+## Latest tagged release: 1.5
 
 **From receipt recognition to conversational bookkeeping and family finance.**
 
@@ -70,7 +85,7 @@ Upload several receipts, order screenshots or one long image. AI distinguishes s
 
 Transport, dining, shopping and groceries use structured scene fields: departure and arrival stops, merchants and branches, meal types and product summaries. AI drafts, manual forms and presets share those fields, with editable titles.
 
-Optional preference matching selects relevant history and presets to keep categories and descriptions consistent, rather than simply passing the latest records to the model.
+With **Use my category habits** enabled, a deterministic server-side matcher uses only the signed-in user's confirmed records, presets and corrections. It compares transport routes, merchants, item context and scenes, gives corrections higher weight, decays older evidence and keeps the recognizer's category when support is weak or conflicting. Personal history is not sent to the model. Review cards expose the match basis, confidence and evidence count; changing the category becomes a stronger correction after saving.
 
 ### AI that prepares the action, not just the answer
 
@@ -97,7 +112,9 @@ Cards stay with their originating turn. Delete conversations and reports from hi
 - Wallets belong to a person or a family, independently of books. Manage multiple payment wallets and bank accounts with recognizable account and bank icons.
 - Users sign in independently and can join families with several books. Users, families and books have separate management, avatars and permissions.
 - A personal wallet can pay for a shared-book expense. Moving a record preserves its funding account; linked reuse across books counts the same event once in consolidated totals.
-- Create, edit, delete and reorder categories with custom icons. Organize entries in batches, move them or link them to another book.
+- Create, edit, delete and reorder your personal categories with custom icons; the same catalogue is available in every book. Organize entries in batches, move them or link them to another book.
+
+Use **Spending analysis → My personal wallets** to view actual income, expenses, refunds and transfers across every book through the wallets you own. Charts and the searchable, paginated records below share one set of filters. This scope excludes family/shared wallets and other members' wallets, treats transfers as non-income/non-expense, and deduplicates one linked event shown in several books. In **Assets**, switch between your wallets and a family's shared wallets to use the corresponding charts and wallet table.
 
 Receipt recognition separates **order platforms, payment channels and funding evidence**. Logos and distinctive layouts can identify sources such as WeChat, Alipay, JD and Douyin without a written app name. Explicit balance or bank details match the user’s wallets; ambiguous candidates remain editable before confirmation.
 
@@ -173,7 +190,7 @@ TallyBear combines a **Next.js full-stack app, PostgreSQL and a dedicated job wo
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Interface | React · Next.js App Router | Responsive entry, draft review, conversations and book management |
-| Business & data | Next.js API · PostgreSQL | Permissions, transactional writes, balances, cost allocation and deduplicated totals |
+| Business & data | Next.js API · PostgreSQL | Permissions, transactional writes, balances, personal category learning, cost allocation and deduplicated totals |
 | AI collaboration | LangGraph · tool calling | A supervisor delegates receipt reading, reconciliation and analysis |
 | Background execution | Node.js worker · PostgreSQL queue | Durable jobs, progress, retries and configurable concurrency |
 | Artifacts & images | Recharts · Markdown · Sharp | Conversational charts, saved reports and compressed vouchers |
@@ -192,7 +209,7 @@ Conversations use a **supervisor + specialists** architecture. Each agent follow
 
 **AI interprets the content; business tools calculate the money and enforce permissions.** Chart tools query ledger aggregates directly, and amounts use integer minor units. Models select useful questions and explain results. Receipt processing combines structured extraction with amount checks to produce reviewable entries.
 
-Specialists share the current drafts and previous findings through the supervisor. The background queue processes concurrent jobs, while conversations display processing stages, tool activity and streamed answers. Work continues between visits. Provider endpoints, text and vision models, and queue concurrency are configurable.
+Specialists share the current drafts and previous findings through the supervisor. The background queue processes concurrent jobs, while conversations display processing stages, tool activity and streamed answers. Work continues between visits. Receipt recognition and the assistant each have their own provider endpoint, API key, text model and vision model. Assistant text, attached images and nested assistant calls all use the assistant configuration; receipt OCR and its verification calls use the recognition configuration. Queue concurrency is shared and configurable.
 
 Cards are proposals until the user confirms. Confirmation validates permissions and current data inside a database transaction; family movements keep a single record with separate per-user book display links. PostgreSQL stores job progress and conversation artifacts so the worker can keep running while the browser is closed.
 
@@ -203,10 +220,12 @@ The result connects **capture → reconcile → confirm → save → analyze**: 
 You’ll need **Docker Compose v2** and **Node.js 22** for the setup helper.
 
 ```sh
-git clone --branch v1.5.0 https://github.com/JYao-Chen/TallyBear.git
+git clone https://github.com/JYao-Chen/TallyBear.git
 cd TallyBear
 npm run setup
 ```
+
+This installs current `main`, including the features documented above. For the latest tagged release instead, add `--branch v1.5.0` to the clone command.
 
 Set your language, currency and address in the generated `.env`:
 
@@ -242,9 +261,9 @@ For public access, configure an HTTPS reverse proxy and set `APP_ORIGIN` to your
 <summary><strong>Connect your AI provider</strong></summary>
 
 1. Open **Book settings** as an administrator.
-2. Enter an OpenAI-compatible base URL ending in `/v1`, an API key, and your text/vision model IDs.
-3. Choose a text model with tool calling and streaming, and a vision model with image input.
-4. Run the text and image connection tests, then set background concurrency.
+2. Configure **Receipt recognition models** with an OpenAI-compatible base URL, API key, and text/vision model IDs.
+3. Configure **AI assistant models** separately. Its text model needs tool calling and streaming; its vision model needs image input.
+4. Run both text/image connection tests for each scope, then set the shared background concurrency.
 5. Open **Record → AI text / screenshots**, upload a receipt, review the draft and choose its funding account.
 
 [Bookkeeping and AI guide →](docs/user-guide.md)
