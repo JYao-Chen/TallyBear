@@ -27,7 +27,7 @@ function toolScope(args:unknown){const a=(args||{}) as Record<string,unknown>;re
 const empty=():AgentArtifact=>({charts:[],tools:[],drafts:[]});
 export function FinanceChat({books,book,month,canWrite,onDrafts,onChanged,initialTarget,onTargetOpened}:{books:{id:string;name:string}[];onChanged?:()=>Promise<unknown>;initialTarget?:{id:string;entity:string};onTargetOpened?:()=>void;book:string;month:string;canWrite:boolean;onDrafts:(d:Draft[])=>void}){const {t:tr,locale}=useI18n();
  const {theme}=useTheme();
- const [useHistory,setUseHistory]=useState(false),[uploading,setUploading]=useState(false),[showLatest,setShowLatest]=useState(false);
+ const [useHistory,setUseHistory]=useState(true),[uploading,setUploading]=useState(false),[showLatest,setShowLatest]=useState(false);
  const [analysisBooks,setAnalysisBooks]=useState<string[]>([book]);
  const [list,setList]=useState<{id:string;title:string;updated_at:string}[]>([]),[reports,setReports]=useState<Report[]>([]),[id,setId]=useState(''),[turns,setTurns]=useState<Turn[]>([]),[report,setReport]=useState<Report|null>(null),[tab,setTab]=useState('chat'),[text,setText]=useState(''),[images,setImages]=useState<{name:string;data:string}[]>([]),[busy,setBusy]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[edit,setEdit]=useState(false),[rename,setRename]=useState(false),[deleteTarget,setDeleteTarget]=useState<{kind:'report'|'chat';id:string;title:string;version?:number}|null>(null);
  const [libraryOpen,setLibraryOpen]=useState(false);

@@ -1,7 +1,8 @@
 import {z} from 'zod';
 import {sceneSchema} from '@/lib/entry-scene';
 import {lineItemsSchema} from '@/lib/line-items';
-export const details={scene:sceneSchema,title:z.string().trim().max(80).default(''),photoIds:z.array(z.string().uuid()).default([]),retainReceipts:z.boolean().default(false),verificationReason:z.string().trim().max(500).default(''),attachmentIds:z.array(z.string().uuid()).default([]),lineItems:lineItemsSchema,platform:z.string().max(40).default(''),orderId:z.string().max(200).default(''),product:z.string().max(160).default(''),occurredAt:z.string().max(30).default(''),source:z.string().max(200).default(''),refundOf:z.string().uuid().nullable().optional()};
+import {categorySuggestionSchema} from '@/lib/category-learning';
+export const details={scene:sceneSchema,title:z.string().trim().max(80).default(''),photoIds:z.array(z.string().uuid()).default([]),retainReceipts:z.boolean().default(false),verificationReason:z.string().trim().max(500).default(''),attachmentIds:z.array(z.string().uuid()).default([]),lineItems:lineItemsSchema,platform:z.string().max(40).default(''),orderId:z.string().max(200).default(''),product:z.string().max(160).default(''),occurredAt:z.string().max(30).default(''),source:z.string().max(200).default(''),refundOf:z.string().uuid().nullable().optional(),categorySource:z.enum(['explicit','model']).optional(),categorySuggestion:categorySuggestionSchema.optional()};
 export type Comparable={id:string;kind:string;amount:number;date:string;payee:string;accountId:string;externalId?:string;orderId?:string;platform?:string;occurredAt?:string;product?:string;category?:string;note?:string;version?:number};
 const norm=(s?:string)=>(s||'').trim().toLowerCase().replace(/\s/g,'');
 export function matchReason(a:Comparable,b:Comparable):string|null{

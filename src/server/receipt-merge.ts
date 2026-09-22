@@ -18,7 +18,8 @@ export function mergeEvidenceValid(a:Receipt,b:Receipt,m:Receipt){
  if(a.amount&&b.amount&&a.amount!==b.amount)return false;
  for(const key of ['accountId','externalId','orderId','date'] as const)if(a[key]&&b[key]&&a[key]!==b[key])return false;
  // A model may complete a missing value, but cannot invent a new financial value.
- for(const key of ['amount','accountId','targetId','externalId','orderId','date','status'] as const)if(m[key]!==a[key]&&m[key]!==b[key])return false;
+ const sameValue=(left:unknown,right:unknown)=>left===right||((left===undefined||left===null||left==='')&&(right===undefined||right===null||right===''));
+ for(const key of ['amount','accountId','targetId','externalId','orderId','date','status'] as const)if(!sameValue(m[key],a[key])&&!sameValue(m[key],b[key]))return false;
  const items=[...a.lineItems,...b.lineItems];
  if(!m.lineItems.every(row=>items.some(source=>source.name===row.name)&&['quantity','unitPrice','amount'].every(key=>items.some(source=>source.name===row.name&&source[key as 'amount']===row[key as 'amount']))))return false;
  // Every distinct source row must remain represented; repeated overlap is judged from source context.

@@ -38,6 +38,7 @@ export async function moveInTransaction(c:PoolClient,book:string,user:string,tar
   await c.query('UPDATE receipt_files SET temporary=true,created_at=now() WHERE id=$1 AND NOT EXISTS(SELECT 1 FROM transaction_receipts WHERE file_id=$1)',[f.id]);
  }
  await c.query('UPDATE transactions SET book_id=$1,version=version+1 WHERE id=ANY($2::uuid[])',[targetBook,ids]);
+ await c.query('UPDATE category_feedback SET book_id=$1 WHERE transaction_id=ANY($2::uuid[])',[targetBook,ids]);
  return {ok:true,moved:rows.filter(r=>!r.deleted).length,book:targetBook};
 }
 export async function withReceiptTransaction<T>(fn:(c:PoolClient,copied:string[])=>Promise<T>){

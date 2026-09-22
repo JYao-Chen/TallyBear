@@ -1,7 +1,11 @@
-import test from 'node:test';
+import test,{after,before} from 'node:test';
 import assert from 'node:assert/strict';
 import {runFinanceAgent,type AgentArtifact} from '../src/server/finance-agent';
 import type {chatCompletion} from '../src/server/ai';
+import {db} from '../src/server/db';
+const originalQuery=db.query;
+before(()=>{(db as any).query=async(_sql:string,args:unknown[])=>({rows:[{id:(args?.[1] as string[]|undefined)?.[0]||'book',name:'测试账本'}],rowCount:1});});
+after(()=>{db.query=originalQuery;});
 const user={id:'user',name:'测试',username:'test',admin:false,avatar:'🧸',theme:'bear' as const};
 test('真实工具循环先取数、执行图表工具、回灌结果再回答，固定账本范围',async()=>{let calls=0;const events:string[]=[];const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.equal(messages[0].role,'system');if(calls++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'draw',type:'function',function:{name:'draw_chart',arguments:JSON.stringify({from:'2026-09-01',to:'2026-09-30',type:'bar',dimension:'category',title:'支出'})}}]}};assert.equal(messages.at(-1)?.role,'tool');delta('支出共100元。');return {model:'test',message:{role:'assistant',content:'支出共100元。'}};};const result=await runFinanceAgent({book:'private-book',user,question:'画分类图',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:e=>events.push(e)},model,async(name,args,ctx,artifacts)=>{assert.equal(ctx.book,'private-book');if(name==='draw_chart')artifacts.charts.push({id:'chart',type:'bar',title:'支出',from:'2026-09-01',to:'2026-09-30',unit:'元',data:[{name:'餐饮',value:100}]});return {amount:10000};});assert.equal(result.artifacts.charts.length,1);assert.equal(result.artifacts.tools.length,2);assert.match(result.text,/100元/);assert.ok(events.includes('tool_result'));});
 test('模型不能调用未提供的工具或直接写账',async()=>{const model:typeof chatCompletion=async()=>({model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'x',type:'function',function:{name:'execute_sql',arguments:'{}'}}]}});await assert.rejects(runFinanceAgent({book:'b',user,question:'x',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async()=>({})),/不可用/);});

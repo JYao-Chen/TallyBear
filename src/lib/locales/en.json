@@ -1356,5 +1356,19 @@
   "补充说明（选填）": "Additional context (optional)",
   "已按支付渠道自动选择，请核对是否为实际扣款账户。": "Selected automatically from the payment channel. Confirm that this is the account actually charged.",
   "已根据明确扣款信息自动选择。": "Selected automatically from the explicit funding details.",
-  "找到多个符合付款信息的钱包，请选择实际扣款账户。": "Multiple wallets match the payment details. Select the account that was actually charged."
+  "找到多个符合付款信息的钱包，请选择实际扣款账户。": "Multiple wallets match the payment details. Select the account that was actually charged.",
+  "使用我的分类习惯": "Use my category habits",
+  "只参考你确认过的个人记录；修改分类后会自动学习。": "Uses only your confirmed records and learns when you change a category.",
+  "个人分类习惯": "Personal category habit",
+  "已采用你的修正": "Your correction is selected",
+  "相同路线": "Same route",
+  "相同商家与商品": "Same merchant and items",
+  "相同商家": "Same merchant",
+  "相似商品": "Similar items",
+  "分类依据": "Category basis",
+  "匹配度": "Match confidence",
+  "条个人记录": " personal records",
+  "保存后会优先学习这次修正。": "This correction will receive priority after saving.",
+  "这是预选建议，保存前仍可修改。": "This is a suggestion and can be changed before saving.",
+  "系统只在服务端参考你确认过的个人记录，不会把其他成员的习惯当成你的习惯；修改分类后会自动学习。输入内容和图片仍会发送给已配置模型。系统分批读取后统一核对合并，新结果追加到待确认草稿。": "The server uses only your confirmed records and never treats another member's habits as yours. Category changes are learned automatically. Your text and images are still sent to the configured model; results are merged into reviewable drafts."
 }

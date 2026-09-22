@@ -6,6 +6,7 @@ import type {PoolClient} from 'pg';
 import {entry} from './model';
 import {validateActiveAccounts} from './accounts';
 import {Failure} from './access';
+import {recordCategoryFeedback} from './receipt-preferences';
 export type Entry=z.infer<typeof entry>;
 export {lockBook} from './db';
 export async function validateRefund(c:PoolClient,book:string,e:Entry,eventId?:string){
@@ -27,5 +28,5 @@ export async function validateRefund(c:PoolClient,book:string,e:Entry,eventId?:s
 export async function insertEntry(c:PoolClient,book:string,user:string,e:Entry,eventId?:string,preserveAccounts:string[]=[]){
  const exists=await c.query('SELECT id FROM transactions WHERE id=$1 OR (book_id=$2 AND external_id=$3)',[e.id,book,e.externalId||null]);if(exists.rowCount)return 0;
  checkVerification(e.lineItems,e.amount,e.verificationReason);await validateActiveAccounts(c,book,e,user,preserveAccounts);await validateRefund(c,book,e,eventId);await checkCategory(c,book,e.category);
- const r=await c.query('INSERT INTO transactions(id,book_id,account_id,target_id,kind,amount,date,payee,category,note,external_id,created_by,platform,order_id,product,occurred_at,source,refund_of,event_id,line_items) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb) ON CONFLICT DO NOTHING',[e.id,book,e.accountId,e.kind==='transfer'?e.targetId:null,e.kind,e.amount,e.date,e.payee,e.category,e.note,e.externalId||null,user,e.platform,e.orderId,e.product,e.occurredAt,e.source,e.refundOf||null,eventId||null,JSON.stringify(e.lineItems)]);if(r.rowCount){await c.query('UPDATE transactions SET verification_reason=$1,title=$3,scene=$4::jsonb WHERE id=$2',[e.verificationReason,e.id,e.title,JSON.stringify(e.scene)]);await linkReceipts(c,book,user,e.id,e.attachmentIds,e.retainReceipts);await linkReceipts(c,book,user,e.id,e.photoIds,true,'photo');}return r.rowCount||0;
+ const r=await c.query('INSERT INTO transactions(id,book_id,account_id,target_id,kind,amount,date,payee,category,note,external_id,created_by,platform,order_id,product,occurred_at,source,refund_of,event_id,line_items) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb) ON CONFLICT DO NOTHING',[e.id,book,e.accountId,e.kind==='transfer'?e.targetId:null,e.kind,e.amount,e.date,e.payee,e.category,e.note,e.externalId||null,user,e.platform,e.orderId,e.product,e.occurredAt,e.source,e.refundOf||null,eventId||null,JSON.stringify(e.lineItems)]);if(r.rowCount){await c.query('UPDATE transactions SET verification_reason=$1,title=$3,scene=$4::jsonb WHERE id=$2',[e.verificationReason,e.id,e.title,JSON.stringify(e.scene)]);await linkReceipts(c,book,user,e.id,e.attachmentIds,e.retainReceipts);await linkReceipts(c,book,user,e.id,e.photoIds,true,'photo');if(e.kind==='expense'||e.kind==='income')await recordCategoryFeedback(c,book,user,e);}return r.rowCount||0;
 }

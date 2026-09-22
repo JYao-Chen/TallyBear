@@ -181,6 +181,7 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 
 .receipt-retention{display:flex!important;align-items:center;gap:10px;margin:16px 0;font-size:14px}.receipt-retention input[type=checkbox]{width:20px;height:20px;flex:none;margin:0;accent-color:var(--accent,#806496)}
 .wallet-match-note{display:block;margin:-7px 0 16px;color:var(--accent);font-size:12px;line-height:1.6}
+.category-suggestion{display:grid;grid-column:1/-1;gap:3px;margin:-4px 0 16px;padding:11px 13px;border:1px solid #cfe0d5;border-radius:10px;background:#f4f8f4;color:var(--green);overflow-wrap:anywhere}.category-suggestion span,.category-suggestion small{font-size:12px}.category-suggestion.is-corrected{border-color:#e7d7ba;background:#fff9ef;color:#7b5b28}
 .transaction-photos{margin:20px 0;padding:16px 0;border-top:1px solid #e8dfd6}.transaction-photos .panel-title{flex-wrap:wrap;gap:12px}.life-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}.life-photo-grid figure{margin:0;position:relative;min-width:0}.life-photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;display:block}.life-photo-grid .photo-remove{position:absolute;top:5px;right:5px;padding:8px;border-radius:50%;background:#fff;color:#544a44;min-height:36px;min-width:36px}
 
 .category-card{min-width:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}

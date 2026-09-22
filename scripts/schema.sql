@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS entry_drafts(book_id uuid REFERENCES books ON DELETE 
 
 CREATE TABLE IF NOT EXISTS category_preferences(book_id uuid REFERENCES books ON DELETE CASCADE,name text NOT NULL,icon text NOT NULL DEFAULT '🧸',archived boolean NOT NULL DEFAULT false,PRIMARY KEY(book_id,name));
 CREATE TABLE IF NOT EXISTS entry_templates(id uuid PRIMARY KEY,book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,name text NOT NULL,value jsonb NOT NULL,version integer NOT NULL DEFAULT 1,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS category_feedback(
+ transaction_id uuid PRIMARY KEY REFERENCES transactions(id) ON DELETE CASCADE,
+ book_id uuid NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+ user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ proposed_category text NOT NULL DEFAULT '',original_category text NOT NULL DEFAULT '',final_category text NOT NULL,
+ source text NOT NULL CHECK(source IN ('confirmed','manual')),corrected boolean NOT NULL DEFAULT false,
+ confidence double precision,basis text,evidence_count integer NOT NULL DEFAULT 0,
+ confirmed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS category_feedback_user_idx ON category_feedback(user_id,confirmed_at DESC);
 
 CREATE TABLE IF NOT EXISTS bill_schedules(id uuid PRIMARY KEY,book_id uuid REFERENCES books ON DELETE CASCADE,user_id uuid REFERENCES users ON DELETE CASCADE,name text NOT NULL,value jsonb NOT NULL,frequency text NOT NULL CHECK(frequency IN ('weekly','monthly','yearly')),next_date date NOT NULL,anchor_day integer NOT NULL CHECK(anchor_day BETWEEN 1 AND 31),paused boolean NOT NULL DEFAULT false,version integer NOT NULL DEFAULT 1);
 CREATE TABLE IF NOT EXISTS schedule_occurrences(schedule_id uuid REFERENCES bill_schedules ON DELETE CASCADE,due_date date NOT NULL,transaction_id uuid REFERENCES transactions(id),created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(schedule_id,due_date));
