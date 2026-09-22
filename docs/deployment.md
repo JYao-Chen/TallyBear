@@ -43,9 +43,10 @@ Current `main` adds separate assistant-model settings and personal category-lear
 After startup:
 
 1. Configure and test both **Receipt recognition models** and **AI assistant models**. The existing recognition configuration is not silently copied into the assistant scope.
-2. Confirm **Spending analysis → My personal wallets** and **Records → My personal wallets** return only the signed-in user's owned wallets.
-3. Create a receipt draft with **Use my category habits** enabled, verify any suggestion explanation, change its category, save it, and confirm the next matching draft can learn from the correction.
-4. Check a long records list shows page controls and verify sign-out from mobile navigation.
+2. Confirm **Spending analysis → My personal wallets** updates the charts and searchable, paginated records from the same filters and returns only the signed-in user's owned wallets.
+3. In **Assets**, switch between personal and family ownership scopes and confirm the charts and wallet table use only that scope.
+4. Create a receipt draft with **Use my category habits** enabled, verify any suggestion explanation, change its category, save it, and confirm the next matching draft can learn from the correction.
+5. Check a long records list shows page controls and verify sign-out from mobile navigation.
 
 Rollback requires the matching application release. The added tables are harmless to 1.5.0, but do not rely on a partial code-only rollback after making unrelated newer schema changes.
 
