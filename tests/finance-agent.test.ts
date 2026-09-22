@@ -35,3 +35,9 @@ test('对话沿用待确认卡片并按原ID修订，模型不持有确认工具
  const result=await runFinanceAgent({book:'book',user,question:'改成30元，确认',month:'2026-09',history:[],previousActions:[previous],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args,ctx,artifacts)=>{if(name==='prepare_action'){assert.equal((args as any).actionId,id);artifacts.actions![0].data.amount=3000;return artifacts.actions![0];}return {};});
  assert.equal(result.artifacts.actions!.length,1);assert.equal(result.artifacts.actions![0].status,'pending');assert.equal(result.artifacts.actions![0].data.amount,3000);assert.equal(previous.data.amount,3200);
 });
+test('助手可准备已入账账目变更，但仍没有直接执行或确认工具',async()=>{
+ const transactionId='00000000-0000-4000-8000-000000000001',bookId='00000000-0000-4000-8000-000000000002';let round=0,prepared=false;
+ const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.ok(!tools.some((t:any)=>/confirm_action|delete_transaction|update_transaction/.test(t.function.name)));assert.ok(tools.some((t:any)=>t.function.name==='prepare_transaction_change'));assert.match(String(messages[0].content),/点击确认后才算写入/);if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'change',type:'function',function:{name:'prepare_transaction_change',arguments:JSON.stringify({operation:'update',bookId,transactionId,changes:{kind:'transfer'}})}}]}};delta('已准备修改卡片，请确认。');return {model:'test',message:{role:'assistant',content:'已准备修改卡片，请确认。'}};};
+ await runFinanceAgent({book:bookId,user,question:'把这笔改成转账',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args)=>{if(name==='prepare_transaction_change'){prepared=true;assert.equal((args as any).transactionId,transactionId);}return {};});
+ assert.equal(prepared,true);
+});

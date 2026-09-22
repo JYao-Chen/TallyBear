@@ -20,6 +20,7 @@ import {deployment} from '@/lib/deployment';
 import {translate} from '@/lib/i18n';
 import {actionNames,type ChatAction,type ChatActionKind} from '@/lib/chat-actions';
 import {applyPreferences} from './receipt-preferences';
+import {applyTransactionChange,transactionEntry,transactionForAction} from './transaction-changes';
 const uuid=z.string().uuid(),money=z.number().int().positive().max(100000000000),nonnegative=money.or(z.literal(0));
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>Number.isFinite(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s);
 const name=z.string().trim().min(1).max(80),category=z.string().trim().min(1).max(60);
@@ -30,6 +31,7 @@ export function parseAction(a:ChatAction){
  switch(a.kind){
  case 'family':return {...familyActionSchema.parse(d),id:d.movementId||a.id};
  case 'entry':z.object({title:name}).parse(d);return entry.parse({...d,id:a.id});
+ case 'transaction':{const p=z.object({operation:z.enum(['update','delete']),transactionId:uuid,version:z.number().int().nonnegative()}).parse(d);return p.operation==='delete'?p:{...p,value:entry.parse({...d,id:p.transactionId})};}
  case 'schedule':return {...z.object({name,frequency,nextDate:date,intervalCount:z.number().int().positive().safe(),amortize:z.boolean().default(false)}).parse(d),value:entry.parse({...d,id:a.id,date:d.nextDate}),operation:'save'};
  case 'template':return {name:name.parse(d.name),value:entry.parse({...d,id:a.id})};
  case 'budget':return z.object({month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),category,amount:nonnegative}).parse(d);
@@ -42,36 +44,43 @@ const fieldNames:Record<string,string>={familyId:'家庭',sourceId:'转出钱包
 export function actionMissing(a:ChatAction){try{parseAction(a);return [];}catch(e){if(e instanceof z.ZodError)return [...new Set(e.issues.map(i=>i.path[0]==='lineItems'?`第${Number(i.path[1])+1}项商品：${({kind:'明细类型（商品、优惠或附加费）',name:'商品名称',amount:'小计金额',quantity:'数量',unitPrice:'单价'} as Record<string,string>)[String(i.path[2])]||i.message}`:fieldNames[String(i.path[0])]||String(i.path.join('.'))||i.message))];return [e instanceof Error?e.message:'信息不完整'];}}
 export async function actionOptions(book:string,user:User){await member(book,user);return {bookId:book,books:(await db.query("SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user.id])).rows,accounts:(await listAccounts(book,user.id)).filter(a=>a.usable&&!a.archived).map(({id,name,type,institution,suffix,owner_id,family_id,owner_name}:any)=>({id,name,type,institution,suffix,owner_id,family_id,owner_name})),categories:(await listCategories(user.id)).filter(c=>!c.archived)};}
 export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;useHistory?:boolean;language?:'en'|'zh-CN'},actions:ChatAction[],recognizedId?:string){
- const b=z.object({actionId:uuid.optional(),kind:z.enum(['family','entry','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
+ const b=z.object({actionId:uuid.optional(),kind:z.enum(['family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
  const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
  const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,b.kind!=='family');
  const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data},missing:[],warnings:[],summary:[]};
  const d=a.data;const changedContext=!!old&&['payee','product','scene','kind'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind)&&!d.date&&ctx.deviceTime){d.date=ctx.deviceTime.slice(0,10);d.occurredAt||=ctx.deviceTime;}
+ if(a.kind==='transaction'){
+  const operation=z.enum(['update','delete']).parse(d.operation),row=await transactionForAction(db,book,uuid.parse(d.transactionId));
+  a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,operation,transactionId:row.id,version:row.version,id:undefined};
+ }
+ const data=a.data;
  if(a.kind==='family'){for(const key of Object.keys(d))if(key!=='displayBookId'&&(d[key]===null||d[key]===''))delete d[key];if(!d.date&&ctx.deviceTime)d.date=ctx.deviceTime.slice(0,10);await prepareFamilySummary(a,ctx.user.id);a.missing=[...new Set([...actionMissing(a),...a.missing])];if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;}
  if(d.refundOf&&a.kind==='entry'){const original=(await db.query("SELECT title,payee,category,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",[uuid.parse(d.refundOf),book])).rows[0]||actions.find(v=>v.id===d.refundOf&&v.bookId===book&&v.kind==='entry'&&v.data.kind==='expense'&&v.status!=='cancelled')?.data;if(!original)throw new Failure('关联的原消费不存在');d.category=original.category;d.refundTitle=original.title||original.payee;}
  const options=await actionOptions(book,ctx.user);
- const parsedOrigin=receiptOriginSchema.safeParse(d.receiptOrigin);
- const explicitChannel=typeof d.paymentChannel==='string'?d.paymentChannel.trim():'';
+ const parsedOrigin=receiptOriginSchema.safeParse(data.receiptOrigin);
+ const explicitChannel=typeof data.paymentChannel==='string'?data.paymentChannel.trim():'';
  const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
- if(!d.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);d.walletCandidates=match.candidates;if(match.accountId){d.accountId=match.accountId;d.walletMatch=match.basis;}}
- if(a.kind==='entry'&&ctx.useHistory&&!d.categorySuggestion&&d.kind&&d.category){const preferred=(await applyPreferences(book,[{kind:d.kind,payee:d.payee||'',category:d.category,scene:sceneSchema.parse(d.scene||{}),title:d.title||'',product:d.product||'',lineItems:d.lineItems||[],categorySource:d.categorySource}],true,ctx.language==='en',{},ctx.user.id))[0];d.category=preferred.category;if(preferred.categorySuggestion)d.categorySuggestion=preferred.categorySuggestion;}
+ if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
+ if(a.kind==='entry'&&ctx.useHistory&&!data.categorySuggestion&&data.kind&&data.category){const preferred=(await applyPreferences(book,[{kind:data.kind,payee:data.payee||'',category:data.category,scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id))[0];data.category=preferred.category;if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
  a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
  const target=options.books.find(b=>b.id===book);add('记入账本',target?.name,{icon:target?.icon||'📒'});
- const origin=matchedOrigin;if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d.accountId&&d.walletCandidates?.length>1)a.warnings.push(tr('找到多个符合付款信息的钱包，请选择实际扣款账户。'));}
- if(d.accountId&&d.walletMatch==='channel')a.warnings.push(tr('已按支付渠道自动选择，请核对是否为实际扣款账户。'));
- add('账目标题',d.title||d.name);add('收支类型',d.kind?tr(({expense:'支出',income:'收入',refund:'退款',transfer:'转账'} as any)[d.kind]||d.kind):undefined);
- for(const [key,label] of [['accountId','资金钱包'],['targetId','转入钱包']]){const wallet=options.accounts.find(v=>v.id===d[key]);if(d[key]&&!wallet)a.missing.push(label);if(wallet)add(label,[wallet.name,wallet.suffix].filter(Boolean).join(' · '),{account:[wallet.institution,wallet.name,wallet.type].filter(Boolean).join(' ')});}
- if(d.category){const c=options.categories.find(c=>c.name===d.category);if(!c)a.missing.push('分类');add('分类',d.category,{icon:c?.icon||'🏷️'});if(d.categorySuggestion){const basis=tr(({template:'常用一笔',route:'相同路线',merchant_context:'相同商家与商品',merchant:'相同商家',context:'相似商品'} as Record<string,string>)[d.categorySuggestion.basis]||'个人分类习惯');add('分类依据',`${basis} · ${tr('匹配度')} ${Math.round(d.categorySuggestion.confidence*100)}% · ${d.categorySuggestion.evidenceCount}${tr('条个人记录')}`);}}
- for(const [key,label] of [['amount','金额'],['principal','本次还款本金'],['fee','本次手续费'],['fees','总手续费']])if(d[key]!==undefined)add(label,fmt(d[key]));
- for(const [key,label] of [['date','交易日期'],['occurredAt','交易时间'],['payee','商家'],['nextDate','首次扣款日期'],['month','预算月份'],['startDate','分摊开始日期'],['firstDate','首次还款日期'],['terms','分期期数'],['allocationStart','分摊开始日期'],['allocationMonths','分摊月数'],['product','商品摘要'],['note','备注']])add(label,key==='occurredAt'&&d[key]&&Number.isFinite(Date.parse(d[key]))?new Date(d[key]).toLocaleString(deployment().language,{timeZone:'Asia/Shanghai',hour12:false}):d[key]);
- if(d.scene)for(const [key,label] of [['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d.scene[key]);
- if(d.frequency)add('重复周期',`${d.intervalCount??'?'} ${tr(({daily:'天',weekly:'周',monthly:'月',yearly:'年'} as any)[d.frequency]||d.frequency)}`);
- if(d.periodUnit)add('覆盖周期',`${d.periodCount??'?'} ${tr(({day:'天',week:'周',month:'月',year:'年'} as any)[d.periodUnit]||d.periodUnit)}`);
- add('关联原消费',d.refundTitle);add('核验说明',d.verificationReason);if(d.attachmentIds?.length)add('保留图片凭证',tr(d.retainReceipts?'是':'否'));
- if(a.kind==='schedule'){add('费用分摊',tr(d.amortize?'按覆盖周期分摊':'不分摊'));a.warnings.push(tr('创建周期计划不会立即记账，到期后核对实际扣款。'));}
+ const d2=a.data;const origin=matchedOrigin;if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d2.accountId&&d2.walletCandidates?.length>1)a.warnings.push(tr('找到多个符合付款信息的钱包，请选择实际扣款账户。'));}
+ if(d2.accountId&&d2.walletMatch==='channel')a.warnings.push(tr('已按支付渠道自动选择，请核对是否为实际扣款账户。'));
+ if(a.kind==='transaction')add('操作',tr(d2.operation==='delete'?'删除已入账账目':'修改已入账账目'));
+ add('账目标题',d2.title||d2.name);add('收支类型',d2.kind?tr(({expense:'支出',income:'收入',refund:'退款',transfer:'转账'} as any)[d2.kind]||d2.kind):undefined);
+ for(const [key,label] of [['accountId','资金钱包'],['targetId','转入钱包']]){const wallet=options.accounts.find(v=>v.id===d2[key]);if(d2[key]&&!wallet)a.missing.push(label);if(wallet)add(label,[wallet.name,wallet.suffix].filter(Boolean).join(' · '),{account:[wallet.institution,wallet.name,wallet.type].filter(Boolean).join(' ')});}
+ if(d2.category){const c=options.categories.find(c=>c.name===d2.category);if(!c)a.missing.push('分类');add('分类',d2.category,{icon:c?.icon||'🏷️'});if(d2.categorySuggestion){const basis=tr(({template:'常用一笔',route:'相同路线',merchant_context:'相同商家与商品',merchant:'相同商家',context:'相似商品'} as Record<string,string>)[d2.categorySuggestion.basis]||'个人分类习惯');add('分类依据',`${basis} · ${tr('匹配度')} ${Math.round(d2.categorySuggestion.confidence*100)}% · ${d2.categorySuggestion.evidenceCount}${tr('条个人记录')}`);}}
+ for(const [key,label] of [['amount','金额'],['principal','本次还款本金'],['fee','本次手续费'],['fees','总手续费']])if(d2[key]!==undefined)add(label,fmt(d2[key]));
+ for(const [key,label] of [['date','交易日期'],['occurredAt','交易时间'],['payee','商家'],['nextDate','首次扣款日期'],['month','预算月份'],['startDate','分摊开始日期'],['firstDate','首次还款日期'],['terms','分期期数'],['allocationStart','分摊开始日期'],['allocationMonths','分摊月数'],['product','商品摘要'],['note','备注']])add(label,key==='occurredAt'&&d2[key]&&Number.isFinite(Date.parse(d2[key]))?new Date(d2[key]).toLocaleString(deployment().language,{timeZone:'Asia/Shanghai',hour12:false}):d2[key]);
+ if(d2.scene)for(const [key,label] of [['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d2.scene[key]);
+ if(d2.frequency)add('重复周期',`${d2.intervalCount??'?'} ${tr(({daily:'天',weekly:'周',monthly:'月',yearly:'年'} as any)[d2.frequency]||d2.frequency)}`);
+ if(d2.periodUnit)add('覆盖周期',`${d2.periodCount??'?'} ${tr(({day:'天',week:'周',month:'月',year:'年'} as any)[d2.periodUnit]||d2.periodUnit)}`);
+ add('关联原消费',d2.refundTitle);add('核验说明',d2.verificationReason);if(d2.attachmentIds?.length)add('保留图片凭证',tr(d2.retainReceipts?'是':'否'));
+ if(a.kind==='schedule'){add('费用分摊',tr(d2.amortize?'按覆盖周期分摊':'不分摊'));a.warnings.push(tr('创建周期计划不会立即记账，到期后核对实际扣款。'));}
  if(a.kind==='template')a.warnings.push(tr('只保存常用预设，本次不会产生收支。'));
+ if(a.kind==='transaction')a.warnings.push(tr(d2.operation==='delete'?'确认后会删除这笔已入账账目，并重新计算相关余额。':'确认后会直接修改这笔已入账账目，并重新计算相关余额。'));
  if(a.kind==='entry'&&!a.missing.length){const item=entry.parse({...d,id:a.id});const r=await review(book,{entries:[item]});const checked=r.entries[0] as any;if(checked?.matches?.length)a.warnings.push(tr('发现疑似重复账单，请核对是否为另一笔。'));try{checkVerification(item.lineItems,item.amount,item.verificationReason);}catch(e){a.missing.push((e as Error).message);}if(item.kind==='refund'&&!item.refundOf)a.warnings.push(tr('退款尚未关联原消费。'));}
  if(d.transactionId){const row=(await db.query("SELECT title,payee,amount::float8 AS amount,version FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted",[uuid.parse(d.transactionId),book])).rows[0];if(!row)a.missing.push('原账单');else{add('原账单',`${row.title||row.payee} · ${fmt(row.amount)}`);if(a.kind==='allocation')a.data.version=row.version;}}
  if(a.kind==='repayment'&&d.planId){const plan=(await listInstallments(ctx.user.id)).plans.find(p=>p.id===d.planId);if(!plan)a.missing.push('分期计划');else{a.data.version=plan.version;add('分期计划',plan.name);add('剩余本金',fmt(plan.remaining));add('提前结清',tr(d.settle?'是':'否'));}}
@@ -96,7 +105,8 @@ export async function confirmChatAction(book:string,user:User,body:unknown){
     const checked=(await review(a.bookId,{entries:[data]})).entries[0] as any;
     if((checked?.matches?.length||data.kind==='refund'&&!data.refundOf)&&!b.acknowledgeWarnings)throw new Failure('请核对重复或退款关联，再勾选核对确认后保存',409);
     const count=await insertEntry(c,a.bookId,user.id,data);if(!count)throw new Failure('这条账单已存在，请核对已有记录',409);a.result={id:data.id};
-   }else if(a.kind==='family')a.result=await familyFinance(user.id,data.familyId,'POST',data,c);
+   }else if(a.kind==='transaction')a.result=await applyTransactionChange(c,a.bookId,user.id,data);
+   else if(a.kind==='family')a.result=await familyFinance(user.id,data.familyId,'POST',data,c);
    else if(a.kind==='schedule')a.result=await schedules(a.bookId,user.id,'POST',data,c);
    else if(a.kind==='template')a.result=await templates(a.bookId,user.id,'POST',data,c);
    else if(a.kind==='allocation')a.result=await allocations(a.bookId,'PUT',data,new URLSearchParams(),c);

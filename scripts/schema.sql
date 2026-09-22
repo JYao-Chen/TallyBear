@@ -167,11 +167,22 @@ BEGIN
   FROM category_preferences cp JOIN books b ON b.id=cp.book_id JOIN members m ON m.book_id=cp.book_id
   GROUP BY m.user_id,cp.name;
   INSERT INTO category_preferences_by_user(user_id,name,icon,archived,deleted)
-  SELECT DISTINCT m.user_id,used.name,'🧸',false,false
+  SELECT DISTINCT m.user_id,used.name,COALESCE(default_icon.icon,'🧸'),false,false
   FROM members m JOIN (
    SELECT book_id,category AS name FROM transactions WHERE category<>''
    UNION SELECT book_id,category AS name FROM budgets WHERE category<>''
   ) used ON used.book_id=m.book_id
+  LEFT JOIN (VALUES
+   ('餐饮','🍜'),('Dining','🍜'),('买菜','🥬'),('Groceries','🥬'),
+   ('奶茶咖啡','☕'),('Coffee and tea','☕'),('饮料','sticker:050'),('Drinks','sticker:050'),
+   ('购物','🛍️'),('Shopping','🛍️'),('服装配饰','sticker:023'),('Clothing & accessories','sticker:023'),
+   ('快递费','sticker:044'),('Delivery fees','sticker:044'),('交通','🚇'),('Transport','🚇'),
+   ('居家','🏡'),('Home','🏡'),('娱乐','🎮'),('Entertainment','🎮'),
+   ('人情往来','sticker:148'),('Gifts & social','sticker:148'),('医疗健康','💊'),('Health','💊'),
+   ('学习','📚'),('Education','📚'),('房租','🔑'),('Rent','🔑'),
+   ('水电燃气','💡'),('Utilities','💡'),('旅行','🧳'),('Travel','🧳'),
+   ('工资','💼'),('Salary','💼'),('奖金','🎁'),('Bonus','🎁'),('其他','🧸'),('Other','🧸')
+  ) AS default_icon(name,icon) ON default_icon.name=used.name
   ON CONFLICT(user_id,name) DO NOTHING;
   DROP TABLE category_preferences;
   ALTER TABLE category_preferences_by_user RENAME TO category_preferences;
