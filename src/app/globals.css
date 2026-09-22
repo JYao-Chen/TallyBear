@@ -113,6 +113,9 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
  .icon-button{min-width:44px;min-height:44px}.sheet-actions{gap:10px;padding:14px 0}.sheet-actions button{flex:1 1 120px}
  .detail-fields>div{grid-template-columns:76px minmax(0,1fr);gap:12px}.detail-amount>strong{font-size:32px}
  .tool-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tool-menu button{padding:14px 10px;font-size:14px;min-height:58px}
+ .mobile-account{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+ .mobile-account-copy{display:flex;align-items:center;gap:10px;min-width:0}.mobile-account-copy>span{display:grid;min-width:0}.mobile-account-copy small,.mobile-account-copy span span{color:var(--muted);font-size:11px}.mobile-account-copy strong,.mobile-account-copy span span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .mobile-logout{flex:0 0 auto;min-height:44px;padding:10px 14px;color:var(--red)}
  .visual-trigger{min-height:48px;padding:8px 12px;gap:8px;font-size:16px}
  .visual-options>div{grid-template-columns:1fr;max-height:55dvh}.visual-options button{min-height:54px;font-size:15px}
  .category-picker{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.category-picker button{min-width:0;padding:10px 2px;font-size:12px}
