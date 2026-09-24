@@ -35,7 +35,7 @@ The current branch extends 1.5 with a clearer boundary between **books** and **a
 - Review cards show why a category was suggested, its confidence and supporting personal-record count. Changing the category teaches the next suggestion with higher weight.
 - Receipt recognition and the AI assistant have **independent text/vision provider settings**. Images attached inside the assistant stay within the assistant model configuration.
 - Explicit funding evidence can preselect a unique personal wallet; WeChat or Alipay alone only selects when exactly one matching personal wallet exists. Ambiguous cases remain open for review.
-- Growing lists are paginated, and mobile navigation includes a direct sign-out action.
+- Growing lists are paginated. Mobile navigation includes direct sign-out, and the Activities screen keeps its actions usable on narrow phones and in landscape.
 
 [See every current-main change →](CHANGELOG.md#unreleased--current-main) · [Category-learning design →](docs/category-learning.md)
 
@@ -86,6 +86,8 @@ Upload several receipts, order screenshots or one long image. AI distinguishes s
 
 Transport, dining, shopping and groceries use structured scene fields: departure and arrival stops, merchants and branches, meal types and product summaries. AI drafts, manual forms and presets share those fields, with editable titles.
 
+Order IDs and payment/refund reference IDs are optional fields in manual entry and review cards. Recognition can extract visible IDs; keeping them improves later duplicate checks and statement comparison. From **Analysis → Reconcile statements**, attach payment screenshots to the prepared assistant request. It compares IDs and exact times before using transaction order and neighboring entries to suggest possible omissions or duplicates. The shortcut does not upload the images for you, and no suggested ledger change is posted without confirmation.
+
 With **Use my category habits** enabled, a deterministic server-side matcher uses only the signed-in user's confirmed records, presets and corrections. It compares transport routes, merchants, item context and scenes, gives corrections higher weight, decays older evidence and keeps the recognizer's category when support is weak or conflicting. Personal history is not sent to the model. Review cards expose the match basis, confidence and evidence count; changing the category becomes a stronger correction after saving.
 
 ### AI that prepares the action, not just the answer
@@ -100,7 +102,7 @@ The assistant looks up real books, categories, wallets and family members, then 
 
 | In conversation | Supported actions |
 |---|---|
-| Everyday records | Expenses, income, refunds, transfers and itemized purchases |
+| Everyday records | Expenses, income, refunds, transfers and itemized purchases; proposed edits or deletion of an existing transaction require confirmation |
 | Repeatable tasks | Quick-entry presets, recurring subscriptions and category budgets |
 | Longer-term costs | Cost allocations, installment purchases and actual repayments |
 | Family movements | Transfers, gifts, AA shares and settlement, loans, repayments, shared-wallet contributions and receipt confirmation |
@@ -119,11 +121,19 @@ Use **Spending analysis → My personal wallets** to view actual income, expense
 
 Receipt recognition separates **order platforms, payment channels and funding evidence**. Logos and distinctive layouts can identify sources such as WeChat, Alipay, JD and Douyin without a written app name. Explicit balance or bank details match the user’s wallets; ambiguous candidates remain editable before confirmation.
 
+### Plan a trip or event without creating another book
+
+Open **Activities** to create a trip, gathering or other event. Give it a searchable type, optional dates and budget, then keep it personal or attach it to a family. An activity groups transactions that remain in their original books and wallets; the grouping never creates a second payment. Family members can contribute from books they can edit, but each member's report contains only transactions in books they can already access. Consequently, two members may see different activity totals.
+
+Pick an active activity from **Home → Active activities → Add an entry to this activity**, select one in manual entry or receipt review, or attach an existing transaction on the activity page. The assistant can find activities and propose transaction cards with an activity selected; it does not independently create, archive or delete activities. Activity reports break down spending by category, funding wallet, book and day, with searchable and paginated entries.
+
+Search by name, type, family or description; filter by type and ownership. **Archived activities** have their own view and stop accepting new entries until reactivated. An editable activity can be archived, reactivated or deleted; deleting it removes only the grouping links, not the underlying transactions. On phones, actions remain readable at narrow widths, including the archive, restore and delete confirmation controls.
+
 ### One family transfer, two personal views
 
 The sender selects **their own funding wallet and the recipient**. The recipient confirms receipt into **their own wallet**, which can differ from the sender’s payment platform. Neither party sees the other’s private wallets; authorized members manage shared family wallets.
 
-Each person independently selects a personal display book, with a remembered default. Its **Home and Records** views show movements alongside everyday records. The home **Incoming transfers** inbox lets recipients choose their own wallet and book and confirm receipt. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
+Each person independently selects a personal display book, with a remembered default. Its **Home** view and the record list inside **Spending analysis** show movements alongside everyday records. The home **Incoming transfers** inbox lets recipients choose their own wallet and book and confirm receipt. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
 
 | Shared-rent example | Where it appears | Household spending |
 |---|---|---|

@@ -23,6 +23,8 @@ Account actions are available from the profile/navigation area. On mobile, open 
 
 上传图片后先生成草稿，不会因为识别完成就自动扣款或转账。一个订单可以保留多个商品明细，但整单实付只记一次。原图编号用于跨图关联与核对，不等于资金来源。明确的余额、银行卡或尾号证据可预选唯一的本人钱包；仅看到微信／支付宝渠道时，只有一个匹配钱包才自动选择，多个候选不猜。票面不足时可以手动补充，不应编造折扣来强行配平。
 
+Order IDs and payment/refund reference IDs are optional in manual entry and review cards. When legible in an image, recognition can fill them automatically. Keep them for later duplicate checks or statement reconciliation; do not invent an ID when a screenshot does not show one. / 手动记账和识图草稿中的**订单号**、**交易／退款流水号**均为选填；截图清晰可见时可自动提取。它们有助于以后查重和账单核对；截图没有展示时不必补造编号。
+
 ## Refunds and reused entries / 退款与复用
 
 A received refund reduces spending and can link to the original purchase. An application for a refund is not money received. Keep the original purchase and refund as separate dated records.
@@ -59,6 +61,26 @@ This scope follows money through accounts, not book membership:
 进入 **收支分析** 即可同时使用图表和明细。下方的日期、类型、钱包、分类与关键词筛选会同步更新汇总、图表、分页明细和 CSV 导出结果；无需再进入单独的“收支明细”。把范围从 **当前账本** 切换到 **我的个人钱包**，即可跨全部账本查看本人钱包的真实资金收支。这一范围只认当前用户本人持有的个人钱包，排除家庭共同钱包与其他成员钱包；关联复用到多本账本的同一事件只计算一次。转账会展示但不计入收支，退款冲减支出。当前余额包含已归档的本人钱包；日期范围用于期间流水，不代表历史期末余额。
 
 In **Assets**, choose **My assets** or a family asset scope. Balance distribution, daily spending, daily income and category charts use the selected wallet ownership scope and date range; the wallet cash-flow table remains available below. Family scope includes only that family's shared wallets, not members' personal wallets. / 在 **资金资产** 中选择“我的资产”或某个家庭资产范围，余额分布、每日支出、每日收入和分类图表会按所选钱包归属及日期统计，下方仍保留钱包收支表。家庭范围只包含该家庭的共同钱包，不会混入成员个人钱包。
+
+## Activities across books / 跨账本活动账
+
+Open **Activities → Create activity** for a trip, gathering or other event. Choose a name and type, optionally set dates and a budget, and decide whether it is personal or attached to a family. The type can be your own text, not just a preset. An activity is a grouping of existing transactions, not a book or wallet: each entry stays in its original book and keeps its original funding account.
+
+To record into an active activity, use **Home → Active activities → Add an entry to this activity**, select the activity in manual entry or receipt review, or add an existing transaction from its activity detail. Linked copies of the same event are counted once. Family members can contribute from books they may edit; another member's private book does not become visible merely because the activity belongs to a family. Activity totals can therefore differ between members.
+
+Search the activity list by name, type, family or description; filter by type and ownership. The activity detail shows category, wallet, book and daily breakdowns plus filtered, searchable, paginated transactions. **Archived activities** have a separate view: old entries remain readable, but new entries require **Reactivate** first. The creator or family owner can edit, archive, reactivate or delete. Deletion removes activity links only; it never deletes the underlying transactions. The assistant can look up activities and propose a transaction with an activity selected, but does not create, archive or delete activities on its own.
+
+在 **活动账 → 创建活动** 中填写活动名称、可自定义的类型，以及可选的日期和预算；归属可以选个人或某个家庭。活动不是新的账本或钱包，只是对原交易的归集，原账本、付款账户及余额都不变。
+
+要把支出记入进行中的活动，可从 **首页 → 记一笔到活动** 进入，也可在手动记账、识图草稿中选择活动，或在活动详情里 **加入已有交易**。同一关联交易复用到多本账本时只统计一次。家庭活动允许成员从其有权编辑的账本参与；活动挂到家庭不会让其他成员自动看到私人账本，所以不同成员的可见合计可能不同。
+
+列表支持名称、类型、家庭和说明搜索，以及类型、归属筛选；详情有分类、付款钱包、账本、每日支出图表和可搜索分页明细。**归档活动**在独立视图查看，旧记录仍可阅读，重新启用前不能加入新账目。创建者或家庭负责人可编辑、归档、重新启用、删除活动；删除仅解除活动关联，不删除原交易。助手可查询活动并准备指定活动的交易确认卡，不会自行创建或删除活动。
+
+## Statement reconciliation / 智能核对账单
+
+From **Analysis → Reconcile statements**, the assistant opens with a prepared request. Attach payment-statement screenshots and send the message; the shortcut does not automatically attach images. For each batch, the assistant compares visible reference IDs, order IDs and exact times first, then transaction order and neighboring entries. It can flag possible missing or duplicate entries, but matching remains evidence-dependent and is not an automatic proof that two same-price charges are identical. Review any proposed edit or new entry before confirming it.
+
+在 **收支分析 → 智能核对账单** 点击快捷入口后，仍需把支付账单截图附到助手对话并发送；按钮本身不会代替上传。助手优先比对流水号、订单号和精确时间，再结合前后顺序与相邻交易分析可能漏记、重复记账。相同名称和金额不等于同一笔，结果仍需人工核实；任何新增或修改都要确认卡片后才入账。
 
 ## Personal category learning / 个人分类习惯学习
 

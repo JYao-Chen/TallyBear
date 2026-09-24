@@ -21,12 +21,14 @@
 - The separate **Records** navigation entry was removed; global search and record-return flows now open the unified Spending analysis workspace.
 - The old cross-book overview page was removed; book-scoped reporting remains in the normal analysis views, while actual personal cash flow is available through the personal-wallet scope.
 - The category-history option is now **Use my category habits**, enabled by default for new recognition drafts and assistant conversations. Matching runs on the server without sending personal history to the model.
+- Expanded the bilingual README and user guide with the current activity, assistant reconciliation and optional payment-reference workflows; aligned deployment and operations checks with current behavior.
 
 ### Fixed
 
 - Added an accessible mobile logout action; sign-out flushes local drafts before ending the session.
 - Kept order/payment platform detection separate from the actual funding wallet, avoiding arbitrary wallet selection when several accounts match.
 - Treated absent and `null` optional fields consistently when merging complementary receipt screenshots, so valid duplicate orders are not retained twice.
+- Reflowed narrow-phone Activity actions and deletion confirmation so archive, restore and delete labels fit their buttons; retained the mobile navigation in short landscape viewports.
 
 ## 1.5.0 — 2026-09-16
 

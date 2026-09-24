@@ -40,9 +40,7 @@ Back up first. Stop web and worker, obtain the desired release and run `docker c
 
 Current `main` adds separate assistant-model settings and personal category-learning feedback. Apply the bundled `scripts/schema.sql` (or let the Compose `init` service apply it) before starting the new web and worker together. The migration creates `assistant_ai_settings` and `category_feedback` without rewriting existing transactions. Historical entries created by a user remain usable as lower-weight personal evidence; new confirmations and corrections populate feedback after the upgrade.
 
-Current `main` also creates `activities` and `activity_entries`. Apply the schema before starting the app version that exposes Activities. Existing transactions are not assigned automatically. Activity links only affect grouping and reports; each payment remains in its original book and wallet.
-
-The later activity upgrade adds `activities.category` and an optional `activities.family_id`. Reapply the idempotent schema before starting the updated app. Existing activities remain personal with type `其他`; linking one to a family makes its metadata visible to family members but never grants access to private books. Deleting an activity cascades only its activity links, not its transactions.
+Current `main` also creates `activities` and `activity_entries`, with `activities.category` and an optional `activities.family_id`. Back up first, then apply the bundled idempotent schema before starting both updated processes. Existing transactions are not assigned automatically; activities created before the type/family upgrade remain personal with type `其他`. Linking one to a family exposes its activity metadata to family members, never private-book records they could not already access. Deleting an activity cascades only its links, not its transactions or wallet movements.
 
 After startup:
 
@@ -50,7 +48,8 @@ After startup:
 2. Confirm **Spending analysis → My personal wallets** updates the charts and searchable, paginated records from the same filters and returns only the signed-in user's owned wallets.
 3. In **Assets**, switch between personal and family ownership scopes and confirm the charts and wallet table use only that scope.
 4. Create a receipt draft with **Use my category habits** enabled, verify any suggestion explanation, change its category, save it, and confirm the next matching draft can learn from the correction.
-5. Check a long records list shows page controls and verify sign-out from mobile navigation.
+5. Create a personal activity and a family activity. Confirm an eligible family member can see and contribute to the family activity without seeing a private book; adding one linked transaction in two books must count once. Archive and reactivate an activity, then verify deleting it leaves the original transactions untouched.
+6. Check a long records list shows page controls. At narrow phone widths, verify the Activity actions and delete confirmation fit without horizontal overflow; rotate to landscape and confirm the bottom navigation remains available. Verify sign-out from mobile navigation.
 
 Rollback requires the matching application release. The added tables are harmless to 1.5.0, but do not rely on a partial code-only rollback after making unrelated newer schema changes.
 
