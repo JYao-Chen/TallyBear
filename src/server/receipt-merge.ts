@@ -5,13 +5,31 @@ export type Receipt={kind:string;amount:number;date:string;payee:string;accountI
 const same=(a:string,b:string)=>!!a&&!!b&&a===b;
 export function relatedReceipts(a:Receipt,b:Receipt){
  if(a.kind!==b.kind)return false;
- if(same(a.externalId||'',b.externalId||''))return true;
  if(a.kind==='refund')return false; // One order can have several genuine partial refunds.
+ if(a.externalId&&b.externalId&&a.externalId!==b.externalId)return false;
  if(a.orderId&&b.orderId&&a.orderId!==b.orderId)return false;
- const sources:string[]=a.source.match(/原图\d+/g)||[];const otherSources:string[]=b.source.match(/原图\d+/g)||[];
- if((!a.amount||!b.amount||!a.date||!b.date)&&sources.some(source=>otherSources.includes(source)))return true;
+ if(a.amount&&b.amount&&a.amount!==b.amount)return false;
+ if(a.date&&b.date&&a.date!==b.date)return false;
+ if(same(a.externalId||'',b.externalId||''))return true;
  if(same(a.orderId,b.orderId)){const ao=(a.receiptOrigin as ReceiptOrigin|undefined)?.orderPlatform,bo=(b.receiptOrigin as ReceiptOrigin|undefined)?.orderPlatform;if(a.receiptOrigin||b.receiptOrigin){if(!usableClue(ao)||!usableClue(bo)||ao!.name===bo!.name)return true;}else if(!a.platform||!b.platform||a.platform===b.platform)return true;}
- return same(a.date,b.date)&&same(a.payee,b.payee)&&a.amount>0&&a.amount===b.amount;
+ // A missing date or amount in one section of a long screenshot is not evidence
+ // that every record from the same original image belongs to that payment.
+ return same(a.payee,b.payee)&&a.amount>0&&a.amount===b.amount&&(!a.date||!b.date||a.date===b.date);
+}
+function needsModelReview(a:Receipt,b:Receipt){
+ if(same(a.externalId||'',b.externalId||'')||same(a.orderId,b.orderId))return true;
+ if(same(a.occurredAt,b.occurredAt))return true;
+ return a.lineItems.some(row=>b.lineItems.some(other=>row.name===other.name&&row.amount!==null&&row.amount===other.amount));
+}
+function certainMerge<T extends Receipt>(a:T,b:T,parse:(raw:unknown)=>T):T|undefined{
+ if(!same(a.externalId||'',b.externalId||'')||a.status!==b.status)return;
+ for(const key of ['payee','platform','occurredAt','title','product'] as const)if(a[key]&&b[key]&&a[key]!==b[key])return;
+ if(a.lineItems.length&&b.lineItems.length&&JSON.stringify(a.lineItems)!==JSON.stringify(b.lineItems))return;
+ const combined:any={...a};
+ for(const [key,value] of Object.entries(b))if((combined[key]===undefined||combined[key]===null||combined[key]==='')&&value!==undefined&&value!==null&&value!=='')combined[key]=value;
+ combined.amount=a.amount||b.amount;
+ combined.lineItems=a.lineItems.length?a.lineItems:b.lineItems;
+ try{const candidate=parse(combined);return mergeEvidenceValid(a,b,candidate)?candidate:undefined;}catch{return undefined;}
 }
 export function mergeEvidenceValid(a:Receipt,b:Receipt,m:Receipt){
  if(a.kind!==b.kind||m.kind!==a.kind)return false;
@@ -44,6 +62,16 @@ export async function mergeReceipts<T extends Receipt>(entries:T[],parse:(raw:un
   progress.signal?.throwIfAborted();let entry=entries[i],combined=false;
   for(let j=0;j<result.length;j++){
    if(!relatedReceipts(result[j],entry))continue;
+   const certain=certainMerge(result[j],entry,parse);
+   if(certain){
+    const receiptOrigin=mergeReceiptOrigins(result[j].receiptOrigin as ReceiptOrigin|undefined,entry.receiptOrigin as ReceiptOrigin|undefined);
+    result[j]={...certain,...(receiptOrigin?{receiptOrigin,platform:receiptPlatform(receiptOrigin)}:{}),source:[result[j].source,entry.source].filter(Boolean).join('；').slice(0,200)};
+    merged++;combined=true;break;
+   }
+   if(!needsModelReview(result[j],entry)){
+    uncertain++;entry={...entry,note:[entry.note,'未自动合并：同日同商家同金额，但缺少订单号、流水号或可核对的明细，请人工核对'].filter(Boolean).join('；').slice(0,2000)};
+    continue;
+   }
    progress.onStage?.(`核对助手：检查第 ${i+1}/${entries.length} 条候选的重复与互补信息`);
    let response;try{response=await resolve(result[j],entry);}catch(error){progress.signal?.throwIfAborted();response={sameOrder:false,reason:'自动核对暂未完成，请人工核对'};}
    if(response.sameOrder===true){
