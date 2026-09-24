@@ -355,3 +355,6 @@ CREATE TABLE IF NOT EXISTS activity_entries (
  PRIMARY KEY(transaction_id,owner_id)
 );
 CREATE INDEX IF NOT EXISTS activity_entries_activity ON activity_entries(activity_id);
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '其他';
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS family_id uuid REFERENCES families(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS activities_family ON activities(family_id,archived,created_at DESC);

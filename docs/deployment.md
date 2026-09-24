@@ -42,6 +42,8 @@ Current `main` adds separate assistant-model settings and personal category-lear
 
 Current `main` also creates `activities` and `activity_entries`. Apply the schema before starting the app version that exposes Activities. Existing transactions are not assigned automatically. Activity links only affect grouping and reports; each payment remains in its original book and wallet.
 
+The later activity upgrade adds `activities.category` and an optional `activities.family_id`. Reapply the idempotent schema before starting the updated app. Existing activities remain personal with type `其他`; linking one to a family makes its metadata visible to family members but never grants access to private books. Deleting an activity cascades only its activity links, not its transactions.
+
 After startup:
 
 1. Configure and test both **Receipt recognition models** and **AI assistant models**. The existing recognition configuration is not silently copied into the assistant scope.

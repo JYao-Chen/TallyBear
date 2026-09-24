@@ -24,6 +24,7 @@ export function QuickEntry({book,books,initial,savedDraft,onDraftChange,categori
  const pendingId=useRef<string|null>(initial?.id||savedDraft?.id||null),change=useRef(onDraftChange);change.current=onDraftChange;const seed=initial||savedDraft;
  const [destination,setDestination]=useState(seed?.targetBook||book);
  const [activityId,setActivityId]=useState(seed?.activityId||'');
+ useEffect(()=>{if(!initial)setActivityId(savedDraft?.activityId||'');},[initial,savedDraft?.activityId]);
  const [activityLoaded,setActivityLoaded]=useState(!initial);
  useEffect(()=>{if(!initial)return;setActivityLoaded(false);const controller=new AbortController();fetch(`/api/activities/entry?book=${encodeURIComponent(book)}&id=${encodeURIComponent(initial.id)}`,{signal:controller.signal}).then(async response=>{const value=await response.json();if(!response.ok)throw new Error(value.error);if(!controller.signal.aborted){setActivityId(value.activityId||'');setActivityLoaded(true);}}).catch(e=>{if(!controller.signal.aborted)setError(e.message);});return()=>controller.abort();},[book,initial?.id]);
  const [occurredAt,setOccurredAt]=useState(seed?.occurredAt??(initial?'':deviceDateTime().slice(11)));

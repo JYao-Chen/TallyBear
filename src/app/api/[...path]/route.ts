@@ -1,5 +1,5 @@
 import {familyInbox} from '@/server/family-inbox';
-import {listActivities,changeActivity,activityReport,assignActivity,entryActivity,setEntryActivity} from '@/server/activities';
+import {listActivities,changeActivity,activityReport,assignActivity,entryActivity,setEntryActivity,accessibleActivity} from '@/server/activities';
 import {bookMovements} from '@/server/family-books';
 import {familyFinance} from '@/server/family-finance';
 import {listInstallments,changeInstallment} from '@/server/installments';
@@ -117,7 +117,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
   if(method==='POST'){const b=z.object({name,kind:z.enum(['private','shared'])}).parse(body);const id=randomUUID();await transaction(async c=>{await c.query('INSERT INTO books(id,name,kind,owner_id) VALUES($1,$2,$3,$4)',[id,b.name,b.kind,u.id]);await c.query('INSERT INTO members VALUES($1,$2,$3)',[id,u.id,'owner']);});return NextResponse.json({id});}
  }
  const book=uuid.parse(path[1]);const resource=path[2];await member(book,u,method!=='GET'&&!['chat','categories'].includes(resource),['members','metadata'].includes(resource)&&method!=='GET');
- if(['report','chart-details','export'].includes(resource)&&req.nextUrl.searchParams.has('activity')&&!(await db.query('SELECT 1 FROM activities WHERE id=$1 AND owner_id=$2',[uuid.parse(req.nextUrl.searchParams.get('activity')),u.id])).rowCount)throw new Failure('活动不存在',404);
+ if(['report','chart-details','export'].includes(resource)&&req.nextUrl.searchParams.has('activity'))await accessibleActivity(u.id,req.nextUrl.searchParams.get('activity')||'');
  if(resource==='chat'){const result=await financeChat(book,u,method,body,req.nextUrl.searchParams,req.signal);return result instanceof Response?result:NextResponse.json(result);}
  if(resource==='organize'){if(method==='GET')return NextResponse.json(await movePreview(book,req.nextUrl.searchParams.getAll('id')));if(method==='POST')return NextResponse.json(await organize(book,u.id,body));}
  if(resource==='move'){if(method==='GET')return NextResponse.json(await movePreview(book,req.nextUrl.searchParams.get('id')||''));if(method==='POST')return NextResponse.json(await moveEntry(book,u.id,body));}
