@@ -4,6 +4,7 @@
 
 ### Added
 
+- Personal activity grouping across books, with optional budgets and dates, entry assignment during manual/OCR review, existing-entry assignment, and filtered charts plus paginated details. Actual transactions, wallet balances and book ownership remain unchanged.
 - A unified **Spending analysis** workspace combines charts with searchable, filterable and paginated records. Its charts and totals follow the same active filters, including personal-wallet reporting across books.
 - Asset analysis adds balance distribution, daily income/spending and spending-category charts for either personal wallets or a selected family's shared wallets, alongside the existing wallet table.
 - Deterministic personal category learning shared by receipt recognition and AI action cards. It uses the current user's confirmed entries, presets and corrections across accessible books; ranks route, merchant, item and scene evidence; applies recency decay and confidence thresholds; and never overrides an explicitly selected category.

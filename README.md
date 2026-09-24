@@ -28,6 +28,7 @@ English · [简体中文](README.zh-CN.md)
 The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
 
 - **Spending analysis** now combines charts and records in one workspace. Date, type, wallet, category and keyword filters update the totals, charts and paginated list together; its personal-wallet scope combines the signed-in user's own wallets across every book.
+- **Activities** group entries from multiple books without duplicating payments. Create an activity with optional dates and budget, select it during manual or receipt entry, or attach existing entries later. The activity page shows net spending, income, category/wallet/book breakdowns, daily spending and paginated searchable records. Activities are personal to their creator; each linked entry remains governed by its original book permissions.
 - **Assets** now includes balance, daily cash-flow and spending-category charts for personal or selected family-shared wallets, while retaining the detailed wallet table.
 - **Personal category catalogues** now follow the user across every private and shared book. Existing book catalogues are merged per user during upgrade; another member's category edits do not change yours.
 - **Adaptive personal categories** run on the server for receipt drafts and AI action cards. Confirmed entries, presets and corrections are matched by route, merchant, item and scene, with recency decay and confidence thresholds. An explicit category is never overwritten.

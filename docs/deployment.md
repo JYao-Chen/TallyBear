@@ -40,6 +40,8 @@ Back up first. Stop web and worker, obtain the desired release and run `docker c
 
 Current `main` adds separate assistant-model settings and personal category-learning feedback. Apply the bundled `scripts/schema.sql` (or let the Compose `init` service apply it) before starting the new web and worker together. The migration creates `assistant_ai_settings` and `category_feedback` without rewriting existing transactions. Historical entries created by a user remain usable as lower-weight personal evidence; new confirmations and corrections populate feedback after the upgrade.
 
+Current `main` also creates `activities` and `activity_entries`. Apply the schema before starting the app version that exposes Activities. Existing transactions are not assigned automatically. Activity links only affect grouping and reports; each payment remains in its original book and wallet.
+
 After startup:
 
 1. Configure and test both **Receipt recognition models** and **AI assistant models**. The existing recognition configuration is not silently copied into the assistant scope.

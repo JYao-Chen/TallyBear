@@ -333,3 +333,25 @@ CREATE TABLE IF NOT EXISTS family_movement_details(
 ALTER TABLE receipt_files ALTER COLUMN book_id DROP NOT NULL;
 ALTER TABLE receipt_files ADD COLUMN IF NOT EXISTS movement_id uuid REFERENCES family_movements(id) ON DELETE CASCADE;
 ALTER TABLE receipt_files ADD COLUMN IF NOT EXISTS movement_purpose text;
+
+-- Activities group existing transactions across books without creating another money movement.
+CREATE TABLE IF NOT EXISTS activities (
+ id uuid PRIMARY KEY,
+ owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ name text NOT NULL,
+ description text NOT NULL DEFAULT '',
+ starts_on date,
+ ends_on date,
+ budget bigint CHECK(budget IS NULL OR budget>=0),
+ archived boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ CHECK(ends_on IS NULL OR starts_on IS NULL OR ends_on>=starts_on)
+);
+CREATE INDEX IF NOT EXISTS activities_owner ON activities(owner_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS activity_entries (
+ transaction_id uuid NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+ owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ activity_id uuid NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
+ PRIMARY KEY(transaction_id,owner_id)
+);
+CREATE INDEX IF NOT EXISTS activity_entries_activity ON activity_entries(activity_id);
