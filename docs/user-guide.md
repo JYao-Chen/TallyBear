@@ -33,6 +33,8 @@ Use “Record in another book too” to preserve the shared event identity. Cros
 
 退款到账才记退款；退款申请中不当作收入。通过“同时记入另一本账本”复用，系统才有可靠的关联用于跨账本去重。独立重复录入的两笔记录需要另行核对。
 
+在 **记一笔 → 退款** 中直接搜索已入账原订单（商家、商品、订单号、流水号或日期），选中后可查看原支付、此前已退和当前净支出。填写实际到账的本次退款金额；也可以输入希望的“退款后净支出”，让表单换算本次退款。原消费仍保持原金额和日期，退款作为单独到账流水保存；部分退款可多次记录，累计不能超过原消费。
+
 ## Cost allocation / 周期分摊
 
 Record the actual payment first, then configure its coverage period. The allocation view distributes integer minor units over the selected days/weeks/months/years. Remainders are assigned without losing a cent. It does not manufacture extra payments or change the actual account balance. Recurring schedules and allocation are distinct: a schedule concerns future due dates; allocation describes the cost coverage of a payment.

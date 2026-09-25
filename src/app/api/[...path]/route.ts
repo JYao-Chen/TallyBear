@@ -138,7 +138,7 @@ async function handle(req:NextRequest,ctx:Ctx){const locale=deployment().languag
  }
  if(resource==='refund-options'&&method==='GET'){
   const q=z.string().max(200).parse(req.nextUrl.searchParams.get('q')||'');const idValue=req.nextUrl.searchParams.get('id'),excludeValue=req.nextUrl.searchParams.get('exclude');const id=idValue?uuid.parse(idValue):null,exclude=excludeValue?uuid.parse(excludeValue):null;
-  return NextResponse.json((await db.query("SELECT t.id,t.kind,t.payee,t.product,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,(t.amount-COALESCE((SELECT sum(r.amount) FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted AND ($4::uuid IS NULL OR r.id<>$4)),0))::float8 AS remaining FROM transactions t WHERE t.book_id=$1 AND t.kind='expense' AND NOT t.deleted AND ($3::uuid IS NULL OR t.id=$3) AND ($2='' OR strpos(lower(concat_ws(' ',t.payee,t.product,t.order_id,t.date::text)),lower($2))>0) ORDER BY t.date DESC,t.created_at DESC,t.id DESC LIMIT 30",[book,q,id,exclude])).rows);
+  return NextResponse.json((await db.query("SELECT t.id,t.kind,t.title,t.payee,t.product,t.order_id,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,(t.amount-COALESCE((SELECT sum(r.amount) FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted AND ($4::uuid IS NULL OR r.id<>$4)),0))::float8 AS remaining FROM transactions t WHERE t.book_id=$1 AND t.kind='expense' AND NOT t.deleted AND ($3::uuid IS NULL OR t.id=$3) AND ($2='' OR strpos(lower(concat_ws(' ',t.title,t.payee,t.product,t.order_id,t.external_id,t.date::text)),lower($2))>0) ORDER BY t.date DESC,t.created_at DESC,t.id DESC LIMIT 30",[book,q,id,exclude])).rows);
  }
 
  if(resource==='accounts'&&method==='GET')return NextResponse.json(await listAccounts(book,u.id));
