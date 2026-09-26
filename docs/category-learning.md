@@ -86,3 +86,9 @@ Changing merchant, product/items, scene or transaction type clears a stale sugge
 - It is intentionally conservative: unfamiliar or conflicting activity may keep the model category until enough personal evidence exists.
 
 当前可以按次关闭分类习惯，但没有单独的学习记录管理页；日常纠正直接在确认卡片完成。算法只学习分类，不会从历史复制金额、日期、钱包、订单号等本次财务事实。陌生或冲突场景可能继续保留模型分类，这是为了避免少量历史造成稳定误判。
+
+## Repeat-purchase enrichment / 同款信息复用
+
+The same history toggle also enables conservative product matching before category suggestions. Confirmed personal transaction evidence (not preset IDs) supplies stable product names and a repeat-purchase group stored in `scene.purchaseGroup`. Exact normalized item names or product summaries identify candidates; merchant conflicts or ambiguous names prevent automatic fill. Current payment amounts, dates, IDs and visible item prices are preserved. Matching and filling run automatically during AI recognition and assistant entry preparation, without a separate buy-again entry point. Ambiguous names remain unlinked; users can edit the result or cancel the association before saving. History stays server-side; no extra model call is introduced. Grouping does not merge payments or change wallet totals. Delivery titles use actual food/drink names; dine-in uses merchant-led titles.
+
+同款匹配先于分类建议；同款明确且用户未明确指定分类时可沿用该记录分类。分类习惯的通用权重规则仍适用于非同款场景。取消同款关联或关闭历史开关可停止复用；修改后的已确认记录会成为后续匹配依据。只归组新关联记录与选中的历史原单，不批量追溯归并旧账。

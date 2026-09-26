@@ -1,4 +1,4 @@
 export function refundFromNet(remaining:number,desiredNet:number){
- if(!Number.isInteger(remaining)||!Number.isInteger(desiredNet)||desiredNet<0||desiredNet>=remaining)return null;
+ if(!Number.isSafeInteger(remaining)||!Number.isSafeInteger(desiredNet)||desiredNet>=remaining||remaining-desiredNet>100000000000)return null;
  return remaining-desiredNet;
 }

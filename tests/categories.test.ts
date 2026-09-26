@@ -9,7 +9,7 @@ test('personal category catalogue uses the user id and includes expanded default
  const categories=await listCategories('00000000-0000-0000-0000-000000000001',connection);
  assert.deepEqual(calls[0].args,['00000000-0000-0000-0000-000000000001']);
  assert.match(calls[0].sql,/WHERE user_id=\$1/);
- assert.equal(defaultCategories.length,19);
+ assert.equal(defaultCategories.length,31);
  assert.ok(['sticker:050','sticker:023','sticker:044','sticker:148'].every(icon=>defaultCategories.some(category=>category[1]===icon)));
  assert.ok(categories.some(category=>category.name==='宠物'));
 });
@@ -20,6 +20,20 @@ test('disabled category validation is scoped to the current user',async()=>{
  await assert.rejects(checkCategory(connection,'00000000-0000-0000-0000-000000000002','宠物'),/这个分类已停用/);
  assert.deepEqual(calls[0].args,['00000000-0000-0000-0000-000000000002','宠物']);
  assert.match(calls[0].sql,/WHERE user_id=\$1/);
+});
+
+test('new defaults preserve personal icons and disabled or deleted choices',async()=>{
+ const connection={query:async()=>({rows:[
+  {name:'宠物',icon:'🐈',position:0,archived:false,deleted:false},
+  {name:'住宿',icon:'🏨',position:1,archived:true,deleted:false},
+  {name:'保险',icon:'🛡️',position:2,archived:true,deleted:true}
+ ]})} as any;
+ const rows=await listCategories('user',connection);
+ assert.equal(rows.filter(r=>r.name==='宠物').length,1);
+ assert.equal(rows.find(r=>r.name==='宠物')?.icon,'🐈');
+ assert.equal(rows.find(r=>r.name==='住宿')?.archived,true);
+ assert.equal(rows.some(r=>r.name==='保险'),false);
+ assert.equal(new Set(defaultCategories.map(([name])=>name)).size,defaultCategories.length);
 });
 
 test('legacy used categories keep their built-in icons during personal catalogue migration',()=>{

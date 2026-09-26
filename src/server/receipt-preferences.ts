@@ -1,3 +1,5 @@
+import {preserveSubscriptionCategory} from '@/lib/subscription-category';
+import {applyPurchaseMemory,normalizeDining,type Purchase} from '@/lib/purchase-memory';
 import type {PoolClient} from 'pg';
 import {db} from './db';
 import {listCategories} from './categories';
@@ -5,11 +7,11 @@ import {recommendCategory,type CategoryEvidence,type CategoryInput,type Category
 import {sceneTitle} from '@/lib/entry-scene';
 import type {ModelProgress} from './ai';
 
-type LearnedEntry=CategoryInput&{title:string;categorySuggestion?:CategorySuggestion};
+type LearnedEntry=CategoryInput&{title:string;lineItems?:import('@/lib/line-items').LineItem[];categorySuggestion?:CategorySuggestion};
 
 async function learningEvidence(book:string,userId:string):Promise<CategoryEvidence[]>{
  const rows=(await db.query(`SELECT * FROM (
-  SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.category,t.kind,t.payee,t.scene,t.title,t.product,t.line_items AS "lineItems",
+  SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.category,t.kind,t.payee,t.scene,t.title,t.product,t.platform,t.line_items AS "lineItems",
    CASE WHEN f.corrected THEN 'correction' WHEN f.source='manual' THEN 'manual' WHEN f.transaction_id IS NOT NULL THEN 'accepted' ELSE 'legacy' END AS source,
    COALESCE(f.confirmed_at,t.updated_at,t.created_at) AS at
   FROM transactions t
@@ -25,7 +27,7 @@ async function learningEvidence(book:string,userId:string):Promise<CategoryEvide
 export async function applyPreferences<T extends LearnedEntry>(book:string,entries:T[],enabled:boolean,english:boolean,progress:ModelProgress={},userId?:string){
  const valid=new Set((await listCategories(userId)).filter(row=>!row.archived).map(row=>row.name));
  const evidence=enabled&&userId?await learningEvidence(book,userId):[];const result:(T&{categorySuggestion?:CategorySuggestion})[]=[];
- for(const entry of entries){progress.signal?.throwIfAborted();const suggestion=enabled?recommendCategory(entry,evidence,valid):null;result.push({...entry,title:sceneTitle(entry.scene,english)||entry.title,...(suggestion?{category:suggestion.category,categorySuggestion:suggestion}:{})});}
+ for(const raw of entries){progress.signal?.throwIfAborted();const entry=normalizeDining(enabled?applyPurchaseMemory(raw,evidence.filter(e=>e.source!=='template'&&valid.has(e.category)) as Purchase[],english):raw,english);const subscription=preserveSubscriptionCategory(raw,valid);if(subscription)entry.category=raw.category;const suggestion=enabled&&!subscription?recommendCategory(entry,evidence,valid):null;result.push({...entry,title:sceneTitle(entry.scene,english)||entry.title,...(suggestion?{category:suggestion.category,categorySuggestion:suggestion}:{})});}
  return result;
 }
 

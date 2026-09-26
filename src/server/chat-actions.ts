@@ -1,3 +1,4 @@
+import {normalizeDining} from '@/lib/purchase-memory';
 import {matchReceiptWallet,receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
 import {familyFinance} from './family-finance';
 import {familyActionSchema,prepareFamilySummary} from './family-actions';
@@ -56,6 +57,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
   a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,operation,transactionId:row.id,version:row.version,id:undefined};
  }
  const data=a.data;
+ if(a.kind==='entry'&&(!old||b.data.title===undefined))Object.assign(data,normalizeDining({scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',lineItems:data.lineItems||[]},ctx.language==='en'));
  if(a.kind==='entry'&&data.activityId){const activity=await accessibleActivity(ctx.user.id,String(data.activityId));if(activity.archived)throw new Failure('归档活动不能新增账目，请先重新启用');}
  if(a.kind==='family'){for(const key of Object.keys(d))if(key!=='displayBookId'&&(d[key]===null||d[key]===''))delete d[key];if(!d.date&&ctx.deviceTime)d.date=ctx.deviceTime.slice(0,10);await prepareFamilySummary(a,ctx.user.id);a.missing=[...new Set([...actionMissing(a),...a.missing])];if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;}
  if(d.refundOf&&a.kind==='entry'){const original=(await db.query("SELECT title,payee,category,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",[uuid.parse(d.refundOf),book])).rows[0]||actions.find(v=>v.id===d.refundOf&&v.bookId===book&&v.kind==='entry'&&v.data.kind==='expense'&&v.status!=='cancelled')?.data;if(!original)throw new Failure('关联的原消费不存在');d.category=original.category;d.refundTitle=original.title||original.payee;}
@@ -64,7 +66,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const explicitChannel=typeof data.paymentChannel==='string'?data.paymentChannel.trim():'';
  const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
  if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
- if(a.kind==='entry'&&ctx.useHistory&&!data.categorySuggestion&&data.kind&&data.category){const preferred=(await applyPreferences(book,[{kind:data.kind,payee:data.payee||'',category:data.category,scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id))[0];data.category=preferred.category;if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
+ if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind&&data.category){const preferred=(await applyPreferences(book,[{kind:data.kind,payee:data.payee||'',category:data.category,scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id))[0];Object.assign(data,{category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
  a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};

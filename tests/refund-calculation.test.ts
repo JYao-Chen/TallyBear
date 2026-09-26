@@ -6,6 +6,7 @@ test('net expense input calculates only the next refund after earlier partial re
  assert.equal(refundFromNet(7000,2500),4500);
  assert.equal(refundFromNet(7000,0),7000);
  assert.equal(refundFromNet(7000,7000),null);
- assert.equal(refundFromNet(7000,-1),null);
+ assert.equal(refundFromNet(7000,-1),7001);
+ assert.equal(refundFromNet(-100,-500),400);
  assert.equal(refundFromNet(7000,8000),null);
 });

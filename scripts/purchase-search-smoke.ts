@@ -1,0 +1,87 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile,mkdir} from 'node:fs/promises';
+import {db,transaction} from '../src/server/db';
+import {createAccount,listAssets} from '../src/server/accounts';
+import {entry} from '../src/server/model';
+import {insertEntry} from '../src/server/ledger';
+import {search} from '../src/server/search';
+import {applyPreferences} from '../src/server/receipt-preferences';
+import {sceneSchema} from '../src/lib/entry-scene';
+import {allocations} from '../src/server/allocations';
+
+assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_purchase_test'),'Use an isolated purchase_test database');
+const base=process.env.TEST_ORIGIN||'http://127.0.0.1:3117';
+const user=randomUUID(),outsider=randomUUID(),books=[randomUUID(),randomUUID(),randomUUID()],token=randomUUID();
+const api=async(path:string,method='GET',body?:unknown)=>{
+ const response=await fetch(base+'/api/'+path,{method,headers:{Cookie:'bubu_session='+token,Origin:base,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+ const value=await response.json();assert.equal(response.status,200,JSON.stringify(value));return value;
+};
+try{
+ await db.query("INSERT INTO deployment_settings(id,currency) VALUES(1,'CNY') ON CONFLICT DO NOTHING");
+ for(const id of [user,outsider])await db.query('INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,$2,$3)',[id,'复购测试','unused']);
+ await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')",[token,user]);
+ for(let i=0;i<books.length;i++){const owner=i===2?outsider:user;await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,$2,'private',$3)",[books[i],['日常测试账本','旅行测试账本','不可见账本'][i],owner]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[books[i],owner]);}
+ const account=(await createAccount(user,{name:'微信测试钱包',opening:10000,type:'wechat'})).id;
+ const original=entry.parse({id:randomUUID(),kind:'expense',amount:1800,date:'2026-09-20',accountId:account,title:'牛肉面',payee:'面馆',product:'牛肉面',category:'餐饮',note:'双份辣椒',orderId:'ORDER-001',externalId:'PAY-001',scene:sceneSchema.parse({type:'dining',diningMode:'delivery',merchant:'面馆',summary:'牛肉面'})});
+ await transaction(c=>insertEntry(c,books[1],user,original));
+ const current={...original,id:randomUUID(),amount:2000,date:'2026-09-26',title:'面馆',orderId:'ORDER-002',externalId:'PAY-002',scene:sceneSchema.parse({type:'dining',diningMode:'delivery',merchant:'面馆',summary:'牛肉面'})};
+ const [repeat]=await applyPreferences(books[0],[current],true,false,{},user);
+ assert.equal(repeat.scene.purchaseGroup,original.id);assert.equal(repeat.amount,2000);assert.equal(repeat.title,'牛肉面');
+ await api(`books/${books[0]}/transactions`,'POST',{entries:[repeat]});
+ const find=(p:Record<string,string>)=>search(user,new URLSearchParams({entity:'transaction',...p}));
+ assert.equal((await find({q:'牛肉面'})).total,2);
+ assert.equal((await find({q:'牛肉面 双份辣椒 2026-09-20 18'})).total,1);
+ assert.equal((await find({q:'PAY-001',field:'order',mode:'exact'})).total,1);
+ assert.equal((await find({q:'18',mode:'exact'})).total,1);
+ assert.equal((await find({q:'18.00',mode:'exact'})).total,1);
+ assert.equal((await find({book:books[0],q:'牛肉面'})).total,1);
+ assert.equal((await search(outsider,new URLSearchParams({q:'牛肉面'}))).total,0);
+ assert.equal((await find({group:original.id})).total,2);
+ const image=await readFile(new URL('../tests/fixtures/itemized-receipt.png',import.meta.url));
+ const upload=await fetch(base+`/api/receipts?book=${books[0]}`,{method:'POST',headers:{Cookie:'bubu_session='+token,Origin:base,'Content-Type':'image/png'},body:image});assert.equal(upload.status,200);const uploaded=await upload.json();
+ const refund=entry.parse({...original,id:randomUUID(),kind:'refund',amount:1800,date:'2026-09-26',externalId:'REFUND-001',refundOf:original.id,attachmentIds:[uploaded.data.split('/').at(-1)],retainReceipts:true});
+ await api(`books/${books[0]}/transactions`,'POST',{entries:[{...refund,targetBook:books[1]}]});
+ await api(`books/${books[0]}/transactions`,'POST',{entries:[{...refund,id:randomUUID(),amount:800,externalId:'CASHBACK-002',attachmentIds:[],targetBook:books[1]}]});
+ assert.equal((await db.query('SELECT book_id FROM transactions WHERE id=$1',[original.id])).rows[0].book_id,books[1]);
+ assert.equal((await db.query('SELECT book_id FROM transactions WHERE id=$1',[refund.id])).rows[0].book_id,books[1]);
+ assert.equal((await db.query('SELECT f.book_id FROM receipt_files f JOIN transaction_receipts r ON r.file_id=f.id WHERE r.transaction_id=$1',[refund.id])).rows[0].book_id,books[1]);
+ const result=await api(`books/${books[1]}/refund-options?id=${original.id}`);assert.equal(result[0].remaining,-800);
+ const grouped=await find({group:original.id});assert.equal(grouped.total,4);assert.equal(grouped.totals.expense,3800);assert.equal(grouped.totals.refund,2600);
+ assert.equal((await listAssets(user))[0].balance,10000-1800-2000+2600);
+ await allocations(books[1],'POST',{id:original.id,version:1,start:'2026-09',months:1},new URLSearchParams());
+ const allocated=await allocations(books[1],'GET',{},new URLSearchParams({month:'2026-09'})) as any;assert.equal(allocated.total,-800);
+ for(let i=0;i<15;i++)await transaction(c=>insertEntry(c,books[0],user,entry.parse({...original,id:randomUUID(),title:'分页面条',orderId:'PAGE-'+i,externalId:'PAGE-'+i})));
+ const first=await find({q:'分页面条'}),second=await find({q:'分页面条',offset:'10'});assert.equal(first.total,15);assert.equal(first.rows.length,10);assert.equal(second.rows.length,5);
+ const editRefund=entry.parse({...refund,id:randomUUID(),refundOf:null,externalId:'RELINK',attachmentIds:[]});
+ await api(`books/${books[0]}/transactions`,'POST',{entries:[editRefund]});
+ await api(`books/${books[0]}/transactions`,'PUT',{...editRefund,refundOf:original.id,targetBook:books[1],version:1});
+ assert.equal((await db.query('SELECT book_id FROM transactions WHERE id=$1',[editRefund.id])).rows[0].book_id,books[1]);
+ console.log('PASS: cross-book search, combined fields, IDs, private isolation, repeat memory, unchanged new price, pagination, multiple excess refunds, negative allocations, cross-book refund create/edit, retained receipts; originals stay put');
+ if(process.env.PLAYWRIGHT_MODULE){
+  const artifactDir=process.env.TEST_ARTIFACT_DIR;assert.ok(artifactDir,'Set TEST_ARTIFACT_DIR for browser screenshots');
+  const {chromium}=await import(process.env.PLAYWRIGHT_MODULE);const browser=await chromium.launch({headless:true});
+  const context=await browser.newContext({viewport:{width:390,height:844}});await context.addCookies([{name:'bubu_session',value:token,url:base}]);const page=await context.newPage();
+  await page.goto(base);await page.getByRole('button',{name:'搜索整个账本系统',exact:true}).click();
+  await page.getByRole('textbox',{name:'搜索关键词',exact:true}).fill('牛肉面');await page.getByText('正在搜索…',{exact:true}).waitFor({state:'hidden'});await page.waitForTimeout(700);
+  await mkdir(artifactDir,{recursive:true});await page.screenshot({path:artifactDir+'/mobile-search.png',fullPage:true});
+  assert.equal(await page.locator('dialog[open]').evaluate((el:any)=>el.scrollWidth<=el.clientWidth),true);
+  await page.setViewportSize({width:1280,height:900});await page.screenshot({path:artifactDir+'/desktop-search.png',fullPage:true});
+  await page.getByRole('button',{name:'关闭弹窗',exact:true}).click();
+  await page.getByRole('navigation').getByRole('button',{name:'记一笔',exact:true}).click();
+  await page.getByRole('button',{name:'手动记账',exact:true}).click();
+  await page.getByRole('button',{name:'退款',exact:true}).click();
+  await page.getByRole('textbox',{name:'金额（元）',exact:true}).fill('5.00');
+  const before=Number((await db.query('SELECT count(*) FROM transactions WHERE created_by=$1',[user])).rows[0].count);
+  await page.getByRole('button',{name:'关联原消费 · 搜索已入账订单',exact:true}).click();
+  await page.getByRole('textbox',{name:'搜索关键词',exact:true}).fill('PAY-001');
+  await page.waitForResponse((r:any)=>r.url().includes('/api/search?')&&r.url().includes('PAY-001'));
+  await page.locator('.search-result summary').first().click();await page.getByRole('button',{name:'选择并填充',exact:true}).click();
+  assert.equal(await page.getByRole('textbox',{name:'账目标题',exact:true}).inputValue(),'牛肉面');
+  assert.equal(await page.getByRole('textbox',{name:'金额（元）',exact:true}).inputValue(),'5.00');
+  assert.equal(Number((await db.query('SELECT count(*) FROM transactions WHERE created_by=$1',[user])).rows[0].count),before,'Opening/searching must not submit the entry form');
+  await page.setViewportSize({width:375,height:812});await page.locator('.refund-picker').scrollIntoViewIfNeeded();await page.screenshot({path:artifactDir+'/mobile-refund.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+  await browser.close();console.log('PASS: mobile search dialog has no horizontal overflow; desktop/mobile screenshots saved');
+ }
+}finally{await db.end();}

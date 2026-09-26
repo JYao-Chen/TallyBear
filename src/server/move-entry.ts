@@ -8,6 +8,18 @@ import {Failure} from './access';
 import {checkCategory} from './categories';
 import {receiptDirectory} from './receipts';
 
+// Refunds selected from another book are inserted there, without moving the original.
+export async function copyEntryReceipts(c:PoolClient,sourceBook:string,targetBook:string,user:string,entry:{attachmentIds:string[];photoIds:string[];retainReceipts:boolean},copied:string[]){
+ const mapping=new Map<string,string>();
+ for(const old of new Set([...(entry.retainReceipts?entry.attachmentIds:[]),...entry.photoIds])){
+  const file=(await c.query('SELECT * FROM receipt_files f WHERE id=$1 AND book_id=$2 AND (user_id=$3 OR EXISTS(SELECT 1 FROM transaction_receipts WHERE file_id=f.id)) FOR UPDATE OF f',[old,sourceBook,user])).rows[0];
+  if(!file)throw new Failure('小票附件不存在或没有访问权限',403);
+  const id=randomUUID();copied.push(id);await copyFile(path.join(receiptDirectory(),old),path.join(receiptDirectory(),id));
+  await c.query('INSERT INTO receipt_files(id,book_id,user_id,name,mime,temporary) VALUES($1,$2,$3,$4,$5,true)',[id,targetBook,user,file.name,file.mime]);mapping.set(old,id);
+ }
+ return {...entry,attachmentIds:entry.retainReceipts?entry.attachmentIds.map(id=>mapping.get(id)!):[],photoIds:entry.photoIds.map(id=>mapping.get(id)!)};
+}
+
 export async function group(c:Pick<PoolClient,'query'>,book:string,id:string){
  const selected=(await c.query('SELECT id,refund_of,deleted FROM transactions WHERE book_id=$1 AND id=$2',[book,id])).rows[0];
  if(!selected||selected.deleted)throw new Failure('记录不存在或已删除',404);

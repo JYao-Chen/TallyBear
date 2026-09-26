@@ -12,6 +12,8 @@ export function matchReason(a:Comparable,b:Comparable):string|null{
  const sameOrder=a.orderId&&a.orderId===b.orderId&&a.platform&&a.platform===b.platform;
  if(sameOrder&&a.amount===b.amount)return '订单号与金额相同';
  if(sameOrder&&a.kind==='expense')return '订单号相同，金额需核对，可仅补充商品信息';
+ if(a.orderId&&b.orderId&&a.platform&&a.platform===b.platform&&a.orderId!==b.orderId)return null;
+ if(a.externalId&&b.externalId&&a.externalId!==b.externalId)return null;
  if(a.amount<=0||a.amount!==b.amount||!a.date||a.date!==b.date)return null;
  if(a.occurredAt&&a.occurredAt===b.occurredAt)return '交易时间与金额相同';
  if(norm(a.payee)&&norm(a.payee)===norm(b.payee))return '日期、金额与商家相同';
@@ -19,4 +21,4 @@ export function matchReason(a:Comparable,b:Comparable):string|null{
  return '日期与金额相同，信息不足，请核对是否为同一笔';
 }
 export function missingFields(e:Comparable){return [!e.amount?'金额':'',!e.date?'日期':'',!e.accountId?'账户':''].filter(Boolean);}
-export function refundCandidates(e:Comparable,rows:Comparable[]){return rows.filter(r=>r.kind==='expense'&&(!e.date||r.date<=e.date)&&r.amount>=e.amount&&((e.orderId&&r.orderId===e.orderId&&e.platform===r.platform)||(norm(e.payee)&&norm(e.payee)===norm(r.payee))));}
+export function refundCandidates(e:Comparable,rows:Comparable[]){return rows.filter(r=>r.kind==='expense'&&(!e.date||r.date<=e.date)&&((e.orderId&&r.orderId===e.orderId&&e.platform===r.platform)||(norm(e.payee)&&norm(e.payee)===norm(r.payee))));}

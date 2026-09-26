@@ -182,6 +182,7 @@ BEGIN
    ('学习','📚'),('Education','📚'),('房租','🔑'),('Rent','🔑'),
    ('水电燃气','💡'),('Utilities','💡'),('旅行','🧳'),('Travel','🧳'),
    ('工资','💼'),('Salary','💼'),('奖金','🎁'),('Bonus','🎁'),('其他','🧸'),('Other','🧸')
+   ,('会员订阅','🎟️'),('Memberships & subscriptions','🎟️'),('零食水果','🍎'),('Snacks & fruit','🍎'),('日用百货','🧻'),('Daily essentials','🧻'),('数码家电','💻'),('Electronics & appliances','💻'),('美容个护','🧴'),('Beauty & personal care','🧴'),('通信网络','📱'),('Phone & internet','📱'),('住宿','🏨'),('Accommodation','🏨'),('运动健身','🏋️'),('Sports & fitness','🏋️'),('宠物','🐾'),('Pets','🐾'),('母婴育儿','🍼'),('Parenting & baby care','🍼'),('保险','🛡️'),('Insurance','🛡️'),('手续费','🧾'),('Fees','🧾')
   ) AS default_icon(name,icon) ON default_icon.name=used.name
   ON CONFLICT(user_id,name) DO NOTHING;
   DROP TABLE category_preferences;

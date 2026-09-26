@@ -27,6 +27,7 @@ English · [简体中文](README.zh-CN.md)
 
 The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
 
+- **Repeat purchases** are automatically matched and filled during AI entry and assistant preparation, without a separate buy-again button. **Refunds** use global search across accessible books, with paginated keyword/date/amount filters and editable auto-fill. Confirmed personal history can reuse product information while preserving new payment facts; delivery orders use food-led titles. Multiple refunds/cashback may exceed the original payment, and linked repeat purchases have searchable totals.
 - **Spending analysis** now combines charts and records in one workspace. Date, type, wallet, category and keyword filters update the totals, charts and paginated list together; its personal-wallet scope combines the signed-in user's own wallets across every book.
 - **Activities** group entries across books without duplicating payments. Set a custom type, dates and budget, and keep an activity personal or attach it to a family so members can contribute. Members only see entries in books they could already access, so visible totals may differ. Active activities can be selected directly from Home, manual or receipt entry, assistant confirmation cards, and existing transactions. Search or filter activities by name, type or family; archived activities have a separate view and can be reactivated. Deleting an activity removes its links, not the original transactions. Activity reports include category/wallet/book breakdowns and paginated details; global search and the AI assistant can query activities too.
 - **Assets** now includes balance, daily cash-flow and spending-category charts for personal or selected family-shared wallets, while retaining the detailed wallet table.
@@ -77,7 +78,7 @@ Upload several receipts, order screenshots or one long image. AI distinguishes s
 
 | Detail | How it works |
 |---|---|
-| Merchants and products | Merchant-led titles, concise product summaries and separate itemized rows. |
+| Merchants and products | Food-led delivery titles, merchant-led dine-in titles, concise product summaries and separate itemized rows. |
 | Checkout | Quantities, unit prices, subtotals, discounts, rounding and extra fees; the paid total remains the transaction amount. |
 | Partial screenshots | Distinguish incomplete checkout evidence from conflicting amounts. Confirm the actual payment with an explanation instead of inventing a balancing discount. |
 | Duplicates and refunds | Compare existing records, review potential duplicates, and link full or partial refunds to the original purchase. |

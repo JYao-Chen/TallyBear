@@ -14,3 +14,4 @@ test('dining and shopping use short scene titles rather than item lists',()=>{
 });
 
 test('unknown scene fields returned as null stay blank',()=>{assert.equal(sceneSchema.parse({type:'transport',origin:null}).origin,'');});
+test('unknown dining mode returned as null remains unknown',()=>{assert.equal(sceneSchema.parse({type:'dining',diningMode:null}).diningMode,'unknown');});

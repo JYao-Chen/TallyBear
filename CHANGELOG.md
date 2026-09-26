@@ -4,6 +4,11 @@
 
 ### Added
 
+- Expanded personal defaults to 31 categories, including digital subscriptions, daily essentials, electronics, personal care, accommodation, fitness, pets, parenting, insurance and fees. Existing personal overrides remain intact; AI classification guidance distinguishes purpose from activity grouping.
+
+- Unified cross-book search for refund selection, editable detail fill, paginated results, and repeat-purchase totals. Repeat purchases are automatically associated during AI recognition and assistant entry preparation without an extra entry point. Personal confirmed product memory preserves new prices and payment IDs. Delivery orders now use food-led titles while dine-in retains merchant-led titles.
+- Multiple refunds and cashback may exceed the original payment; negative net spending is retained in the refund calculator and allocations. Selecting a refund original from another book no longer requires moving the purchase.
+
 - Personal activity grouping across books, with optional budgets and dates, entry assignment during manual/OCR review, existing-entry assignment, and filtered charts plus paginated details. Actual transactions, wallet balances and book ownership remain unchanged.
 - Activities now support custom types, family participation, searchable active and archived views, reactivation, safe deletion, a Home quick-entry shortcut, global search and assistant queries. Family participation does not grant access to private books.
 - A unified **Spending analysis** workspace combines charts with searchable, filterable and paginated records. Its charts and totals follow the same active filters, including personal-wallet reporting across books.

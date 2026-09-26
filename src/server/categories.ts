@@ -6,7 +6,7 @@ import type {PoolClient} from 'pg';
 import {db,transaction} from './db';
 import {Failure} from './access';
 
-const baseCategories=[['餐饮','🍜'],['买菜','🥬'],['奶茶咖啡','☕'],['饮料','sticker:050'],['购物','🛍️'],['服装配饰','sticker:023'],['快递费','sticker:044'],['交通','🚇'],['居家','🏡'],['娱乐','🎮'],['人情往来','sticker:148'],['医疗健康','💊'],['学习','📚'],['房租','🔑'],['水电燃气','💡'],['旅行','🧳'],['工资','💼'],['奖金','🎁'],['其他','🧸']] as const;
+const baseCategories=[['餐饮','🍜'],['买菜','🥬'],['奶茶咖啡','☕'],['饮料','sticker:050'],['购物','🛍️'],['服装配饰','sticker:023'],['快递费','sticker:044'],['交通','🚇'],['居家','🏡'],['娱乐','🎮'],['会员订阅','🎟️'],['人情往来','sticker:148'],['医疗健康','💊'],['学习','📚'],['房租','🔑'],['水电燃气','💡'],['旅行','🧳'],['工资','💼'],['奖金','🎁'],['零食水果','🍎'],['日用百货','🧻'],['数码家电','💻'],['美容个护','🧴'],['通信网络','📱'],['住宿','🏨'],['运动健身','🏋️'],['宠物','🐾'],['母婴育儿','🍼'],['保险','🛡️'],['手续费','🧾'],['其他','🧸']] as const;
 export const defaultCategories=baseCategories.map(([name,icon])=>[translate(name,deployment().language),icon] as [string,string]);
 
 export async function listCategories(user?:string,connection:Pick<PoolClient,'query'>=db){
