@@ -1,2 +1,2 @@
 import {build} from 'esbuild';
-await build({entryPoints:['scripts/worker.ts'],bundle:true,platform:'node',format:'esm',external:['pg','sharp'],outfile:'.next/standalone/worker.mjs',banner:{js:"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);"}});
+await build({entryPoints:['scripts/worker.ts'],bundle:true,platform:'node',format:'esm',external:['pg','sharp'],outfile:'.next/standalone/worker.mjs',banner:{js:"import { createRequire } from 'node:module'; import { fileURLToPath } from 'node:url'; import { dirname } from 'node:path'; const require = createRequire(import.meta.url); const __filename = fileURLToPath(import.meta.url); const __dirname = dirname(__filename);"}});
