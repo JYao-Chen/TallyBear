@@ -1,0 +1,15 @@
+import {z} from 'zod';
+export const memoryKind=z.enum(['product','preference','subscription','activity','conversation','todo','negative']);
+export const memoryInput=z.object({title:z.string().trim().min(1).max(160),content:z.string().max(2000).default(''),kind:memoryKind.default('product'),aliases:z.array(z.string().trim().min(1).max(160)).max(40).default([]),attributes:z.object({scope:z.enum(['product','merchant']).optional(),match:z.string().max(160).optional(),category:z.string().max(60).optional(),platform:z.string().max(40).optional(),model:z.string().max(160).optional(),canonicalName:z.string().max(160).optional(),quotes:z.record(z.string()).optional(),merchant:z.string().max(120).optional(),brand:z.string().max(80).optional(),specification:z.string().max(160).optional(),targetId:z.string().uuid().optional(),targetType:z.enum(['activity','schedule','template']).optional()}).default({})});
+export type MemoryInput=z.infer<typeof memoryInput>;
+export type Memory=MemoryInput&{id:string;owner_id:string;family_id:string|null;status:string;version:number;explicit:boolean};
+export const memorySuggestion=z.object({id:z.string().uuid(),title:z.string(),itemId:z.string().optional(),status:z.enum(['matched','candidate']),reason:z.string(),conflicts:z.array(z.string()).default([]),fieldChanges:z.array(z.object({field:z.enum(['category','payee','platform','product','title']),before:z.string(),after:z.string(),state:z.enum(['applied','suggested','conflict','kept'])})).default([]),fields:z.record(z.string()),sources:z.array(z.object({type:z.string(),id:z.string(),itemId:z.string()})).default([])});
+export type MemorySuggestion=z.infer<typeof memorySuggestion>;
+export const normMemory=(s:string)=>s.normalize('NFKC').toLowerCase().replace(/[\s·、，,。()（）_-]/g,'');
+export function specConflict(a:string,b:string){
+ const specs=(s:string)=>[...new Set((s.toLowerCase().match(/\b(?:pro|max|plus|mini|ultra)\b|\d+(?:\.\d+)?\s*(?:gb|tb|ml|kg|毫升|公斤)/g)||[]).map(normMemory))].sort();
+ const x=specs(a),y=specs(b);return x.length>0&&y.length>0&&x.join('|')!==y.join('|');
+}
+export function exactMemory(query:string,merchant:string,m:Memory){return !!normMemory(query)&&[m.title,...m.aliases].some(n=>normMemory(n)===normMemory(query))&&(!m.attributes.specification||normMemory(query).includes(normMemory(m.attributes.specification)))&&!specConflict(query,m.title+' '+(m.attributes.specification||''))&&(!merchant||!m.attributes.merchant||normMemory(merchant)===normMemory(m.attributes.merchant));}
+export function rankFusion(lists:Memory[][]){const scores=new Map<string,{memory:Memory;score:number}>();for(const list of lists)list.forEach((memory,i)=>{const prior=scores.get(memory.id);scores.set(memory.id,{memory,score:(prior?.score||0)+1/(60+i+1)});});return [...scores.values()].sort((a,b)=>b.score-a.score).map(v=>v.memory);}
+export function redactMemoryText(text:string){return text.replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi,'[email]').replace(/\b\d{8,}\b/g,'[identifier]').slice(0,12000);}

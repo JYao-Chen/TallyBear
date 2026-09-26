@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {db} from './db';
 import {Failure,member,type User} from './access';
 import type {PoolClient} from 'pg';
-export type JobKind='assistant'|'chat'|'connection';
+export type JobKind='assistant'|'chat'|'connection'|'memory';
 export async function enqueue(user:User,book:string|null,kind:JobKind,payload:unknown,id:string=randomUUID(),client:Pick<PoolClient,'query'>=db){
  if(book)await authorizeImages([...((payload as any)?.images||[]),...((payload as any)?.image?[(payload as any).image]:[])],book,user.id);
  await client.query('INSERT INTO ai_jobs(id,user_id,book_id,kind,payload) VALUES($1,$2,$3,$4,$5)',[id,user.id,book,kind,JSON.stringify(payload)]);return id;

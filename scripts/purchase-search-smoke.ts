@@ -7,6 +7,7 @@ import {entry} from '../src/server/model';
 import {insertEntry} from '../src/server/ledger';
 import {search} from '../src/server/search';
 import {applyPreferences} from '../src/server/receipt-preferences';
+import {runMemoryJob} from '../src/server/memory-worker';
 import {sceneSchema} from '../src/lib/entry-scene';
 import {allocations} from '../src/server/allocations';
 
@@ -25,10 +26,12 @@ try{
  const account=(await createAccount(user,{name:'微信测试钱包',opening:10000,type:'wechat'})).id;
  const original=entry.parse({id:randomUUID(),kind:'expense',amount:1800,date:'2026-09-20',accountId:account,title:'牛肉面',payee:'面馆',product:'牛肉面',category:'餐饮',note:'双份辣椒',orderId:'ORDER-001',externalId:'PAY-001',scene:sceneSchema.parse({type:'dining',diningMode:'delivery',merchant:'面馆',summary:'牛肉面'})});
  await transaction(c=>insertEntry(c,books[1],user,original));
+ await runMemoryJob(user,{operation:'source',sourceType:'transaction',sourceId:original.id},{});
  const current={...original,id:randomUUID(),amount:2000,date:'2026-09-26',title:'面馆',orderId:'ORDER-002',externalId:'PAY-002',scene:sceneSchema.parse({type:'dining',diningMode:'delivery',merchant:'面馆',summary:'牛肉面'})};
  const [repeat]=await applyPreferences(books[0],[current],true,false,{},user);
- assert.equal(repeat.scene.purchaseGroup,original.id);assert.equal(repeat.amount,2000);assert.equal(repeat.title,'牛肉面');
+ assert.ok(repeat.memorySuggestions?.some(s=>s.status==='matched'&&s.sources.some(source=>source.id===original.id)));assert.equal(repeat.amount,2000);assert.equal(repeat.title,'牛肉面');
  await api(`books/${books[0]}/transactions`,'POST',{entries:[repeat]});
+ await runMemoryJob(user,{operation:'source',sourceType:'transaction',sourceId:repeat.id},{});
  const find=(p:Record<string,string>)=>search(user,new URLSearchParams({entity:'transaction',...p}));
  assert.equal((await find({q:'牛肉面'})).total,2);
  assert.equal((await find({q:'牛肉面 双份辣椒 2026-09-20 18'})).total,1);

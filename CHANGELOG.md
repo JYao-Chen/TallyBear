@@ -4,6 +4,8 @@
 
 ### Added
 
+- Unified financial memory: scoped retrieval, product evidence, private/shared memory management, separate model configuration, versioned vector rebuilds, and assistant confirmation cards. DashScope defaults now use text-embedding-v4 and qwen3.8-flash. Grounded product extraction, per-field fill/undo and preference conflict review passed five live-model cases. Historical title-only entries are supported, fees/discounts excluded, and deleted-source preferences recalculated. See `docs/financial-memory.md` for initialization and rollout requirements.
+
 - Expanded personal defaults to 31 categories, including digital subscriptions, daily essentials, electronics, personal care, accommodation, fitness, pets, parenting, insurance and fees. Existing personal overrides remain intact; AI classification guidance distinguishes purpose from activity grouping.
 
 - Unified cross-book search for refund selection, editable detail fill, paginated results, and repeat-purchase totals. Repeat purchases are automatically associated during AI recognition and assistant entry preparation without an extra entry point. Personal confirmed product memory preserves new prices and payment IDs. Delivery orders now use food-led titles while dine-in retains merchant-led titles.

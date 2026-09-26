@@ -1,3 +1,4 @@
+import {dispatchMemory,runMemoryJob} from './memory-worker';
 import {deployment} from '@/lib/deployment';
 import {checkDeploymentCurrency} from './deployment';
 import {translate,language} from '@/lib/i18n';
@@ -27,6 +28,7 @@ export async function executeJob(job:any){
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');
   emit('status',job.kind==='assistant'?'正在识别订单与商品明细':job.kind==='chat'?'正在分析问题':'正在测试连接');
   if(job.kind==='assistant')result=await recognize(job.book_id,job.payload,{signal,onDelta:t=>emit('delta',t),onStage:s=>emit('status',s),checkpoint},user.id);
+  else if(job.kind==='memory')result=await runMemoryJob(user.id,job.payload,{signal,checkpoint,onStage:s=>emit('status',s)});
   else if(job.kind==='connection'){if(!user.admin)throw new Error('需要管理员权限');result=await withModelScope(job.payload.scope==='assistant'?'assistant':'recognition',()=>testModelConnections({signal,onStage:s=>emit('status',s)}));}
   else if(job.kind==='chat'){
    const b=job.payload;const prior=(await db.query("SELECT question,answer FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
@@ -49,13 +51,14 @@ export async function startWorker(){
  // One scheduler owns the global concurrency limit, including during deployments.
  const lock=await db.connect();const acquired=(await lock.query('SELECT pg_try_advisory_lock(301616) AS ok')).rows[0].ok;if(!acquired){lock.release();throw new Error('后台任务服务已在运行');}
  lock.on('error',()=>process.exit(1));
- await transaction(async c=>{await c.query("UPDATE finance_turns SET status='error',error='后台服务中断，请重新提交' WHERE id IN (SELECT id FROM ai_jobs WHERE status='running')");await c.query("UPDATE ai_jobs SET status=CASE WHEN kind='assistant' THEN 'queued' ELSE 'error' END,stage='后台服务中断，已保留进度',error='后台服务中断，可重试',finished_at=CASE WHEN kind='assistant' THEN NULL ELSE now() END WHERE status='running'");});
+ await transaction(async c=>{await c.query("UPDATE finance_turns SET status='error',error='后台服务中断，请重新提交' WHERE id IN (SELECT id FROM ai_jobs WHERE status='running')");await c.query("UPDATE ai_jobs SET status=CASE WHEN kind IN ('assistant','memory') THEN 'queued' ELSE 'error' END,stage='后台服务中断，已保留进度',error='后台服务中断，可重试',finished_at=CASE WHEN kind IN ('assistant','memory') THEN NULL ELSE now() END WHERE status='running'");});
  let nextReceiptCleanup=0;let stopping=false;const active=new Set<Promise<void>>();process.on('SIGTERM',()=>{stopping=true;});process.on('SIGINT',()=>{stopping=true;});
  console.log('AI queue worker ready');
  try{while(!stopping){
+  await dispatchMemory();
   if(Date.now()>=nextReceiptCleanup){try{const count=await cleanupReceipts();nextReceiptCleanup=Date.now()+(count===100?1000:3600000);}catch(e){console.error('Receipt cleanup failed:',e instanceof Error?e.message:'unknown');nextReceiptCleanup=Date.now()+60000;}}
   const limit=Number((await db.query('SELECT concurrency FROM ai_queue_settings WHERE id=1')).rows[0].concurrency);
-  while(active.size<limit&&!stopping){const job=await transaction(async c=>{const j=(await c.query("SELECT * FROM ai_jobs WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1")).rows[0];if(j)await c.query("UPDATE ai_jobs SET status='running',stage='正在准备',started_at=now() WHERE id=$1",[j.id]);return j;});if(!job)break;
+  while(active.size<limit&&!stopping){const job=await transaction(async c=>{const j=(await c.query("SELECT * FROM ai_jobs WHERE status='queued' AND (kind<>'memory' OR NOT EXISTS(SELECT 1 FROM ai_jobs running WHERE running.kind='memory' AND running.status='running')) ORDER BY (kind='memory'),created_at FOR UPDATE SKIP LOCKED LIMIT 1")).rows[0];if(j)await c.query("UPDATE ai_jobs SET status='running',stage='正在准备',started_at=now() WHERE id=$1",[j.id]);return j;});if(!job)break;
    const work=executeJob(job).catch(async()=>{await db.query("UPDATE ai_jobs SET status='error',error='任务保存失败，请重试',stage='任务保存失败',finished_at=now() WHERE id=$1",[job.id]);await db.query("UPDATE finance_turns SET status='error',error='任务保存失败，请重试' WHERE id=$1",[job.id]);}).finally(()=>active.delete(work));active.add(work);
   }
   await new Promise(r=>setTimeout(r,500));

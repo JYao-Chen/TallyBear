@@ -1,4 +1,5 @@
 'use client';
+import {MemoryCenter} from './MemoryCenter';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {ArrowUp,Paperclip,SlidersHorizontal,Maximize2,Minimize2,X,LoaderCircle,ArrowRight} from 'lucide-react';
 import {useI18n} from './LanguageProvider';
@@ -14,7 +15,7 @@ export function FinanceComposer({scopeControl,book,text,onText,images,onImages,b
   <div ref={box} className={'composer-box'+(drag?' is-dragging':'')} onDragOver={e=>{if(e.dataTransfer.types.includes('Files')){e.preventDefault();setDrag(true);}}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setDrag(false);}} onDrop={e=>{e.preventDefault();setDrag(false);add(Array.from(e.dataTransfer.files));}}>
    {images.length>0&&<><div className="composer-previews">{images.map((f,i)=><div className="composer-preview" key={f.data}><img src={f.data} alt={f.name}/><button type="button" disabled={busy} title={tr('移除图片')} aria-label={tr('移除图片')+' '+f.name} onClick={()=>onImages(v=>v.filter((_,n)=>n!==i))}><X size={13}/></button><span title={f.name}>{f.name}</span></div>)}</div><small className="composer-attachment-status" role="status">{tr('已添加 {0} 张图片，发送时会一并提交').replace('{0}',String(images.length))}</small></>}
    <textarea ref={textarea} rows={1} aria-label={tr('给财务助手发送消息')} placeholder={tr('描述一笔消费，或问问你的账本…')} value={text} disabled={busy} onChange={e=>onText(e.target.value)} onPaste={e=>{const files=Array.from(e.clipboardData.files);if(files.length){e.preventDefault();add(files);}}} onKeyDown={e=>{if(e.nativeEvent.isComposing||e.nativeEvent.keyCode===229)return;if(e.key==='Enter'&&!e.shiftKey&&(e.ctrlKey||e.metaKey||window.innerWidth>730)){e.preventDefault();if(!uploading)onSend();}}}/>
-   <div className="composer-tools"><div className="composer-tools-left">
+   <div className="composer-tools"><div className="composer-tools-left"><MemoryCenter/>
     <input hidden ref={file} type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';add(files);}}/>
     <button className="composer-icon" type="button" disabled={busy||uploading} aria-label={tr('添加账单图片')} title={tr('添加账单图片')} onClick={()=>file.current?.click()}>{uploading?<LoaderCircle className="composer-spinner" size={19}/>:<Paperclip size={19}/>}</button>
     <details className="composer-options"><summary title={tr('对话偏好')} aria-label={tr('对话偏好')}><SlidersHorizontal size={18}/>{useHistory&&<i/>}</summary><div><label className="check"><input type="checkbox" checked={useHistory} onChange={e=>onHistory(e.target.checked)}/>{tr('使用我的分类与复购习惯')}</label><small>{tr('只参考你确认过的个人记录；修改分类后会自动学习。')}</small></div></details>{scopeControl}

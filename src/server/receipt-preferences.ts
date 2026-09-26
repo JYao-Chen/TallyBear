@@ -1,5 +1,7 @@
+import {applyMemory} from './memory';
+import {randomUUID} from 'node:crypto';
 import {preserveSubscriptionCategory} from '@/lib/subscription-category';
-import {applyPurchaseMemory,normalizeDining,type Purchase} from '@/lib/purchase-memory';
+import {normalizeDining} from '@/lib/purchase-memory';
 import type {PoolClient} from 'pg';
 import {db} from './db';
 import {listCategories} from './categories';
@@ -7,7 +9,7 @@ import {recommendCategory,type CategoryEvidence,type CategoryInput,type Category
 import {sceneTitle} from '@/lib/entry-scene';
 import type {ModelProgress} from './ai';
 
-type LearnedEntry=CategoryInput&{title:string;lineItems?:import('@/lib/line-items').LineItem[];categorySuggestion?:CategorySuggestion};
+type LearnedEntry=CategoryInput&{title:string;lineItems?:import('@/lib/line-items').LineItem[];categorySuggestion?:CategorySuggestion;memorySuggestions?:import("@/lib/memory").MemorySuggestion[]};
 
 async function learningEvidence(book:string,userId:string):Promise<CategoryEvidence[]>{
  const rows=(await db.query(`SELECT * FROM (
@@ -26,8 +28,8 @@ async function learningEvidence(book:string,userId:string):Promise<CategoryEvide
 
 export async function applyPreferences<T extends LearnedEntry>(book:string,entries:T[],enabled:boolean,english:boolean,progress:ModelProgress={},userId?:string){
  const valid=new Set((await listCategories(userId)).filter(row=>!row.archived).map(row=>row.name));
- const evidence=enabled&&userId?await learningEvidence(book,userId):[];const result:(T&{categorySuggestion?:CategorySuggestion})[]=[];
- for(const raw of entries){progress.signal?.throwIfAborted();const entry=normalizeDining(enabled?applyPurchaseMemory(raw,evidence.filter(e=>e.source!=='template'&&valid.has(e.category)) as Purchase[],english):raw,english);const subscription=preserveSubscriptionCategory(raw,valid);if(subscription)entry.category=raw.category;const suggestion=enabled&&!subscription?recommendCategory(entry,evidence,valid):null;result.push({...entry,title:sceneTitle(entry.scene,english)||entry.title,...(suggestion?{category:suggestion.category,categorySuggestion:suggestion}:{})});}
+ const evidence=enabled&&userId?await learningEvidence(book,userId):[];const result:(T&{categorySuggestion?:CategorySuggestion;memorySuggestions?:import('@/lib/memory').MemorySuggestion[]})[]=[];
+ for(const raw of entries){progress.signal?.throwIfAborted();const entry=normalizeDining({...raw,lineItems:raw.lineItems?.map(i=>({...i,id:(i as {id?:string}).id||randomUUID()}))},english);const subscription=preserveSubscriptionCategory(raw,valid);if(subscription)entry.category=raw.category;const suggestion=enabled&&!subscription?recommendCategory(entry,evidence,valid):null;const enriched=enabled&&userId?await applyMemory(userId,{...entry,...(suggestion?{category:suggestion.category}:{})},progress.signal):entry;result.push({...enriched,title:sceneTitle(entry.scene,english)||enriched.title,...(suggestion&&enriched.category===suggestion.category?{categorySuggestion:suggestion}:{})});}
  return result;
 }
 
@@ -36,4 +38,12 @@ export async function recordCategoryFeedback(c:PoolClient,book:string,userId:str
  await c.query(`INSERT INTO category_feedback(transaction_id,book_id,user_id,proposed_category,original_category,final_category,source,corrected,confidence,basis,evidence_count,confirmed_at)
   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
   ON CONFLICT(transaction_id) DO UPDATE SET book_id=$2,user_id=$3,proposed_category=$4,original_category=$5,final_category=$6,source=$7,corrected=$8,confidence=$9,basis=$10,evidence_count=$11,confirmed_at=now()`,[entry.id,book,userId,proposed,original,entry.category,suggestion||entry.categorySource==='model'?'confirmed':'manual',corrected,suggestion?.confidence||null,suggestion?.basis||null,suggestion?.evidenceCount||0]);
+ await persistMemoryFeedback(c,entry);
+}
+export async function persistMemoryFeedback(c:PoolClient,entry:{id:string;memorySuggestions?:unknown[]}){
+ const suggestions=entry.memorySuggestions;
+ if(suggestions)await c.query('UPDATE transactions SET memory_suggestions=$1 WHERE id=$2',[JSON.stringify(suggestions),entry.id]);
+ const row=(await c.query('SELECT line_items FROM transactions WHERE id=$1',[entry.id])).rows[0];
+ if(row?.line_items?.some((i:any)=>!i.id))await c.query('UPDATE transactions SET line_items=$1 WHERE id=$2',[JSON.stringify(row.line_items.map((i:any)=>({...i,id:i.id||randomUUID()}))),entry.id]);
+
 }

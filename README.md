@@ -25,6 +25,8 @@ English · [简体中文](README.zh-CN.md)
 
 ## Current main
 
+Unified financial memory includes grounded product extraction (including legacy title-only entries), per-field fill/undo and preference conflict review. Defaults reuse a DashScope key with `text-embedding-v4` and `qwen3.8-flash`. Five live-model acceptance cases passed. See [implementation scope, historical initialization and validation](docs/financial-memory.md); this small sample is not an overall accuracy claim.
+
 The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
 
 - **Repeat purchases** are automatically matched and filled during AI entry and assistant preparation, without a separate buy-again button. **Refunds** use global search across accessible books, with paginated keyword/date/amount filters and editable auto-fill. Confirmed personal history can reuse product information while preserving new payment facts; delivery orders use food-led titles. Multiple refunds/cashback may exceed the original payment, and linked repeat purchases have searchable totals.

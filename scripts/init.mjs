@@ -1,5 +1,6 @@
 import pg from 'pg';import {readFileSync} from 'node:fs';import{randomUUID,randomBytes,scryptSync}from'node:crypto';
 const db=new pg.Client({connectionString:process.env.DATABASE_URL});await db.connect();await db.query(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));
+await db.query(readFileSync(new URL('./memory-schema.sql',import.meta.url),'utf8'));
 const currency=process.env.APP_CURRENCY||'CNY';if(!['CNY','USD','EUR','GBP'].includes(currency))throw new Error('Invalid APP_CURRENCY');await db.query("INSERT INTO deployment_settings(id,currency) SELECT 1,CASE WHEN EXISTS(SELECT 1 FROM books) THEN 'CNY' ELSE $1 END ON CONFLICT DO NOTHING",[currency]);if((await db.query('SELECT currency FROM deployment_settings WHERE id=1')).rows[0].currency!==currency)throw new Error('APP_CURRENCY does not match this database; existing amounts are not converted');
 if(!(await db.query('SELECT id FROM users LIMIT 1')).rowCount){if(!process.env.ADMIN_PASSWORD)throw new Error('ADMIN_PASSWORD 不能为空');const salt=randomBytes(16).toString('hex');await db.query('INSERT INTO users(id,username,name,password,admin) VALUES($1,$2,$3,$4,true)',[randomUUID(),process.env.ADMIN_USERNAME||'admin',process.env.ADMIN_NAME||'Admin',salt+':'+scryptSync(process.env.ADMIN_PASSWORD,salt,64).toString('hex')]);}
 await db.end();console.log('数据库初始化完成');
