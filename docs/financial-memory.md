@@ -53,6 +53,8 @@ pgvector 必须安装在与当前 PostgreSQL **相同主版本**的运行环境�
 
 ## 可重复验证
 
+个人资料采用下划线栏目导航，记忆中心使用独立的轻量分区切换。变更记录按操作、当前记忆名称、时间和状态展示，桌面分列、手机纵向排列，每页 20 条并显示总数。已遗忘或已不可访问的对象不展示名称；仅仍可恢复的最近编辑／状态变更提供撤销，确认后刷新列表。记录展示当前对象名称，不是历史名称快照。
+
 所有集成脚本必须使用隔离数据库，不能加载生产 `.env`。
 
 ```sh
@@ -68,6 +70,8 @@ node scripts/memory-browser.mjs
 npx tsx scripts/memory-live-five.ts
 # 需 LIVE_REPORT 指向上述 live-five.json，沿用浏览器环境变量
 node scripts/memory-fields-browser.mjs
+# 验证页内管理、变更记录分页、撤销刷新和手机布局
+node scripts/memory-layout-browser.mjs
 npm run build
 ```
 

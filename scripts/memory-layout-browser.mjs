@@ -12,7 +12,7 @@ await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'测试账本
 await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,user]);
 await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')",[token,user]);
 for(let i=0;i<25;i++){const id=randomUUID();ids.push(id);await db.query("INSERT INTO memories(id,owner_id,kind,title,content,attributes,status,explicit) VALUES($1,$2,'product',$3,$4,$5,'active',true)",[id,user,i===24?'iCloud 云空间家庭套餐 · 200GB':'日常商品 '+i,'仅复用商品信息，不继承旧价格与付款信息。',JSON.stringify({brand:'Apple',specification:'200GB',category:'会员订阅'})]);}
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.TEST_CHROMIUM_PATH?{executablePath:process.env.TEST_CHROMIUM_PATH}:{})});
 const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 try{
@@ -49,11 +49,45 @@ try{
  await page.screenshot({path:process.env.TEST_ARTIFACT_DIR+'/settings-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'变更记录',exact:true}).click();
  await page.getByRole('heading',{name:'变更记录',exact:true}).waitFor();
+ await page.getByText('还没有变更记录',{exact:true}).waitFor();
+ for(let i=0;i<24;i++){
+  const memory=(await db.query('UPDATE memories SET version=2 WHERE id=$1 RETURNING *',[ids[i]])).rows[0];
+  const operation=i%4===0?'status':'save';
+  await db.query('INSERT INTO memory_events(user_id,memory_id,operation,previous) VALUES($1,$2,$3,$4)',[user,ids[i],operation,{...memory,title:'变更前的商品 '+i,version:1}]);
+ }
+ await db.query("UPDATE memories SET status='forgotten',title='',content='',attributes='{}' WHERE id=$1",[ids[0]]);
+ await db.query('UPDATE memory_events SET previous=NULL WHERE memory_id=$1',[ids[0]]);
+ await db.query("INSERT INTO memory_events(user_id,memory_id,operation) VALUES($1,$2,'forget')",[user,ids[0]]);
+ await page.getByRole('button',{name:'我的记忆',exact:true}).click();
+ await page.getByRole('button',{name:'变更记录',exact:true}).click();
+ await page.getByText('共 25 条记录',{exact:true}).waitFor();
+ assert.equal(await page.locator('.memory-history-row').count(),20);
+ assert.equal(await page.locator('.memory-history-row').first().locator('button').count(),0);
+ assert.equal(await page.locator('.memory-history-row').first().getByText('不再展示记忆内容').count(),1);
+ for(const width of [1440,768,390,360]){
+  await page.setViewportSize({width,height:1000});
+  await page.screenshot({path:process.env.TEST_ARTIFACT_DIR+'/history-'+width+'.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'history overflow '+width);
+  assert.equal(await page.locator('.memory-history').evaluate(el=>el.scrollWidth>el.clientWidth+1),false,'history panel overflow '+width);
+ }
+ await page.getByRole('button',{name:'下一页记录',exact:true}).click();
+ await page.getByText('21–25 / 25 条',{exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelectorAll('.memory-history-row').length===5);
+ assert.equal(await page.locator('.memory-history-row').count(),5);
+ await page.getByRole('button',{name:'上一页记录',exact:true}).click();
+ await page.getByText('1–20 / 25 条',{exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelectorAll('.memory-history-row').length===20);
+ page.once('dialog',dialog=>dialog.accept());
+ await page.getByRole('button',{name:'撤销变更',exact:true}).first().click();
+ await page.getByText('已撤销，记忆已恢复到此次变更前。',{exact:true}).waitFor();
+ await page.getByText('共 26 条记录',{exact:true}).waitFor();
+ await page.locator('.memory-history-row').first().getByText('已撤销',{exact:true}).waitFor();
+ assert.equal(await page.locator('.memory-history-row').filter({hasText:'变更前的商品 23'}).getByRole('button').count(),0);
  await page.evaluate(id=>window.dispatchEvent(new CustomEvent('tallybear:memory',{detail:id})),ids[24]);
  await page.getByLabel('名称',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('名称',{exact:true}).inputValue(),'iCloud 云空间家庭套餐 · 200GB');
  assert.deepEqual(errors,[]);
- console.log('PASS: full-page navigation, pagination, editing, settings, deep link and 1440/390/360 layouts');
+ console.log('PASS: navigation, editing, settings, history pagination, undo refresh, forgotten privacy, deep link and 1440/768/390/360 layouts');
 }finally{
  await browser.close();
  await db.query('DELETE FROM books WHERE id=$1',[book]);

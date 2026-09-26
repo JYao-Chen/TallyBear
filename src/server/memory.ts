@@ -109,7 +109,16 @@ export async function memoryRoute(user:User,method:string,params:URLSearchParams
   if(params.has('targets'))return {items:await memoryTargets(user.id,z.enum(['activity','schedule','template']).parse(params.get('targets')),params.get('q')||'',z.coerce.number().int().min(1).parse(params.get('page')||1))};
   if(params.has('settings'))return {enabled:await memoryEnabled(user.id)};
   if(params.has('search'))return {items:await searchMemories(user.id,params.get('search')||'',params.get('kind')||undefined)};
-  if(params.has('events'))return {items:(await db.query('SELECT id,memory_id,operation,created_at FROM memory_events WHERE user_id=$1 ORDER BY id DESC LIMIT 20 OFFSET $2',[user.id,Math.max(0,Number(params.get('page')||1)-1)*20])).rows};
+  if(params.has('events')){
+   const page=z.coerce.number().int().min(1).parse(params.get('page')||1);
+   const items=(await db.query(`SELECT e.id,e.memory_id,e.operation,e.created_at,m.title,m.kind,
+    COALESCE(e.operation IN ('save','status') AND e.previous IS NOT NULL AND m.version=(e.previous->>'version')::int+1,false) AS can_undo
+    FROM memory_events e LEFT JOIN memories m ON m.id=e.memory_id AND m.owner_id=$1 AND m.status<>'forgotten'
+     AND (m.family_id IS NULL OR EXISTS(SELECT 1 FROM family_members f WHERE f.family_id=m.family_id AND f.user_id=$1))
+    WHERE e.user_id=$1 ORDER BY e.id DESC LIMIT 20 OFFSET $2`,[user.id,(page-1)*20])).rows;
+   const total=Number((await db.query('SELECT count(*) FROM memory_events WHERE user_id=$1',[user.id])).rows[0].count);
+   return {items,total};
+  }
   const id=params.get('id');if(id){z.string().uuid().parse(id);const m=(await db.query(`SELECT m.* FROM memories m WHERE m.id=$2 AND ${visibility}`, [user.id,id])).rows[0];if(!m)throw new Failure('记忆不可访问',404);
    const sources=m.owner_id===user.id&&!m.family_id?(await db.query(`SELECT s.*,t.title,t.category,t.amount::float8 AS amount,t.date,t.line_items FROM memory_sources s LEFT JOIN transactions t ON s.source_type='transaction' AND t.id=s.source_id AND NOT t.deleted AND t.version=s.source_version AND EXISTS(SELECT 1 FROM members b WHERE b.book_id=t.book_id AND b.user_id=$2) WHERE s.memory_id=$1 AND (s.source_type<>'transaction' OR t.id IS NOT NULL) ORDER BY t.date DESC NULLS LAST LIMIT 20 OFFSET $3`,[id,user.id,Math.max(0,Number(params.get('page')||1)-1)*20])).rows:[];return {memory:m,sources,stats:m.owner_id===user.id&&!m.family_id?await purchaseStats(user.id,id):null};}
   const page=z.coerce.number().int().min(1).parse(params.get('page')||1),status=params.get('status')||'active',kind=params.get('kind')||null,q='%'+(params.get('q')||'').replace(/[\\%_]/g,'\\$&')+'%';

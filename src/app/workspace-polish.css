@@ -36,7 +36,6 @@
  .metrics{gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}
  .metrics .metric{padding:12px 8px;min-height:96px;margin-bottom:16px}
  .workspace .metrics>.metric:last-child{grid-column:auto}
- .profile-tabs button[aria-pressed=true]{background:var(--accent);color:var(--surface)}
  .metrics .metric>.bear{display:none}.metrics .metric p{font-size:12px;margin-bottom:8px}
  .metrics .metric>strong{font-size:clamp(15px,4.3vw,23px);overflow-wrap:anywhere;margin:0}
  .report-period-picker{gap:10px;padding:12px;margin-top:0}
