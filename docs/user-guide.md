@@ -167,6 +167,8 @@ Describe a purchase, subscription, preset, budget, allocation, installment or fa
 
 在 **记一笔 → 家庭往来** 手动操作，或点击 **用 AI 记往来** 描述并上传截图。付款方选自己的钱包及收款人；收款方确认时选实际到账钱包，可以是微信、支付宝或银行卡。双方独立选择个人展示账本，系统记住默认值。选择“仅家庭往来”则不在个人账本展示。
 
+家庭往来现在是“记一笔”中的独立页内模式，不再放在弹窗里。通过“往来记录／费用分担 / AA／共同入金”切换内容；往来记录支持按成员、备注、用途、流水号搜索及状态筛选，结果分页显示。点“查看详情”可查看收付款信息、个人补充信息与凭证，并修改自己的标题、备注、平台和流水号。新建、确认到账、设置分担和调整展示账本均在页内完成，可返回列表；钱包等选项继续使用现有选择器。
+
 **AA:** the original payer records the merchant expense once in the appropriate book, then assigns member shares that sum to the expense. Each member settles their share against that expense. The settlement is an internal transfer, not another rent or meal expense.
 
 **Loans:** link repayments to the confirmed loan; partial repayments reduce the outstanding amount. **Shared contributions:** move money from a personal wallet into the common wallet; later purchases are recorded as expenses when paid to the merchant.
