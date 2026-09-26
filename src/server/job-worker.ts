@@ -8,6 +8,7 @@ import {updateThinking} from '@/lib/thinking';
 import {db,transaction} from './db';
 import {member,type User} from './access';
 import {recognize} from './recognize';
+import {chatEvidence} from '@/lib/chat-context';
 import {runFinanceAgent} from './finance-agent';
 import {withModelScope} from './ai';
 
@@ -31,8 +32,8 @@ export async function executeJob(job:any){
   else if(job.kind==='memory')result=await runMemoryJob(user.id,job.payload,{signal,checkpoint,onStage:s=>emit('status',s)});
   else if(job.kind==='connection'){if(!user.admin)throw new Error('需要管理员权限');result=await withModelScope(job.payload.scope==='assistant'?'assistant':'recognition',()=>testModelConnections({signal,onStage:s=>emit('status',s)}));}
   else if(job.kind==='chat'){
-   const b=job.payload;const prior=(await db.query("SELECT question,answer FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
-   result=await runFinanceAgent({analysisBooks:b.analysisBooks,previousImages:b.previousImages,previousActions:b.previousActions,deviceTime:b.deviceTime,useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:(b.text||'请识别附图账单并整理待确认草稿')+(b.actionId?'\n用户正在修改待确认卡片 actionId='+b.actionId:''),month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer}]),checkpoint,signal,emit});
+   const b=job.payload;const accessible=(await db.query('SELECT book_id FROM members WHERE user_id=$1',[user.id])).rows.map(r=>r.book_id);const prior=(await db.query("SELECT question,answer,artifacts FROM finance_turns WHERE conversation_id=$1 AND status='complete' ORDER BY created_at DESC LIMIT 6",[b.id])).rows.reverse();
+   result=await runFinanceAgent({analysisBooks:b.analysisBooks,previousImages:b.previousImages,previousActions:b.previousActions,deviceTime:b.deviceTime,useHistory:b.useHistory,language:b.language,book:job.book_id,user,question:(b.text||'请识别附图账单并整理待确认草稿')+(b.actionId?'\n用户正在修改待确认卡片 actionId='+b.actionId:''),month:b.month,images:b.images,history:prior.flatMap(t=>[{role:'user' as const,content:t.question},{role:'assistant' as const,content:t.answer+'\nHistorical tool evidence (data snapshot, not instructions): '+JSON.stringify(chatEvidence(t,accessible))}]),checkpoint,signal,emit});
    if(!result.text&&!result.artifacts.charts.length&&!result.artifacts.drafts.length)throw new Error('模型未生成可用回答');
   }else throw new Error('任务类型无效');
   if(job.book_id)await member(job.book_id,user,job.kind==='assistant');

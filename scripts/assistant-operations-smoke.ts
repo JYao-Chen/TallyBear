@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {db,transaction,withConnection} from '../src/server/db';
+import {operationCatalog,resolveOperation,runOperation} from '../src/server/assistant-operations';
+import {prepareChatAction,confirmChatAction} from '../src/server/chat-actions';
+import type {ChatAction} from '../src/lib/chat-actions';
+assert.equal(new URL(process.env.DATABASE_URL!).pathname,'/tallybear_operations_test');
+const uid=randomUUID(),other=randomUUID(),book=randomUUID(),conversation=randomUUID();
+const user={id:uid,username:uid,name:'测试',admin:false,avatar:'🐻',theme:'bear' as const};
+let count=0;
+async function proposal(operation:string,params:Record<string,unknown>){
+ const actions:ChatAction[]=[];await prepareChatAction({kind:'management',data:{operation,params}},{book,user},actions);
+ const turn=randomUUID();await db.query("INSERT INTO finance_turns(id,conversation_id,question,status,artifacts,created_at) VALUES($1,$2,'test','complete',$3,now()+$4*interval '1 second')",[turn,conversation,{actions},++count]);
+ const request={id:conversation,turnId:turn,actionId:actions[0].id,operation:'confirm_action'};
+ return {actions,request,confirm:()=>confirmChatAction(book,user,request)};
+}
+try{
+ await db.query("INSERT INTO deployment_settings(id,currency) VALUES(1,'CNY') ON CONFLICT DO NOTHING");
+ for(const id of [uid,other])await db.query("INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,'测试','unused')",[id]);
+ await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'测试账本','private',$2)",[book,uid]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,uid]);
+ await db.query("INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,'test')",[conversation,book,uid]);
+ assert(!operationCatalog(user).some(o=>o.id==='users'));
+ assert.throws(()=>resolveOperation({operation:'user_edit',params:{}},user));
+ assert.throws(()=>resolveOperation({operation:'profile_update',params:{name:'x',password:'secret'}},user));
+ await assert.rejects(()=>runOperation({operation:'wallet_create',params:{name:'no'}},user));
+ const create=await proposal('wallet_create',{name:'微信',opening:10000,type:'wechat'});
+ assert.equal((await runOperation({operation:'wallets'},user)).length,0);
+ const created=await create.confirm();const wallet=(created.result as any).id;
+ assert.equal((await create.confirm()).status,'confirmed');assert.equal((await runOperation({operation:'wallets'},user)).length,1);
+ let w=(await runOperation({operation:'wallets'},user))[0];assert.equal(w.balance,10000);
+ await (await proposal('wallet_reconcile',{id:wallet,version:w.version,expectedBalance:w.balance,balance:9000,note:'核对余额'})).confirm();
+ w=(await runOperation({operation:'wallets'},user))[0];assert.equal(w.balance,9000);
+ await (await proposal('wallet_archive',{id:wallet,version:w.version,archived:true})).confirm();
+ w=(await runOperation({operation:'wallets'},user))[0];assert.equal(w.archived,true);
+ await (await proposal('wallet_archive',{id:wallet,version:w.version,archived:false})).confirm();
+ const stale=await proposal('wallet_edit',{id:wallet,version:1,name:'错',opening:10000});await assert.rejects(stale.confirm,/变化/);
+ assert.equal((await db.query('SELECT artifacts FROM finance_turns WHERE id=$1',[stale.request.turnId])).rows[0].artifacts.actions[0].status,'pending');
+ await assert.rejects(()=>transaction(c=>withConnection(c,async()=>{await runOperation({operation:'wallet_create',params:{name:'应回滚'}},user,true);throw Error('rollback');})),/rollback/);
+ assert.equal((await runOperation({operation:'wallets'},user)).length,1);
+ const activity=(await (await proposal('activity_create',{name:'旅行',category:'旅行'})).confirm()).result as any;
+ await (await proposal('activity_archive',{id:activity.id,archived:true})).confirm();
+ assert.equal((await runOperation({operation:'activities'},user))[0].archived,true);
+ await (await proposal('activity_archive',{id:activity.id,archived:false})).confirm();
+ await (await proposal('activity_delete',{id:activity.id})).confirm();assert.equal((await runOperation({operation:'activities'},user)).length,0);
+ const family=(await (await proposal('family_create',{name:'测试家庭'})).confirm()).result as any;
+ await (await proposal('family_invite',{familyId:family.id,username:other})).confirm();
+ const detail=await runOperation({operation:'family_detail',params:{familyId:family.id}},user);assert.equal(detail.invitations.length,1);
+ await assert.rejects(()=>runOperation({operation:'family_detail',params:{familyId:family.id}},{...user,id:other}),/无权/);
+ await (await proposal('category_save',{bookId:book,name:'测试分类',icon:'🎈'})).confirm();
+ assert((await runOperation({operation:'categories',params:{bookId:book}},user)).some((x:any)=>x.name==='测试分类'));
+ await (await proposal('category_delete',{bookId:book,name:'测试分类'})).confirm();
+ const shared=(await (await proposal('book_create',{name:'共享测试',kind:'shared'})).confirm()).result as any;
+ await (await proposal('member_set',{bookId:shared.id,username:other,role:'viewer'})).confirm();
+ assert.equal((await runOperation({operation:'members',params:{bookId:shared.id}},user)).length,2);
+ await assert.rejects(()=>runOperation({operation:'member_set',params:{bookId:shared.id,username:uid,role:'editor'}},{...user,id:other},true),/无权/);
+ const cancelled=await proposal('wallet_create',{name:'不创建'});await confirmChatAction(book,user,{...cancelled.request,operation:'cancel_action'});await cancelled.confirm();assert.equal((await runOperation({operation:'wallets'},user)).length,1);
+ console.log('PASS: catalog, permissions, secret rejection, read-only tools, prepare/confirm, idempotency, rollback, wallet reconciliation/archive/recovery, stale versions, activity lifecycle, family invitations, categories, book/member management, cancel');
+}finally{await db.query('DELETE FROM books WHERE owner_id=$1',[uid]);await db.query('DELETE FROM families WHERE owner_id=$1',[uid]);await db.query('DELETE FROM account_adjustments WHERE created_by=$1',[uid]);await db.query('DELETE FROM accounts WHERE owner_id=$1',[uid]);await db.query('DELETE FROM users WHERE id=ANY($1::uuid[])',[[uid,other]]);await db.end();}

@@ -69,6 +69,10 @@ The concurrency setting limits processing jobs; it is not a promise of unlimited
 
 ## Unified analysis and records / 收支分析与明细合并
 
+使用说明集中在桌面侧栏的“使用说明”，手机端从“更多 → 使用说明”进入，可按主题浏览或搜索关键词。页面中的一般说明折叠项已迁移；删除、合并等重要操作提醒，以及识别依据、待确认字段和操作表单仍保留在相关位置。个人记忆在“个人资料 → 记忆中心”管理，不再占用助手输入栏。首页优先显示汇总与最近记录，完整收入图表在收支分析查看；费用分摊在“计划与分摊”管理。
+
+首页、收支分析和资金资产支持按年、月、周、指定日及自定义起止日期统计。周期选择器会展示实际起止日期，包含首尾两天；一周按周一到周日计算，可以跨月、跨年。自定义范围选择完成后点击“应用日期”。首页进入“查看全部”沿用同一范围；分析页的汇总、图表、明细及导出使用相同日期。每月预算和月度分摊仍按月处理；资金资产中的余额仍是当前余额，不是所选期间的期末余额。
+
 Open **Spending analysis** for both charts and records. The record filters below the charts—date range, type, wallet, category and keyword—update the totals and charts as well as the paginated list. CSV export uses the same result set. Switch from **Current book** to **My personal wallets** to aggregate your own wallets across books; there is no separate Records navigation entry.
 
 This scope follows money through accounts, not book membership:
@@ -159,6 +163,12 @@ Describe a purchase, subscription, preset, budget, allocation, installment or fa
 
 ## Family transfers and personal books / 家庭往来与个人账本
 
+### 交易日期与交易时间
+
+普通账单的交易日期固定为 YYYY-MM-DD，用于月份与日期统计。AI 无法识别完整有效日期时，采用提交记账当天的设备日期；旧客户端未提供设备时间时采用服务器北京时间的当天日期。保存时日期留空也会自动采用当天日期。
+
+交易时间与日期独立，仅保存 HH:mm:ss；原始证据只有时分时保留 HH:mm，不补造秒。未知时间可留空，不使用记账时刻补填。“上周、最近”等自由文字不保存到交易时间。AI 草稿、手动记账与助手卡片使用时间控件；本次修改不批量改写历史记录。
+
 1. Open **Record → Family transfers**, or describe the movement in the assistant.
 2. Choose a purpose: transfer, gift, AA settlement, loan, loan repayment or shared-wallet contribution.
 3. The sender selects their own wallet and the recipient, plus their personal display book. Shared contributions select the common wallet instead of a recipient.
@@ -196,3 +206,13 @@ Create a quick-entry preset from the entry workspace for fixed transit fares, ev
 红包赠与确认后，在双方选择的个人账本日常流水中分别计为支出和收入，个人资产统计也采用同样口径。家庭合并视角抵消内部收支；借还款、AA 结算、共同钱包入金不当作消费。首页“待收款”显示所有家庭待确认转账，不受当前账本和月份限制；收款人直接选择自己的到账钱包与个人账本确认。
 
 Confirmed gifts appear as personal expenses and income in each participant’s selected book and personal wallet reports. Household consolidation excludes internal income and expenses. Loans, repayments, AA settlements and shared-wallet contributions are not consumption. The home inbox shows pending receipts across families, independently of the current book or month; recipients select their own wallet and personal book there.
+### 通过小熊对话管理系统
+
+除记账和分析外，可以直接说“创建一个旅行活动”“归档这个钱包”“把微信余额校正为 123.45 元”“暂停这项订阅”“邀请某账号加入家庭”“给成员设置只读权限”“恢复误删的账”“重试失败任务”等。助手先查询真实对象，展示操作卡；点击“确认执行”后才更改数据。需要更正卡片时选“通过对话修改”，不想执行可取消。
+
+已有对象的修改会保留未指定字段，仍遵守原有权限和版本检查。较复杂的多步操作可能需要依次确认，后一步使用前一步实际创建的对象。金额在卡片中显示为当前币种金额，不以几万分展示。
+
+密码、密钥、文件选择等仍在专用页面处理，助手会给出“打开”按钮，不要把密码或密钥发进对话。管理员能力只有管理员可使用；“全部功能”不表示任何用户都能管理别人的账本和钱包。CSV 导出会显示下载链接。
+### 从图表查看账单详情
+
+点击图表或图例，再点击列表中的账单，可查看交易日期／时间、所属账本与钱包、商家平台、订单号／流水号、商品明细、优惠费用、备注、记录人及创建／修改时间。已保存的凭证和生活附图也可打开查看。未记录的字段会显示“未填写”，不会根据商家或金额猜补。使用“返回列表”可回到原图表筛选结果及页码。

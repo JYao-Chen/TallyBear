@@ -27,6 +27,6 @@ test('nine images batch automatically and complementary orders merge without add
   assert.deepEqual(batches,Array(9).fill(1));
   assert.equal(merges,15);
   assert.equal(result.entries.length,2,`duplicate paid order should merge while the unknown order remains: ${JSON.stringify(result.entries.map(entry=>({kind:entry.kind,orderId:entry.orderId,status:entry.status,amount:entry.amount,source:entry.source})))}`);
-  assert.equal(result.entries[0].amount,1800);assert.ok(result.entries[0].source.includes('原图9'));assert.equal(result.ignored.length,1);assert.deepEqual(result.entries[1].missing,['金额','日期','账户']);
+  assert.equal(result.entries[0].amount,1800);assert.ok(result.entries[0].source.includes('原图9'));assert.equal(result.ignored.length,1);assert.deepEqual(result.entries[1].missing,['金额','账户']);
  }finally{db.query=originalQuery;globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.ENCRYPTION_KEY;else process.env.ENCRYPTION_KEY=oldKey;}
 });

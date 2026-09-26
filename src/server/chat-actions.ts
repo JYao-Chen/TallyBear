@@ -1,3 +1,6 @@
+import {operationSummary} from '@/lib/assistant-operation-display';
+import {resolveOperation,runOperation,prepareOperation} from './assistant-operations';
+import {withDeviceTime} from '@/lib/entry-time';
 import {memoryRoute,prepareMemoryChange} from './memory';
 import {normalizeDining} from '@/lib/purchase-memory';
 import {matchReceiptWallet,receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
@@ -6,7 +9,7 @@ import {familyActionSchema,prepareFamilySummary} from './family-actions';
 import {sceneSchema} from '@/lib/entry-scene';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
-import {db,transaction,lockBook} from './db';
+import {db,transaction,lockBook,withConnection} from './db';
 import {Failure,member,type User} from './access';
 import {entry} from './model';
 import {insertEntry} from './ledger';
@@ -32,6 +35,7 @@ const units=z.enum(['day','week','month','year']),frequency=z.enum(['daily','wee
 export function parseAction(a:ChatAction){
  const d=a.data;
  switch(a.kind){
+ case 'management':return d;
  case 'memory':return d;
  case 'family':return {...familyActionSchema.parse(d),id:d.movementId||a.id};
  case 'entry':z.object({title:name}).parse(d);return entry.parse({...d,id:a.id});
@@ -48,10 +52,19 @@ const fieldNames:Record<string,string>={familyId:'家庭',sourceId:'转出钱包
 export function actionMissing(a:ChatAction){try{parseAction(a);return [];}catch(e){if(e instanceof z.ZodError)return [...new Set(e.issues.map(i=>i.path[0]==='lineItems'?`第${Number(i.path[1])+1}项商品：${({kind:'明细类型（商品、优惠或附加费）',name:'商品名称',amount:'小计金额',quantity:'数量',unitPrice:'单价'} as Record<string,string>)[String(i.path[2])]||i.message}`:fieldNames[String(i.path[0])]||String(i.path.join('.'))||i.message))];return [e instanceof Error?e.message:'信息不完整'];}}
 export async function actionOptions(book:string,user:User){await member(book,user);return {bookId:book,books:(await db.query("SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user.id])).rows,accounts:(await listAccounts(book,user.id)).filter(a=>a.usable&&!a.archived).map(({id,name,type,institution,suffix,owner_id,family_id,owner_name}:any)=>({id,name,type,institution,suffix,owner_id,family_id,owner_name})),categories:(await listCategories(user.id)).filter(c=>!c.archived),activities:await listActivities(user.id)};}
 export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;useHistory?:boolean;language?:'en'|'zh-CN'},actions:ChatAction[],recognizedId?:string){
- const b=z.object({actionId:uuid.optional(),kind:z.enum(['memory','family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
+ const b=z.object({actionId:uuid.optional(),kind:z.enum(['management','memory','family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
  const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
- const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,b.kind!=='family');
+ const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,!['family','management'].includes(b.kind));
  const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data},missing:[],warnings:[],summary:[]};
+ if(a.kind==='management'){
+  const prepared=await prepareOperation({operation:a.data.operation,params:{...(old&&old.data.operation===a.data.operation?old.data.params:{}),...a.data.params}},ctx.user);
+  const {op,p}=resolveOperation({operation:prepared.operation,params:prepared.params},ctx.user);
+  if(op.method==='GET')throw new Failure('查询操作不需要确认卡');
+  a.data=p;a.title=op.title;
+  a.summary=operationSummary(op.title,p.params);if(prepared.targetName)a.summary.splice(1,0,{label:'目标',value:prepared.targetName});
+  a.warnings=['确认后执行上述操作。请核对目标、影响范围和金额。'];
+  if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
+ }
  if(a.kind==='memory'){
   a.data=await prepareMemoryChange(ctx.user.id,a.data);
   a.summary=[{label:'操作',value:({save:'保存记忆',status:'更改记忆状态',forget:'遗忘记忆',share:'共享独立记忆'} as Record<string,string>)[a.data.operation]},{label:'记忆',value:a.data.title}];
@@ -61,7 +74,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
   a.warnings=['仅在确认后更新记忆，不修改原始账单。'];
   if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
  }
- const d=a.data;const changedContext=!!old&&['payee','product','scene','kind'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind)&&!d.date&&ctx.deviceTime){d.date=ctx.deviceTime.slice(0,10);d.occurredAt||=ctx.deviceTime;}
+ const d=a.data;const changedContext=!!old&&['payee','product','scene','kind'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind))Object.assign(d,withDeviceTime({date:d.date||'',occurredAt:d.occurredAt},ctx.deviceTime));
  if(a.kind==='transaction'){
   const operation=z.enum(['update','delete']).parse(d.operation),row=await transactionForAction(db,book,uuid.parse(d.transactionId));
   row.activityId=(await entryActivity(ctx.user.id,book,row.id)).activityId;
@@ -114,11 +127,12 @@ export async function confirmChatAction(book:string,user:User,body:unknown){
   if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');const edited={...(b.data||{})};if(Object.prototype.hasOwnProperty.call(edited,'category')&&edited.category!==a.data.category)edited.categorySource='explicit';await prepareChatAction({actionId:a.id,kind:a.kind,bookId:a.bookId,data:edited},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
   if(b.operation==='cancel_action')a.status='cancelled';else{
    if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');
-   if(a.kind!=='family'&&a.kind!=='memory'){await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);}
+   if(a.kind!=='family'&&a.kind!=='memory'&&a.kind!=='management'){await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);}
    if(a.missing.length)throw new Failure('请先补充：'+a.missing.join('、'));
    const data=parseAction(a) as any;
    if(data.category||data.value?.category)await checkCategory(c,user.id,data.category||data.value.category);
-   if(a.kind==='memory')a.result=await memoryRoute(user,'POST',new URLSearchParams(),data,c);
+   if(a.kind==='management'){if(data.operation==='conversation_delete'&&data.params.id===b.id)throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');a.result=await withConnection(c,()=>runOperation(data,user,true));}
+   else if(a.kind==='memory')a.result=await memoryRoute(user,'POST',new URLSearchParams(),data,c);
    else if(a.kind==='entry'){
     const checked=(await review(a.bookId,{entries:[data]})).entries[0] as any;
     if((checked?.matches?.length||data.kind==='refund'&&!data.refundOf)&&!b.acknowledgeWarnings)throw new Failure('请核对重复或退款关联，再勾选核对确认后保存',409);

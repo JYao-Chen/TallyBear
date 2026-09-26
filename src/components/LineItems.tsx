@@ -50,5 +50,5 @@ export function LineItemsEditor({items,onChange,total,onTotal,book,onBusyChange,
  {busy&&<p role="status">{tr("正在识别小票…")}<button type="button" className="text-button" onClick={()=>abort.current?.abort()}>{tr("取消")}</button></p>}{error&&<p className="error">{tr(error)}</p>}{found.map(d=><div className="item-photo-result" key={d.id}><LineItemsView items={(d.lineItems || [])} total={d.amount}/><button type="button" className="secondary" onClick={()=>{onChange(d.lineItems||[]);onRecognized?.(d);setFound([]);setPhotos([]);}}>{tr("使用这份明细")}{items.length?tr("（替换当前明细）"):''}</button></div>)}
  {items.length>0&&<Settlement items={items} total={total}/>}
  {items.length>0&&<div className="item-reconciliation"><Verification items={items} total={total}/>{onTotal&&!sum.missing&&sum.known>0&&<button type="button" disabled={busy} className="text-button" onClick={()=>onTotal(sum.known)}>{tr("按结算合计填写实付")}</button>}</div>}
- <details className="usage-help"><summary>{tr("使用说明")}</summary><p>{tr("同一订单可添加多张截图，按顺序合并识别；长图自动分段。明细不重复计入支出。点击“添加优惠 / 抹零”，输入减免金额即可自动扣除。包装或配送费可单列；商品小计若已含优惠，不要再次添加同一优惠。价格不清楚可留空。整单金额以实际支付为准。")}</p></details></details>;
+ <></></details>;
 }
