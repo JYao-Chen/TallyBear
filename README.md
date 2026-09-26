@@ -25,6 +25,14 @@ English · [简体中文](README.zh-CN.md)
 
 ## Current main
 
+Recent interface and workflow updates:
+
+- **Search without a mode selector.** Type into transaction records or global search to retrieve keyword matches automatically. Keep date, amount, category, wallet and book filters; global search defaults to all accessible books. These two entry points do **not** currently perform vector search. Vector retrieval is available for product-memory matching and assistant memory lookup, with keyword fallback when embeddings are unavailable.
+- **Full-page memory management.** Open **Profile → Memory center** for memories, pending suggestions, change history and learning settings. Navigation, section switches and action buttons have distinct appearances. Change history shows the current object name, operation, time and undo availability, with pagination and a mobile layout; forgotten content stays hidden.
+- **Flexible reporting and richer details.** Select year, month, week, day or a custom range; monthly budgets retain their monthly basis. Chart drilldowns show transaction and wallet information, order/payment IDs, products, discounts/fees, notes and saved attachments when available.
+- **Assistant management proposals.** Supported system operations use permission-checked confirmation cards or a link to the appropriate page. Follow-up queries retain accessible book scope and prior evidence. See the [capability audit](docs/assistant-capability-audit.md) for boundaries; passwords, secrets and uploads remain in dedicated interfaces.
+- **Separate date and time fields.** Transaction dates use `YYYY-MM-DD` and default to the recording date when missing. Time is a separate structured field and can stay empty when unknown. Discounts and fees have their own checkout section, rather than becoming products.
+
 Unified financial memory includes grounded product extraction (including legacy title-only entries), per-field fill/undo and preference conflict review. Defaults reuse a DashScope key with `text-embedding-v4` and `qwen3.8-flash`. Five live-model acceptance cases passed. See [implementation scope, historical initialization and validation](docs/financial-memory.md); this small sample is not an overall accuracy claim.
 
 The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
@@ -84,7 +92,7 @@ Upload several receipts, order screenshots or one long image. AI distinguishes s
 | Checkout | Quantities, unit prices, subtotals, discounts, rounding and extra fees; the paid total remains the transaction amount. |
 | Partial screenshots | Distinguish incomplete checkout evidence from conflicting amounts. Confirm the actual payment with an explanation instead of inventing a balancing discount. |
 | Duplicates and refunds | Compare existing records, review potential duplicates, and link full or partial refunds to the original purchase. |
-| Dates and notes | Keep transaction, creation and modification timestamps; use device time when transaction time is missing. Notes focus on useful context. |
+| Dates and notes | Transaction date defaults to the recording date when missing; unknown transaction time remains blank. Creation and modification timestamps are separate. |
 | Attachments and search | Optionally retain compressed vouchers and everyday photos; search merchants, categories, amounts, dates and individual items. |
 
 Transport, dining, shopping and groceries use structured scene fields: departure and arrival stops, merchants and branches, meal types and product summaries. AI drafts, manual forms and presets share those fields, with editable titles.
@@ -128,7 +136,7 @@ Receipt recognition separates **order platforms, payment channels and funding ev
 
 Open **Activities** to create a trip, gathering or other event. Give it a searchable type, optional dates and budget, then keep it personal or attach it to a family. An activity groups transactions that remain in their original books and wallets; the grouping never creates a second payment. Family members can contribute from books they can edit, but each member's report contains only transactions in books they can already access. Consequently, two members may see different activity totals.
 
-Pick an active activity from **Home → Active activities → Add an entry to this activity**, select one in manual entry or receipt review, or attach an existing transaction on the activity page. The assistant can find activities and propose transaction cards with an activity selected; it does not independently create, archive or delete activities. Activity reports break down spending by category, funding wallet, book and day, with searchable and paginated entries.
+Pick an active activity from **Home → Active activities → Add an entry to this activity**, select one in manual entry or receipt review, or attach an existing transaction on the activity page. The assistant can find activities, prepare linked transaction cards and propose supported activity-management actions; changes require confirmation and the appropriate permissions. Activity reports break down spending by category, funding wallet, book and day, with searchable and paginated entries.
 
 Search by name, type, family or description; filter by type and ownership. **Archived activities** have their own view and stop accepting new entries until reactivated. An editable activity can be archived, reactivated or deleted; deleting it removes only the grouping links, not the underlying transactions. On phones, actions remain readable at narrow widths, including the archive, restore and delete confirmation controls.
 

@@ -4,6 +4,11 @@
 
 ## Unreleased — current `main`
 
+### Changed
+
+- Removed manual matching-mode selectors from transaction records and global search. Both use the existing default keyword matching; date, amount, wallet and book filters remain. This does not introduce vector search for transactions or global results.
+- Updated both READMEs with current search boundaries, full-page memory management, responsive change history, flexible reporting, detailed chart drilldowns and assistant confirmation workflows.
+
 ### Added
 
 - Unified financial memory: scoped retrieval, product evidence, private/shared memory management, separate model configuration, versioned vector rebuilds, and assistant confirmation cards. DashScope defaults now use text-embedding-v4 and qwen3.8-flash. Grounded product extraction, per-field fill/undo and preference conflict review passed five live-model cases. Historical title-only entries are supported, fees/discounts excluded, and deleted-source preferences recalculated. See `docs/financial-memory.md` for initialization and rollout requirements.
