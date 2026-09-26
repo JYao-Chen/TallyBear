@@ -23,6 +23,8 @@ Account actions are available from the profile/navigation area. On mobile, open 
 
 上传图片后先生成草稿，不会因为识别完成就自动扣款或转账。一个订单可以保留多个商品明细，但整单实付只记一次。原图编号用于跨图关联与核对，不等于资金来源。明确的余额、银行卡或尾号证据可预选唯一的本人钱包；仅看到微信／支付宝渠道时，只有一个匹配钱包才自动选择，多个候选不猜。票面不足时可以手动补充，不应编造折扣来强行配平。
 
+草稿、手动记账、助手确认卡和账单详情将 **商品明细** 与 **优惠与费用** 分区展示，各自分页。满减、优惠券、红包抵扣、抹零属于减免，配送、包装、手续费属于附加费；AI 自动识别类型并填入对应区域，也可手动切换类型、修改或删除。优惠输入正数，系统按减免保存；未知金额留空。结算按“商品合计 − 优惠 + 费用”核对，实际支付不会因编辑明细而自动改变，可点击“按结算合计填写实付”明确采用。已含在商品折后价里的优惠不重复扣除，总计／节省合计行不重复记入。优惠和费用不计入商品数量或复购记忆。
+
 Order IDs and payment/refund reference IDs are optional in manual entry and review cards. When legible in an image, recognition can fill them automatically. Keep them for later duplicate checks or statement reconciliation; do not invent an ID when a screenshot does not show one. / 手动记账和识图草稿中的**订单号**、**交易／退款流水号**均为选填；截图清晰可见时可自动提取。它们有助于以后查重和账单核对；截图没有展示时不必补造编号。
 
 ## Refunds and reused entries / 退款与复用

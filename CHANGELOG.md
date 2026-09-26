@@ -1,5 +1,7 @@
 # Changelog
 
+- Separate merchandise from discounts and fees in receipt drafts, manual entry, assistant cards and saved details, with independent pagination and amount reconciliation. AI normalizes supported checkout labels; adjustments do not become repeat-purchase memories.
+
 ## Unreleased — current `main`
 
 ### Added

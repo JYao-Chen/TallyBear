@@ -2,6 +2,7 @@
 import {changeMemorySelection,resolveMemoryField} from '@/lib/memory-fields';
 import {MemorySuggestions} from './MemorySuggestions';
 import {ChatActionEditor} from './ChatActionEditor';
+import {LineItemsView} from './LineItems';
 import {useState} from 'react';
 import {Check,CalendarClock,NotebookPen,Repeat,ChartPie,Wallet,Bookmark,ArrowRightLeft,FilePenLine} from 'lucide-react';
 import {actionNames,type ChatAction} from '@/lib/chat-actions';
@@ -15,7 +16,7 @@ export function ChatActionCards({onEdit,actions,disabled,confirmable,onConfirm,o
   <header><span className="chat-action-icon"><Icon size={21}/></span><div><small>{tr(actionNames[a.kind])}</small><h3>{main}</h3></div><span className="chat-action-status">{tr(a.status==='confirmed'?(deleting?'已删除':a.kind==='transaction'?'已修改':'已保存'):a.status==='cancelled'?'已取消':a.missing.length?'待补充':'待确认')}</span></header>
   <dl>{a.summary.map((s,i)=><div key={i}><dt>{tr(s.label)}</dt><dd>{s.icon&&<SymbolIcon icon={s.icon} size={22}/ >}{s.account&&<AccountIcon name={s.account} size={22}/>}<span>{s.value}</span></dd></div>)}</dl>
   {pending&&<MemorySuggestions suggestions={a.data.memorySuggestions} name={a.data.product||a.data.title||''} disabled={disabled||!!saving} onChange={(next,resolution)=>{const filled=resolution?resolveMemoryField(a.data,next,resolution.id,resolution.itemId,resolution.field,resolution.useMemory):changeMemorySelection(a.data,a.data.memorySuggestions||[],next);return onEdit(a.id,{...filled.value,memorySuggestions:filled.suggestions});}}/>}
-  {a.data.lineItems?.length>0&&<details className="chat-action-details" open><summary>{tr('商品明细')} · {a.data.lineItems.length}</summary><ul>{a.data.lineItems.map((i:any,n:number)=><li key={n}><span>{i.name}</span><span>{i.amount===null?tr('待补充'):(i.amount/100).toFixed(2)}</span></li>)}</ul></details>}
+  {a.data.lineItems?.length>0&&<LineItemsView items={a.data.lineItems} total={a.data.amount||0}/>}
   {pending&&a.missing.length>0&&<p className="chat-action-missing">{tr('请补充信息')}：{a.missing.map(m=>tr(m)).join('、')}</p>}
   {pending&&a.warnings.map((w,i)=><p className="chat-action-warning" key={i}>{tr(w)}</p>)}
   {pending&&a.kind==='entry'&&(a.warnings.length>0||errors[a.id])&&<label className="check"><input type="checkbox" checked={!!ack[a.id]} onChange={e=>setAck(v=>({...v,[a.id]:e.target.checked}))}/>{tr('已核对重复与退款提示，仍保存为独立账单')}</label>}

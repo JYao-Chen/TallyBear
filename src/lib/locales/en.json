@@ -1,4 +1,8 @@
 {
+  "优惠与费用": "Discounts & fees",
+  "商品与优惠费用": "Items, discounts & fees",
+  " · {0}件商品": " · {0} items",
+  "满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。": "Checkout reductions, coupons and credits are deducted separately. Delivery, packaging and handling fees are added separately, not counted as products.",
   "零食水果": "Snacks & fruit",
   "日用百货": "Daily essentials",
   "数码家电": "Electronics & appliances",
