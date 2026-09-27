@@ -1,0 +1,103 @@
+/* Receipt hierarchy stays independent of the application header and generic dl rules. */
+.chat-action-card {container-type:inline-size; padding:24px; border-radius:20px;}
+.chat-action-card.is-resolved {opacity:1;}
+.receipt-card-heading {display:flex; align-items:flex-start; gap:12px; margin-bottom:24px;}
+.receipt-card-heading>div {flex:1; min-width:0;}
+.receipt-card-heading h3 {margin:4px 0 0; font-size:19px; line-height:1.5; overflow-wrap:anywhere;}
+.receipt-card-heading small {color:var(--muted);}
+.receipt-state {flex:none; border-radius:6px; padding:5px 9px; font-size:12px; background:var(--soft); color:var(--accent);}
+.receipt-state.state-cancelled {background:var(--paper); color:var(--muted);}
+.receipt-card-amount {display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding-bottom:22px; border-bottom:1px solid var(--line);}
+.receipt-card-amount>span {font-size:13px; color:var(--muted);}
+.receipt-card-amount>strong {font-size:30px; font-variant-numeric:tabular-nums;}
+.receipt-card-content {margin:20px 0;}
+.receipt-card-content[open]>summary {display:none;}
+.chat-action-card.is-resolved .receipt-card-content>summary {display:list-item; cursor:pointer; color:var(--accent);}
+.chat-action-card .receipt-facts {gap:12px; margin:0 0 24px;}
+.chat-action-card .receipt-facts>div {grid-template-columns:96px minmax(0,1fr); align-items:start;}
+.receipt-facts dd {line-height:1.65;}
+.receipt-fact-wide {padding-top:12px; border-top:1px solid var(--line);}
+.receipt-notice {margin-top:16px; padding:14px 16px; border-left:3px solid var(--accent); border-radius:0 8px 8px 0; background:var(--soft); font-size:13px; line-height:1.7;}
+.receipt-notice p,.receipt-notice ul {margin:6px 0 0;}
+.receipt-notice ul {padding-left:18px;}
+.receipt-notice li+li {margin-top:6px;}
+.receipt-notice-missing,.receipt-notice-warning {border-color:#a66b2b; background:#fbf3e7; color:#745020;}
+.receipt-notice-info {border-color:var(--line); background:var(--paper); color:var(--muted);}
+.receipt-card-actions {border-top:1px solid var(--line); margin-top:24px; padding-top:20px;}
+.receipt-primary-actions,.receipt-secondary-actions {display:flex; align-items:center; flex-wrap:wrap; gap:10px;}
+.receipt-primary-actions>.secondary {background:transparent; border:1px solid var(--accent);}
+.receipt-secondary-actions {justify-content:space-between; margin-top:12px;}
+.receipt-secondary-actions .text-button {padding:8px 0; min-height:44px; font-size:13px;}
+.receipt-secondary-actions .text-button:last-child {color:var(--muted);}
+.receipt-primary-actions .receipt-danger {background:#9b414b; color:white;}
+.chat-action-card>.check {margin-top:18px; padding:12px; background:var(--paper); font-size:13px; align-items:flex-start;}
+.chat-action-card .chat-action-inline-editor {margin-top:24px; padding:0; border:0; background:transparent;}
+.line-items-editor,.item-summary {container-type:inline-size;}
+.line-items-editor {padding:16px; border-radius:14px; background:var(--surface);}
+.line-items-editor>summary {font-weight:650; font-size:15px; padding:4px 0 12px;}
+.line-item-region {border:0; border-radius:0; padding:20px 0; margin:0;}
+.line-item-region+.line-item-region {border-top:1px solid var(--line);}
+.line-item-region h4 {display:flex; align-items:center; gap:8px; margin:0 0 16px; font-size:15px;}
+.line-item-region h4 .muted {font-size:12px; font-weight:400;}
+.line-item-region>.line-item-edit {grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; border:1px solid var(--line); border-radius:12px; padding:16px; margin:0 0 12px; background:var(--surface);}
+.line-item-edit>label:first-child {grid-column:1;}
+.line-item-edit>.item-name {grid-column:2 / -1;}
+.line-item-edit label {font-size:12px; min-width:0;}
+.line-item-edit input {font-variant-numeric:tabular-nums; min-width:0; width:100%;}
+.line-item-region>.settlement-edit {background:var(--paper); grid-template-columns:minmax(0,1fr) minmax(0,2fr);}
+.settlement-edit>.item-name {grid-column:2;}
+.settlement-edit>label:nth-child(3) {grid-column:1 / -1;}
+.item-calculation {border-top:1px dashed var(--line); padding-top:12px; margin-top:2px; font-size:12px; gap:6px;}
+.item-edit-actions {border-top:0; margin:0; padding:0;}
+.item-edit-actions .text-button {font-size:12px; color:var(--muted); min-height:44px;}
+.line-item-region>.secondary,.line-item-region>.inline>.secondary {background:transparent; border:1px dashed var(--line); font-size:13px; min-height:44px;}
+.item-summary-row {padding:12px 0; gap:16px;}
+.item-summary-row>span {min-width:0; overflow-wrap:anywhere;}
+.item-summary-row>strong {white-space:nowrap; font-variant-numeric:tabular-nums;}
+.item-summary-row small {margin-top:5px; font-size:12px;}
+.settlement-summary,.chat-action-card .settlement-summary {margin:16px 0 0; padding:16px; border-radius:12px; background:var(--paper); display:grid; gap:12px;}
+.settlement-summary>div,.chat-action-card .settlement-summary>div {display:flex; justify-content:space-between; align-items:baseline; gap:16px;}
+.settlement-summary dt,.chat-action-card .settlement-summary dt {font-size:13px; color:var(--muted);}
+.settlement-summary dd,.chat-action-card .settlement-summary dd {margin:0; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.settlement-summary>div:last-child {padding-top:12px; border-top:1px solid var(--line); font-weight:700;}
+.settlement-summary>div:last-child dd {font-size:20px;}
+.settlement-calculator {border:0; border-left:3px solid var(--accent); border-radius:0 8px 8px 0; margin:16px 0 0; padding:14px 16px;}
+.settlement-calculator p {font-size:12px; line-height:1.6;}
+.settlement-calculator .secondary {background:transparent; border:1px solid var(--accent);}
+.item-reconciliation {padding:12px 2px; font-size:12px; line-height:1.6;}
+.receipt-form-section {padding:22px 0; border-top:1px solid var(--line);}
+.receipt-form-section>h3 {font-size:16px; margin:0 0 20px;}
+.intake-review .receipt>fieldset>.panel-title {align-items:flex-start; gap:12px;}
+.intake-review .receipt>fieldset>.panel-title>strong {font-size:18px; line-height:1.5;}
+.intake-review .receipt>fieldset>.panel-title>span {font-size:12px;}
+.intake-review .receipt-details {grid-column:1 / -1; border-top:1px solid var(--line); margin-top:16px; padding-top:16px;}
+.intake-review .receipt-details>summary {font-weight:600; padding:8px 0;}
+.intake-review .wallet-match-note {display:block; padding:12px 14px; margin:0 0 20px; background:var(--soft); border-radius:8px;}
+.intake-review .receipt>fieldset>.text-button {margin-top:20px; color:var(--muted); border-top:1px solid var(--line); border-radius:0; width:100%; justify-content:flex-end;}
+.verification-confirm {margin:20px 0;}
+.verification-confirm>.secondary {background:transparent; border:1px solid currentColor; color:inherit; margin:8px 0;}
+.verification-confirm>.secondary[aria-pressed=true] {background:var(--soft); color:var(--accent);}
+.verification-confirm details {margin-top:10px;}
+.verification-confirm textarea {margin-top:12px;}
+.chat-inline-editor>.form-grid {padding:16px 0; border-bottom:1px solid var(--line); margin-bottom:16px;}
+.chat-inline-editor>.inline {border-top:1px solid var(--line); margin-top:20px; padding-top:16px;}
+.chat-inline-editor .receipt-fact-wide {grid-column:1 / -1;}
+.chat-action-card .chat-inline-editor {border:0; background:transparent; padding:0; margin-top:24px;}
+.line-items-editor fieldset {margin-top:0;}
+.line-item-region>.line-item-edit>label {margin-bottom:0;}
+.receipt-notice-missing {border-color:var(--red); background:#f8eceb; color:#883d46;}
+@container (max-width:420px) {
+ .receipt-card-heading {flex-wrap:wrap; gap:10px;}
+ .receipt-state {margin-left:46px;}
+ .line-item-region>.line-item-edit {padding:12px; gap:10px;}
+ .line-item-edit>label:first-child,.line-item-edit>.item-name {grid-column:1 / -1;}
+ .line-item-edit label {font-size:11px;}
+ .line-item-edit input {padding:10px 6px; font-size:16px;}
+ .receipt-primary-actions>button {flex:1; justify-content:center;}
+ .chat-action-card .receipt-facts>div {grid-template-columns:72px minmax(0,1fr);}
+}
+@media(max-width:480px) {
+ .chat-action-card {padding:16px; border-radius:16px;}
+ .line-items-editor {padding:12px;}
+ .receipt-card-amount>strong {font-size:27px;}
+}

@@ -3,6 +3,7 @@ import './mobile-refinement.css';
 import './desktop-refinement.css';
 import './chat.css';
 import './workspace-polish.css';
+import './receipt-cards.css';
 import {MobileViewport} from '@/components/MobileViewport';
 import {LanguageProvider} from '@/components/LanguageProvider';
 import {language,translate} from '@/lib/i18n';

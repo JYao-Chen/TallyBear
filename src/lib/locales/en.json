@@ -1,4 +1,12 @@
 {
+  "保存前请核对": "Review before saving",
+  "识别与处理说明": "Recognition and processing notes",
+  "查看卡片详情": "View card details",
+  "取消这张卡片": "Cancel this card",
+  "处理中…": "Processing…",
+  "账单归属与场景": "Ledger and context",
+  "交易信息": "Transaction information",
+  "金额差异确认": "Confirm amount difference",
   "优惠与费用": "Discounts & fees",
   "商品与优惠费用": "Items, discounts & fees",
   " · {0}件商品": " · {0} items",
@@ -1542,5 +1550,17 @@
   "查看全部活动": "View all activities",
   "正在记入活动：": "Adding to activity: ",
   "已选活动": "Selected activity",
-  "取消活动归属": "Remove activity selection"
+  "取消活动归属": "Remove activity selection",
+  "小计跟随单价与数量计算，可手动改写": "Subtotal follows unit price and quantity; you can override it.",
+  "推荐小计，尚未填写": "Suggested subtotal; not yet entered",
+  "已保留当前小计，与推荐值相差 {0}": "Current subtotal kept; difference from suggestion: {0}",
+  "采用推荐小计": "Use suggested subtotal",
+  "填写单价和数量后推荐小计；缺少信息时不估算。": "Enter unit price and quantity to calculate a subtotal. Missing values are not estimated.",
+  "删除明细": "Delete line item",
+  "推荐实付（按当前明细）": "Suggested payment (current line items)",
+  "商品 {0} − 优惠 {1} + 费用 {2} = {3}": "Items {0} − discounts {1} + fees {2} = {3}",
+  "推荐值不覆盖实付；采用后仍可手动修改。": "The suggestion does not overwrite the payment. You can still edit it after applying.",
+  "还有 {0} 项金额未填写，当前仅为已知部分合计。": "{0} amounts are missing. This is only the known partial total.",
+  "合计需大于零且不超过金额上限，请检查明细。": "The total must be positive and within the amount limit. Check the line items.",
+  "采用推荐实付": "Use suggested payment"
 }

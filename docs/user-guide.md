@@ -25,7 +25,9 @@ Account actions are available from the profile/navigation area. On mobile, open 
 
 长图仍按片段识别。若同一原图被提取为多个候选（不超过 12 条），系统会额外结合完整页面核对订单归属：明确为单个订单、订单号及最终实付可对应时，合并商品段与结算段。只有商品而无付款依据的未知状态片段，其小计不会被当成第二笔支付；不同订单号、已付款金额冲突、多笔流水和退款不会强行合并。商品明细仍进行金额复核，最终保存仍需确认。整体核对结果会保存到任务进度；核对失败时保留原候选供核对。
 
-草稿、手动记账、助手确认卡和账单详情将 **商品明细** 与 **优惠与费用** 分区展示，各自分页。满减、优惠券、红包抵扣、抹零属于减免，配送、包装、手续费属于附加费；AI 自动识别类型并填入对应区域，也可手动切换类型、修改或删除。优惠输入正数，系统按减免保存；未知金额留空。结算按“商品合计 − 优惠 + 费用”核对，实际支付不会因编辑明细而自动改变，可点击“按结算合计填写实付”明确采用。已含在商品折后价里的优惠不重复扣除，总计／节省合计行不重复记入。优惠和费用不计入商品数量或复购记忆。
+草稿、手动记账、助手确认卡和账单详情将 **商品明细** 与 **优惠与费用** 分区展示，各自分页。满减、优惠券、红包抵扣、抹零属于减免，配送、包装、手续费属于附加费；AI 自动识别类型并填入对应区域，也可手动切换类型、修改或删除。优惠输入正数，系统按减免保存；未知金额留空。结算按“商品合计 − 优惠 + 费用”核对，实际支付不会因编辑明细而自动改变，可点击“采用推荐实付”明确采用。已含在商品折后价里的优惠不重复扣除，总计／节省合计行不重复记入。优惠和费用不计入商品数量或复购记忆。
+
+**明细计算器**：在商品行输入单价和数量，空白小计会自动填入计算结果；原小计与计算一致时，继续修改单价或数量会同步更新。小数数量按每行四舍五入到分。识别或手动填写的小计若与计算不同，保留当前值并显示差额；点击“采用推荐小计”可恢复跟随计算。缺少单价或数量时不猜测。下方推荐实付使用当前各行小计加减，不强制用单价乘数量覆盖手动值；金额未填全时仅显示部分合计，不允许一键采用。采用后仍可手动修改实付，差额继续显示。手动录入、AI 草稿、助手卡片的“补充信息”及已有明细的常用预设共用此交互，不改写历史账目。
 
 Order IDs and payment/refund reference IDs are optional in manual entry and review cards. When legible in an image, recognition can fill them automatically. Keep them for later duplicate checks or statement reconciliation; do not invent an ID when a screenshot does not show one. / 手动记账和识图草稿中的**订单号**、**交易／退款流水号**均为选填；截图清晰可见时可自动提取。它们有助于以后查重和账单核对；截图没有展示时不必补造编号。
 
@@ -158,6 +160,8 @@ Growing record, search, category, wallet, family, schedule and history views use
 打开已保存账单，点击 **移动到账本**，选择目标账本，保留原来的实际付款账户。原消费和关联退款、商品明细、凭证、附图及分摊设置一起移动。移动后原账本不再保留该记录；若需要两本都保留，使用 **同时记入另一本账本**。周期计划继续使用原账本设置。
 
 ## Conversational actions / 对话确认卡片
+
+确认卡片区分账单金额、基础信息、商品明细、优惠费用、结算与核对提示。缺失信息、保存前警告和识别处理说明分别展示；处理说明不写入备注。保存是主操作，补充／修改是次操作，对话修改与取消单独排列。进入编辑后，只显示“更新卡片／取消修改”，更新卡片本身不会入账。已保存或取消的卡片可展开查看原详情。商品与费用编辑各每页 3 项，只读明细各每页 6 项，金额汇总始终包含全部页。
 
 Describe a purchase, subscription, preset, budget, allocation, installment or family transfer in the assistant. Add images through the attachment button. The assistant reads the evidence, looks up available entities and prepares a card. Edit the fields on the card or reply in conversation; then press **Confirm** to save. A reply alone does not press the confirmation button. Cards remain with the turn that created them.
 
