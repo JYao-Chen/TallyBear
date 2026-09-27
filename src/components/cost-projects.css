@@ -2,6 +2,12 @@
 .cost-projects .cost-toolbar>div,.cost-projects .cost-toolbar>label{min-width:0;flex:1 1 220px}
 .cost-projects .cost-section{padding:24px 0;border-top:1px solid var(--line);margin-top:20px}
 .cost-projects .cost-section h3{margin:0 0 16px}
+.cost-projects .cost-transfer{border-top:1px solid var(--line);margin-top:24px;padding-top:16px}
+.cost-projects .cost-transfer h4{margin:20px 0 12px}
+.cost-projects .cost-transfer .cost-toolbar h4{margin:0}
+.cost-projects .cost-transfer fieldset{border:0;padding:0;margin:20px 0;min-width:0}
+.cost-projects .cost-transfer legend{font-weight:650;margin-bottom:16px}
+.cost-projects .cost-transfer .cost-offset p{overflow-wrap:anywhere}
 .cost-projects .cost-edit-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
 .cost-projects .cost-edit-row>span,.cost-projects .cost-edit-row>label{flex:1 1 180px;min-width:0}
 .cost-projects small{display:block;color:var(--muted);margin-top:6px}

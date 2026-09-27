@@ -1,4 +1,5 @@
 'use client';
+import {TransactionBalance} from './TransactionBalance';
 import {useI18n} from './LanguageProvider';
 import {LineItemsView} from './LineItems';
 import {ReceiptAttachments} from './ReceiptAttachments';
@@ -7,6 +8,7 @@ import {displayTimestamp} from '@/lib/entry-time';
 
 export function ChartTransactionDetail({row,money}:{row:Record<string,any>;money:(amount:number)=>string}){
  const {t,locale}=useI18n();
+ if(row.cost_row_key)return <article className="chart-transaction-detail"><h3>{row.title}</h3><p>{locale==='en'?'Allocated expense for the selected period; no additional wallet debit.':'所选期间应承担的费用，不会再次扣减钱包。'}</p><strong>{money(Number(row.amount)/100)}</strong><p>{row.date?.slice(0,10)} — {new Date(Date.parse(row.cost_period_end)-86400000).toISOString().slice(0,10)}</p><p>{row.book_name} · {row.category}</p></article>;
  const wallet=accountLabel({name:row.account_name||'',type:row.account_type,holder:row.account_holder,institution:row.account_institution,suffix:row.account_suffix,ownership:row.account_ownership},locale);
  const groups:[string,[string,unknown][]][]=[
   ['交易信息',[['交易日期',row.date?.slice(0,10)],['交易时间',row.occurred_at],['记入账本',row.book_name],['分类',row.category],['资金账户',wallet],['钱包归属',row.account_ownership?t(walletOwnership[row.account_ownership as WalletOwnership]||'待确认'):null],...(row.kind==='transfer'?[['转入账户',row.target_account?accountLabel(row.target_account,locale):row.target_name] as [string,unknown]]:[])]],
@@ -15,6 +17,8 @@ export function ChartTransactionDetail({row,money}:{row:Record<string,any>;money
  ];
  return <article className="chart-transaction-detail">
   <div className="chart-transaction-amount"><small>{t(({expense:'消费支出',income:'收入',refund:'退款到账',transfer:'账户转账'} as Record<string,string>)[row.kind]||'金额')}</small><strong className={row.kind==='expense'?'expense':row.kind==='transfer'?'':'income'}>{money(Number(row.amount)/100)}</strong></div>
+  <TransactionBalance id={row.id} book={row.book_id} balances={row.wallet_balances}/>
+  {row.actual_amount!=null&&Number(row.actual_amount)!==Number(row.amount)&&<p className="context-note">{locale==='en'?'Original payment: ':'原付款：'}{money(Number(row.actual_amount)/100)}{locale==='en'?'. The amount above is the portion not assigned to an allocation plan.':'。上方金额为尚未纳入分摊的部分。'}</p>}
   {row.event_id&&<p className="context-note">{t('跨账本关联记录，同一笔实际收付不会重复计入钱包。')}</p>}
   {row.family_movement_id&&<p className="context-note">{t('此记录来自家庭往来。')}</p>}
   {groups.slice(0,2).map(([title,fields])=><section key={title}><h3>{t(title)}</h3><dl className="chart-transaction-fields">{fields.map(([label,value])=><div key={label}><dt>{t(label)}</dt><dd>{value?String(value):t('未填写')}</dd></div>)}</dl></section>)}

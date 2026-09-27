@@ -420,3 +420,18 @@ CREATE TABLE IF NOT EXISTS cost_member_income_claims (
 -- Wallet IDs here are snapshots; wallet merges must remain possible.
 ALTER TABLE cost_source_claims DROP CONSTRAINT IF EXISTS cost_source_claims_account_id_fkey;
 ALTER TABLE cost_member_income_claims DROP CONSTRAINT IF EXISTS cost_member_income_claims_account_id_fkey;
+CREATE TABLE IF NOT EXISTS cost_schedules (
+ id uuid PRIMARY KEY, owner_id uuid NOT NULL REFERENCES users(id), family_id uuid REFERENCES families(id),
+ rule jsonb NOT NULL, next_date date NOT NULL, paused boolean NOT NULL DEFAULT false,
+ version integer NOT NULL DEFAULT 1, created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS cost_schedule_members (
+ schedule_id uuid NOT NULL REFERENCES cost_schedules(id), user_id uuid NOT NULL REFERENCES users(id),
+ accepted boolean NOT NULL DEFAULT false, book_id uuid REFERENCES books(id) ON DELETE SET NULL,
+ PRIMARY KEY(schedule_id,user_id)
+);
+CREATE TABLE IF NOT EXISTS cost_schedule_occurrences (
+ schedule_id uuid NOT NULL REFERENCES cost_schedules(id), due_date date NOT NULL,
+ project_id uuid REFERENCES cost_projects(id), skipped boolean NOT NULL DEFAULT false,
+ PRIMARY KEY(schedule_id,due_date)
+);

@@ -26,7 +26,7 @@ export function distribute(total:number,weights:number[]):number[]{
  const order=numerators.map((n,i)=>({i,r:n%BigInt(all)})).sort((a,b)=>a.r===b.r?a.i-b.i:a.r>b.r?-1:1);
  const remainder=total-sum(result);for(let i=0;i<remainder;i++)result[order[i].i]++;return result;
 }
-function intersectAmount(amount:number,start:string,end:string,from:string,to:string){
+export function intersectAmount(amount:number,start:string,end:string,from:string,to:string){
  const n=days(start,end),left=Math.max(0,Math.min(n,days(start,from))),right=Math.max(0,Math.min(n,days(start,to)));
  const cumulative=(x:number)=>Math.floor(amount/n)*x+Math.min(x,amount%n);
  return right<=left?0:cumulative(right)-cumulative(left);

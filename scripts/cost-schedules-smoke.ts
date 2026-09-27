@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {db} from '../src/server/db';
+import {costSchedules} from '../src/server/cost-schedules';
+import {costProjects} from '../src/server/cost-projects';
+import {createAccount,listAssets} from '../src/server/accounts';
+assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_cost_test'));
+const a=randomUUID(),b=randomUUID(),stranger=randomUUID(),family=randomUUID(),aBook=randomUUID(),bBook=randomUUID(),id=randomUUID();
+const call=(u:string,path:string[],body?:any,params=new URLSearchParams()):Promise<any>=>costSchedules(u,body?'POST':'GET',['cost-schedules',...path],body,params);
+try{
+ await db.query(readFileSync('scripts/schema.sql','utf8'));await db.query(readFileSync('scripts/memory-schema.sql','utf8'));
+ for(const [u,name] of [[a,'付款人'],[b,'参与人'],[stranger,'旁观者']])await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$3,\'not-a-login\')',[u,u,name]);
+ for(const [book,u] of [[aBook,a],[bBook,b]]){await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'个人测试账本','private',$2)",[book,u]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,u]);}
+ await db.query("INSERT INTO families(id,name,owner_id) VALUES($1,'周期测试家庭',$2)",[family,a]);for(const u of [a,b])await db.query('INSERT INTO family_members(family_id,user_id) VALUES($1,$2)',[family,u]);
+ const account=(await createAccount(a,{name:'测试银行卡',opening:3000000,type:'bank'})).id;
+ const rule={title:'季度房租',category:'房租',familyId:family,firstDate:'2026-01-15',months:3,shares:[{userId:a,amount:290000},{userId:b,amount:140000}]};
+ const baseline=JSON.stringify(await listAssets(a));await call(a,[],{id,rule,bookId:aBook});
+ await call(a,[],{id,rule,bookId:aBook});assert.equal((await call(a,[])).length,1,'Creation retry does not duplicate');
+ assert.equal(JSON.stringify(await listAssets(a)),baseline,'Planning does not charge wallet');
+ await assert.rejects(call(a,[id,'confirm'],{version:1,dueDate:rule.firstDate,bookId:aBook,accountId:account,paidDate:'2026-01-15'}),/参与人/);
+ await assert.rejects(call(b,[id,'respond'],{version:1,accept:true,bookId:aBook}),/账本/);
+ await call(b,[id,'respond'],{version:1,accept:true,bookId:bBook});
+ assert.equal((await call(stranger,[])).length,0);
+ const body={version:2,dueDate:rule.firstDate,bookId:aBook,accountId:account,paidDate:'2026-01-15'};
+ const [one,two]=await Promise.all([call(a,[id,'confirm'],body),call(a,[id,'confirm'],body)]);
+ assert.equal(one.project_id,two.project_id,'Concurrent confirmation posts once');
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions WHERE created_by=$1',[a])).rows[0].n,1);
+ const balance=(await listAssets(a))[0].balance;assert.equal(balance,1710000);
+ const report=await costProjects(b,'GET',['cost-projects','report'],{},new URLSearchParams({from:'2026-01-01',to:'2026-03-31',bookId:bBook}));
+ assert.equal((report as any).totals.cost,420000);
+ await assert.rejects(costProjects(b,'GET',['cost-projects','report'],{},new URLSearchParams({from:'2026-01-01',to:'2026-03-31',bookId:aBook})),/访问/);
+ assert.equal((await call(a,[]))[0].next_date,'2026-04-15');
+ const existing=randomUUID();await db.query("INSERT INTO transactions(id,book_id,account_id,kind,amount,date,category,created_by) VALUES($1,$2,$3,'expense',1290000,'2026-04-15','房租',$4)",[existing,aBook,account,a]);
+ const before=JSON.stringify(await listAssets(a));await call(a,[id,'confirm'],{version:3,dueDate:'2026-04-15',bookId:aBook,transactionId:existing});assert.equal(JSON.stringify(await listAssets(a)),before,'Existing payment is not posted twice');
+ await call(a,[id,'pause'],{version:4,paused:true});await assert.rejects(call(a,[id,'confirm'],{version:5,dueDate:'2026-07-15',bookId:aBook,accountId:account,paidDate:'2026-07-15'}),/暂停/);
+ await call(a,[id,'pause'],{version:5,paused:false});
+ await db.query('DELETE FROM family_members WHERE family_id=$1 AND user_id=$2',[family,b]);await assert.rejects(call(a,[id,'confirm'],{version:6,dueDate:'2026-07-15',bookId:aBook,accountId:account,paidDate:'2026-07-15'}),/家庭/);
+ await db.query('INSERT INTO family_members(family_id,user_id) VALUES($1,$2)',[family,b]);
+ await call(a,[],{id:randomUUID(),rule:{...rule,title:'未来房租',firstDate:'2099-10-15'},bookId:aBook});
+ const future=(await call(a,[])).find((s:any)=>s.rule.title==='未来房租');assert.equal(future.due,false);
+ await assert.rejects(call(a,[future.id,'confirm'],{version:1,dueDate:'2099-10-15',bookId:aBook,accountId:account,paidDate:'2099-10-15'}),/未到/);
+ console.log('Cost schedules passed: planning, consent, private ledgers, concurrent idempotency, one debit, existing payment, pause, revoked family and future date.');
+}finally{await db.end();}

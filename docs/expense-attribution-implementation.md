@@ -5,7 +5,9 @@ Cost projects extend the application without changing the existing transaction o
 ## Available paths
 
 - **Plans & allocation → Cost allocation & sharing** creates, searches, previews, revises and archives projects.
+- **Recurring cost plans** stores future commitments without a wallet or transaction. Each participant accepts the recurring monthly share and selects their own editable ledger. On the due date the plan shows a pending payment; the payer manually confirms a real payment or links an existing one. The server atomically creates the attributed project and advances the cycle. Retries cannot create a second payment for the same cycle.
 - Existing expense details offer a link to start a project from that payment.
+- **Member transfers and receipts**, inside a paid cost project, records an actual personal-wallet transfer to another participant. The recipient selects their own receiving wallet and confirms there or through the existing family inbox. The pending link is stored atomically with the transfer; only confirmed transfers affect balances and settlement. Cancellation leaves a cancelled history row. No extra expense is created. Existing transfers can still be linked separately.
 - **Income & expense analysis → Allocated project costs** reports approved project costs for the selected date range. The ordinary cash-flow view remains separate.
 - Global search includes accessible cost projects. Assistant operation cards can query, create, revise, approve, archive and link existing settlements; writes still require confirmation.
 
@@ -28,12 +30,17 @@ This is the core implementation, not every item in the broader design document:
 - Legacy allocations are retained. An expense already using the legacy allocation must have that allocation removed before joining a new project; no historical conversion has been run.
 - Existing project participant sets and family are fixed. Changes to amounts and periods are supported; changing participants requires a new project.
 - Existing expense details and assistant operations are connected. Atomic creation of a transaction plus its project directly inside the entry draft is not implemented.
-- Archive preserves historical costs. There is no project deletion or version-history rollback UI. Display-book assignment has an API but is not used to filter the new report yet.
+- Archive preserves historical costs. There is no project deletion or version-history rollback UI. Recurring plans snapshot each participant's chosen ledger into each paid project; the personal cost report can filter these assignments by the current ledger. These are attributed costs, not duplicate cash transactions.
 - Assistant catalog and confirmation execution use the same server permissions. A live external-model conversation was not part of verification.
+- In-project settlement starts after a valid paid project exists; advance transfers before the first payment can be recorded in Family transfers and linked once the project is created. The application records transfers, it does not send bank payments. Pending family transfers retain the existing behavior: neither wallet changes until receipt is confirmed.
 
 ## Storage and migration
 
 `scripts/schema.sql` contains the additive tables. `scripts/cost-projects.sql` is the standalone additive migration for an existing database. Existing transactions and wallet balances are not rewritten. Rollback can restore the previous application code while retaining these additional tables.
+
+`scripts/cost-schedules.sql` adds recurring rules, participant consent and processed-cycle markers. Apply it before running the new application. Pending status is derived from the saved next due date in Asia/Shanghai when the plan is loaded; there is no background payment, notification or bank integration. Missed cycles remain pending until processed. Pause stops confirmation; change amounts or participants by pausing and creating a new rule. The first version supports fixed monthly member shares and a payment every 1–120 months. Payment-source wallets are selected only at confirmation. A linked existing payment must equal the cycle amount. Personal salary offsets and actual family transfers remain independent.
+
+Example: a plan beginning 2026-10-15 with three-month cycles and monthly shares of 2,900 and 1,400 creates no transaction at setup. Confirming payment creates or links 12,900 once, covering 2026-10-15 through 2027-01-15 exclusively, attributed to October, November and December. The next due date becomes 2027-01-15. The payer's cash view shows 12,900; personal cost views show 2,900 and 1,400 per month. Never add the two reporting bases together.
 
 `src/lib/cost-attribution.ts` owns pure calculations. `src/server/cost-projects.ts` owns source reservations, permissions, approvals, personal offsets, project reports and settlement associations. All routes are authenticated by the existing application dispatcher.
 
@@ -43,5 +50,8 @@ This is the core implementation, not every item in the broader design document:
 - `DATABASE_URL=<isolated *_cost_test database> npx tsx scripts/cost-projects-smoke.ts`: real PostgreSQL integration including private ledgers, consent, over-allocation rejection, partial salary linking, member privacy, source changes and wallet invariance.
 - `scripts/cost-projects-browser.mjs`: isolated local app, desktop 1440×1000 and mobile 390×844, project details, editor and populated analysis views; no horizontal overflow and no app errors in the captured run.
 - TypeScript, the existing unit suite and production compilation were exercised. UI review disposition was `ship` for this narrow extension; physical-device behavior and live AI behavior are not claimed by that review.
+- `tests/cost-schedule.test.ts` and `scripts/cost-schedules-smoke.ts` cover calendar attribution, month-end anchors, advance-only-on-confirmation, consent, distinct private ledgers, duplicate/concurrent requests, existing payment reuse, pause, future dates and revoked family access. `scripts/cost-schedules-browser.mjs` captures desktop/mobile plan, editor, acceptance, payment and history views against the isolated database.
 
 See `cost-projects-ui.md` for the observed interface structure and `expense-attribution-design.zh-CN.md` for the broader design.
+
+`scripts/cost-settlement-smoke.ts` verifies duplicate requests, receipt permissions, wallet ownership, cancellation, confirmation through the existing family workflow, and unchanged 2,900/1,400 cost shares after a 4,300 payment. `scripts/cost-settlement-browser.mjs` exercises sender and recipient forms at desktop and mobile sizes against synthetic data.

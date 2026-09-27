@@ -1,5 +1,6 @@
 import {memoryRoute} from '@/server/memory';
 import {costProjects} from '@/server/cost-projects';
+import {costSchedules} from '@/server/cost-schedules';
 import {prepareHelp,searchHelp} from '@/server/help';
 import {familyInbox} from '@/server/family-inbox';
 import {listActivities,changeActivity,activityReport,assignActivity,entryActivity,setEntryActivity,accessibleActivity} from '@/server/activities';
@@ -31,6 +32,7 @@ import { db,transaction } from '@/server/db';
 import { user,member,session,passwordHash,verifyPassword,Failure } from '@/server/auth';
 import { entry } from '@/server/model';
 import {schedules} from '@/server/schedules';
+import {attachWalletBalances} from './wallet-history';
 import {report,personalWalletReport,exportCSV} from '@/server/reports';
 import {listCategories,changeCategory,checkCategory} from '@/server/categories';
 import {templates} from '@/server/templates';
@@ -76,6 +78,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  if(path[0]==='book-movements'&&method==='GET')return NextResponse.json(await bookMovements(u.id,path[1],req.nextUrl.searchParams));
  if(path[0]==='family-finance')return NextResponse.json(await familyFinance(u.id,path[1],method,body));
  if(path[0]==='cost-projects')return NextResponse.json(await costProjects(u.id,method,path,body,req.nextUrl.searchParams));
+ if(path[0]==='cost-schedules')return NextResponse.json(await costSchedules(u.id,method,path,body,req.nextUrl.searchParams));
  if(path[0]==='families')return NextResponse.json(await families(u.id,method,path,body));
  if(path[0]==='search-options'&&method==='GET')return NextResponse.json(await searchOptions(u.id,req.nextUrl.searchParams));
  if(path[0]==='search'&&method==='GET')return NextResponse.json(await search(u.id,req.nextUrl.searchParams));
@@ -130,8 +133,9 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));
- if(resource==='chart-details'&&method==='GET'){if(req.nextUrl.searchParams.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,req.nextUrl.searchParams));const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams));}
- if(resource==='report'&&method==='GET')return NextResponse.json(req.nextUrl.searchParams.get('scope')==='personal_wallet'?await personalWalletReport(u.id,req.nextUrl.searchParams):await report(book,req.nextUrl.searchParams));
+ if(resource==='chart-details'&&method==='GET'){if(req.nextUrl.searchParams.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,req.nextUrl.searchParams));const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams,u.id));}
+ if(resource==='transaction-balance'&&method==='GET'){const id=uuid.parse(req.nextUrl.searchParams.get('id'));const rows=(await db.query('SELECT id,event_id FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted',[id,book])).rows;const result=await attachWalletBalances(u.id,rows);return NextResponse.json((result[0] as any)?.wallet_balances||[]);}
+ if(resource==='report'&&method==='GET')return NextResponse.json(req.nextUrl.searchParams.get('scope')==='personal_wallet'?await personalWalletReport(u.id,req.nextUrl.searchParams):await report(book,req.nextUrl.searchParams,u.id));
  if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale,req.nextUrl.searchParams.get('scope')==='personal_wallet'?u.id:undefined),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
  if(resource==='categories'){if(method==='GET')return NextResponse.json(await listCategories(u.id));if(method==='PUT')return NextResponse.json(await changeCategory(u.id,body));}
  if(resource==='schedules')return NextResponse.json(await schedules(book,u.id,method,body));

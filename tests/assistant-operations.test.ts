@@ -28,3 +28,11 @@ test('确认卡将整数分显示为货币金额，嵌套金额也换算',()=>{
  const summary=operationSummary('校正余额',{balance:96437,archived:false,value:{amount:1200}});
  assert.match(summary[1].value,/964\.37/);assert.equal(summary[2].value,'否');assert.match(summary[3].value,/12\.00/);
 });
+test('费用成员结算分别传递项目和转款编号，必须确认才可写入',async()=>{
+ const movement='00000000-0000-4000-8000-000000000002';
+ const input={operation:'cost_settlement_transfer',params:{projectId:user.id,id:movement,operation:'create',amount:140000}};
+ const resolved=resolveOperation(input,user);
+ assert.deepEqual(resolved.path,['cost-projects',user.id,'settlement-transfer']);
+ assert.equal(resolved.body.id,movement);assert.equal(resolved.body.amount,140000);
+ await assert.rejects(()=>runOperation(input,user),/确认/);
+});

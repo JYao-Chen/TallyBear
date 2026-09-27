@@ -3,6 +3,7 @@ import {z} from 'zod';
 import type {PoolClient} from 'pg';
 import {db,transaction} from './db';
 import {Failure} from './access';
+import {familyFinance} from './family-finance';
 import {calculateCostPlan,costReport,costPlanSchema,type CostPlan} from '@/lib/cost-attribution';
 
 const uuid=z.string().uuid();
@@ -41,7 +42,7 @@ async function claims(c:PoolClient,p:Project,plans:CostPlan[]){
  await c.query('DELETE FROM cost_source_claims WHERE project_id=$1',[p.id]);
  for(const [event,{row,amount,kind}] of reservations)await c.query('INSERT INTO cost_source_claims(project_id,transaction_id,event_id,kind,amount,source_amount,account_id,date) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[p.id,row.id,event,kind,amount,row.available,row.account_id,row.date]);
 }
-async function validSources(c:PoolClient,p:Project){
+export async function validSources(c:PoolClient,p:Project){
  const rows=(await c.query('SELECT * FROM cost_source_claims WHERE project_id=$1 ORDER BY transaction_id',[p.id])).rows;
  if(!rows.length)return false;
  for(const r of rows){try{const current=await source(c,p.owner_id,r.transaction_id,r.kind);if(current.available!==Number(r.source_amount)||current.account_id!==r.account_id||String(current.date)!==String(r.date))return false;}catch(e){if(e instanceof Failure)return false;throw e;}}
@@ -76,7 +77,7 @@ async function detail(c:PoolClient,p:Project,user:string,params:URLSearchParams)
  const from=params.get('from')||preview.periods[0].start,to=params.get('to')||new Date(Date.parse(preview.periods.at(-1)!.end)-86400000).toISOString().slice(0,10);
  const extra=await memberOffsets(c,p,user);
  const personal=costReport({...plan,offsets:[...plan.offsets,...extra]},from,to,user),household=costReport({...plan,offsets:[...plan.offsets,...extra.filter(o=>o.shared)]},from,to,undefined,true);
- const movements=(await c.query(`SELECT s.movement_id,s.amount::float8 AS amount,m.sender_id,m.recipient_id,m.status FROM cost_settlements s JOIN family_movements m ON m.id=s.movement_id WHERE s.project_id=$1`,[p.id])).rows;
+ const movements=(await c.query(`SELECT s.movement_id,s.amount::float8 AS amount,m.sender_id,m.recipient_id,m.status,to_char(m.date,'YYYY-MM-DD') AS date,m.note FROM cost_settlements s JOIN family_movements m ON m.id=s.movement_id WHERE s.project_id=$1 ORDER BY m.created_at DESC,m.id`,[p.id])).rows;
  const paid=preview.total; // Sources in this release are owned and paid by the project owner.
  const settlement=plan.shares.map(s=>{
   const assigned=plan.offsets.filter(o=>o.transactionId&&o.userId===s.userId).reduce((n,o)=>n+o.amount,0);
@@ -104,8 +105,13 @@ export async function costProjects(user:string,method:string,path:string[],body:
    if(!Number.isFinite(Date.parse(from))||!Number.isFinite(Date.parse(to))||new Date(from).toISOString().slice(0,10)!==from||new Date(to).toISOString().slice(0,10)!==to||to<from||(Date.parse(to)-Date.parse(from))/86400000>36600)throw new Failure('查询日期范围无效');
    const scope=z.enum(['personal','shared']).parse(params.get('scope')||'personal'),q=z.string().max(200).parse(params.get('q')||''),offset=z.coerce.number().int().min(0).parse(params.get('offset')||0);
    const projects=(await c.query(`SELECT p.* FROM cost_projects p WHERE p.active_plan IS NOT NULL AND p.title ILIKE '%'||$2||'%' AND (p.owner_id=$1 OR EXISTS(SELECT 1 FROM cost_project_members m JOIN family_members f ON f.user_id=m.user_id AND f.family_id=p.family_id WHERE m.project_id=p.id AND m.user_id=$1)) ORDER BY p.id`,[user,q])).rows as Project[];
+   const bookId=params.get('bookId');
+   if(bookId){uuid.parse(bookId);if(!(await c.query('SELECT 1 FROM members WHERE book_id=$1 AND user_id=$2',[bookId,user])).rowCount)throw new Failure('账本不可访问',403);}
+   const assigned=new Set(bookId?(await c.query('SELECT project_id FROM cost_project_members WHERE user_id=$1 AND display_book_id=$2',[user,bookId])).rows.map(r=>r.project_id):[]);
    const rows:any[]=[],excluded:{id:string;title:string}[]=[];
-   for(const p of projects){if(p.active_stale||!await validSources(c,p)){excluded.push({id:p.id,title:p.title});continue;}const extra=await memberOffsets(c,p,user,scope==='shared');for(const r of costReport({...p.active_plan,offsets:[...p.active_plan!.offsets,...extra]},from,to,scope==='personal'?user:undefined,scope==='shared'))if(r.cost||r.offset||r.expected)rows.push({...r,id:p.id,title:p.title,category:p.active_plan!.category});}
+   if(bookId&&scope!=='personal')throw new Failure('账本归属筛选仅用于我的承担');
+   const filteredProjects=bookId?projects.filter(p=>assigned.has(p.id)):projects;
+   for(const p of filteredProjects){if(p.active_stale||!await validSources(c,p)){excluded.push({id:p.id,title:p.title});continue;}const extra=await memberOffsets(c,p,user,scope==='shared');for(const r of costReport({...p.active_plan,offsets:[...p.active_plan!.offsets,...extra]},from,to,scope==='personal'?user:undefined,scope==='shared'))if(r.cost||r.offset||r.expected)rows.push({...r,id:p.id,title:p.title,category:p.active_plan!.category});}
    const totals=rows.reduce((a,r)=>({cost:a.cost+r.cost,offset:a.offset+r.offset,expected:a.expected+r.expected,net:a.net+r.net}),{cost:0,offset:0,expected:0,net:0});
    const monthly=new Map<string,number>();for(const r of rows)monthly.set(r.month,(monthly.get(r.month)||0)+r.net);
    return {basis:'allocated_projects',scope,from,to,totals,total:rows.length,rows:rows.slice(offset,offset+20),monthly:[...monthly].sort(([a],[b])=>a.localeCompare(b)).map(([name,value])=>({name,value:value/100})),excluded};
@@ -116,7 +122,7 @@ export async function costProjects(user:string,method:string,path:string[],body:
   }
   if(path[1]==='sources'&&method==='GET'){
    const q=z.string().max(200).parse(params.get('q')||''),kind=z.enum(['expense','income']).parse(params.get('kind')||'expense'),offset=z.coerce.number().int().min(0).parse(params.get('offset')||0);
-   return (await c.query(`SELECT * FROM (SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.id,t.title,t.payee,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,b.name AS book_name FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$1 AND m.role<>'viewer' JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id WHERE a.owner_id=$1 AND t.kind=$2 AND NOT t.deleted AND concat_ws(' ',t.title,t.payee,t.product,t.note,t.order_id,t.external_id) ILIKE '%'||$3||'%' ORDER BY COALESCE(t.event_id,t.id),t.created_at DESC) candidates ORDER BY date DESC,id LIMIT 21 OFFSET $4`,[user,kind,q,offset])).rows;
+   return (await c.query(`SELECT candidates.*,count(*) OVER()::int AS total FROM (SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.id,t.book_id,t.title,t.payee,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,b.name AS book_name FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$1 AND m.role<>'viewer' JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id WHERE a.owner_id=$1 AND t.kind=$2 AND NOT t.deleted AND concat_ws(' ',t.title,t.payee,t.product,t.note,t.order_id,t.external_id) ILIKE '%'||$3||'%' ORDER BY COALESCE(t.event_id,t.id),t.created_at DESC) candidates ORDER BY date DESC,id LIMIT 21 OFFSET $4`,[user,kind,q,offset])).rows;
   }
   if(path[1]==='preview'&&method==='POST')return {...calculateCostPlan(body.plan),cashflowDelta:0};
   if(!path[1]&&method==='GET'){
@@ -136,9 +142,38 @@ export async function costProjects(user:string,method:string,path:string[],body:
   const p=await authorized(c,user,uuid.parse(path[1]));
   if(path[2]==='movements'&&method==='GET'){
    const ids=(p.active_plan||p.proposed_plan)!.shares.map(s=>s.userId);
-   return (await c.query(`SELECT m.id,m.amount::float8 AS amount,m.date,s.name AS sender,r.name AS recipient FROM family_movements m JOIN users s ON s.id=m.sender_id JOIN users r ON r.id=m.recipient_id WHERE m.family_id=$1 AND m.status='confirmed' AND m.kind IN ('transfer','aa') AND m.expense_id IS NULL AND m.sender_id=ANY($2::uuid[]) AND m.recipient_id=ANY($2::uuid[]) AND $3 IN(m.sender_id,m.recipient_id) ORDER BY m.date DESC,m.id LIMIT 100`,[p.family_id,ids,user])).rows;
+   return (await c.query(`SELECT m.id,m.amount::float8 AS amount,to_char(m.date,'YYYY-MM-DD') AS date,s.name AS sender,r.name AS recipient FROM family_movements m JOIN users s ON s.id=m.sender_id JOIN users r ON r.id=m.recipient_id WHERE m.family_id=$1 AND m.status='confirmed' AND m.kind IN ('transfer','aa') AND m.expense_id IS NULL AND m.sender_id=ANY($2::uuid[]) AND m.recipient_id=ANY($2::uuid[]) AND $3 IN(m.sender_id,m.recipient_id) ORDER BY m.date DESC,m.id LIMIT 100`,[p.family_id,ids,user])).rows;
   }
   if(method==='GET')return detail(c,p,user,params);
+  if(path[2]==='settlement-transfer'&&method==='POST'){
+   const b=z.object({operation:z.enum(['create','confirm','cancel']),id:uuid,sourceId:uuid.optional(),recipientId:uuid.optional(),targetId:uuid.optional(),amount:z.number().int().positive().max(100000000000).optional(),date:z.string().optional(),note:z.string().max(500).default(''),allowSimilar:z.boolean().default(false)}).parse(body);
+   if(!p.family_id)throw new Failure('成员结算需要关联家庭');
+   const linked=(await c.query("SELECT m.*,to_char(m.date,'YYYY-MM-DD') AS date FROM cost_settlements s JOIN family_movements m ON m.id=s.movement_id WHERE s.project_id=$1 AND s.movement_id=$2",[p.id,b.id])).rows[0];
+   if(b.operation==='create'&&linked){
+    if(linked.sender_id!==user||linked.recipient_id!==b.recipientId||linked.source_id!==b.sourceId||Number(linked.amount)!==b.amount||String(linked.date).slice(0,10)!==b.date)throw new Failure('请刷新后核对已有结算',409);
+    return {ok:true,movementId:b.id};
+   }
+   if(b.operation!=='create'){
+    if(!linked)throw new Failure('项目内没有这笔结算',404);
+    if(b.operation==='confirm'&&linked.status==='cancelled')throw new Failure('这笔转款已取消，不能确认到账',409);
+    if(b.operation==='cancel'&&linked.status==='confirmed')throw new Failure('这笔转款已到账，不能作为待确认转款取消',409);
+    // The existing family receipt workflow remains the authority for who may confirm.
+    await familyFinance(user,p.family_id,'POST',{operation:b.operation,id:b.id,targetId:b.targetId},c);
+    if(linked.status==='pending')await record(c,p,user,b.operation==='confirm'?'settlement_confirmed':'settlement_cancelled');
+    return {ok:true};
+   }
+   if(z.number().int().parse(body.version)!==p.version)throw new Failure('记录已更新，请重新打开后设置',409);
+   if(p.archived||!p.active_plan||p.active_stale||!await validSources(c,p))throw new Failure('请先确认有效且未归档的费用分担');
+   const ids=p.active_plan.shares.map(s=>s.userId);
+   if(!ids.includes(user)||!ids.includes(b.recipientId||'')||b.recipientId===user)throw new Failure('请选择本项目的其他承担成员');
+   if(!(await c.query('SELECT 1 FROM accounts WHERE id=$1 AND owner_id=$2 AND NOT archived',[b.sourceId,user])).rowCount)throw new Failure('请选择自己的付款钱包',403);
+   if((await c.query('SELECT 1 FROM family_movements WHERE id=$1',[b.id])).rowCount)throw new Failure('该转账已存在，请使用关联已有结算',409);
+   const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'});
+   if(!b.date||b.date>today)throw new Failure('仅记录已经发生的成员转款');
+   await familyFinance(user,p.family_id,'POST',{...b,kind:'transfer'},c);
+   await c.query('INSERT INTO cost_settlements(project_id,movement_id,amount) VALUES($1,$2,$3)',[p.id,b.id,b.amount]);
+   await record(c,p,user,'settlement_sent');return {ok:true,movementId:b.id};
+  }
   if(z.number().int().parse(body.version)!==p.version)throw new Failure('记录已更新，请重新打开后设置',409);
   if(path[2]==='personal-offsets'&&method==='POST'){
    if(p.archived)throw new Failure('请先恢复项目');

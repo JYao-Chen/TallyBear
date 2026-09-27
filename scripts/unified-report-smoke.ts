@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {db} from '../src/server/db';
+import {createAccount} from '../src/server/accounts';
+import {costProjects} from '../src/server/cost-projects';
+import {report,personalWalletReport,exportCSV} from '../src/server/reports';
+import {attachWalletBalances} from '../src/server/wallet-history';
+assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_cost_test'));
+const a=randomUUID(),b=randomUUID(),viewer=randomUUID(),family=randomUUID(),ba=randomUUID(),bb=randomUUID(),shared=randomUUID(),project=randomUUID(),payment=randomUUID(),copy=randomUUID();
+try{
+ for(const [id,name] of [[a,'统一统计测试布布'],[b,'统一统计测试一二'],[viewer,'只读成员']])await db.query("INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,$2,'not-a-login')",[id,name]);
+ await db.query("INSERT INTO families(id,name,owner_id) VALUES($1,'统计测试家庭',$2)",[family,a]);for(const u of [a,b])await db.query('INSERT INTO family_members(family_id,user_id) VALUES($1,$2)',[family,u]);
+ for(const [id,user,name,kind] of [[ba,a,'布布统计测试','private'],[bb,b,'一二统计测试','private'],[shared,a,'家庭统计测试','shared']]){await db.query('INSERT INTO books(id,owner_id,name,kind) VALUES($1,$2,$3,$4)',[id,user,name,kind]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[id,user]);}
+ for(const u of [b,viewer])await db.query("INSERT INTO members VALUES($1,$2,'viewer')",[shared,u]);
+ const wallet=(await createAccount(a,{name:'余额测试微信',opening:2000000})).id,target=(await createAccount(a,{name:'余额测试银行卡',opening:0})).id;
+ async function entry(id:string,kind:string,amount:number,date:string,extra:{target?:string;refund?:string}={}){await db.query("INSERT INTO transactions(id,event_id,book_id,account_id,target_id,kind,amount,date,occurred_at,category,title,created_by,refund_of,created_at) VALUES($1,$1,$2,$3,$4,$5,$6,$7,'10:00:00','房租',$8,$9,$10,$7::date+interval '10 hours')",[id,ba,wallet,extra.target||null,kind,amount,date,kind==='expense'?'测试消费':'测试流水',a,extra.refund||null]);}
+ await entry(payment,'expense',1290000,'2026-10-15');
+ await db.query("INSERT INTO transactions(id,event_id,book_id,account_id,kind,amount,date,occurred_at,category,title,created_by,created_at) VALUES($1,$2,$3,$4,'expense',1290000,'2026-10-15','10:00:00','房租','季度房租',$5,'2026-10-15 10:00:01+08')",[copy,payment,shared,wallet,a]);
+ const plan={title:'季度房租统一统计测试',category:'房租',familyId:family,sources:[{transactionId:payment,amount:1290000}],coverageStart:'2026-10-15',coverageEnd:'2027-01-15',mode:'monthly',startMonth:'2026-10',months:3,periods:[],offsets:[],shares:[{userId:a,amount:870000},{userId:b,amount:420000}]};
+ await costProjects(a,'POST',['cost-projects'],{id:project,plan},new URLSearchParams());
+ await costProjects(b,'POST',['cost-projects',project,'respond'],{version:1,accept:true},new URLSearchParams());
+ await db.query('UPDATE cost_project_members SET display_book_id=CASE WHEN user_id=$2 THEN $3::uuid ELSE $4::uuid END WHERE project_id=$1',[project,a,ba,bb]);
+ const range=(from='2026-10-01',to='2026-10-31')=>new URLSearchParams({from,to});
+ assert.equal((await report(ba,range(),a)).totals.expense,290000);
+ assert.equal((await report(bb,range(),b)).totals.expense,140000);
+ assert.equal((await report(shared,range(),a)).totals.expense,430000);
+ assert.equal((await report([ba,bb,shared],range(),a)).totals.expense,430000,'Shared and private copies must not double count');
+ const full=await report(ba,range(),a);for(const d of full.daily)assert.equal((await report(ba,range(d.date,d.date),a)).totals.expense,d.expense,'Day drilldown must equal chart');
+ assert.equal(full.daily.reduce((n:number,d:any)=>n+d.expense,0),290000);
+ const ordinary=randomUUID(),refund=randomUUID(),transfer=randomUUID(),last=randomUUID();
+ await entry(ordinary,'expense',1000,'2026-10-16');await entry(refund,'refund',200,'2026-10-17',{refund:ordinary});await entry(transfer,'transfer',5000,'2026-10-18',{target});
+ await db.query("INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at) VALUES($1,$2,300,'测试校正',$3,'2026-10-19 10:00:00+08')",[randomUUID(),wallet,a]);await entry(last,'expense',100,'2026-10-20');
+ const rows=await attachWalletBalances(a,[{id:payment},{id:copy,event_id:payment},{id:ordinary},{id:refund},{id:transfer},{id:last}]) as any[];
+ assert.deepEqual(rows.map(r=>r.wallet_balances.find((x:any)=>x.account_id===wallet).balance),[710000,710000,709000,709200,704200,704400]);
+ assert.equal(rows[4].wallet_balances.find((x:any)=>x.account_id===target).balance,5000);
+ assert.deepEqual((await attachWalletBalances(viewer,[{id:copy,event_id:payment}]) as any[])[0].wallet_balances,[]);
+ assert.equal((await personalWalletReport(a,range())).totals.expense,1291100,'Wallet scope remains actual cash');
+ assert.equal((await report(ba,range(),a)).totals.expense,291100);
+ assert.match(await exportCSV(ba,range()),/当期分摊/);
+ await db.query('UPDATE transactions SET deleted=true WHERE id=$1',[ordinary]);
+ assert.equal((await attachWalletBalances(a,[{id:last}]) as any[])[0].wallet_balances[0].balance,705400,'Deleting/backdating recomputes later balances');
+ await db.query('UPDATE transactions SET deleted=false WHERE id=$1',[ordinary]);
+ await db.query('UPDATE transactions SET amount=amount+1 WHERE id=ANY($1::uuid[])',[[payment,copy]]);
+ const invalid=await report(ba,range(),a);assert.equal(invalid.excludedCosts.length,1);assert.equal(invalid.totals.expense,1291101,'Changed source returns to cash until reviewed');
+ await db.query('UPDATE transactions SET amount=amount-1 WHERE id=ANY($1::uuid[])',[[payment,copy]]);
+ const legacy=randomUUID();await entry(legacy,'expense',30000,'2026-10-21');
+ await db.query("INSERT INTO expense_allocations(transaction_id,start_month,months,start_date,period_unit,period_count) VALUES($1,'2026-10-01',3,'2026-10-01','month',3)",[legacy]);
+ const withLegacy=await report(ba,range(),a);assert.equal(withLegacy.totals.expense,301100);assert.ok(withLegacy.rows.some((r:any)=>r.cost_row_key?.startsWith('legacy:')));
+ assert.equal(withLegacy.daily.reduce((n:number,r:any)=>n+r.expense,0),300900);
+ console.log('Passed unified personal/family totals, cross-book deduplication, daily drilldown, exports, actual wallet flow, historical balances, transfers, corrections, edits and privacy.');
+ console.log(JSON.stringify({user:a,book:ba,project}));
+}finally{await db.end();}

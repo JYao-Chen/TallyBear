@@ -3,6 +3,7 @@ const labels:Record<string,string>={id:'目标编号',bookId:'账本编号',fami
 const money=new Set(['opening','balance','expectedBalance','expectedTargetBalance','budget','amount','fees','fee','principal','unitPrice']);
 Object.assign(labels,{plan:'费用规则',sources:'已支付账单',coverageStart:'覆盖开始日期',coverageEnd:'覆盖结束日期（不含当天）',mode:'分摊方式',startMonth:'归属起始月',months:'月数',periods:'自定义期间',start:'开始',end:'结束（不含当天）',shares:'成员全期承担',offsets:'收入抵减',entries:'个人抵减',shared:'共享抵减金额',movementId:'已有结算编号'});
 export function operationSummary(title:string,params:Record<string,unknown>){
- const display=(key:string,value:unknown):string=>value===null?'留空':typeof value==='boolean'?(value?'是':'否'):typeof value==='number'&&money.has(key)?formatMoney(value):Array.isArray(value)?value.map(v=>display(key,v)).join('；'):value&&typeof value==='object'?Object.entries(value).map(([k,v])=>`${labels[k]||k}：${display(k,v)}`).join('；'):String(value);
+ labels.rule='周期费用规则';
+ const display=(key:string,value:unknown):string=>value===null?'留空':typeof value==='boolean'?(value?'是':'否'):typeof value==='number'&&money.has(key)?formatMoney(value):Array.isArray(value)?value.map(v=>display(key,v)).join('；'):value&&typeof value==='object'?Object.entries(value).map(([k,v])=>`${key==='rule'&&k==='shares'?'成员每月承担':labels[k]||k}：${display(k,v)}`).join('；'):String(value);
  return [{label:'操作',value:title},...Object.entries(params).map(([key,value])=>({label:labels[key]||key,value:display(key,value)}))];
 }
