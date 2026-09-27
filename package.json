@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 3016",
-    "build": "next build --webpack && node scripts/build-worker.mjs",
+    "dev": "node scripts/prepare-help-assets.mjs && next dev -p 3016",
+    "build": "node scripts/prepare-help-assets.mjs && next build --webpack && node scripts/build-worker.mjs",
     "start": "next start -p 3016",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",

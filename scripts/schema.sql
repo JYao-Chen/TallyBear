@@ -359,3 +359,15 @@ CREATE INDEX IF NOT EXISTS activity_entries_activity ON activity_entries(activit
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '其他';
 ALTER TABLE activities ADD COLUMN IF NOT EXISTS family_id uuid REFERENCES families(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS activities_family ON activities(family_id,archived,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS help_articles (
+ id text NOT NULL, locale text NOT NULL, article jsonb NOT NULL,
+ content text NOT NULL, version integer NOT NULL DEFAULT 1,
+ PRIMARY KEY(id,locale)
+);
+CREATE TABLE IF NOT EXISTS help_vectors (
+ article_id text NOT NULL, locale text NOT NULL, content_version integer NOT NULL,
+ model_version integer NOT NULL, dimensions integer NOT NULL, embedding double precision[] NOT NULL,
+ PRIMARY KEY(article_id,locale,model_version),
+ FOREIGN KEY(article_id,locale) REFERENCES help_articles(id,locale) ON DELETE CASCADE
+);

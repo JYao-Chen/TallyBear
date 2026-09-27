@@ -2,7 +2,7 @@
 .help-search{display:flex;flex-direction:row;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px 16px;margin-bottom:24px}
 .help-search input{flex:1;min-width:0;border:0;background:transparent}
 .help-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:32px;align-items:start}
-.help-topics{display:grid;gap:4px;position:sticky;top:24px}
+.help-topics{display:grid;gap:4px;position:sticky;top:24px;max-height:calc(100dvh - 48px);overflow:auto}
 .help-topics button{justify-content:flex-start;text-align:left;color:var(--muted);background:transparent;white-space:normal}
 .help-topics button[aria-current=page]{background:var(--soft);color:var(--accent);font-weight:600}
 .help-content{min-width:0;background:var(--surface);border-radius:var(--radius);padding:28px 32px}
@@ -10,6 +10,14 @@
 .help-content p{max-width:72ch;line-height:1.9;margin:0 0 20px;overflow-wrap:anywhere}
 .help-content p:last-child{margin-bottom:0}
 .help-page .page-heading>svg{display:none}
+.help-steps{padding-left:24px;max-width:72ch;line-height:1.9}.help-steps li{padding-left:8px;margin-bottom:16px;overflow-wrap:anywhere}
+.help-content h3{margin-top:32px;margin-bottom:16px}.help-content mark{background:#f4df9b;color:#453d38;border-radius:3px;padding:0 2px}
+.help-figure{margin:32px 0}.help-figure img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}.help-figure figcaption{font-size:13px;color:var(--muted);margin-top:12px}
+.help-result{display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:24px 0;gap:12px;background:transparent;color:var(--ink);text-align:left;white-space:normal;border-radius:0;border-bottom:1px solid var(--line)}
+.help-result:hover{background:var(--soft)}.help-result strong{font-size:18px}.help-result span{line-height:1.8;overflow-wrap:anywhere}.help-result small{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.help-result-status{color:var(--muted);line-height:1.7}.help-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:32px;flex-wrap:wrap}.help-pagination span{font-variant-numeric:tabular-nums}
+.help-mobile-chapters{display:none}
+@media(max-width:600px){.help-page .help-topics{display:none}.help-mobile-chapters{display:grid;gap:8px;margin-bottom:20px}.help-mobile-chapters select{width:100%;min-width:0}.help-figure{max-width:390px;margin-inline:auto}.help-content{padding:20px 16px}.help-pagination button{white-space:normal}.help-result{padding:20px 0}}
 .records-panel{scroll-margin-top:20px}
 .home-workspace .chart-grid> :last-child{display:none}
 .context-note{color:var(--muted);font-size:13px;line-height:1.7;margin:12px 0}

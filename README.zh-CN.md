@@ -2,7 +2,7 @@
 
 <img src="public/brand/tallybear-logo.png" width="112" alt="TallyBear" />
 
-# TallyBear 2.0
+# TallyBear
 
 **个人与家庭记账，支持 AI 录入、财务记忆和跨账本活动。**
 
@@ -19,7 +19,7 @@
 
 TallyBear 把日常账单、钱包收支和家庭开销放在同一个工作台。可以手动记账、导入账单，也可以上传截图或直接告诉助手；核对草稿后再入账。账本负责整理记录，钱包负责记录钱的实际去向，两者分别统计。
 
-2.0 整合了财务记忆、跨账本活动、图表与明细联动、对话管理，以及重新排版的记账卡片。界面提供布布一二小熊主题，也可切换为极简主题。
+目前版本为 **2.0**，整合了财务记忆、跨账本活动、图表与明细联动、对话管理，以及重新排版的记账卡片。界面提供布布一二小熊主题，也可切换为极简主题。
 
 ![TallyBear 2.0 电脑端收支分析](docs/screenshots/v2/zh-desktop-analysis.webp)
 
@@ -85,21 +85,19 @@ TallyBear 把日常账单、钱包收支和家庭开销放在同一个工作台�
 
 ## 电脑与手机实拍
 
-本次使用 Playwright 从**实际运行的 2.0 应用**重新截图。桌面视口为 1440 × 1000，手机视口为 390 × 844。中文／人民币和英文／美元分别使用独立演示数据库，所有家庭及交易均为虚构数据。识图草稿与助手对话预置了明确标注的演示内容，未调用真实模型。
+应用内的**使用说明**按 15 个章节提供操作步骤、中英文对应截图和常见问题。输入关键词或问题，可通过关键词与语义检索查找章节，命中文字会高亮；助手也能查阅说明并提供章节入口。说明书索引复用记忆嵌入模型，未配置或暂不可用时保留关键词搜索。[说明书检索实现](docs/help-manual.md)
+
+手机端首页与草稿核对：
 
 <table>
-<tr><th>中文 · 手机端</th><th>英文 · 手机端</th></tr>
+<tr><th>首页</th><th>草稿核对</th></tr>
 <tr>
-<td><img src="docs/screenshots/v2/zh-mobile-overview.webp" width="300" alt="中文手机端首页" /></td>
-<td><img src="docs/screenshots/v2/en-mobile-overview.webp" width="300" alt="英文手机端首页" /></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/v2/zh-mobile-draft.webp" width="300" alt="中文手机端草稿核对" /></td>
-<td><img src="docs/screenshots/v2/en-mobile-draft.webp" width="300" alt="英文手机端草稿核对" /></td>
+<td><img src="docs/screenshots/v2/zh-mobile-overview.webp" width="300" alt="手机端首页" /></td>
+<td><img src="docs/screenshots/v2/zh-mobile-draft.webp" width="300" alt="手机端草稿核对" /></td>
 </tr>
 </table>
 
-[完整截图画廊](docs/screenshots/README.md)提供每个已拍功能的**电脑中文、电脑英文、手机中文、手机英文**四种搭配，覆盖资产、活动、预算、家庭往来、记忆、搜索与周期计划等界面。部分新增高级页面，尤其记忆中心，尚有未英文化的标签；截图保留真实状态，不替换文字来伪装完整翻译。
+[查看全部中文截图](docs/screenshots/README.zh-CN.md)，包括电脑与手机上的资产、活动、家庭往来、记忆和搜索等功能。
 
 语言与币种由部署配置决定，没有用户级切换器。支持人民币、美元、欧元和英镑；同一数据库使用一种币种，修改环境变量不会换算已有金额。
 
@@ -177,7 +175,7 @@ npm run build
 
 构建会在 `.next/standalone` 生成 `server.js` 与 `worker.mjs`。发布时补齐 `public` 和 `.next/static`，并给两个进程传入相同环境。源码发布、持久文件、密钥和备份分别管理。
 
-[截图画廊](docs/screenshots/README.md)包含复现命令。截图脚本使用一次性 PostgreSQL 容器与真实生产构建，不连接线上数据库。
+截图更新方法见[截图维护](docs/screenshot-maintenance.md)。
 
 ## 使用边界
 
@@ -185,7 +183,6 @@ npm run build
 - 全局搜索和明细搜索采用关键词及字段筛选；向量检索用于记忆，不是全站语义搜索。
 - 尚未提供商品价格趋势图，也不自动进行汇率换算。
 - 支持浏览器与 PWA，不代表支持完整离线记账。手机震动反馈取决于设备和浏览器能力。
-- 5 个真实模型记忆案例用于回归，不代表总体准确率；界面截图也不代替模型效果验收。
 
 ## 文档
 
@@ -195,6 +192,7 @@ npm run build
 - [分类学习](docs/category-learning.md)：现有的分类反馈算法。
 - [助手能力](docs/assistant-capability-audit.md)：支持的操作和确认边界。
 - [语言与币种](docs/internationalization.md)。
+- [版本历史](docs/version-history.zh-CN.md)：各版本的主要迭代。
 - [2.0 版本说明](docs/releases/v2.0.0.md) · [变更记录](CHANGELOG.md)。
 
 ## 许可与素材

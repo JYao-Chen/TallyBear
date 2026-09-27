@@ -2,9 +2,12 @@
 
 ## 2.0.0 — 2026-09-27
 
-See [the 2.0 overview](docs/releases/v2.0.0.md) and the rebuilt [four-way screenshot gallery](docs/screenshots/README.md).
+- Added a bilingual illustrated in-app manual with 15 chapters, keyword highlights, paginated hybrid semantic search, versioned database embeddings and assistant chapter shortcuts.
 
-- Rewrote both READMEs around the current product, with fresh desktop/mobile Chinese/English captures using isolated synthetic data.
+See [the 2.0 overview](docs/releases/v2.0.0.md), [version history](docs/version-history.md), and the screenshot galleries in [English](docs/screenshots/README.md) or [简体中文](docs/screenshots/README.zh-CN.md).
+
+- Rewrote both READMEs around the current product, with language-specific desktop/mobile screenshots. The application name remains TallyBear; its introduction identifies the current version as 2.0.
+- Completed English labels in memory management, family movements, reporting periods, search and help; fixed deferred translation placeholders and localized budget months and schedule units.
 - Added unit-price/quantity calculation suggestions that preserve independent subtotals, and explicit adoption of the recommended payment total.
 - Redesigned receipt-card information, item/adjustment sections, verification hints and action hierarchy. Editing and final confirmation are separate; completed cards can be expanded on demand.
 - Improved long-image single-order assembly and revised-card placement; processing explanations no longer belong in transaction notes.

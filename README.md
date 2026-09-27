@@ -2,7 +2,7 @@
 
 <img src="public/brand/tallybear-logo.png" width="112" alt="TallyBear" />
 
-# TallyBear 2.0
+# TallyBear
 
 **Personal and family bookkeeping, with AI-assisted entry and financial memory.**
 
@@ -19,7 +19,7 @@ English · [简体中文](README.zh-CN.md)
 
 TallyBear brings receipts, cash flow and shared spending into one place. Enter a transaction manually, import a bill or describe it to the assistant; review an editable draft before saving. Track the money in your own wallets separately from the books where you organize purchases.
 
-Version 2.0 includes the current financial-memory system, cross-book activities, unified charts and records, conversational management, and the redesigned receipt cards. The optional Bubu & Yier bear theme can be replaced with a minimal interface.
+The current version is **2.0**. It includes the current financial-memory system, cross-book activities, unified charts and records, conversational management, and the redesigned receipt cards. The optional Bubu & Yier bear theme can be replaced with a minimal interface.
 
 ![TallyBear 2.0 spending analysis on desktop](docs/screenshots/v2/en-desktop-analysis.webp)
 
@@ -85,21 +85,19 @@ Personal categories follow the user across books, including shared books. Anothe
 
 ## Desktop and mobile
 
-These are new screenshots of the **running 2.0 application**, captured with Playwright at 1440 × 1000 and 390 × 844. Chinese/CNY and English/USD use separate disposable databases with fictional households. OCR drafts and the assistant conversation are explicitly seeded demonstrations, not evidence of a live model run.
+The in-app **Help manual** provides 15 illustrated chapters with steps and detailed rules. Search by keyword or question, open matching chapters and see highlighted text. The assistant can retrieve the same instructions and provide chapter shortcuts. Semantic retrieval uses the memory embedding model; keyword search remains available without it. See [manual search implementation](docs/help-manual.md).
+
+Mobile overview and draft review:
 
 <table>
-<tr><th>Chinese · mobile</th><th>English · mobile</th></tr>
+<tr><th>Overview</th><th>Draft review</th></tr>
 <tr>
-<td><img src="docs/screenshots/v2/zh-mobile-overview.webp" width="300" alt="Chinese mobile overview" /></td>
-<td><img src="docs/screenshots/v2/en-mobile-overview.webp" width="300" alt="English mobile overview" /></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/v2/zh-mobile-draft.webp" width="300" alt="Chinese mobile receipt review" /></td>
-<td><img src="docs/screenshots/v2/en-mobile-draft.webp" width="300" alt="English mobile receipt review" /></td>
+<td><img src="docs/screenshots/v2/en-mobile-overview.webp" width="300" alt="Mobile overview" /></td>
+<td><img src="docs/screenshots/v2/en-mobile-draft.webp" width="300" alt="Mobile draft review" /></td>
 </tr>
 </table>
 
-The [complete screenshot gallery](docs/screenshots/README.md) provides **all four device/language combinations for every captured feature**, including assets, activities, budgets, family movements, memory, search and recurring plans. Some newer advanced panels, notably Memory center, still contain Chinese labels in the English deployment; the captures show that limitation rather than replacing their text.
+[Browse all English screenshots](docs/screenshots/README.md), including desktop and mobile assets, activities, family movements, memory and search.
 
 Language and currency are deployment settings, not a per-user switch. Supported currencies are CNY, USD, EUR and GBP. One database uses one currency; changing the setting does not convert balances.
 
@@ -177,7 +175,7 @@ npm run build
 
 The production build emits `server.js` and `worker.mjs` in `.next/standalone`. Copy `public` and `.next/static` into that release and supply the same environment to both processes. Source, configuration, persistent files and backups should have separate lifecycles.
 
-Screenshot reproduction uses an isolated PostgreSQL container and the actual production build. Instructions and capture provenance are in the [gallery](docs/screenshots/README.md).
+See [screenshot maintenance](docs/screenshot-maintenance.md) for capture commands.
 
 ## Boundaries worth knowing
 
@@ -185,7 +183,6 @@ Screenshot reproduction uses an isolated PostgreSQL container and the actual pro
 - Global and transaction search currently use keyword/field filters. **Vector retrieval is for memory**, not a universal semantic search engine.
 - Product price-trend charts and automatic exchange-rate conversion are not implemented.
 - Browser/PWA support does not imply full offline bookkeeping. Mobile haptics depend on browser and device support.
-- Five live-model memory cases are regression examples, not an overall accuracy guarantee. Screenshots are UI demonstrations, not live-model acceptance tests.
 
 ## Documentation
 
@@ -195,6 +192,7 @@ Screenshot reproduction uses an isolated PostgreSQL container and the actual pro
 - [Category learning](docs/category-learning.md) — the existing classification-feedback algorithm.
 - [Assistant capabilities](docs/assistant-capability-audit.md) — supported operations and confirmation boundaries.
 - [Languages and currency](docs/internationalization.md).
+- [Version history](docs/version-history.md) — the evolution of TallyBear.
 - [2.0 release notes](docs/releases/v2.0.0.md) · [Changelog](CHANGELOG.md).
 
 ## License and artwork

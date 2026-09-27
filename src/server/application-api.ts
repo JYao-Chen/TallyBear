@@ -1,4 +1,5 @@
 import {memoryRoute} from '@/server/memory';
+import {prepareHelp,searchHelp} from '@/server/help';
 import {familyInbox} from '@/server/family-inbox';
 import {listActivities,changeActivity,activityReport,assignActivity,entryActivity,setEntryActivity,accessibleActivity} from '@/server/activities';
 import {bookMovements} from '@/server/family-books';
@@ -61,6 +62,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
   await db.query('DELETE FROM login_attempts WHERE username=$1',[input.username]);await session(rows[0].id);return NextResponse.json({ok:true});
  }
  const u=(actor??await user());
+ if(path[0]==='help'&&method==='GET'){const q=z.string().max(300).parse(req.nextUrl.searchParams.get('q')||'');return NextResponse.json(q.trim()?await searchHelp(u.id,q,locale,req.signal):await prepareHelp(u.id));}
  if(path[0]==='memories')return NextResponse.json(await memoryRoute(u,method,req.nextUrl.searchParams,body));
  if(path[0]==='activities'){
   if(path[1]==='assign'&&method==='PUT')return NextResponse.json(await assignActivity(u.id,body));
@@ -200,5 +202,4 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
 
  throw new Failure('操作不存在',404);
 }catch(e){if(e instanceof Error&&e.name==='VerificationError')return NextResponse.json({error:tr(e.message)},{status:400});if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'填写内容无效'},{status:400});if(e instanceof Failure)return NextResponse.json({error:tr(e.message)},{status:e.status});const code=(e as {code?:string}).code;if(code==='P0001')return NextResponse.json({error:tr((e as Error).message)},{status:409});if(code==='23505')return NextResponse.json({error:tr('名称或账号已存在')},{status:409});if(code==='23503')return NextResponse.json({error:tr('账户不存在或不属于当前账本')},{status:400});console.error('API operation failed',e instanceof Error?e.name:'unknown');return NextResponse.json({error:tr('操作未完成，请稍后重试')},{status:500});}}
-
 

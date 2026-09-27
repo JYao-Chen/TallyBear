@@ -22,4 +22,5 @@ AUDIT*.md
 *DESKTOP*.md
 DESIGN.md
 scripts/.i18n-render.mjs
+/public/help/
 *AUDIT*.md

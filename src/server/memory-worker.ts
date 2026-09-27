@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {indexHelp} from './help';
 import {db,transaction} from './db';
 import {memoryEnabled} from './memory';
 import {memoryInput,normMemory,type MemoryInput} from '@/lib/memory';
@@ -78,6 +79,7 @@ async function learnSource(user:string,type:string,id:string,progress:ModelProgr
  for(const memoryId of ids){progress.signal?.throwIfAborted();await vectorize(memoryId,progress.signal);}
 }
 export async function runMemoryJob(user:string,payload:any,progress:ModelProgress){
+ if(payload.operation==='help-index')return indexHelp(payload,progress);
  await ensureMemoryModels();
  if(!await memoryEnabled(user))throw new Error('记忆学习已暂停，开启后可在任务列表重试续跑');
  if(payload.operation==='source'){await learnSource(user,payload.sourceType,payload.sourceId,progress);const cfg=(await db.query("SELECT version FROM memory_models WHERE role='embedding'")).rows[0];if(cfg)await activateReadyIndex(user,cfg.version);return {ok:true};}

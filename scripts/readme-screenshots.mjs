@@ -13,7 +13,7 @@ assert.ok(runtime,'Set SCREENSHOT_RUNTIME to a disposable build directory');
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const translations=JSON.parse(await readFile('src/lib/locales/en.json','utf8'));
 const container='tallybear-readme-'+Date.now(),password=randomBytes(20).toString('hex');
-const services=[],captures=[],errors=[];
+const services=[],captures=[],errors=[],untranslated=[];
 let browser;
 await mkdir(output,{recursive:true});await mkdir(runtime,{recursive:true});
 await cp('.next/standalone',runtime,{recursive:true});
@@ -95,13 +95,18 @@ try{
    await page.goto(origin);await page.locator('#primary-navigation').waitFor({state:'attached'});
    async function settle(){await page.waitForLoadState('networkidle');await page.evaluate(async()=>{await document.fonts.ready;});await page.waitForTimeout(600);}
    async function navigate(name){if(device==='desktop')await page.locator('#primary-navigation').getByRole('button',{name:t(name),exact:true}).click();else{await page.getByRole('button',{name:t('更多功能'),exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:t(name),exact:true}).click();}await settle();await page.evaluate(()=>window.scrollTo(0,0));}
-   async function shot(key){await settle();const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false,`${lang}/${device}/${key} overflow`);const filename=`${lang==='en'?'en':'zh'}-${device}-${key}.webp`;await sharp(await page.screenshot({animations:'disabled'})).webp({quality:90}).toFile(resolve(output,filename));captures.push({file:filename,language:lang,device,width,height,feature:key});console.log(filename);}
+   async function audit(key){await settle();if(lang==='en'){const text=await page.locator('body').innerText();const lines=text.split('\n').filter(line=>/[\u3400-\u9fff]/.test(line));if(lines.length){untranslated.push({device,feature:key,lines});console.warn('Untranslated UI:',key,JSON.stringify(lines));}}}
+   async function shot(key){await audit(key);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false,`${lang}/${device}/${key} overflow`);const filename=`${lang==='en'?'en':'zh'}-${device}-${key}.webp`;await sharp(await page.screenshot({animations:'disabled'})).webp({quality:90}).toFile(resolve(output,filename));captures.push({file:filename,language:lang,device,width,height,feature:key});console.log(filename);}
+   if(process.env.HELP_AUDIT_ONLY){await navigate('使用说明');await shot('help');const input=page.locator('.help-search input');await input.fill(lang==='en'?'refund':'退款');await page.locator('.help-result').first().waitFor();await settle();assert.ok(await page.locator('.help-result mark').count());await shot('help-search');await page.locator('.help-result').first().click();await page.locator('.help-content article').waitFor();assert.ok(await page.locator('.help-content mark').count());await page.locator('.help-figure').scrollIntoViewIfNeeded();await page.waitForFunction(()=>[...document.querySelectorAll('.help-figure img')].every(i=>i.complete&&i.naturalWidth>0));await shot('help-article');await context.close();continue;}
    for(const [name,key] of [['我的账本','overview'],['收支分析','analysis'],['资金资产','assets'],['活动账','activities'],['每月预算','budgets'],['账本管理','books'],['家庭管理','family'],['账本设置','categories'],['使用说明','help']]){await navigate(name);await shot(key);if(key==='analysis'){await page.locator('.chart-grid').first().scrollIntoViewIfNeeded();await page.evaluate(()=>document.querySelector('.chart-grid').scrollIntoView({block:'start'}));await shot('charts');}}
    await navigate('计划与分摊');await page.getByRole('tab',{name:t('周期收支'),exact:true}).click();await shot('plans');
-   await navigate('个人资料');await shot('profile');await page.getByRole('button',{name:t('记忆中心'),exact:true}).click();await page.locator('.memory-row').first().waitFor();await shot('memory');await page.getByRole('button',{name:'变更记录',exact:true}).click();await page.locator('.memory-history-row').first().waitFor();await shot('memory-history');
+   await navigate('个人资料');await shot('profile');await page.getByRole('button',{name:t('记忆中心'),exact:true}).click();await page.locator('.memory-row').first().waitFor();await shot('memory');await page.getByRole('button',{name:t('变更记录'),exact:true}).click();await page.locator('.memory-history-row').first().waitFor();await shot('memory-history');
+   await page.getByRole('button',{name:t('我的记忆'),exact:true}).click();await page.locator('.memory-row').filter({hasText:lang==='en'?'Fresh milk 1L':'鲜牛奶 1L'}).getByRole('button').click();await page.locator('.memory-detail form').waitFor();await audit('memory-detail');
+   for(const summary of await page.locator('.memory-detail summary').all())await summary.click();await audit('memory-detail-expanded');
+   await page.getByRole('button',{name:t('学习与设置'),exact:true}).click();await page.getByText(t('记忆模型配置与运行统计（管理员）'),{exact:true}).click();await audit('memory-settings');
    await navigate('记一笔');await shot('intake');await page.locator('.intake-review').scrollIntoViewIfNeeded();await page.evaluate(()=>document.querySelector('.intake-review').scrollIntoView({block:'start'}));await shot('draft');
    await page.locator('.line-items-editor').first().scrollIntoViewIfNeeded();await page.evaluate(()=>document.querySelector('.line-items-editor').scrollIntoView({block:'start'}));await shot('line-items');
-   await navigate('记一笔');await page.getByRole('button',{name:t('家庭往来'),exact:true}).click();await shot('family-entry');
+   await navigate('记一笔');await page.getByRole('button',{name:t('家庭往来'),exact:true}).click();await shot('family-entry');await page.getByRole('button',{name:t('记一笔往来'),exact:true}).click();await audit('family-entry-form');
    await navigate('小熊对话');await page.getByRole('button',{name:t('打开对话历史和报告'),exact:true}).click();await page.getByText(lang==='en'?'Demo: prepare a grocery entry':'演示：准备一笔买菜记录',{exact:true}).click();await page.locator('.chat-action-card').waitFor();await settle();await page.locator('.finance-messages').evaluate(el=>el.scrollTo(0,0));await shot('assistant');
    await navigate('我的账本');await page.getByRole('button',{name:t('搜索整个账本系统'),exact:true}).click();await page.getByRole('textbox',{name:t('搜索关键词'),exact:true}).fill(lang==='en'?'milk':'牛奶');await settle();await shot('search');
    await context.close();
@@ -110,6 +115,8 @@ try{
  await admin.end();assert.deepEqual(errors,[]);
  await writeFile(resolve(output,'manifest.json'),JSON.stringify({version:'2.0.0',capturedAt:new Date().toISOString(),data:'Synthetic household. Seeded assistant and OCR drafts, no live model calls.',captures},null,2)+'\n');
  console.log(`Captured ${captures.length} real app screenshots.`);
+ if(process.env.SCREENSHOT_AUDIT)await writeFile(process.env.SCREENSHOT_AUDIT,JSON.stringify(untranslated,null,2)+'\n');
+ assert.deepEqual(untranslated,[],'English demo UI contains untranslated labels');
 }finally{
  await browser?.close();for(const service of services){service.kill('SIGTERM');}
  docker('rm','-f',container);

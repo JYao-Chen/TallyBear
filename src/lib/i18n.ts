@@ -7,5 +7,5 @@ export function translate(value:string,locale:Language,values:unknown[]=[],curre
  const key=Object.hasOwn(en,value)?value:Object.hasOwn(en,value.trim())?value.trim():null;
  const translated=locale==='en'&&key!==null?(en as Record<string,string>)[key]:value;
  const units=key!==null&&currency!=='CNY'?translated.replace(/CNY/g,currency).replace(/人民币/g,currency).replace(/元/g,currency).replace(/[¥￥]/g,currency+' '):translated;
- return units.replace(/\{(\d+)\}/g,(_,n)=>String(values[Number(n)]??''));
+ return units.replace(/\{(\d+)\}/g,(placeholder,n)=>Number(n)<values.length?String(values[Number(n)]??''):placeholder);
 }
