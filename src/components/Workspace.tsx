@@ -21,7 +21,7 @@ import {uploadReceipt} from '@/lib/upload-receipt';
 import {ReceiptAttachments} from './ReceiptAttachments';
 import {LineItemsView} from './LineItems';
 import {HelpPage} from './HelpPage';
-import {BookOpen} from 'lucide-react';
+import {BookOpen,UserRound} from 'lucide-react';
 import {FinanceChat} from './FinanceChat';
 import {Avatar,BookSwitcher,ProfilePage,BooksPage,UsersPage,type ManagedUser,type ManagedBook} from './ManagementPages';
 import {AllocationPanel,AllocationEditor} from './AllocationPanel';
@@ -59,7 +59,7 @@ type Member=User&{role:string};
 const yuan=(n:number)=>new Intl.NumberFormat(getLocale(),{style:'currency',currency:deployment().currency}).format(n/100);
 const newId=()=>{const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const h=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;};
 const today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'});
-const baseNav=[['home','我的账本',Home],['entry','记一笔',NotebookPen],['insights','收支分析',ChartNoAxesCombined],['activities','活动账',FolderHeart],['accounts','资金资产',Wallet],['budget','每月预算',ShieldCheck],['settings','账本设置',Settings],['schedules','计划与分摊',CalendarDays],['books','账本管理',NotebookPen],['families','家庭管理',Users],['profile','个人资料',Users],['users','用户管理',ShieldCheck],['chat','小熊对话',Sparkles],['help','使用说明',BookOpen]] as const;
+const baseNav=[['home','我的账本',Home],['entry','记一笔',NotebookPen],['insights','收支分析',ChartNoAxesCombined],['activities','活动账',FolderHeart],['accounts','资金资产',Wallet],['budget','每月预算',ShieldCheck],['settings','账本设置',Settings],['schedules','计划与分摊',CalendarDays],['books','账本管理',NotebookPen],['families','家庭管理',Users],['profile','个人资料',UserRound],['users','用户管理',ShieldCheck],['chat','小熊对话',Sparkles],['help','使用说明',BookOpen]] as const;
 async function api(path:string,method='GET',body?:unknown){const r=await fetch('/api/'+path,{method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});const data=await r.json();if(!r.ok)throw new Error(data.error||'请求失败');return data;}
 function fields(e:React.FormEvent<HTMLFormElement>){e.preventDefault();return Object.fromEntries(new FormData(e.currentTarget));}
 function Bear({name='together',size=100}:{name?:string;size?:number}){const {t:tr,locale}=useI18n();const {theme}=useTheme();if(theme==='minimal')return null;if(name.startsWith('sticker:'))return <SymbolIcon icon={name} size={size}/>;return <picture className="bear" style={{width:size,height:size}}><source media="(prefers-reduced-motion: reduce)" srcSet={`/characters/${name}.png`}/><img src={`/characters/${name}.gif`} width={size} height={size} alt=""/></picture>;}
