@@ -11,7 +11,8 @@ import {receiptId,resolveReceipt} from './receipts';
 import {Annotation,StateGraph,START,END} from '@langchain/langgraph';
 import {verifyAndRepair} from './receipt-verification';
 import {mergeReceipts} from './receipt-merge';
-import {receiptImageBatches} from './receipt-images';
+import {receiptImageBatches,receiptOverview} from './receipt-images';
+import {assembleReceipt,receiptAssemblyPrompt} from './receipt-assembly';
 import {listCategories} from './categories';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
@@ -40,7 +41,7 @@ async function extractReceipt(book:string,body:unknown,progress:ModelProgress={}
 
  const categoryOptions=(await listCategories(userId)).filter(c=>!c.archived).map(c=>c.name);
  const all:z.infer<typeof proposed>[]=[];
- const batches:{images:string[];labels:string[]}[]=[];
+ const batches:{images:string[];labels:string[];originalIndex:number}[]=[];
  for await(const prepared of receiptImageBatches(images,progress.signal,s=>resolveReceipt(s,book)))batches.push(prepared);
  const recognized:z.infer<typeof proposed>[][]=new Array(batches.length);let nextBatch=0;
  const readBatches=async()=>{while(true){const batch=nextBatch++;if(batch>=batches.length)return;const prepared=batches[batch];
@@ -60,7 +61,23 @@ Recognize platforms from explicit text or distinctive visual evidence following 
  let settled=await runRound(),failed=settled.find((result):result is PromiseRejectedResult=>result.status==='rejected');
  if(failed){progress.onStage?.(b.language==='en'?'Retrying only unfinished image sections':'识别助手：仅重试未完成的图片片段');settled=await runRound();failed=settled.find((result):result is PromiseRejectedResult=>result.status==='rejected');}
  if(failed)throw failed.reason;
- for(const parsed of recognized){all.push(...parsed);if(all.length>1000)throw new Failure('本次识别超过1000条记录，请分批处理');}
+ const assembled=new Set<number>();
+ for(let batch=0;batch<batches.length;batch++){
+  const original=batches[batch].originalIndex;if(assembled.has(original))continue;assembled.add(original);
+  const positions=batches.flatMap((item,index)=>item.originalIndex===original?[index]:[]);
+  const parts=positions.flatMap(index=>recognized[index]);let joined:ReturnType<typeof proposed.parse>|undefined;
+  if(original>=0&&positions.length>1&&parts.length>1&&parts.length<=12){
+   progress.onStage?.(b.language==='en'?'Checking the complete order layout':'识别助手：结合长图整体核对订单归属');
+   try{
+    const key=`original-assembly:${original}`;
+    const cached=await progress.checkpoint?.get(key);
+    const result=cached||await callModel(receiptAssemblyPrompt+JSON.stringify(parts),await receiptOverview(images[original],progress.signal,s=>resolveReceipt(s,book)),{...progress,onDelta:undefined,onReasoning:undefined});
+    joined=assembleReceipt(parts,result,raw=>proposed.parse(raw));
+    if(!cached)await progress.checkpoint?.set(key,result);
+   }catch{progress.signal?.throwIfAborted();/* Keep partial results for the existing reconciliation path. */}
+  }
+  all.push(...(joined?[joined]:parts));if(all.length>1000)throw new Failure('本次识别超过1000条记录，请分批处理');
+ }
  for(const e of all){e.accountId='';e.targetId=null;if(e.date&&(!/^\d{4}-\d{2}-\d{2}$/.test(e.date)||Number.isNaN(Date.parse(e.date))||new Date(e.date).toISOString().slice(0,10)!==e.date))e.date='';}
  const merged=await mergeReceipts(all,raw=>proposed.parse(raw),progress);
  const consolidated=merged.entries.map(e=>({...e,lineItems:lineItemsSchema.parse(normalizeRecognizedLineItems(e.lineItems))}));

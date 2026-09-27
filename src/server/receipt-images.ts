@@ -29,7 +29,14 @@ export async function* receiptImageBatches(images:string[],signal?:AbortSignal,r
  let emitted=false;
  for(let i=0;i<images.length;i++){
   const prepared=await prepareReceiptImages([images[i]],signal,resolve);
-  for(let j=0;j<prepared.images.length;j++){yield {images:[prepared.images[j]],labels:[prepared.labels[j].replace('原图1，',`原图${i+1}，`)]};emitted=true;}
+  for(let j=0;j<prepared.images.length;j++){yield {images:[prepared.images[j]],labels:[prepared.labels[j].replace('原图1，',`原图${i+1}，`)],originalIndex:i};emitted=true;}
  }
- if(!emitted)yield {images:[],labels:[]};
+ if(!emitted)yield {images:[],labels:[],originalIndex:-1};
+}
+
+export async function receiptOverview(image:string,signal?:AbortSignal,resolve?:(s:string)=>Promise<string>){
+ signal?.throwIfAborted();
+ const input=Buffer.from((resolve?await resolve(image):image).split(',')[1],'base64');
+ const data=await sharp(input,{limitInputPixels:60000000}).rotate().resize({width:960,height:6000,fit:'inside',withoutEnlargement:true}).jpeg({quality:85}).toBuffer();
+ signal?.throwIfAborted();return 'data:image/jpeg;base64,'+data.toString('base64');
 }
