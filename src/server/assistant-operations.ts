@@ -6,6 +6,18 @@ type Operation={title:string;method:string;path:string;fields:string;help:string
 const operation=(title:string,method:string,path:string,fields:string,help='',fixed?:Record<string,unknown>):Operation=>({title,method,path,fields,help,fixed});
 // Closed catalog: model output cannot choose an HTTP method, URL or secret field.
 export const assistantOperations:Record<string,Operation>={
+ cost_projects:operation('查询费用分摊项目','GET','cost-projects','q offset archived'),
+ cost_project:operation('查询费用承担与结算','GET','cost-projects/:id','from to'),
+ cost_options:operation('查询费用分担成员','GET','cost-projects/options',''),
+ cost_sources:operation('查找分摊付款或抵减收入','GET','cost-projects/sources','q kind offset','kind=expense/income；工资等任何收入均可按部分金额关联'),
+ cost_report:operation('查询项目期间成本与净承担','GET','cost-projects/report','from to scope q offset','仅已确认费用项目；scope=personal本人/shared共享摘要；不含普通消费，不能称全部支出'),
+ cost_create:operation('创建费用归属与分担','POST','cost-projects','id plan','plan={title,category,familyId或null,sources:[{transactionId,amount整数分}],coverageStart,coverageEnd排他结束日,mode:monthly/daily/custom,startMonth:YYYY-MM,months,periods:[{start,end,amount}],shares:[{userId,amount全期承担}],offsets:[{id UUID,transactionId已到账收入ID或null预计,userId受益人,month,amount部分收入整数分,shared布尔}]}。从cost_sources查询真实ID。各人承担之和等于sources金额之和。仅关联已入账交易，不再次扣钱包。月份须用户指定。多人分担需要其他成员接受。'),
+ cost_update:operation('修改费用分摊规则','PUT','cost-projects/:id','version plan','先查cost_project，保留完整plan；修改不重复付款，共享修改须成员确认'),
+ cost_accept:operation('确认费用分担版本','POST','cost-projects/:id/respond','version accept'),
+ cost_archive:operation('归档或恢复费用项目','POST','cost-projects/:id/archive','version archived'),
+ cost_settlement:operation('关联已有费用结算','POST','cost-projects/:id/settlements','version movementId amount','只关联参与人之间已确认的转账；不是再次转账'),
+ cost_movements:operation('查询可关联的费用结算','GET','cost-projects/:id/movements',''),
+ cost_personal_offsets:operation('设置本人的收入抵减','POST','cost-projects/:id/personal-offsets','version entries','entries为完整数组：{id UUID,transactionId收入ID或null预计,userId本人ID,month YYYY-MM,amount整数分,shared布尔}。先读取cost_project保留已有personalOffsets，只使用本人收入；不改变他人承担或钱包余额'),
  export:operation('导出账本 CSV','GET','books/:bookId/export','from to q category account kind mode activity scope','先确认日期与筛选；scope=personal_wallet可导出个人钱包；返回下载链接，由用户点击下载'),
  books:operation('查询账本','GET','books',''),
  book_create:operation('创建账本','POST','books','name kind','kind=private/shared'),

@@ -1,0 +1,17 @@
+.cost-projects .cost-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+.cost-projects .cost-toolbar>div,.cost-projects .cost-toolbar>label{min-width:0;flex:1 1 220px}
+.cost-projects .cost-section{padding:24px 0;border-top:1px solid var(--line);margin-top:20px}
+.cost-projects .cost-section h3{margin:0 0 16px}
+.cost-projects .cost-edit-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.cost-projects .cost-edit-row>span,.cost-projects .cost-edit-row>label{flex:1 1 180px;min-width:0}
+.cost-projects small{display:block;color:var(--muted);margin-top:6px}
+.cost-projects .cost-project-row,.cost-projects .cost-source-row{display:flex;width:100%;text-align:left;align-items:center;justify-content:space-between;gap:16px;margin:8px 0;padding:16px}
+.cost-projects .cost-source-row>span{min-width:0;overflow-wrap:anywhere}
+.cost-projects .cost-offset{padding:16px 0;border-bottom:1px solid var(--line)}
+.cost-projects .cost-period{padding:16px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between}
+.cost-projects .cost-period>div,.cost-projects .cost-period>dl{flex-basis:100%;display:flex;flex-wrap:wrap;gap:16px;margin:0}
+.cost-projects .cost-period dl>div{flex:1 1 130px;min-width:0}.cost-projects dt{color:var(--muted);font-size:.875rem}.cost-projects dd{margin:6px 0 0;font-variant-numeric:tabular-nums}
+.cost-projects input,.cost-projects select{width:100%;min-width:0}.cost-projects .check input{width:20px;flex:0 0 20px}
+.cost-projects button{min-height:44px;white-space:normal}.cost-projects .cost-source-picker{padding:20px;background:var(--bg);border:1px solid var(--line);border-radius:16px;margin:20px 0}
+@media(max-width:600px){.cost-projects .cost-edit-row>label{flex-basis:100%}.cost-projects .cost-toolbar>button{flex:1 1 140px}.cost-projects .form-grid{grid-template-columns:1fr}.cost-projects .cost-source-row{align-items:flex-start}.cost-projects .cost-source-picker{padding:12px}.cost-projects .cost-project-row{align-items:flex-start;flex-direction:column}}
+.cost-report-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin:24px 0}.cost-report-totals>div{padding:16px;border:1px solid var(--line);border-radius:16px}.cost-report-totals dt{color:var(--muted);font-size:.875rem}.cost-report-totals dd{margin:8px 0 0;font-size:1.4rem;font-weight:650;font-variant-numeric:tabular-nums}

@@ -1,4 +1,5 @@
 import {memoryRoute} from '@/server/memory';
+import {costProjects} from '@/server/cost-projects';
 import {prepareHelp,searchHelp} from '@/server/help';
 import {familyInbox} from '@/server/family-inbox';
 import {listActivities,changeActivity,activityReport,assignActivity,entryActivity,setEntryActivity,accessibleActivity} from '@/server/activities';
@@ -74,6 +75,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  if(path[0]==='family-inbox'&&method==='GET')return NextResponse.json(await familyInbox(u.id,req.nextUrl.searchParams));
  if(path[0]==='book-movements'&&method==='GET')return NextResponse.json(await bookMovements(u.id,path[1],req.nextUrl.searchParams));
  if(path[0]==='family-finance')return NextResponse.json(await familyFinance(u.id,path[1],method,body));
+ if(path[0]==='cost-projects')return NextResponse.json(await costProjects(u.id,method,path,body,req.nextUrl.searchParams));
  if(path[0]==='families')return NextResponse.json(await families(u.id,method,path,body));
  if(path[0]==='search-options'&&method==='GET')return NextResponse.json(await searchOptions(u.id,req.nextUrl.searchParams));
  if(path[0]==='search'&&method==='GET')return NextResponse.json(await search(u.id,req.nextUrl.searchParams));
@@ -201,5 +203,4 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  }
 
  throw new Failure('操作不存在',404);
-}catch(e){if(e instanceof Error&&e.name==='VerificationError')return NextResponse.json({error:tr(e.message)},{status:400});if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'填写内容无效'},{status:400});if(e instanceof Failure)return NextResponse.json({error:tr(e.message)},{status:e.status});const code=(e as {code?:string}).code;if(code==='P0001')return NextResponse.json({error:tr((e as Error).message)},{status:409});if(code==='23505')return NextResponse.json({error:tr('名称或账号已存在')},{status:409});if(code==='23503')return NextResponse.json({error:tr('账户不存在或不属于当前账本')},{status:400});console.error('API operation failed',e instanceof Error?e.name:'unknown');return NextResponse.json({error:tr('操作未完成，请稍后重试')},{status:500});}}
-
+}catch(e){if(e instanceof Error&&['VerificationError','CostPlanError'].includes(e.name))return NextResponse.json({error:tr(e.message)},{status:400});if(e instanceof z.ZodError)return NextResponse.json({error:e.issues[0]?.message||'填写内容无效'},{status:400});if(e instanceof Failure)return NextResponse.json({error:tr(e.message)},{status:e.status});const code=(e as {code?:string}).code;if(code==='P0001')return NextResponse.json({error:tr((e as Error).message)},{status:409});if(code==='23505')return NextResponse.json({error:tr('名称或账号已存在')},{status:409});if(code==='23503')return NextResponse.json({error:tr('账户不存在或不属于当前账本')},{status:400});console.error('API operation failed',e instanceof Error?e.name:'unknown');return NextResponse.json({error:tr('操作未完成，请稍后重试')},{status:500});}}
