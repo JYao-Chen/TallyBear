@@ -1,4 +1,5 @@
 import {operationSummary} from '@/lib/assistant-operation-display';
+import {separateReceiptNote} from './receipt-note';
 import {resolveOperation,runOperation,prepareOperation} from './assistant-operations';
 import {withDeviceTime} from '@/lib/entry-time';
 import {memoryRoute,prepareMemoryChange} from './memory';
@@ -51,7 +52,7 @@ export function parseAction(a:ChatAction){
 const fieldNames:Record<string,string>={familyId:'家庭',sourceId:'转出钱包',recipientId:'收款成员',movementId:'待收款记录',expenseId:'原消费',loanId:'原借款',operation:'操作',shares:'费用份额',refundOf:'原消费',title:'账目标题',accountId:'付款／收款钱包',targetId:'转入钱包',amount:'金额',date:'交易日期',kind:'收支类型',category:'分类',name:'名称',nextDate:'首次扣款日期',frequency:'重复周期',intervalCount:'周期间隔',transactionId:'原账单',version:'最新记录版本',startDate:'分摊开始日期',periodUnit:'分摊单位',periodCount:'覆盖周期',month:'预算月份',terms:'分期期数',firstDate:'首次还款日期',fees:'总手续费',planId:'分期计划',principal:'本次还款本金',fee:'本次手续费',feeCategory:'手续费分类'};
 export function actionMissing(a:ChatAction){try{parseAction(a);return [];}catch(e){if(e instanceof z.ZodError)return [...new Set(e.issues.map(i=>i.path[0]==='lineItems'?`第${Number(i.path[1])+1}项商品：${({kind:'明细类型（商品、优惠或附加费）',name:'商品名称',amount:'小计金额',quantity:'数量',unitPrice:'单价'} as Record<string,string>)[String(i.path[2])]||i.message}`:fieldNames[String(i.path[0])]||String(i.path.join('.'))||i.message))];return [e instanceof Error?e.message:'信息不完整'];}}
 export async function actionOptions(book:string,user:User){await member(book,user);return {bookId:book,books:(await db.query("SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user.id])).rows,accounts:(await listAccounts(book,user.id)).filter(a=>a.usable&&!a.archived).map(({id,name,type,institution,suffix,owner_id,family_id,owner_name}:any)=>({id,name,type,institution,suffix,owner_id,family_id,owner_name})),categories:(await listCategories(user.id)).filter(c=>!c.archived),activities:await listActivities(user.id)};}
-export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;useHistory?:boolean;language?:'en'|'zh-CN'},actions:ChatAction[],recognizedId?:string){
+export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;useHistory?:boolean;language?:'en'|'zh-CN';generated?:boolean},actions:ChatAction[],recognizedId?:string){
  const b=z.object({actionId:uuid.optional(),kind:z.enum(['management','memory','family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
  const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
  const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,!['family','management'].includes(b.kind));
@@ -81,6 +82,11 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
   a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,operation,transactionId:row.id,version:row.version,id:undefined};
  }
  const data=a.data;
+ if(ctx.generated&&typeof data.note==='string'){
+  const separated=separateReceiptNote(data.note);data.note=separated.note;
+  data.processingHints=[...new Set([...(Array.isArray(data.processingHints)?data.processingHints.filter((v:unknown)=>typeof v==='string'):[]),...separated.hints])];
+ }
+ if(Array.isArray(data.processingHints))a.warnings.push(...data.processingHints.filter((v:unknown)=>typeof v==='string'));
  if(a.kind==='entry'&&(!old||b.data.title===undefined))Object.assign(data,normalizeDining({scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',lineItems:data.lineItems||[]},ctx.language==='en'));
  if(a.kind==='entry'&&data.activityId){const activity=await accessibleActivity(ctx.user.id,String(data.activityId));if(activity.archived)throw new Failure('归档活动不能新增账目，请先重新启用');}
  if(a.kind==='family'){for(const key of Object.keys(d))if(key!=='displayBookId'&&(d[key]===null||d[key]===''))delete d[key];if(!d.date&&ctx.deviceTime)d.date=ctx.deviceTime.slice(0,10);await prepareFamilySummary(a,ctx.user.id);a.missing=[...new Set([...actionMissing(a),...a.missing])];if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;}
