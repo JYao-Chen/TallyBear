@@ -1,9 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {scheduledCostPlan} from '../src/lib/cost-schedule';
+import {scheduledCostPlan,costScheduleProgress,costScheduleSchema} from '../src/lib/cost-schedule';
 import {calculateCostPlan} from '../src/lib/cost-attribution';
 const a='00000000-0000-4000-8000-000000000001',b='00000000-0000-4000-8000-000000000002';
 const rule={title:'Rent',category:'Rent',familyId:null,firstDate:'2026-10-15',months:3,shares:[{userId:a,amount:290000},{userId:b,amount:140000}]};
+test('five quarterly cycles end in January 2028 and stop after the fifth',()=>{
+ assert.deepEqual(costScheduleProgress({...rule,totalCycles:5},4),{processed:4,totalCycles:5,completed:false,coverageEnd:'2028-01-15'});
+ assert.equal(costScheduleProgress({...rule,totalCycles:5},5).completed,true);
+ assert.equal(costScheduleProgress(rule,100).completed,false);
+ assert.equal(costScheduleSchema.safeParse({...rule,totalCycles:0}).success,false);
+});
 test('quarterly payment remains distinct from calendar-month member costs',()=>{
  const p=scheduledCostPlan(rule,'2026-10-15',a),v=calculateCostPlan(p);
  assert.equal(p.coverageEnd,'2027-01-15');assert.equal(v.total,1290000);

@@ -37,6 +37,8 @@ A `pending` transfer awaits the recipient and contributes nothing to settlement;
 Browser verification used synthetic data at 1440 × 1000 and 390 × 844: sending and receipt confirmation succeeded, with no horizontal overflow. Captures are stored under `/home/yao/artifacts/tallybear/cost-settlement-20260927/`. The final reviewer's sole P2 finding, missing guidance and submission disabling for a recipient without a wallet, has been resolved. These results cover the exercised browser flows, not every data state or physical-device interaction. See [implementation boundaries](expense-attribution-implementation.md) for the broader capabilities.
 # 2026-09-27 归属页面布局打磨
 
+周期计划的创建人可通过“编辑计划”修改后续规则，选择持续重复或指定总期数。总期数包含已确认及已跳过的账期，达到上限后显示已结束，不能继续确认付款。页面显示处理进度及覆盖结束日（不含当天）。已有账期记录时锁定首次日期和付款间隔；已生成的历史付款与分摊不回写。修改成员、分类、承担金额、周期或延长期数要求其他成员重新确认；仅缩短期限保留已有同意。个人账本归属仍由本人选择。
+
 沿用全站奶油白、深绿色与标题字体。周期计划将名称、到期状态、每期付款和每人月度承担分开排列；桌面操作区固定在右侧，手机移至内容下方。主要确认按钮使用实色，辅助动作使用描边，暂停与历史使用文字按钮。
 
 归属确认的成员金额采用对齐列表；编辑表单桌面双列、手机单列，统一字段间距、分区标题、提示和操作区。费用项目列表、月度承担及成员结算共用同一套局部样式，不影响其他功能页面或账务规则。

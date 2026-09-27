@@ -6,7 +6,7 @@ import {Failure} from './access';
 import {entry} from './model';
 import {insertEntry} from './ledger';
 import {costProjects} from './cost-projects';
-import {costScheduleSchema,scheduledCostPlan} from '@/lib/cost-schedule';
+import {costScheduleSchema,scheduledCostPlan,costScheduleProgress} from '@/lib/cost-schedule';
 import {advancePeriod} from '@/lib/period';
 
 const uuid=z.string().uuid();
@@ -22,7 +22,7 @@ export async function costSchedules(user:string,method:string,path:string[],body
   if(method==='GET'&&!path[1]){
    const offset=z.coerce.number().int().min(0).parse(params.get('offset')||0);
    const rows=(await c.query(`SELECT s.*,to_char(s.next_date,'YYYY-MM-DD') AS next_date,count(*) OVER()::int AS total FROM cost_schedules s WHERE ${accessible} ORDER BY s.paused,s.next_date,s.id LIMIT 20 OFFSET $2`,[user,offset])).rows;
-   for(const s of rows){s.members=(await c.query('SELECT m.user_id,m.accepted,u.name,CASE WHEN m.user_id=$2 THEN m.book_id ELSE NULL END AS book_id FROM cost_schedule_members m JOIN users u ON u.id=m.user_id WHERE schedule_id=$1',[s.id,user])).rows;s.due=!s.paused&&s.next_date<=today;}
+   for(const s of rows){s.members=(await c.query('SELECT m.user_id,m.accepted,u.name,CASE WHEN m.user_id=$2 THEN m.book_id ELSE NULL END AS book_id FROM cost_schedule_members m JOIN users u ON u.id=m.user_id WHERE schedule_id=$1',[s.id,user])).rows;const processed=Number((await c.query('SELECT count(*) AS n FROM cost_schedule_occurrences WHERE schedule_id=$1',[s.id])).rows[0].n);Object.assign(s,costScheduleProgress(s.rule,processed));s.due=!s.completed&&!s.paused&&s.next_date<=today;}
    return rows;
   }
   if(method==='POST'&&!path[1]){
@@ -57,8 +57,24 @@ export async function costSchedules(user:string,method:string,path:string[],body
    await c.query('UPDATE cost_schedules SET version=version+1 WHERE id=$1',[id]);return {ok:true};
   }
   if(user!==s.owner_id)throw new Failure('请由计划创建人操作',403);
+  const processed=Number((await c.query('SELECT count(*) AS n FROM cost_schedule_occurrences WHERE schedule_id=$1',[id])).rows[0].n);
+  if(path[2]==='edit'){
+   const rule=costScheduleSchema.parse(body.rule),book=uuid.parse(body.bookId);
+   scheduledCostPlan(rule,rule.firstDate,randomUUID());
+   if(!rule.shares.some(p=>p.userId===user))throw new Failure('参与人须包含付款人');
+   await membersValid({rule,family_id:rule.familyId});await bookAccess(book,user);
+   if(processed&&(rule.firstDate!==s.rule.firstDate||rule.months!==s.rule.months))throw new Failure('已有账期记录，首次日期和周期不可修改；请另建计划');
+   if(rule.totalCycles!=null&&rule.totalCycles<processed)throw new Failure('总期数不能少于已处理账期数');
+   const changed=rule.familyId!==s.rule.familyId||rule.category!==s.rule.category||rule.firstDate!==s.rule.firstDate||rule.months!==s.rule.months||!isDeepStrictEqual(rule.shares,s.rule.shares)||((rule.totalCycles??Infinity)>(s.rule.totalCycles??Infinity));
+   await c.query('UPDATE cost_schedules SET rule=$2,family_id=$3,next_date=$4,version=version+1 WHERE id=$1',[id,JSON.stringify(rule),rule.familyId,processed?s.next_date:rule.firstDate]);
+   await c.query('DELETE FROM cost_schedule_members WHERE schedule_id=$1 AND NOT(user_id=ANY($2::uuid[]))',[id,rule.shares.map(p=>p.userId)]);
+   for(const p of rule.shares)await c.query(`INSERT INTO cost_schedule_members(schedule_id,user_id,accepted,book_id) VALUES($1,$2,$3,$4)
+    ON CONFLICT(schedule_id,user_id) DO UPDATE SET accepted=CASE WHEN $3 THEN true WHEN $5 THEN false ELSE cost_schedule_members.accepted END,book_id=CASE WHEN $3 THEN $4 ELSE cost_schedule_members.book_id END`,[id,p.userId,p.userId===user,p.userId===user?book:null,changed]);
+   return {id,requiresAcceptance:changed};
+  }
   if(path[2]==='pause'){await c.query('UPDATE cost_schedules SET paused=$2,version=version+1 WHERE id=$1',[id,z.boolean().parse(body.paused)]);return {ok:true};}
   if(!['confirm','skip'].includes(path[2]))throw new Failure('操作不存在',404);
+  if(costScheduleProgress(s.rule,processed).completed)throw new Failure('计划已完成全部账期');
   if(s.paused||s.next_date!==body.dueDate||s.next_date>today)throw new Failure('账期未到、已暂停或已改变');
   const next=advancePeriod(s.next_date,'month',s.rule.months,Number(s.rule.firstDate.slice(8)));
   let projectId:string|null=null;

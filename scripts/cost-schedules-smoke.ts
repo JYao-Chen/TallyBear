@@ -40,5 +40,23 @@ try{
  await call(a,[],{id:randomUUID(),rule:{...rule,title:'未来房租',firstDate:'2099-10-15'},bookId:aBook});
  const future=(await call(a,[])).find((s:any)=>s.rule.title==='未来房租');assert.equal(future.due,false);
  await assert.rejects(call(a,[future.id,'confirm'],{version:1,dueDate:'2099-10-15',bookId:aBook,accountId:account,paidDate:'2099-10-15'}),/未到/);
- console.log('Cost schedules passed: planning, consent, private ledgers, concurrent idempotency, one debit, existing payment, pause, revoked family and future date.');
+ const editedRule={...rule,totalCycles:2};
+ const editBaseline=JSON.stringify(await listAssets(a));
+ await assert.rejects(call(b,[id,'edit'],{version:6,rule:editedRule,bookId:bBook}),/创建人/);
+ await assert.rejects(call(a,[id,'edit'],{version:6,rule:{...editedRule,months:1},bookId:aBook}),/已有账期/);
+ await assert.rejects(call(a,[id,'edit'],{version:6,rule:{...editedRule,totalCycles:1},bookId:aBook}),/总期数/);
+ await call(a,[id,'edit'],{version:6,rule:editedRule,bookId:aBook});
+ const completed=(await call(a,[])).find((s:any)=>s.id===id);
+ assert.equal(completed.completed,true);assert.equal(completed.due,false);
+ assert.ok(completed.members.every((m:any)=>m.accepted),'Shortening retains acceptance');
+ await assert.rejects(call(a,[id,'skip'],{version:7,dueDate:'2026-07-15'}),/全部账期/);
+ await assert.rejects(call(a,[id,'edit'],{version:6,rule:editedRule,bookId:aBook}),/计划已变化/);
+ await call(a,[id,'edit'],{version:7,rule:{...editedRule,totalCycles:3},bookId:aBook});
+ assert.equal((await call(a,[])).find((s:any)=>s.id===id).members.find((m:any)=>m.user_id===b).accepted,false,'Extension requires renewed consent');
+ await call(b,[id,'respond'],{version:8,accept:true,bookId:bBook});
+ await call(a,[id,'skip'],{version:9,dueDate:'2026-07-15'});
+ assert.equal((await call(a,[])).find((s:any)=>s.id===id).completed,true,'Skipped cycle counts');
+ assert.equal(JSON.stringify(await listAssets(a)),editBaseline,'Editing and skipping never charge wallets');
+ assert.equal((await call(a,[id,'history'])).length,3);
+ console.log('Cost schedules passed: payments, consent, editing, history preservation, finite cycles, completion and no extra debit.');
 }finally{await db.end();}
