@@ -20,6 +20,10 @@
 | 个人资料 | [查看](v2/zh-desktop-profile.webp) | [查看](v2/zh-mobile-profile.webp) |
 | 记忆中心 | [查看](v2/zh-desktop-memory.webp) | [查看](v2/zh-mobile-memory.webp) |
 | 记忆变更 | [查看](v2/zh-desktop-memory-history.webp) | [查看](v2/zh-mobile-memory-history.webp) |
+| 手动记账 | [查看](v2/zh-desktop-manual.webp) | [查看](v2/zh-mobile-manual.webp) |
+| 退款关联 | [查看](v2/zh-desktop-refund.webp) | [查看](v2/zh-mobile-refund.webp) |
+| 账单导入 | [查看](v2/zh-desktop-import.webp) | [查看](v2/zh-mobile-import.webp) |
+| 智能核对入口 | [查看](v2/zh-desktop-reconcile.webp) | [查看](v2/zh-mobile-reconcile.webp) |
 | AI 录入 | [查看](v2/zh-desktop-intake.webp) | [查看](v2/zh-mobile-intake.webp) |
 | 草稿核对 | [查看](v2/zh-desktop-draft.webp) | [查看](v2/zh-mobile-draft.webp) |
 | 商品明细计算 | [查看](v2/zh-desktop-line-items.webp) | [查看](v2/zh-mobile-line-items.webp) |

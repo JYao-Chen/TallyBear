@@ -85,7 +85,7 @@ Personal categories follow the user across books, including shared books. Anothe
 
 ## Desktop and mobile
 
-The in-app **Help manual** provides 15 illustrated chapters with steps and detailed rules. Search by keyword or question, open matching chapters and see highlighted text. The assistant can retrieve the same instructions and provide chapter shortcuts. Semantic retrieval uses the memory embedding model; keyword search remains available without it. See [manual search implementation](docs/help-manual.md).
+The in-app **Help manual** contains 18 chapters, from the project introduction and setup to recording, asset management and assistant workflows. Steps, examples, notes and relevant screenshots have distinct sections. Open a feature directly from a step or bring the chapter to the assistant. Screenshots match the interface language and offer desktop and mobile views. Search by keyword or question, open matching chapters and see highlighted text. The assistant can retrieve the same instructions and provide chapter shortcuts. Semantic retrieval uses the memory embedding model; keyword search remains available without it. See [manual search implementation](docs/help-manual.md).
 
 Mobile overview and draft review:
 

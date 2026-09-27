@@ -2,7 +2,8 @@
 
 ## 2.0.0 — 2026-09-27
 
-- Added a bilingual illustrated in-app manual with 15 chapters, keyword highlights, paginated hybrid semantic search, versioned database embeddings and assistant chapter shortcuts.
+- Reorganized the manual into ordered sections with project introduction, examples, FAQs, feature shortcuts, assistant questions and switchable desktop/mobile screenshots. Added matching manual-entry, refund, import and reconciliation images.
+- Added a bilingual illustrated in-app manual with 18 chapters, keyword highlights, paginated hybrid semantic search, versioned database embeddings and assistant chapter shortcuts.
 
 See [the 2.0 overview](docs/releases/v2.0.0.md), [version history](docs/version-history.md), and the screenshot galleries in [English](docs/screenshots/README.md) or [简体中文](docs/screenshots/README.zh-CN.md).
 

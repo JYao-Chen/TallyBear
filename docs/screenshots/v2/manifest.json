@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "capturedAt": "2026-09-27T05:23:29.765Z",
+  "capturedAt": "2026-09-27T06:53:39.320Z",
   "data": "Synthetic household. Seeded assistant and OCR drafts, no live model calls.",
   "captures": [
     {
@@ -642,6 +642,134 @@
       "width": 390,
       "height": 844,
       "feature": "search"
+    },
+    {
+      "file": "zh-desktop-manual.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "manual"
+    },
+    {
+      "file": "zh-desktop-refund.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "refund"
+    },
+    {
+      "file": "zh-desktop-import.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "import"
+    },
+    {
+      "file": "zh-desktop-reconcile.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "reconcile"
+    },
+    {
+      "file": "zh-mobile-manual.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "manual"
+    },
+    {
+      "file": "zh-mobile-refund.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "refund"
+    },
+    {
+      "file": "zh-mobile-import.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "import"
+    },
+    {
+      "file": "zh-mobile-reconcile.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "reconcile"
+    },
+    {
+      "file": "en-desktop-manual.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "manual"
+    },
+    {
+      "file": "en-desktop-refund.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "refund"
+    },
+    {
+      "file": "en-desktop-import.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "import"
+    },
+    {
+      "file": "en-desktop-reconcile.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "reconcile"
+    },
+    {
+      "file": "en-mobile-manual.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "manual"
+    },
+    {
+      "file": "en-mobile-refund.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "refund"
+    },
+    {
+      "file": "en-mobile-import.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "import"
+    },
+    {
+      "file": "en-mobile-reconcile.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "reconcile"
     }
   ]
 }

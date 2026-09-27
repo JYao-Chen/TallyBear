@@ -109,7 +109,7 @@
   "卡号 / 手机号尾号": "Last digits of card / Phone number",
   "选填，4位数字": "Optional, 4 digits",
   "开始记账前的余额（元）": "Opening balance (CNY)",
-  "使用说明": "About this feature",
+  "使用说明": "Help manual",
   "钱包和流水对当前账本成员可见。“个人持有”只说明资金归属，不会隐藏该钱包；完整私人资产请记录在私人账本。仅记录本账本涉及的金额，不要在多个账本重复填写同一实际余额。这里修改期初余额。信用卡欠款请填负数。如果需要按今天的实际金额调整，请使用“核对余额”。": "Wallets and transactions are visible to this book's members. Personal ownership does not make a wallet private; use a private book for private assets. Only record amounts relevant to this book and do not duplicate a real balance in multiple books. This form changes the opening balance. Enter credit-card debt as a negative amount. To adjust today's balance, use Reconcile balance.",
   "保存账户": "Save account",
   "账面余额：": "Book balance: ",

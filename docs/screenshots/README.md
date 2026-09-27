@@ -20,6 +20,10 @@ Current version: **2.0**. Explore each feature on desktop and mobile.
 | Profile | [View](v2/en-desktop-profile.webp) | [View](v2/en-mobile-profile.webp) |
 | Memory center | [View](v2/en-desktop-memory.webp) | [View](v2/en-mobile-memory.webp) |
 | Memory history | [View](v2/en-desktop-memory-history.webp) | [View](v2/en-mobile-memory-history.webp) |
+| Manual entry | [View](v2/en-desktop-manual.webp) | [View](v2/en-mobile-manual.webp) |
+| Linked refund | [View](v2/en-desktop-refund.webp) | [View](v2/en-mobile-refund.webp) |
+| Statement import | [View](v2/en-desktop-import.webp) | [View](v2/en-mobile-import.webp) |
+| Reconciliation input | [View](v2/en-desktop-reconcile.webp) | [View](v2/en-mobile-reconcile.webp) |
 | AI entry | [View](v2/en-desktop-intake.webp) | [View](v2/en-mobile-intake.webp) |
 | Draft review | [View](v2/en-desktop-draft.webp) | [View](v2/en-mobile-draft.webp) |
 | Item calculator | [View](v2/en-desktop-line-items.webp) | [View](v2/en-mobile-line-items.webp) |
