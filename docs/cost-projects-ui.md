@@ -35,3 +35,10 @@ Recurring-plan browser evidence is stored under `/home/yao/artifacts/tallybear/c
 A `pending` transfer awaits the recipient and contributes nothing to settlement; either party can cancel it. Receipt confirmation changes it to `confirmed`, updates both wallet balances and automatically includes it in project settlement. A `cancelled` transfer remains visible without contributing to settlement. Cost shares continue to follow the allocation rules. If the recipient has no personal wallet, the receipt form directs them to add one in Assets and disables submission.
 
 Browser verification used synthetic data at 1440 × 1000 and 390 × 844: sending and receipt confirmation succeeded, with no horizontal overflow. Captures are stored under `/home/yao/artifacts/tallybear/cost-settlement-20260927/`. The final reviewer's sole P2 finding, missing guidance and submission disabling for a recipient without a wallet, has been resolved. These results cover the exercised browser flows, not every data state or physical-device interaction. See [implementation boundaries](expense-attribution-implementation.md) for the broader capabilities.
+# 2026-09-27 归属页面布局打磨
+
+沿用全站奶油白、深绿色与标题字体。周期计划将名称、到期状态、每期付款和每人月度承担分开排列；桌面操作区固定在右侧，手机移至内容下方。主要确认按钮使用实色，辅助动作使用描边，暂停与历史使用文字按钮。
+
+归属确认的成员金额采用对齐列表；编辑表单桌面双列、手机单列，统一字段间距、分区标题、提示和操作区。费用项目列表、月度承担及成员结算共用同一套局部样式，不影响其他功能页面或账务规则。
+
+验证入口：`scripts/cost-schedules-browser.mjs` 覆盖周期列表、编辑、接受归属、付款与历史；`scripts/cost-settlement-browser.mjs` 覆盖成员转款、收款及无钱包状态。均在隔离测试数据库验证电脑与手机布局、横向溢出及实际按钮交互。
