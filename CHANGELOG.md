@@ -1,8 +1,15 @@
 # Changelog
 
-- Separate merchandise from discounts and fees in receipt drafts, manual entry, assistant cards and saved details, with independent pagination and amount reconciliation. AI normalizes supported checkout labels; adjustments do not become repeat-purchase memories.
+## 2.0.0 — 2026-09-27
 
-## Unreleased — current `main`
+See [the 2.0 overview](docs/releases/v2.0.0.md) and the rebuilt [four-way screenshot gallery](docs/screenshots/README.md).
+
+- Rewrote both READMEs around the current product, with fresh desktop/mobile Chinese/English captures using isolated synthetic data.
+- Added unit-price/quantity calculation suggestions that preserve independent subtotals, and explicit adoption of the recommended payment total.
+- Redesigned receipt-card information, item/adjustment sections, verification hints and action hierarchy. Editing and final confirmation are separate; completed cards can be expanded on demand.
+- Improved long-image single-order assembly and revised-card placement; processing explanations no longer belong in transaction notes.
+- Included the required memory schema in the Docker runtime; aligned package and Compose versions to 2.0.0.
+- Separate merchandise from discounts and fees in receipt drafts, manual entry, assistant cards and saved details, with independent pagination and amount reconciliation. AI normalizes supported checkout labels; adjustments do not become repeat-purchase memories.
 
 ### Changed
 

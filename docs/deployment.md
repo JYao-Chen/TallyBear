@@ -1,4 +1,4 @@
-# Deploy TallyBear
+# Deploy TallyBear 2.0
 
 ## Docker Compose
 
@@ -36,7 +36,15 @@ Each scope has its own base URL, API key, text model and vision model. The assis
 
 Back up first. Stop web and worker, obtain the desired release and run `docker compose up -d --build`. Initialization reruns the bundled idempotent schema updates before services start. Never restore an older database over newer changes without also restoring its matching files/configuration.
 
-## Upgrading current `main` after 1.5.0
+## Upgrading to 2.0.0
+
+The current Compose image name is `tallybear:2.0.0`. Keep your existing PostgreSQL major version, database and receipt volumes, language/currency and encryption key. Back up first; stop web and worker, obtain the intended 2.0 revision, then run `docker compose up -d --build`. The initializer runs **both** `scripts/schema.sql` and `scripts/memory-schema.sql` before runtime processes start. Do not create fresh volumes as an upgrade shortcut.
+
+Financial memory needs separate embedding, extraction and judgment settings, accessible through **Profile → Memory center → Learning & settings**. Existing official DashScope credentials can supply defaults; independent memory configuration takes precedence. Default PostgreSQL 16 does not bundle pgvector. Install a matching-major-version extension and run `CREATE EXTENSION IF NOT EXISTS vector;` in the target database to enable vector queries; without it, retrieval falls back to keywords. Do not change a production database major version merely to install the extension. See [financial memory](financial-memory.md) for historical organization, model-version rebuilds and privacy boundaries.
+
+Global search remains keyword-based. Language support is deployment-wide; some newer advanced panels still contain Chinese labels in English mode. Updated screenshots and their reproduction procedure are in the [gallery](screenshots/README.md).
+
+### Changes inherited since 1.5
 
 Current `main` adds separate assistant-model settings and personal category-learning feedback. Apply the bundled `scripts/schema.sql` (or let the Compose `init` service apply it) before starting the new web and worker together. The migration creates `assistant_ai_settings` and `category_feedback` without rewriting existing transactions. Historical entries created by a user remain usable as lower-weight personal evidence; new confirmations and corrections populate feedback after the upgrade.
 
@@ -44,7 +52,7 @@ Current `main` also creates `activities` and `activity_entries`, with `activitie
 
 After startup:
 
-1. Configure and test both **Receipt recognition models** and **AI assistant models**. The existing recognition configuration is not silently copied into the assistant scope.
+1. Review and test both **Receipt recognition models** and **AI assistant models**. Upgrade initialization can seed missing assistant settings from existing recognition settings; subsequent configuration is independent.
 2. Confirm **Spending analysis → My personal wallets** updates the charts and searchable, paginated records from the same filters and returns only the signed-in user's owned wallets.
 3. In **Assets**, switch between personal and family ownership scopes and confirm the charts and wallet table use only that scope.
 4. Create a receipt draft with **Use my category habits** enabled, verify any suggestion explanation, change its category, save it, and confirm the next matching draft can learn from the correction.
@@ -68,7 +76,7 @@ docker compose ps
 curl --fail http://localhost:3016/api/health
 ```
 
-Compose uses the `tallybear:1.5.0` image and runs `scripts/init.mjs` before web/worker startup. Keep the existing database and receipts volumes, encryption key, language and currency. Initialization applies the bundled ownership, installment, family-movement and per-user book-display tables; existing users remain intact.
+The historical 1.5.0 checkout uses the `tallybear:1.5.0` image and runs `scripts/init.mjs` before web/worker startup. Keep the existing database and receipts volumes, encryption key, language and currency. Initialization applies the bundled ownership, installment, family-movement and per-user book-display tables; existing users remain intact. For the current version, use the 2.0 instructions above.
 
 For standalone installations, stop both processes, install dependencies with `npm ci`, run `node --env-file=.env scripts/init.mjs`, build with `npm run build`, and deploy the resulting web/worker artifacts together. Preserve persistent receipt storage. A standalone build emits `server.js` and `worker.mjs` inside `.next/standalone`; copy `public` and `.next/static` into that same release directory.
 

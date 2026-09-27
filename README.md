@@ -1,245 +1,111 @@
 <div align="center">
 
-<img src="public/brand/tallybear-logo.png" width="140" alt="TallyBear — Bubu & Yier bear-themed AI bookkeeping" />
+<img src="public/brand/tallybear-logo.png" width="112" alt="TallyBear" />
 
-# TallyBear
+# TallyBear 2.0
 
-**Your receipts, understood. Your finances, in view.**
+**Personal and family bookkeeping, with AI-assisted entry and financial memory.**
 
-An AI-powered personal and family finance app with a **Bubu & Yier (布布一二 / 一二布布) bear theme**.
-Self-hosted · Conversational bookkeeping · Family transfers · Bubu & Yier companions
+Self-hosted · Multiple books · Independent wallets · Shared activities · English / 简体中文
 
 English · [简体中文](README.zh-CN.md)
 
-[![Version](https://img.shields.io/badge/v1.5.0-78618f?style=flat-square)](https://github.com/JYao-Chen/TallyBear/releases/tag/v1.5.0)
-[![MIT](https://img.shields.io/badge/code-MIT-43755e?style=flat-square)](LICENSE)
-[![Docker](https://img.shields.io/badge/deploy-Docker-d2a363?style=flat-square)](docs/deployment.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-365f58)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/code-MIT-43755e)](LICENSE)
 
-[Get started](#get-started) · [Explore the features](#from-receipt-to-insight) · [Deployment guide](docs/deployment.md) · [Latest release](https://github.com/JYao-Chen/TallyBear/releases)
+[Features](#what-you-can-do) · [Screenshots](#desktop-and-mobile) · [Quick start](#quick-start) · [Documentation](#documentation)
 
 </div>
 
-**Bookkeeping with Bubu & Yier.** White and brown bear illustrations, animated stickers and customizable category icons bring a playful touch to everyday finances. Choose the bear theme or switch to a clean, minimal interface.
+TallyBear brings receipts, cash flow and shared spending into one place. Enter a transaction manually, import a bill or describe it to the assistant; review an editable draft before saving. Track the money in your own wallets separately from the books where you organize purchases.
 
-![Spending analysis](docs/screenshots/desktop-analysis.png)
+Version 2.0 includes the current financial-memory system, cross-book activities, unified charts and records, conversational management, and the redesigned receipt cards. The optional Bubu & Yier bear theme can be replaced with a minimal interface.
 
-## Current main
+![TallyBear 2.0 spending analysis on desktop](docs/screenshots/v2/en-desktop-analysis.webp)
 
-Recent interface and workflow updates:
+## What you can do
 
-- **Search without a mode selector.** Type into transaction records or global search to retrieve keyword matches automatically. Keep date, amount, category, wallet and book filters; global search defaults to all accessible books. These two entry points do **not** currently perform vector search. Vector retrieval is available for product-memory matching and assistant memory lookup, with keyword fallback when embeddings are unavailable.
-- **Full-page memory management.** Open **Profile → Memory center** for memories, pending suggestions, change history and learning settings. Navigation, section switches and action buttons have distinct appearances. Change history shows the current object name, operation, time and undo availability, with pagination and a mobile layout; forgotten content stays hidden.
-- **Flexible reporting and richer details.** Select year, month, week, day or a custom range; monthly budgets retain their monthly basis. Chart drilldowns show transaction and wallet information, order/payment IDs, products, discounts/fees, notes and saved attachments when available.
-- **Assistant management proposals.** Supported system operations use permission-checked confirmation cards or a link to the appropriate page. Follow-up queries retain accessible book scope and prior evidence. See the [capability audit](docs/assistant-capability-audit.md) for boundaries; passwords, secrets and uploads remain in dedicated interfaces.
-- **Separate date and time fields.** Transaction dates use `YYYY-MM-DD` and default to the recording date when missing. Time is a separate structured field and can stay empty when unknown. Discounts and fees have their own checkout section, rather than becoming products.
+### Record a purchase without losing its details
 
-Unified financial memory includes grounded product extraction (including legacy title-only entries), per-field fill/undo and preference conflict review. Defaults reuse a DashScope key with `text-embedding-v4` and `qwen3.8-flash`. Five live-model acceptance cases passed. See [implementation scope, historical initialization and validation](docs/financial-memory.md); this small sample is not an overall accuracy claim.
+- **Manual, text and image entry.** Review AI-generated drafts, or import WeChat / Alipay bill files. Drafts persist while you move between pages.
+- **Long receipts and multiple images.** Images are split for recognition; order-level checking can combine complementary fragments into one purchase. Ambiguous orders stay available for review.
+- **Products and checkout adjustments.** Quantity, unit price and subtotal belong to products. Coupons, discounts, packaging, delivery and service fees have a separate section.
+- **A built-in calculator.** Unit price × quantity recommends a subtotal. Changes follow the calculation when the subtotal has not been independently overridden. Manual and recognized amounts are preserved; applying a recommended payment total is an explicit action.
+- **Structured payment facts.** Dates use `YYYY-MM-DD`; missing dates default to the recording date. Time is separate and optional. Order IDs and payment/refund references are optional and searchable.
+- **Linked refunds and cashback.** Search across accessible books to select the original purchase, reuse its known details, then enter the refund. Multiple refunds can exceed the original amount; negative net spending is retained.
 
-The current branch extends 1.5 with a clearer boundary between **books** and **actual personal money movement**:
+![Product editing, discounts and calculation](docs/screenshots/v2/en-desktop-line-items.webp)
 
-- **Repeat purchases** are automatically matched and filled during AI entry and assistant preparation, without a separate buy-again button. **Refunds** use global search across accessible books, with paginated keyword/date/amount filters and editable auto-fill. Confirmed personal history can reuse product information while preserving new payment facts; delivery orders use food-led titles. Multiple refunds/cashback may exceed the original payment, and linked repeat purchases have searchable totals.
-- **Spending analysis** now combines charts and records in one workspace. Date, type, wallet, category and keyword filters update the totals, charts and paginated list together; its personal-wallet scope combines the signed-in user's own wallets across every book.
-- **Activities** group entries across books without duplicating payments. Set a custom type, dates and budget, and keep an activity personal or attach it to a family so members can contribute. Members only see entries in books they could already access, so visible totals may differ. Active activities can be selected directly from Home, manual or receipt entry, assistant confirmation cards, and existing transactions. Search or filter activities by name, type or family; archived activities have a separate view and can be reactivated. Deleting an activity removes its links, not the original transactions. Activity reports include category/wallet/book breakdowns and paginated details; global search and the AI assistant can query activities too.
-- **Assets** now includes balance, daily cash-flow and spending-category charts for personal or selected family-shared wallets, while retaining the detailed wallet table.
-- **Personal category catalogues** now follow the user across every private and shared book. Existing book catalogues are merged per user during upgrade; another member's category edits do not change yours.
-- **Adaptive personal categories** run on the server for receipt drafts and AI action cards. Confirmed entries, presets and corrections are matched by route, merchant, item and scene, with recency decay and confidence thresholds. An explicit category is never overwritten.
-- Review cards show why a category was suggested, its confidence and supporting personal-record count. Changing the category teaches the next suggestion with higher weight.
-- Receipt recognition and the AI assistant have **independent text/vision provider settings**. Images attached inside the assistant stay within the assistant model configuration.
-- Explicit funding evidence can preselect a unique personal wallet; WeChat or Alipay alone only selects when exactly one matching personal wallet exists. Ambiguous cases remain open for review.
-- Growing lists are paginated. Mobile navigation includes direct sign-out, and the Activities screen keeps its actions usable on narrow phones and in landscape.
+### Keep books, wallets and activities separate
 
-[See every current-main change →](CHANGELOG.md#unreleased--current-main) · [Category-learning design →](docs/category-learning.md)
+| Concept | What it answers | Example |
+|---|---|---|
+| Book | Where should this record be organized, and who may see it? | Personal journal or a shared household book |
+| Wallet | Where did the money actually move? | Bank account, cash, payment wallet or credit account |
+| Activity | What trip, event or project did it belong to? | A weekend trip containing entries from several books |
+| Category | What was purchased? | Dining, transport, groceries or subscriptions |
 
-## Latest tagged release: 1.5
+Personal-wallet reporting combines the signed-in user's own wallets across books. Linking an existing payment to another book does not turn it into a second payment. Activities group records without owning or duplicating them.
 
-**From receipt recognition to conversational bookkeeping and family finance.**
+Activities support types, dates, budgets, family participation, an archive view, reactivation and deletion. Deleting an activity removes its associations, not the original transactions. Family participation does not grant access to private books.
 
-Editable AI action cards · Private recipient wallet confirmation · Personal-book transfer views · Installments and exact cost allocation · Scoped analysis with chart drilldown · A redesigned mobile/desktop conversation workspace.
+### Explore the numbers and the underlying records
 
-[Read the 1.5 release notes →](docs/releases/v1.5.0.md) · [Upgrade an existing installation →](docs/deployment.md#upgrading-to-150)
+**Spending analysis** combines charts, filters, search and paginated transactions. Choose a year, month, week, day or custom range, then inspect categories and daily trends. Click a chart result to reach the corresponding records and their full details.
 
-## From receipt to insight
+**Assets** adds balance distribution and cash-flow charts to wallet management. Personal and family-owned wallets have separate scopes. Balance corrections are recorded as adjustments; statement reconciliation helps investigate missing or duplicate records before changing a balance.
 
-Drop in your receipts. Review the details. Ask what your money is doing.
+**Monthly budgets** retain a monthly basis. Recurring bills, installment purchases, repayments and cost allocation are managed under **Plans & allocation**. Repayment principal and transfers are distinct from new consumption; interest and fees need their appropriate treatment.
+
+### Ask the assistant, then confirm the action
+
+The assistant can search accessible books, explain reports, inspect statements and prepare changes. Supported operations include entries, refunds, wallets, activities, categories, budgets, plans, family management and memory.
+
+Messages and their scope are saved on send. Background jobs continue after you leave the conversation. Action cards distinguish the payment summary, items, adjustments, missing fields, warnings and processing notes. Editing a card is separate from confirming it; bookkeeping changes still require confirmation.
+
+The assistant uses the same permission-checked business handlers as the interface. Passwords, new secrets and file uploads stay in dedicated screens. This is a defined tool catalogue, **not unrestricted access to the server or database**. See the [capability audit](docs/assistant-capability-audit.md).
+
+![Assistant with an editable confirmation card](docs/screenshots/v2/en-desktop-assistant.webp)
+
+### Reuse what you have already confirmed
+
+**Profile → Memory center** manages products and services, category preferences, conversation memories and pending suggestions. Inspect sources, edit aliases, resolve conflicts, disable entries, merge or split products, export data, or forget a memory.
+
+During AI entry, the system retrieves relevant personal memory and proposes individual fields. There is no separate “buy again” workflow. A repeat purchase may reuse product identity, but it does not inherit an old price, quantity, payment date, order ID or wallet as a new fact.
+
+Memory retrieval combines exact/keyword candidates with optional semantic embeddings and candidate judgment. It needs no fine-tuning or independent vector service. PostgreSQL with pgvector provides exact vector-distance queries. Model or extension unavailability falls back to keyword suggestions.
+
+Private memories stay private unless explicitly shared. Forgetting a memory does not delete its source transaction. [Implementation and limitations →](docs/financial-memory.md)
+
+### Manage shared spending without exposing private wallets
+
+Create a family and shared books, assign member roles and use **Entry → Family movements** for transfers, gifts, AA settlements, loans, repayments and shared contributions. Recipients confirm their own receiving wallet. These money movements remain separate from ordinary consumption totals.
+
+Personal categories follow the user across books, including shared books. Another member's category choices do not overwrite yours. Global search covers accessible books and can find transactions, products in line items, payment references, activities, plans, reports and memories.
+
+## Desktop and mobile
+
+These are new screenshots of the **running 2.0 application**, captured with Playwright at 1440 × 1000 and 390 × 844. Chinese/CNY and English/USD use separate disposable databases with fictional households. OCR drafts and the assistant conversation are explicitly seeded demonstrations, not evidence of a live model run.
 
 <table>
+<tr><th>Chinese · mobile</th><th>English · mobile</th></tr>
 <tr>
-<td width="33%" align="center">
-<img src="public/characters/overalls.gif" height="90" alt="Capture"/><br/>
-<strong>01 · Capture</strong><br/>
-Images become editable records.<br/>Keep the merchant, items and discounts.
-</td>
-<td width="33%" align="center">
-<img src="public/characters/thinking.gif" height="90" alt="Reconcile"/><br/>
-<strong>02 · Reconcile</strong><br/>
-Check totals and spot duplicates.<br/>Bring related pages into one order.
-</td>
-<td width="33%" align="center">
-<img src="public/characters/cheer.gif" height="90" alt="Understand"/><br/>
-<strong>03 · Understand</strong><br/>
-Ask questions, explore charts.<br/>Save the reports that matter.
-</td>
+<td><img src="docs/screenshots/v2/zh-mobile-overview.webp" width="300" alt="Chinese mobile overview" /></td>
+<td><img src="docs/screenshots/v2/en-mobile-overview.webp" width="300" alt="English mobile overview" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/v2/zh-mobile-draft.webp" width="300" alt="Chinese mobile receipt review" /></td>
+<td><img src="docs/screenshots/v2/en-mobile-draft.webp" width="300" alt="English mobile receipt review" /></td>
 </tr>
 </table>
 
-### Capture a receipt, describe a purchase, or tap a preset
+The [complete screenshot gallery](docs/screenshots/README.md) provides **all four device/language combinations for every captured feature**, including assets, activities, budgets, family movements, memory, search and recurring plans. Some newer advanced panels, notably Memory center, still contain Chinese labels in the English deployment; the captures show that limitation rather than replacing their text.
 
-Upload several receipts, order screenshots or one long image. AI distinguishes separate purchases from overlapping pages of the same order and produces editable drafts. Manual forms and reusable presets cover fixed commutes, routine purchases and regular income.
+Language and currency are deployment settings, not a per-user switch. Supported currencies are CNY, USD, EUR and GBP. One database uses one currency; changing the setting does not convert balances.
 
-| Detail | How it works |
-|---|---|
-| Merchants and products | Food-led delivery titles, merchant-led dine-in titles, concise product summaries and separate itemized rows. |
-| Checkout | Quantities, unit prices, subtotals, discounts, rounding and extra fees; the paid total remains the transaction amount. |
-| Partial screenshots | Distinguish incomplete checkout evidence from conflicting amounts. Confirm the actual payment with an explanation instead of inventing a balancing discount. |
-| Duplicates and refunds | Compare existing records, review potential duplicates, and link full or partial refunds to the original purchase. |
-| Dates and notes | Transaction date defaults to the recording date when missing; unknown transaction time remains blank. Creation and modification timestamps are separate. |
-| Attachments and search | Optionally retain compressed vouchers and everyday photos; search merchants, categories, amounts, dates and individual items. |
+## Quick start
 
-Transport, dining, shopping and groceries use structured scene fields: departure and arrival stops, merchants and branches, meal types and product summaries. AI drafts, manual forms and presets share those fields, with editable titles.
-
-Order IDs and payment/refund reference IDs are optional fields in manual entry and review cards. Recognition can extract visible IDs; keeping them improves later duplicate checks and statement comparison. From **Analysis → Reconcile statements**, attach payment screenshots to the prepared assistant request. It compares IDs and exact times before using transaction order and neighboring entries to suggest possible omissions or duplicates. The shortcut does not upload the images for you, and no suggested ledger change is posted without confirmation.
-
-With **Use my category habits** enabled, a deterministic server-side matcher uses only the signed-in user's confirmed records, presets and corrections. It compares transport routes, merchants, item context and scenes, gives corrections higher weight, decays older evidence and keeps the recognizer's category when support is weak or conflicting. Personal history is not sent to the model. Review cards expose the match basis, confidence and evidence count; changing the category becomes a stronger correction after saving.
-
-### AI that prepares the action, not just the answer
-
-> “I took the bus from Central Station to Riverside. It cost $2, paid from my wallet.”
->
-> “Record this annual subscription and spread its cost over the coverage period.”
->
-> “I sent my partner my share of the rent. Help me record the family transfer.”
-
-The assistant looks up real books, categories, wallets and family members, then uses tools to prepare **editable confirmation cards**. Fill missing or ambiguous details in conversation or directly on the card: wallet, category, amount, scene and line items. Confirm the card to save.
-
-| In conversation | Supported actions |
-|---|---|
-| Everyday records | Expenses, income, refunds, transfers and itemized purchases; proposed edits or deletion of an existing transaction require confirmation |
-| Repeatable tasks | Quick-entry presets, recurring subscriptions and category budgets |
-| Longer-term costs | Cost allocations, installment purchases and actual repayments |
-| Family movements | Transfers, gifts, AA shares and settlement, loans, repayments, shared-wallet contributions and receipt confirmation |
-| Financial insights | Selected-book analysis, transaction and asset queries, interactive charts and saved reports |
-
-Cards stay with their originating turn. Delete conversations and reports from history. The responsive composer expands with your text and brings attachments and options into the input area on desktop and mobile.
-
-### Assets hold the money. Books organize the view.
-
-- Wallets belong to a person or a family, independently of books. Manage multiple payment wallets and bank accounts with recognizable account and bank icons.
-- Users sign in independently and can join families with several books. Users, families and books have separate management, avatars and permissions.
-- A personal wallet can pay for a shared-book expense. Moving a record preserves its funding account; linked reuse across books counts the same event once in consolidated totals.
-- Create, edit, delete and reorder your personal categories with custom icons; the same catalogue is available in every book. Organize entries in batches, move them or link them to another book.
-
-Use **Spending analysis → My personal wallets** to view actual income, expenses, refunds and transfers across every book through the wallets you own. Charts and the searchable, paginated records below share one set of filters. This scope excludes family/shared wallets and other members' wallets, treats transfers as non-income/non-expense, and deduplicates one linked event shown in several books. In **Assets**, switch between your wallets and a family's shared wallets to use the corresponding charts and wallet table.
-
-Receipt recognition separates **order platforms, payment channels and funding evidence**. Logos and distinctive layouts can identify sources such as WeChat, Alipay, JD and Douyin without a written app name. Explicit balance or bank details match the user’s wallets; ambiguous candidates remain editable before confirmation.
-
-### Plan a trip or event without creating another book
-
-Open **Activities** to create a trip, gathering or other event. Give it a searchable type, optional dates and budget, then keep it personal or attach it to a family. An activity groups transactions that remain in their original books and wallets; the grouping never creates a second payment. Family members can contribute from books they can edit, but each member's report contains only transactions in books they can already access. Consequently, two members may see different activity totals.
-
-Pick an active activity from **Home → Active activities → Add an entry to this activity**, select one in manual entry or receipt review, or attach an existing transaction on the activity page. The assistant can find activities, prepare linked transaction cards and propose supported activity-management actions; changes require confirmation and the appropriate permissions. Activity reports break down spending by category, funding wallet, book and day, with searchable and paginated entries.
-
-Search by name, type, family or description; filter by type and ownership. **Archived activities** have their own view and stop accepting new entries until reactivated. An editable activity can be archived, reactivated or deleted; deleting it removes only the grouping links, not the underlying transactions. On phones, actions remain readable at narrow widths, including the archive, restore and delete confirmation controls.
-
-### One family transfer, two personal views
-
-The sender selects **their own funding wallet and the recipient**. The recipient confirms receipt into **their own wallet**, which can differ from the sender’s payment platform. Neither party sees the other’s private wallets; authorized members manage shared family wallets.
-
-Each person independently selects a personal display book, with a remembered default. Its **Home** view and the record list inside **Spending analysis** show movements alongside everyday records. The home **Incoming transfers** inbox lets recipients choose their own wallet and book and confirm receipt. Changing the display book does not move money or change the other person’s record. Existing movements can be assigned a display book later.
-
-| Shared-rent example | Where it appears | Household spending |
-|---|---|---|
-| One member sends the other their 1,500 share | Family history and each selected personal book | None |
-| The payer pays the landlord 3,000 | The shared book selected for the expense | 3,000 |
-| Each member contributes 500 to a shared wallet | Family history and their selected personal books | None |
-
-Gifts, loans, partial repayments, AA settlements and shared contributions use the same movement model. AA links to the original expense and agreed shares; repayments link to the loan. Payment references and similar transfers are checked before posting. A movement remains one underlying record, with balances updated after confirmation. Gifts count as personal expenses for the sender and income for the recipient; consolidated household reporting eliminates internal income and expenses. Transfers, loans, repayments, AA settlements and shared contributions remain non-consumption flows.
-
-### Subscriptions, installments and allocation answer different questions
-
-| Feature | Question | Accounting behavior |
-|---|---|---|
-| Recurring schedules | When is payment due? | Custom day/week/month/year intervals; review the actual payment when due. |
-| Installments and debt | What is owed and repaid? | Record consumption at purchase, principal repayments as transfers, and interest/fees as expenses. |
-| Cost allocation | How long does the paid cost cover? | Distribute cost over the selected period with exact rounding, without another wallet debit. |
-
-Use credit or BNPL accounts, create a plan from a new or existing purchase, record partial or early repayments, revise future installments and reverse an incorrect repayment. Allocation remains independent of debt repayment: early settlement does not shorten the coverage period. Refunds into the debt account reduce principal.
-
-### Explore the chart, then the entries behind it
-
-Choose the **current book, selected books or all accessible books** in the conversation composer. Consolidated analysis deduplicates linked records; asset queries use personal/family ownership scopes, keeping differing reporting scopes distinct from missing entries.
-
-Explore multicolor category, doughnut, bar and trend views. Charts with a query dimension let you select a category or time point to inspect related transactions. Save useful analysis as a report and return to it later.
-
-Recognition and chat run as durable background jobs with progress, streaming responses, retries and administrator-controlled concurrency. Leave the page and return when the result is ready.
-
-## A little company for everyday money
-
-Choose the Bubu & Yier theme for warm colors and **564 animated stickers**, or switch to a minimal workspace. Use the sticker library for avatars, categories and book identities.
-
-<p align="center"><img src="public/characters/together.gif" height="120" alt="Bear companions"/> &nbsp; <img src="public/stickers/bubu-yier-560.gif" height="120" alt="Shopping companion"/></p>
-
-<table>
-<tr>
-<td width="50%" align="center"><strong>Your book, on the go</strong><br/><br/><img src="docs/screenshots/mobile-overview.png" width="280" alt="Mobile overview"/></td>
-<td width="50%" align="center"><strong>Every item adds up</strong><br/><br/><img src="docs/screenshots/mobile-line-items.png" width="280" alt="Itemized receipt on mobile"/></td>
-</tr>
-</table>
-
-<details>
-<summary><strong>Explore the desktop workspace</strong></summary>
-
-#### AI intake
-![AI intake workspace](docs/screenshots/desktop-intake.png)
-
-#### Receipt details
-![Receipt details](docs/screenshots/desktop-line-items.png)
-
-</details>
-
-<details>
-<summary><strong>简体中文 · Chinese interface</strong></summary>
-
-![中文收支分析](docs/screenshots/zh-desktop-analysis.png)
-
-<p align="center"><img src="docs/screenshots/zh-mobile-intake.png" width="280" alt="中文智能录入"/> &nbsp; <img src="docs/screenshots/zh-mobile-line-items.png" width="280" alt="中文商品与结算明细"/></p>
-
-</details>
-
-## Technology & AI architecture
-
-TallyBear combines a **Next.js full-stack app, PostgreSQL and a dedicated job worker**. The UI and API share TypeScript domain types. Transactions, permissions, job progress and reports live in PostgreSQL; Sharp compresses images into persistent attachment storage.
-
-| Layer | Technology | Responsibility |
-|---|---|---|
-| Interface | React · Next.js App Router | Responsive entry, draft review, conversations and book management |
-| Business & data | Next.js API · PostgreSQL | Permissions, transactional writes, balances, personal category learning, cost allocation and deduplicated totals |
-| AI collaboration | LangGraph · tool calling | A supervisor delegates receipt reading, reconciliation and analysis |
-| Background execution | Node.js worker · PostgreSQL queue | Durable jobs, progress, retries and configurable concurrency |
-| Artifacts & images | Recharts · Markdown · Sharp | Conversational charts, saved reports and compressed vouchers |
-
-### A supervisor with specialist agents
-
-Conversations use a **supervisor + specialists** architecture. Each agent follows a LangGraph loop of model decisions, tool execution and follow-up decisions. The supervisor answers simple questions with tools or delegates focused tasks, then uses the returned evidence to continue or summarize.
-
-| Agent | Capabilities | What you get |
-|---|---|---|
-| Supervisor | Understand requests, select tools, delegate and synthesize | One continuous conversation about your finances |
-| Entry & plans | Prepare editable entry, subscription, budget, installment and family-movement proposals | Confirm a completed form in conversation |
-| Recognition | Read images and text; assemble orders across images | Merchant titles, line items, discounts and editable drafts |
-| Reconciliation | Inspect drafts, find duplicates, check refunds and totals | Reviewable differences, duplicate matches and linking suggestions |
-| Analysis | Query transactions, accounts, budgets and allocations; draw charts | Data-backed explanations, charts and reports |
-
-**AI interprets the content; business tools calculate the money and enforce permissions.** Chart tools query ledger aggregates directly, and amounts use integer minor units. Models select useful questions and explain results. Receipt processing combines structured extraction with amount checks to produce reviewable entries.
-
-Specialists share the current drafts and previous findings through the supervisor. The background queue processes concurrent jobs, while conversations display processing stages, tool activity and streamed answers. Work continues between visits. Receipt recognition and the assistant each have their own provider endpoint, API key, text model and vision model. Assistant text, attached images and nested assistant calls all use the assistant configuration; receipt OCR and its verification calls use the recognition configuration. Queue concurrency is shared and configurable.
-
-Cards are proposals until the user confirms. Confirmation validates permissions and current data inside a database transaction; family movements keep a single record with separate per-user book display links. PostgreSQL stores job progress and conversation artifacts so the worker can keep running while the browser is closed.
-
-The result connects **capture → reconcile → confirm → save → analyze**: less manual transcription, visible duplicate and amount checks before confirmation, and financial questions turned into charts and reports you can keep.
-
-## Get started
-
-You’ll need **Docker Compose v2** and **Node.js 22** for the setup helper.
+Requirements: **Node.js 22** for the setup helper, **Docker Engine and Docker Compose v2**, and an AI provider only if you want AI features.
 
 ```sh
 git clone https://github.com/JYao-Chen/TallyBear.git
@@ -247,9 +113,7 @@ cd TallyBear
 npm run setup
 ```
 
-This installs current `main`, including the features documented above. For the latest tagged release instead, add `--branch v1.5.0` to the clone command.
-
-Set your language, currency and address in the generated `.env`:
+Edit the generated `.env` before first startup:
 
 ```dotenv
 APP_ORIGIN=http://localhost:3016
@@ -257,84 +121,82 @@ APP_LANGUAGE=en
 APP_CURRENCY=USD
 ```
 
+Keep the generated passwords and encryption key. For Chinese, choose `APP_LANGUAGE=zh-CN` and `APP_CURRENCY=CNY`.
+
 ```sh
 docker compose up -d --build
+docker compose ps
+curl --fail http://localhost:3016/api/health
 ```
 
-Open [**localhost:3016**](http://localhost:3016). Sign in with `ADMIN_USERNAME` and the generated `ADMIN_PASSWORD` from `.env`, create your first book, and start recording.
+Open **http://localhost:3016**, then sign in with `ADMIN_USERNAME` and `ADMIN_PASSWORD` from your private `.env`. Create a book and wallets, check opening balances, and record your first transaction. Configure AI providers in **Book settings** when ready.
 
-<details>
-<summary><strong>Language, currency & public deployment</strong></summary>
+Compose runs PostgreSQL, a one-shot schema initializer, the web process and an AI worker. Both runtime processes share persistent receipt storage. Manual bookkeeping works without an AI key. The default PostgreSQL image does not include pgvector; install the matching extension separately to enable semantic memory retrieval.
 
-| Setting | Options |
+### Models and background work
+
+| Configuration | Used for |
 |---|---|
-| `APP_LANGUAGE` | `en` · `zh-CN` |
-| `APP_CURRENCY` | `USD` · `EUR` · `GBP` · `CNY` |
+| Receipt text / vision models | Quick text entry, screenshots and receipt extraction |
+| Assistant text / vision models | Conversations, tool decisions and images uploaded in chat |
+| Memory embedding model | Semantic memory retrieval |
+| Memory extraction / judgment models | Product attributes, preferences and candidate comparison |
 
-The setup helper defaults to English and USD. Each deployment uses one language and one currency. The interface, AI-generated summaries, charts and exports follow the selected language. Amounts are stored as integer minor units. CNY deployments also support WeChat and Alipay CSV imports.
+Recognition and assistant settings are separate. Memory defaults can reuse an existing **official DashScope** credential: `text-embedding-v4` with 1024 dimensions, and `qwen3.8-flash` for extraction/judgment. Each memory role is independently configurable. Provider support, availability and billing depend on your account.
 
-For public access, configure an HTTPS reverse proxy and set `APP_ORIGIN` to your public origin.
+Keys are encrypted with `ENCRYPTION_KEY`. Keep it with your backups. AI requests send the content needed for that request to the configured provider; self-hosting does not make a remote model run locally.
 
-[Deployment, storage and backups →](docs/deployment.md)
+### Upgrade an existing installation
 
-</details>
+1. Back up the database, receipts and environment configuration together.
+2. Preserve the existing PostgreSQL major version, data volume, encryption key, language and currency.
+3. Stop web and worker; update to the intended code revision and rebuild with Compose. Initialization applies both schema scripts.
+4. Start web and worker together, check `/api/health`, and verify existing records and attachments.
+5. Configure memory models and pgvector if needed; historical memory organization is a separate background task.
 
-<details>
-<summary><strong>Connect your AI provider</strong></summary>
+Do not create new production volumes or run `docker compose down -v` to upgrade. A code rollback does not undo database changes. See the [deployment and backup guide](docs/deployment.md).
 
-1. Open **Book settings** as an administrator.
-2. Configure **Receipt recognition models** with an OpenAI-compatible base URL, API key, and text/vision model IDs.
-3. Configure **AI assistant models** separately. Its text model needs tool calling and streaming; its vision model needs image input.
-4. Run both text/image connection tests for each scope, then set the shared background concurrency.
-5. Open **Record → AI text / screenshots**, upload a receipt, review the draft and choose its funding account.
+## Development
 
-[Bookkeeping and AI guide →](docs/user-guide.md)
-
-</details>
-
-<details>
-<summary><strong>Develop with TallyBear</strong></summary>
-
-**Next.js App Router · React · TypeScript · PostgreSQL · LangGraph · Recharts · Sharp**
-
-The Next.js app serves the UI and API. A separate worker processes durable jobs, sharing PostgreSQL and persistent image storage with the web app.
+Next.js App Router · React · TypeScript · PostgreSQL · Recharts · LangGraph · OpenAI-compatible model APIs.
 
 ```sh
 npm ci
-npm run setup
-docker compose -f compose.yaml -f compose.dev.yaml up -d db
+# Configure an isolated development database and .env first.
 node --env-file=.env scripts/init.mjs
 npm run dev
-```
-
-Start the worker in another terminal:
-
-```sh
+# In another terminal:
 node --env-file=.env --import tsx scripts/worker.ts
 ```
 
 ```sh
-npm run typecheck
 npm test
+npm run typecheck
 npm run build
 ```
 
-[Contribution guide →](CONTRIBUTING.md)
+The production build emits `server.js` and `worker.mjs` in `.next/standalone`. Copy `public` and `.next/static` into that release and supply the same environment to both processes. Source, configuration, persistent files and backups should have separate lifecycles.
 
-</details>
+Screenshot reproduction uses an isolated PostgreSQL container and the actual production build. Instructions and capture provenance are in the [gallery](docs/screenshots/README.md).
 
----
+## Boundaries worth knowing
 
-<div align="center">
+- AI can miss or misinterpret fields. Review orders, dates, wallets and totals before confirming; uncertain statement matches should not be silently merged.
+- Global and transaction search currently use keyword/field filters. **Vector retrieval is for memory**, not a universal semantic search engine.
+- Product price-trend charts and automatic exchange-rate conversion are not implemented.
+- Browser/PWA support does not imply full offline bookkeeping. Mobile haptics depend on browser and device support.
+- Five live-model memory cases are regression examples, not an overall accuracy guarantee. Screenshots are UI demonstrations, not live-model acceptance tests.
 
-**Make room for the next little improvement.**
+## Documentation
 
-Ideas, translations, receipt formats and thoughtful pull requests are welcome.
+- [User guide](docs/user-guide.md) — entry, refunds, activities, reporting and assistant workflows.
+- [Deployment](docs/deployment.md) — setup, upgrades, persistent storage, backup and restore.
+- [Financial memory](docs/financial-memory.md) — sources, retrieval, sharing, forgetting and model setup.
+- [Category learning](docs/category-learning.md) — the existing classification-feedback algorithm.
+- [Assistant capabilities](docs/assistant-capability-audit.md) — supported operations and confirmation boundaries.
+- [Languages and currency](docs/internationalization.md).
+- [2.0 release notes](docs/releases/v2.0.0.md) · [Changelog](CHANGELOG.md).
 
-[Share an idea](https://github.com/JYao-Chen/TallyBear/issues) · [Contribute](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
+## License and artwork
 
-Enjoying TallyBear? A ⭐ helps others find their new bookkeeping companion.
-
-[MIT](LICENSE) · [Credits & artwork](THIRD_PARTY_NOTICES.md)
-
-</div>
+Application code is [MIT licensed](LICENSE). The optional Bubu & Yier artwork, fonts and payment marks retain their respective rights. TallyBear is not an official Bubu & Yier product; the code license does not grant a blanket license to the character assets. See [third-party notices](THIRD_PARTY_NOTICES.md).

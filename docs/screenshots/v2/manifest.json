@@ -1,0 +1,647 @@
+{
+  "version": "2.0.0",
+  "capturedAt": "2026-09-27T04:48:49.242Z",
+  "data": "Synthetic household. Seeded assistant and OCR drafts, no live model calls.",
+  "captures": [
+    {
+      "file": "zh-desktop-overview.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "overview"
+    },
+    {
+      "file": "zh-desktop-analysis.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "analysis"
+    },
+    {
+      "file": "zh-desktop-charts.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "charts"
+    },
+    {
+      "file": "zh-desktop-assets.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "assets"
+    },
+    {
+      "file": "zh-desktop-activities.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "activities"
+    },
+    {
+      "file": "zh-desktop-budgets.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "budgets"
+    },
+    {
+      "file": "zh-desktop-books.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "books"
+    },
+    {
+      "file": "zh-desktop-family.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "family"
+    },
+    {
+      "file": "zh-desktop-categories.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "categories"
+    },
+    {
+      "file": "zh-desktop-help.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "help"
+    },
+    {
+      "file": "zh-desktop-plans.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "plans"
+    },
+    {
+      "file": "zh-desktop-profile.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "profile"
+    },
+    {
+      "file": "zh-desktop-memory.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "memory"
+    },
+    {
+      "file": "zh-desktop-memory-history.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "memory-history"
+    },
+    {
+      "file": "zh-desktop-intake.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "intake"
+    },
+    {
+      "file": "zh-desktop-draft.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "draft"
+    },
+    {
+      "file": "zh-desktop-line-items.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "line-items"
+    },
+    {
+      "file": "zh-desktop-family-entry.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "family-entry"
+    },
+    {
+      "file": "zh-desktop-assistant.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "assistant"
+    },
+    {
+      "file": "zh-desktop-search.webp",
+      "language": "zh-CN",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "search"
+    },
+    {
+      "file": "zh-mobile-overview.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "overview"
+    },
+    {
+      "file": "zh-mobile-analysis.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "analysis"
+    },
+    {
+      "file": "zh-mobile-charts.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "charts"
+    },
+    {
+      "file": "zh-mobile-assets.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "assets"
+    },
+    {
+      "file": "zh-mobile-activities.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "activities"
+    },
+    {
+      "file": "zh-mobile-budgets.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "budgets"
+    },
+    {
+      "file": "zh-mobile-books.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "books"
+    },
+    {
+      "file": "zh-mobile-family.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "family"
+    },
+    {
+      "file": "zh-mobile-categories.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "categories"
+    },
+    {
+      "file": "zh-mobile-help.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "help"
+    },
+    {
+      "file": "zh-mobile-plans.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "plans"
+    },
+    {
+      "file": "zh-mobile-profile.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "profile"
+    },
+    {
+      "file": "zh-mobile-memory.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "memory"
+    },
+    {
+      "file": "zh-mobile-memory-history.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "memory-history"
+    },
+    {
+      "file": "zh-mobile-intake.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "intake"
+    },
+    {
+      "file": "zh-mobile-draft.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "draft"
+    },
+    {
+      "file": "zh-mobile-line-items.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "line-items"
+    },
+    {
+      "file": "zh-mobile-family-entry.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "family-entry"
+    },
+    {
+      "file": "zh-mobile-assistant.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "assistant"
+    },
+    {
+      "file": "zh-mobile-search.webp",
+      "language": "zh-CN",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "search"
+    },
+    {
+      "file": "en-desktop-overview.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "overview"
+    },
+    {
+      "file": "en-desktop-analysis.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "analysis"
+    },
+    {
+      "file": "en-desktop-charts.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "charts"
+    },
+    {
+      "file": "en-desktop-assets.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "assets"
+    },
+    {
+      "file": "en-desktop-activities.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "activities"
+    },
+    {
+      "file": "en-desktop-budgets.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "budgets"
+    },
+    {
+      "file": "en-desktop-books.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "books"
+    },
+    {
+      "file": "en-desktop-family.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "family"
+    },
+    {
+      "file": "en-desktop-categories.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "categories"
+    },
+    {
+      "file": "en-desktop-help.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "help"
+    },
+    {
+      "file": "en-desktop-plans.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "plans"
+    },
+    {
+      "file": "en-desktop-profile.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "profile"
+    },
+    {
+      "file": "en-desktop-memory.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "memory"
+    },
+    {
+      "file": "en-desktop-memory-history.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "memory-history"
+    },
+    {
+      "file": "en-desktop-intake.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "intake"
+    },
+    {
+      "file": "en-desktop-draft.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "draft"
+    },
+    {
+      "file": "en-desktop-line-items.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "line-items"
+    },
+    {
+      "file": "en-desktop-family-entry.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "family-entry"
+    },
+    {
+      "file": "en-desktop-assistant.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "assistant"
+    },
+    {
+      "file": "en-desktop-search.webp",
+      "language": "en",
+      "device": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "feature": "search"
+    },
+    {
+      "file": "en-mobile-overview.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "overview"
+    },
+    {
+      "file": "en-mobile-analysis.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "analysis"
+    },
+    {
+      "file": "en-mobile-charts.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "charts"
+    },
+    {
+      "file": "en-mobile-assets.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "assets"
+    },
+    {
+      "file": "en-mobile-activities.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "activities"
+    },
+    {
+      "file": "en-mobile-budgets.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "budgets"
+    },
+    {
+      "file": "en-mobile-books.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "books"
+    },
+    {
+      "file": "en-mobile-family.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "family"
+    },
+    {
+      "file": "en-mobile-categories.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "categories"
+    },
+    {
+      "file": "en-mobile-help.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "help"
+    },
+    {
+      "file": "en-mobile-plans.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "plans"
+    },
+    {
+      "file": "en-mobile-profile.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "profile"
+    },
+    {
+      "file": "en-mobile-memory.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "memory"
+    },
+    {
+      "file": "en-mobile-memory-history.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "memory-history"
+    },
+    {
+      "file": "en-mobile-intake.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "intake"
+    },
+    {
+      "file": "en-mobile-draft.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "draft"
+    },
+    {
+      "file": "en-mobile-line-items.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "line-items"
+    },
+    {
+      "file": "en-mobile-family-entry.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "family-entry"
+    },
+    {
+      "file": "en-mobile-assistant.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "assistant"
+    },
+    {
+      "file": "en-mobile-search.webp",
+      "language": "en",
+      "device": "mobile",
+      "width": 390,
+      "height": 844,
+      "feature": "search"
+    }
+  ]
+}

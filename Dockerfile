@@ -12,7 +12,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3016 REC
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
-COPY --from=build --chown=node:node /app/scripts/init.mjs /app/scripts/schema.sql ./scripts/
+COPY --from=build --chown=node:node /app/scripts/init.mjs /app/scripts/schema.sql /app/scripts/memory-schema.sql ./scripts/
 RUN mkdir -p /app/data/receipts && chown -R node:node /app/data
 USER node
 EXPOSE 3016
