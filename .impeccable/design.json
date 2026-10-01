@@ -6,7 +6,7 @@
     "source": {
       "designDocument": "docs/personal-profile/DESIGN.md",
       "scope": "Personal profile only; the root DESIGN.md is preserved.",
-      "files": ["src/app/globals.css", "src/app/personal-profile.css", "src/components/PersonalProfile.tsx", "src/components/ProfileLocation.tsx"],
+      "files": ["src/app/globals.css", "src/app/personal-profile.css", "src/components/PersonalProfile.tsx", "src/components/ProfileOverview.tsx", "src/components/ProfileLocation.tsx"],
       "paletteNote": "Metadata describes implemented colors only. No synthesized tonal scales are application tokens."
     },
     "colorMeta": {
@@ -26,7 +26,7 @@
       "headline": {"displayName": "Profile heading", "purpose": "Page heading; 25px at 600px and below. The declared heading stack may fall back on the client."},
       "body": {"displayName": "Body", "purpose": "Inherited bilingual text stack."},
       "insight-value": {"displayName": "Suggested value", "purpose": "The main content of a learned-habit card."},
-      "context": {"displayName": "Matching context", "purpose": "Wrapping conditions above the selected value."},
+      "context": {"displayName": "Matching context", "purpose": "Wrapping conditions below the selected value."},
       "navigation": {"displayName": "Section label", "purpose": "Seven section labels; 12px at 600px and below."},
       "state": {"displayName": "State badge", "purpose": "Text labels for stable, changed, tentative, and inactive states."}
     },
@@ -34,8 +34,17 @@
     "motion": [
       {"name": "control-background", "value": "background .15s", "purpose": "Inherited ordinary button state transition."},
       {"name": "insight-state", "value": "border-color .18s, background .18s", "purpose": "Insight hover and selection border/background transition."},
+      {"name": "scene-entrance", "value": "300ms cubic-bezier(.16,1,.3,1)", "purpose": "Scene grid moves from translateY(5px) to translateY(0); removed for reduced motion."},
+      {"name": "companion-playback", "value": "4500ms", "purpose": "One existing GIF automatically stops after each play; labeled 44px play/pause control. Reduced motion uses PNG with no autoplay; minimal theme uses a compass without a GIF or playback control."},
       {"name": "reduced-motion", "value": "@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}", "purpose": "Existing global reduced-motion rule."}
     ],
+    "overview": {
+      "assets": {"animated": "public/stickers/bubu-yier-001.gif", "static": "public/stickers/bubu-yier-001.png", "provenance": "Existing project assets; not newly generated."},
+      "layout": "Companion story beside vertical status shortcuts; at 1000px and below, story above horizontal shortcuts. Scene groups use three desktop tracks, two at 1000px and below, and one at 600px and below. Multi-insight groups span two columns and ceil(count / 2) rows, with two internal card columns and a full-width odd final card. On phones, groups and cards are single-column.",
+      "counts": "Status shortcuts show global counts and toggle the status filter; each scene heading explicitly labels its current-page count.",
+      "icons": "Scene and field line icons; wallet preferences reuse the existing AccountIcon logo resolver.",
+      "changes": "Changed insights with a distinct previous value show that value struck through, an arrow, and the current value."
+    },
     "breakpoints": [
       {"name": "profile-two-columns", "value": "1000px"},
       {"name": "inherited-mobile-controls", "value": "730px"},
@@ -81,9 +90,9 @@
     },
     {
       "name": "Learned habit", "kind": "card", "refersTo": "insight",
-      "description": "Illustrative content demonstrates the implemented reading order; the support percentage is not prediction accuracy.",
-      "html": "<button class=\"ds-insight\" type=\"button\"><span class=\"ds-meta\"><span class=\"ds-state\">Established</span><span>12 records</span></span><span class=\"ds-context\">Expense / Dining</span><strong>Wallet<span>Everyday wallet</span></strong><span class=\"ds-bar\"><span style=\"width:92%\"></span></span><span class=\"ds-meta\">Weighted support 92%<span class=\"ds-evidence\">View evidence</span></span></button>",
-      "css": ".ds-insight{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;align-items:stretch;text-align:left;border:1px solid var(--line,#e9e1d8);border-radius:12px;background:var(--surface,#fffdfa);color:var(--ink,#453d38);padding:19px;gap:15px;min-width:0;cursor:pointer;transition:border-color .18s,background .18s}.ds-insight:hover{border-color:var(--accent,#365f58)}.ds-insight:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}.ds-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;color:var(--muted,#776c64)}.ds-state{font-size:11px;padding:3px 7px;background:var(--soft,#eaf0eb);color:var(--accent,#365f58);border-radius:4px}.ds-context{font-size:12px;color:var(--muted,#776c64);line-height:1.65;overflow-wrap:anywhere}.ds-insight>strong{font-size:12px;font-weight:400;color:var(--muted,#776c64)}.ds-insight>strong>span{display:block;font-size:19px;color:var(--ink,#453d38);font-weight:600;line-height:1.4;margin-top:6px;overflow-wrap:anywhere}.ds-bar{height:4px;background:var(--line,#e9e1d8);overflow:hidden;border-radius:2px;margin-top:auto}.ds-bar>span{display:block;height:100%;background:var(--accent,#365f58)}.ds-evidence{color:var(--accent,#365f58)}@media(max-width:600px){.ds-insight{padding:18px}}@media(prefers-reduced-motion:reduce){.ds-insight{transition:none}}"
+      "description": "Compact habit example; the application also shows field icons, resolved wallet logos, and previous-to-current comparisons for changed values. The support percentage is not prediction accuracy.",
+      "html": "<button class=\"ds-insight\" type=\"button\"><span class=\"ds-meta\"><span class=\"ds-state\">Established</span><span>12 records</span></span><strong>Wallet<span>Everyday wallet</span></strong><span class=\"ds-context\">Expense / Dining</span><span class=\"ds-bar\"><span style=\"width:92%\"></span></span><span class=\"ds-meta\">Weighted support 92%<span class=\"ds-evidence\">View evidence</span></span></button>",
+      "css": ".ds-insight{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;align-items:stretch;text-align:left;border:1px solid var(--line,#e9e1d8);border-radius:16px;background:var(--surface,#fffdfa);color:var(--ink,#453d38);padding:21px;gap:18px;min-width:0;cursor:pointer;transition:border-color .18s,background .18s}.ds-insight:hover{border-color:var(--accent,#365f58)}.ds-insight:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:4px}.ds-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;color:var(--muted,#776c64)}.ds-state{font-size:11px;padding:3px 7px;background:var(--soft,#eaf0eb);color:var(--accent,#365f58);border-radius:4px}.ds-context{font-size:11px;color:var(--muted,#776c64);line-height:1.6;overflow-wrap:anywhere}.ds-insight>strong{font-size:12px;font-weight:400;color:var(--muted,#776c64)}.ds-insight>strong>span{display:block;font-size:20px;color:var(--ink,#453d38);font-weight:600;line-height:1.4;margin-top:6px;overflow-wrap:anywhere}.ds-bar{height:4px;background:var(--line,#e9e1d8);overflow:hidden;border-radius:2px;margin-top:auto}.ds-bar>span{display:block;height:100%;background:var(--accent,#365f58)}.ds-evidence{color:var(--accent,#365f58)}@media(max-width:600px){.ds-insight{padding:18px;gap:15px}}@media(prefers-reduced-motion:reduce){.ds-insight{transition:none}}"
     },
     {
       "name": "Privacy checkbox row", "kind": "custom",
@@ -94,8 +103,8 @@
   ],
   "narrative": {
     "northStar": "TallyBear's warm cream and green profile",
-    "overview": "The private profile uses the existing TallyBear identity: warm paper, quiet green actions, readable records, and familiar profile navigation. The page gives habits, explicit rules, and their sources room to be inspected and corrected. It keeps Chinese and English labels equally visible across desktop and phone layouts.\n\nThis is a code-derived record of the personal-profile surface, not a replacement for the repository's root design document. The normative sources are `src/app/globals.css`, `src/app/personal-profile.css`, `src/components/PersonalProfile.tsx`, and `src/components/ProfileLocation.tsx`; the surface also reuses the profile shell, product memory workspace, and memory history. The frontmatter records the default warm theme. Existing theme variables continue to control the alternate minimal theme.",
-    "keyCharacteristics": ["Warm cream surfaces with green selection and action cues.", "Context, preferred value, weighted support, and evidence form a visible reading order.", "Inline evidence and rule editing preserve the surrounding profile context.", "Seven named sections remain available on narrow screens.", "Privacy controls have persistent explanations beside native checkboxes."],
+    "overview": "The private profile uses the existing TallyBear identity: warm paper, quiet green actions, readable records, and familiar profile navigation. The page gives habits, explicit rules, and their sources room to be inspected and corrected. It keeps Chinese and English labels equally visible across desktop and phone layouts.\n\nThis is a code-derived record of the personal-profile surface, not a replacement for the repository's root design document. The normative sources are `src/app/globals.css`, `src/app/personal-profile.css`, `src/components/PersonalProfile.tsx`, `src/components/ProfileOverview.tsx`, and `src/components/ProfileLocation.tsx`; the surface also reuses the profile shell, product memory workspace, and memory history. The frontmatter records the default warm theme. Existing theme variables continue to control the alternate minimal theme.",
+    "keyCharacteristics": ["Warm cream surfaces with green selection and action cues.", "Scene groups organize preferred values, matching context, weighted support, and evidence.", "One familiar companion introduces the overview beside global status shortcuts.", "Inline evidence and rule editing preserve the surrounding profile context.", "Seven named sections remain available on narrow screens.", "Privacy controls have persistent explanations beside native checkboxes."],
     "rules": [],
     "dos": ["Do bind profile surfaces and controls to the existing theme variables.", "Do keep context, weighted support, and source access beside each learned habit.", "Do preserve all seven section labels and full-width product filters on phones.", "Do show privacy explanations and explicit location confirmation beside their controls.", "Do keep inline correction, source pagination, and visible keyboard focus."],
     "donts": ["Don't add decorative eyebrow text above the profile heading.", "Don't add a selected left stripe to insight cards or memory rows.", "Don't label weighted support as prediction accuracy.", "Don't present learned habits as confirmed personal rules.", "Don't replace the implemented native privacy checkboxes with undocumented custom switches."]

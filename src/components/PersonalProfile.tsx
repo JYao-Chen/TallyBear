@@ -8,6 +8,7 @@ import {MemoryHistory} from './MemoryHistory';
 import {useI18n} from './LanguageProvider';
 import {downloadProfile,profileApi,profileError,profileFields,profileValues} from './profile-client';
 import {locateArea} from './ProfileLocation';
+import {ProfileOverviewSummary,ProfileInsightBoard} from './ProfileOverview';
 
 type Resources={wallets:{id:string;name:string}[];categories:string[];places:{id:string;name:string}[]};
 const emptyResources:Resources={wallets:[],categories:[],places:[]};
@@ -35,11 +36,11 @@ export function PersonalProfile({admin=false,initialId}:{admin?:boolean;initialI
   {error&&<p className="error" role="alert">{error}<button type="button" className="text-button" onClick={()=>setRevision(n=>n+1)}>{t('重新加载','Reload')}</button></p>}{notice&&<p className="notice" role="status">{notice}</p>}
   {loading||loadedSection!==section?<p className="portrait-loading" role="status">{t('正在读取有效记录…','Reading current records…')}</p>:data&&<>
    {(section==='overview'||section==='review')&&<>
-    {section==='overview'&&<section className="portrait-summary"><div><span>{t('你的记账足迹','Your recorded activity')}</span><strong>{data.summary.transactions.toLocaleString(locale)} <small>{t('笔有效记录','valid records')}</small></strong><p>{data.summary.firstDate?`${data.summary.firstDate} — ${data.summary.lastDate}`:t('记下第一笔，画像会逐渐形成。','Your profile will develop as you record entries.')}</p></div><dl><div><dt>{t('稳定习惯','Established')}</dt><dd>{data.summary.stable}</dd></div><div><dt>{t('近期变化','Recent changes')}</dt><dd>{data.summary.changed}</dd></div><div><dt>{t('仍在观察','Learning')}</dt><dd>{data.summary.tentative}</dd></div></dl></section>}
+    {section==='overview'&&<ProfileOverviewSummary summary={data.summary} status={status} onStatus={value=>{setStatus(value);setPage(1);}}/>}
     {data.settings?.enabled===false&&<p className="notice">{t('学习已暂停；现有画像可查看，但不会用于自动填充。','Learning is paused. Existing insights remain visible but do not fill entries.')}</p>}
     <div className="portrait-section-heading"><div><h3>{section==='review'?t('先核对发生变化的习惯','Review changing habits'):t('场景里的习惯','Habits in context')}</h3><p>{t('权重随时间衰减；支持占比不是预测准确率。展开可查看来源与替代选择。','Evidence fades over time. Support share is not prediction accuracy. Open an insight to review sources and alternatives.')}</p></div>{section==='overview'&&<button type="button" className="text-button" onClick={()=>switchSection('habits')}>{t('管理明确规则','Manage explicit rules')}<ArrowRight size={16}/></button>}</div>
     <div className="portrait-filters"><label className="portrait-search"><Search size={17}/><input aria-label={t('搜索画像','Search profile')} placeholder={t('搜索场景、商家、钱包…','Search context, merchant, wallet…')} value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}}/></label>{section==='overview'&&<select aria-label={t('习惯状态','Habit status')} value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">{t('全部状态','All states')}</option>{['stable','changed','tentative','stale'].map(s=><option key={s} value={s}>{label(s)}</option>)}</select>}</div>
-    <div className="portrait-insights">{data.items.map((i:ProfileInsight)=><button type="button" className={'portrait-insight'+(selected?.key===i.key?' is-selected':'')} key={i.key} onClick={()=>select(i)}><span className="portrait-insight-top"><span className={'portrait-state '+i.status}>{label(i.status)}</span><span>{i.count} {t('笔依据','records')}</span></span><span className="portrait-context">{describe(i.condition)}</span><strong>{field(i.field)}<span>{label(i.choices[0].value,i.field)}</span></strong><span className="portrait-weight"><span style={{width:Math.round(i.choices[0].share*100)+'%'}}/></span><span className="portrait-insight-bottom">{t('加权支持','Weighted support')} {Math.round(i.choices[0].share*100)}%<span>{t('查看依据','View evidence')} <ArrowRight size={14}/></span></span></button>)}</div>
+    <ProfileInsightBoard items={data.items} selected={selected?.key} onSelect={select} field={field} label={label} places={resources.places}/>
     {!data.items.length&&<div className="portrait-empty"><Compass size={28}/><h3>{t('暂时没有符合条件的习惯','No matching habits yet')}</h3><p>{t('继续正常记账即可；不会从少量记录强行推断。也可以在“场景与规则”里明确你的偏好。','Keep recording as usual. A few records will not force a conclusion. You can also set an explicit rule.')}</p></div>}
     {paginate(data.total)}
    </>}
