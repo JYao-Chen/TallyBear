@@ -8,17 +8,17 @@ export type PreferenceField=typeof preferenceFields[number];
 export const preferenceSuggestion=z.object({
  field:z.enum(preferenceFields),value:z.string().max(160),label:z.string().max(160),before:z.string().default(''),
  state:z.enum(['applied','candidate','dismissed']),confirmed:z.boolean().optional(),count:z.number().int().nonnegative(),
- basis:z.enum(['context','semantic']),sources:z.array(z.object({id:z.string(),title:z.string(),date:z.string()})).max(3),
+ basis:z.enum(['context','semantic','profile','rule']),ruleId:z.string().uuid().optional(),insightKey:z.string().optional(),sources:z.array(z.object({id:z.string(),title:z.string(),date:z.string()})).max(3),
 });
 export type PreferenceSuggestion=z.infer<typeof preferenceSuggestion>;
-export type PreferenceInput={kind:string;category:string;categorySource?:'explicit'|'model';accountId?:string;payee:string;platform?:string;title?:string;product?:string;note?:string;scene?:EntryScene;preferenceSuggestions?:PreferenceSuggestion[]};
+export type PreferenceInput={kind:string;category:string;categorySource?:'explicit'|'model';accountId?:string;payee:string;platform?:string;title?:string;product?:string;note?:string;scene?:EntryScene;date?:string;occurredAt?:string;profileContext?:import('./personal-profile').ProfileContext;preferenceSuggestions?:PreferenceSuggestion[]};
 export type PreferenceEvidence=PreferenceInput&{id:string;eventId?:string;at:string|Date;date:string;preferenceSuggestions?:PreferenceSuggestion[]};
 export function preferenceValue(input:PreferenceInput,field:PreferenceField):string{
  const value=field.startsWith('scene.')?input.scene?.[field.slice(6) as keyof EntryScene]:input[field as keyof PreferenceInput];
  return typeof value==='string'&&!['unknown','general'].includes(value)?value:'';
 }
 export function setPreference<T extends PreferenceInput>(input:T,field:PreferenceField,value:string):T{
- return field.startsWith('scene.')?{...input,scene:sceneSchema.parse({...input.scene,[field.slice(6)]:value})}:{...input,[field]:value};
+ return field.startsWith('scene.')?{...input,scene:sceneSchema.parse({...input.scene,[field.slice(6)]:value||(field==='scene.type'?'general':field==='scene.diningMode'?'unknown':'')})}:{...input,[field]:value};
 }
 export function resolvePreference<T extends PreferenceInput>(input:T,target:PreferenceSuggestion,adopt:boolean,english=false){
  let value=input;
@@ -54,7 +54,7 @@ export function rankPreferenceEvidence(input:PreferenceInput,rows:PreferenceEvid
   const productWords=tokens(input.product||''),historicalProduct=tokens(row.product||'');
   const productMatch=[...productWords].filter(t=>historicalProduct.has(t)).length/Math.max(1,productWords.size);
   return {row,score:matches.length*2+lexical+productMatch*3,basis:'context' as const,eligible:(strong&&(!productWords.size||productMatch>=.5))||lexical>=.55&&common.length>=2};
- }).sort((a,b)=>b.score-a.score||new Date(b.row.at).getTime()-new Date(a.row.at).getTime());
+ }).sort((a,b)=>b.score-a.score||b.row.date.localeCompare(a.row.date));
 }
 export function inferPreferences<T extends PreferenceInput>(input:T,ranked:ReturnType<typeof rankPreferenceEvidence>,options:{wallets:Map<string,string>;categories:Set<string>;semanticIds?:Set<string>;now?:number;protectedFields?:Set<PreferenceField>}){
  const lexical=ranked.filter(r=>r.eligible),best=lexical[0]?.score||0;
@@ -72,7 +72,7 @@ export function inferPreferences<T extends PreferenceInput>(input:T,ranked:Retur
    const prior=row.preferenceSuggestions?.find(s=>s.field===field&&s.state==='applied');
    if(row.preferenceSuggestions?.some(s=>s.field===field&&s.state==='dismissed'&&normMemory(s.value)===normMemory(candidate)))continue;
    const corrected=!!prior&&(prior.confirmed||normMemory(prior.value)!==normMemory(candidate)),inferred=!!prior&&!corrected;
-   const age=Math.max(0,((options.now??Date.now())-new Date(row.at).getTime())/86400000);
+   const age=Math.max(0,((options.now??Date.now())-Date.parse(row.date+'T12:00:00Z'))/86400000);
    const weight=Math.pow(.5,age/60)*(corrected?3:inferred?.35:1);
    const key=normMemory(candidate),group=groups.get(key)||{value:candidate,weight:0,independent:0,corrections:0,rows:[]};
    group.weight+=weight;group.independent+=Number(!inferred);group.corrections+=Number(corrected);group.rows.push(row);groups.set(key,group);

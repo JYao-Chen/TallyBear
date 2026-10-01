@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE);
+const result=await build({stdin:{contents:`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {ProfileLocation} from './src/components/ProfileLocation';import {LanguageProvider} from './src/components/LanguageProvider';function App(){const [value,setValue]=useState();return <LanguageProvider initial="en"><ProfileLocation value={value} onChange={setValue}/><output>{JSON.stringify(value||{})}</output></LanguageProvider>}createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"development"'}});
+const browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM_PATH});
+try{
+ const page=await browser.newPage({viewport:{width:390,height:844}}),requests=[];
+ await page.addInitScript(()=>{window.calls=0;window.allowLocation=false;Object.defineProperty(window,'isSecureContext',{value:true});Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(success,error){window.calls++;if(!window.allowLocation)error({code:1});else success({timestamp:Date.now(),coords:{latitude:31.234567,longitude:121.478912,accuracy:20}});}}});});
+ await page.route('http://profile.test/**',async route=>{const req=route.request();if(new URL(req.url()).pathname==='/'){await route.fulfill({contentType:'text/html',body:'<html><body><div id="root"></div></body></html>'});return;}let data={locationEnabled:true,places:[{id:'00000000-0000-4000-8000-000000000001',name:'Office area'}]};if(req.method()==='POST'){const body=req.postDataJSON();requests.push(body);data={recordedAt:body.context.recordedAt,timeZone:body.context.timeZone,placeId:'00000000-0000-4000-8000-000000000001',useAsTransactionPlace:false};}await route.fulfill({contentType:'application/json',body:JSON.stringify(data)});});
+ await page.goto('http://profile.test/');await page.addScriptTag({content:result.outputFiles[0].text});
+ await page.getByRole('button',{name:'Add purchase area'}).click();await page.getByRole('button',{name:'Locate a saved area'}).waitFor();assert.equal(await page.evaluate(()=>window.calls),0);
+ await page.getByRole('button',{name:'Locate a saved area'}).click();await page.locator('p[role=status]').waitFor();assert.equal(await page.evaluate(()=>window.calls),1);assert.equal(requests.length,0);
+ await page.getByRole('combobox').selectOption('00000000-0000-4000-8000-000000000001');await page.getByRole('checkbox').check();assert.equal(JSON.parse(await page.locator('output').innerText()).useAsTransactionPlace,true);
+ await page.evaluate(()=>{window.allowLocation=true;});await page.getByRole('button',{name:'Locate a saved area'}).click();await page.waitForFunction(()=>document.querySelector('output')?.textContent.includes('"useAsTransactionPlace":false'));
+ assert.equal(requests.length,1);assert.equal(requests[0].context.location.latitude,31.23);assert.equal(requests[0].context.location.longitude,121.48);assert.equal(requests[0].context.location.accuracy,1500);assert.equal(JSON.parse(await page.locator('output').innerText()).location,undefined);
+ console.log('PASS: no location request on mount/open, explicit click only, denied permission preserves manual selection, coarse coordinates, no location retained in entry context, fresh confirmation required');
+}finally{await browser.close();}

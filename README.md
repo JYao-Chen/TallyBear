@@ -67,13 +67,17 @@ The assistant uses the same permission-checked business handlers as the interfac
 
 ![Assistant with an editable confirmation card](docs/screenshots/v2/en-desktop-assistant.webp)
 
-### Reuse what you have already confirmed
+### A personal profile that changes with your habits
 
-**Profile → Memory center** manages products and services, category preferences, conversation memories and pending suggestions. Inspect sources, edit aliases, resolve conflicts, disable entries, merge or split products, export data, or forget a memory.
+**Profile → Personal profile** manages products and services, category preferences, conversation memories and pending suggestions. Inspect sources, edit aliases, resolve conflicts, disable entries, merge or split products, export data, or forget a memory.
 
 During AI entry, the system retrieves relevant personal memory and proposes individual fields. There is no separate “buy again” workflow. A repeat purchase may reuse product identity, but it does not inherit an old price, quantity, payment date, order ID or wallet as a new fact.
 
 Personal preferences also learn from related confirmed transactions: category, wallet, merchant, platform and context are suggested independently. Repeated use and recent corrections guide the defaults; ambiguous alternatives remain selectable. Drafts and assistant cards show evidence and allow undoing a fill. Explicit payment evidence takes priority.
+
+Context-specific preferences combine independent evidence, a 60-day decay half-life and explicit rules. The profile separates established habits from recent changes, shows supporting records and lets you exclude an option or stop filling a field in that context. Current input takes priority. Rules and purchase areas are private.
+
+Location assistance is optional and off by default. Only a Locate action requests browser permission; there is no continuous tracking. Save named coarse areas, confirm a purchase area for an entry and separately choose whether to retain that association. Permission denial never blocks bookkeeping. [Profile behavior and verification →](docs/personal-profile-implementation.md)
 
 Memory retrieval combines exact/keyword candidates with optional semantic embeddings and candidate judgment. It needs no fine-tuning or independent vector service. PostgreSQL with pgvector provides exact vector-distance queries. Model or extension unavailability falls back to keyword suggestions.
 

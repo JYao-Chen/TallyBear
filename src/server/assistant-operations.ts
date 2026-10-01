@@ -6,6 +6,10 @@ type Operation={title:string;method:string;path:string;fields:string;help:string
 const operation=(title:string,method:string,path:string,fields:string,help='',fixed?:Record<string,unknown>):Operation=>({title,method,path,fields,help,fixed});
 // Closed catalog: model output cannot choose an HTTP method, URL or secret field.
 export const assistantOperations:Record<string,Operation>={
+ personal_profile:operation('查询个人画像与场景规则','GET','personal-profile','section q status key page','section=overview/rules；只查询当前用户。返回的支持占比不是概率；不要把推断称为明确偏好。条件使用交易时间而非当前录入时间。'),
+ profile_rule_save:operation('确认或纠正个人场景规则','POST','personal-profile','rule replaceConflicts','先查询真实条件与字段。rule={id?,version?,condition:{kind:expense|income,fields:{字段名:值},dayType?,timeBand?,placeId?},field,value,state:confirmed|rejected|disabled}。钱包用本人真实ID。本次例外不要扩展为长期规则。不得借规则推断家庭地址或改变账目。',{operation:'save_rule'}),
+ profile_rule_delete:operation('删除个人场景规则','POST','personal-profile','id version','先查询规则和版本',{operation:'delete_rule'}),
+ profile_rule_undo:operation('撤销个人规则变更','POST','personal-profile','id','先查询section=events中的可撤销事件',{operation:'undo'}),
  cost_schedules:operation('查询周期费用计划','GET','cost-schedules','offset'),
  cost_schedule_create:operation('提前建立周期分担计划','POST','cost-schedules','id rule bookId','id为新UUID；rule={title,category,familyId或null,firstDate:YYYY-MM-DD,months:每隔几个月付款,shares:[{userId,amount:每月承担整数分}]}；bookId为本人选择的成本归属账本。没有付款、不需要钱包；其他成员自己接受和选账本。'),
  cost_schedule_respond:operation('接受周期分担并选择本人账本','POST','cost-schedules/:id/respond','version accept bookId','只代表当前用户同意，不能替其他成员同意'),
@@ -163,5 +167,7 @@ export async function runOperation(input:unknown,user:User,write=false){
  const {applicationApi}=await import('./application-api');
  const response=await applicationApi(new NextRequest(url,{method:op.method,headers:{origin,'content-type':'application/json'},...(op.method==='GET'?{}:{body:JSON.stringify(body)})}),{params:Promise.resolve({path})},user);
  if(response.ok&&response.headers.get('content-type')?.includes('text/csv'))return {downloadUrl:url.pathname+url.search,title:'下载账本 CSV'};
- const result=await response.json();if(!response.ok)throw new Failure(result.error||'操作未完成',response.status);return result;
+ const result=await response.json();if(!response.ok)throw new Failure(result.error||'操作未完成',response.status);
+ if(path[0]==='personal-profile'&&Array.isArray(result.places))result.places=result.places.map((p:any)=>({id:p.id,name:p.name}));
+ return result;
 }

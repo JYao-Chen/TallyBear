@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T04:58:45.766Z",
+  "title": "Design System: TallyBear Personal Profile",
+  "extensions": {
+    "source": {
+      "designDocument": "docs/personal-profile/DESIGN.md",
+      "scope": "Personal profile only; the root DESIGN.md is preserved.",
+      "files": ["src/app/globals.css", "src/app/personal-profile.css", "src/components/PersonalProfile.tsx", "src/components/ProfileLocation.tsx"],
+      "paletteNote": "Metadata describes implemented colors only. No synthesized tonal scales are application tokens."
+    },
+    "colorMeta": {
+      "paper": {"role": "neutral", "displayName": "Warm cream canvas"},
+      "surface": {"role": "neutral", "displayName": "Warm white surface"},
+      "ink": {"role": "neutral", "displayName": "Warm ink"},
+      "muted": {"role": "neutral", "displayName": "Muted brown text"},
+      "line": {"role": "neutral", "displayName": "Warm divider"},
+      "accent": {"role": "primary", "displayName": "Quiet green"},
+      "soft": {"role": "primary", "displayName": "Pale green surface"},
+      "changed-ink": {"role": "secondary", "displayName": "Amber state text"},
+      "changed-surface": {"role": "secondary", "displayName": "Pale amber state"},
+      "button-hover": {"role": "secondary", "displayName": "Inherited purple hover"},
+      "white": {"role": "neutral", "displayName": "Control white"}
+    },
+    "typographyMeta": {
+      "headline": {"displayName": "Profile heading", "purpose": "Page heading; 25px at 600px and below. The declared heading stack may fall back on the client."},
+      "body": {"displayName": "Body", "purpose": "Inherited bilingual text stack."},
+      "insight-value": {"displayName": "Suggested value", "purpose": "The main content of a learned-habit card."},
+      "context": {"displayName": "Matching context", "purpose": "Wrapping conditions above the selected value."},
+      "navigation": {"displayName": "Section label", "purpose": "Seven section labels; 12px at 600px and below."},
+      "state": {"displayName": "State badge", "purpose": "Text labels for stable, changed, tentative, and inactive states."}
+    },
+    "shadows": [{"name": "inherited-panel", "value": "0 3px 20px #453d3806", "purpose": "Reused memory panels; new profile insights and inline detail panels add no shadow."}],
+    "motion": [
+      {"name": "control-background", "value": "background .15s", "purpose": "Inherited ordinary button state transition."},
+      {"name": "insight-state", "value": "border-color .18s, background .18s", "purpose": "Insight hover and selection border/background transition."},
+      {"name": "reduced-motion", "value": "@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}", "purpose": "Existing global reduced-motion rule."}
+    ],
+    "breakpoints": [
+      {"name": "profile-two-columns", "value": "1000px"},
+      {"name": "inherited-mobile-controls", "value": "730px"},
+      {"name": "profile-phone", "value": "600px"}
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action", "kind": "button", "refersTo": "button-primary",
+      "description": "Save or add; includes the inherited default-theme purple hover.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Save rule</button>",
+      "css": ".ds-primary{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;border:0;border-radius:10px;background:var(--accent,#365f58);color:white;padding:12px 18px;min-height:44px;cursor:pointer;transition:background .15s}.ds-primary:hover{background:#665078}.ds-primary:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}.ds-primary:disabled{opacity:.55;cursor:default}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary action", "kind": "button", "refersTo": "button-secondary",
+      "description": "Edit or cancel using the inherited secondary control.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Edit</button>",
+      "css": ".ds-secondary{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;border:0;border-radius:10px;background:var(--soft,#eaf0eb);color:var(--ink,#453d38);padding:12px 18px;min-height:44px;cursor:pointer;transition:background .15s}.ds-secondary:hover{background:#665078}.ds-secondary:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}.ds-secondary:disabled{opacity:.55;cursor:default}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Text action", "kind": "button", "refersTo": "button-text",
+      "description": "Supporting actions preserve a quiet visual weight.",
+      "html": "<button class=\"ds-text\" type=\"button\">Manage explicit rules</button>",
+      "css": ".ds-text{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;border:0;border-radius:10px;background:transparent;color:var(--accent,#365f58);padding:9px 7px;min-height:44px;cursor:pointer;transition:background .15s}.ds-text:hover{background:var(--soft,#eaf0eb)}.ds-text:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-text{transition:none}}"
+    },
+    {
+      "name": "Labeled field", "kind": "input", "refersTo": "input",
+      "description": "Native field with a persistent label and visible keyboard focus.",
+      "html": "<label class=\"ds-label\">Area name<input class=\"ds-input\" placeholder=\"For example: Near the office\"></label>",
+      "css": ".ds-label{display:flex;flex-direction:column;gap:7px;font:13px Geist,'PingFang SC','Microsoft YaHei',sans-serif;color:var(--muted,#776c64);margin-bottom:16px}.ds-input{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;min-height:44px;min-width:0;max-width:100%;border:1px solid var(--line,#e9e1d8);border-radius:9px;padding:11px 13px;background:white;color:var(--ink,#453d38);caret-color:var(--accent,#365f58)}.ds-input:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}@media(max-width:730px){.ds-input{font-size:16px;min-height:48px}}"
+    },
+    {
+      "name": "Profile section navigation", "kind": "nav", "refersTo": "section-navigation",
+      "description": "Seven visible sections; accent underline and weight indicate the current section.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Personal profile sections\"><button aria-current=\"page\">Overview</button><button>Habits &amp; rules</button><button>Products &amp; services</button><button>Arrangements</button><button>Review</button><button>History</button><button>Learning &amp; privacy</button></nav>",
+      "css": ".ds-nav{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line,#e9e1d8);gap:4px 18px;margin-bottom:28px}.ds-nav button{font:13px Geist,'PingFang SC','Microsoft YaHei',sans-serif;border:0;border-radius:0;border-bottom:3px solid transparent;padding:14px 2px 13px;background:transparent;color:var(--muted,#776c64);min-height:48px;cursor:pointer}.ds-nav button:hover{color:var(--accent,#365f58)}.ds-nav button[aria-current]{border-color:var(--accent,#365f58);color:var(--accent,#365f58);font-weight:650}.ds-nav button:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}@media(max-width:1000px){.ds-nav{gap:0 15px}}@media(max-width:600px){.ds-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin-bottom:22px}.ds-nav button{text-align:left;padding:12px 6px;font-size:12px;min-width:0}}"
+    },
+    {
+      "name": "Habit state", "kind": "chip", "refersTo": "state",
+      "description": "Non-interactive text badges keep uncertainty distinct from confirmed rules.",
+      "html": "<span class=\"ds-state\">Established</span> <span class=\"ds-state ds-changed\">Recent change</span>",
+      "css": ".ds-state{font:11px Geist,'PingFang SC','Microsoft YaHei',sans-serif;display:inline-block;padding:3px 7px;background:var(--soft,#eaf0eb);color:var(--accent,#365f58);border-radius:4px}.ds-state.ds-changed{color:#81602e;background:#f5eddc}"
+    },
+    {
+      "name": "Learned habit", "kind": "card", "refersTo": "insight",
+      "description": "Illustrative content demonstrates the implemented reading order; the support percentage is not prediction accuracy.",
+      "html": "<button class=\"ds-insight\" type=\"button\"><span class=\"ds-meta\"><span class=\"ds-state\">Established</span><span>12 records</span></span><span class=\"ds-context\">Expense / Dining</span><strong>Wallet<span>Everyday wallet</span></strong><span class=\"ds-bar\"><span style=\"width:92%\"></span></span><span class=\"ds-meta\">Weighted support 92%<span class=\"ds-evidence\">View evidence</span></span></button>",
+      "css": ".ds-insight{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;display:flex;flex-direction:column;align-items:stretch;text-align:left;border:1px solid var(--line,#e9e1d8);border-radius:12px;background:var(--surface,#fffdfa);color:var(--ink,#453d38);padding:19px;gap:15px;min-width:0;cursor:pointer;transition:border-color .18s,background .18s}.ds-insight:hover{border-color:var(--accent,#365f58)}.ds-insight:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}.ds-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;color:var(--muted,#776c64)}.ds-state{font-size:11px;padding:3px 7px;background:var(--soft,#eaf0eb);color:var(--accent,#365f58);border-radius:4px}.ds-context{font-size:12px;color:var(--muted,#776c64);line-height:1.65;overflow-wrap:anywhere}.ds-insight>strong{font-size:12px;font-weight:400;color:var(--muted,#776c64)}.ds-insight>strong>span{display:block;font-size:19px;color:var(--ink,#453d38);font-weight:600;line-height:1.4;margin-top:6px;overflow-wrap:anywhere}.ds-bar{height:4px;background:var(--line,#e9e1d8);overflow:hidden;border-radius:2px;margin-top:auto}.ds-bar>span{display:block;height:100%;background:var(--accent,#365f58)}.ds-evidence{color:var(--accent,#365f58)}@media(max-width:600px){.ds-insight{padding:18px}}@media(prefers-reduced-motion:reduce){.ds-insight{transition:none}}"
+    },
+    {
+      "name": "Privacy checkbox row", "kind": "custom",
+      "description": "Native checkbox, persistent explanation, and a separated row; not a custom sliding switch.",
+      "html": "<div class=\"ds-setting\"><div><strong>Learn from confirmed entries</strong><p>Only confirmed records are evidence. Unreviewed suggestions are not explicit preferences.</p></div><input aria-label=\"Enable learning\" type=\"checkbox\" checked></div>",
+      "css": ".ds-setting{font:14px Geist,'PingFang SC','Microsoft YaHei',sans-serif;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:24px 0;border-bottom:1px solid var(--line,#e9e1d8);color:var(--ink,#453d38)}.ds-setting strong{font-size:14px}.ds-setting p{max-width:680px;font-size:12px;line-height:1.8;margin:7px 0 0;color:var(--muted,#776c64)}.ds-setting>input{width:20px;height:20px;min-height:20px;flex-shrink:0;accent-color:var(--accent,#365f58)}.ds-setting>input:focus-visible{outline:2px solid var(--accent,#365f58);outline-offset:3px}@media(max-width:600px){.ds-setting{gap:20px;padding:20px 0}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "TallyBear's warm cream and green profile",
+    "overview": "The private profile uses the existing TallyBear identity: warm paper, quiet green actions, readable records, and familiar profile navigation. The page gives habits, explicit rules, and their sources room to be inspected and corrected. It keeps Chinese and English labels equally visible across desktop and phone layouts.\n\nThis is a code-derived record of the personal-profile surface, not a replacement for the repository's root design document. The normative sources are `src/app/globals.css`, `src/app/personal-profile.css`, `src/components/PersonalProfile.tsx`, and `src/components/ProfileLocation.tsx`; the surface also reuses the profile shell, product memory workspace, and memory history. The frontmatter records the default warm theme. Existing theme variables continue to control the alternate minimal theme.",
+    "keyCharacteristics": ["Warm cream surfaces with green selection and action cues.", "Context, preferred value, weighted support, and evidence form a visible reading order.", "Inline evidence and rule editing preserve the surrounding profile context.", "Seven named sections remain available on narrow screens.", "Privacy controls have persistent explanations beside native checkboxes."],
+    "rules": [],
+    "dos": ["Do bind profile surfaces and controls to the existing theme variables.", "Do keep context, weighted support, and source access beside each learned habit.", "Do preserve all seven section labels and full-width product filters on phones.", "Do show privacy explanations and explicit location confirmation beside their controls.", "Do keep inline correction, source pagination, and visible keyboard focus."],
+    "donts": ["Don't add decorative eyebrow text above the profile heading.", "Don't add a selected left stripe to insight cards or memory rows.", "Don't label weighted support as prediction accuracy.", "Don't present learned habits as confirmed personal rules.", "Don't replace the implemented native privacy checkboxes with undocumented custom switches."]
+  }
+}

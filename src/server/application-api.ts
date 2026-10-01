@@ -1,4 +1,5 @@
 import {memoryRoute} from '@/server/memory';
+import {personalProfileRoute,sanitizeProfileContext} from '@/server/personal-profile';
 import {costProjects} from '@/server/cost-projects';
 import {costSchedules} from '@/server/cost-schedules';
 import {prepareHelp,searchHelp} from '@/server/help';
@@ -67,6 +68,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  const u=(actor??await user());
  if(path[0]==='help'&&method==='GET'){const q=z.string().max(300).parse(req.nextUrl.searchParams.get('q')||'');return NextResponse.json(q.trim()?await searchHelp(u.id,q,locale,req.signal):await prepareHelp(u.id));}
  if(path[0]==='memories')return NextResponse.json(await memoryRoute(u,method,req.nextUrl.searchParams,body));
+ if(path[0]==='personal-profile')return NextResponse.json(await personalProfileRoute(u,method,req.nextUrl.searchParams,body));
  if(path[0]==='activities'){
   if(path[1]==='assign'&&method==='PUT')return NextResponse.json(await assignActivity(u.id,body));
   if(path[1]==='entry'&&method==='GET')return NextResponse.json(await entryActivity(u.id,req.nextUrl.searchParams.get('book')||'',req.nextUrl.searchParams.get('id')||''));
@@ -203,7 +205,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  }
  if(resource==='review'&&method==='POST')return NextResponse.json(await review(book,body));
  if(resource==='assistant'&&method==='POST'){
-  const id=await enqueue(u,book,'assistant',body);return body.background===true?NextResponse.json({jobId:id},{status:202}):watchJob(id,req.signal);
+  body.profileContext=await sanitizeProfileContext(u.id,body.profileContext);const id=await enqueue(u,book,'assistant',body);return body.background===true?NextResponse.json({jobId:id},{status:202}):watchJob(id,req.signal);
  }
 
  throw new Failure('操作不存在',404);

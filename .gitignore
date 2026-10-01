@@ -21,6 +21,7 @@ AUDIT*.md
 *MOBILE*.md
 *DESKTOP*.md
 DESIGN.md
+!docs/personal-profile/DESIGN.md
 scripts/.i18n-render.mjs
 /public/help/
 *AUDIT*.md

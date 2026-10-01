@@ -1,5 +1,6 @@
 import {applyMemory,memoryEnabled} from './memory';
 import {applyPersonalPreferences} from './personal-preferences';
+import {saveProfileContext} from './personal-profile';
 import {randomUUID} from 'node:crypto';
 import {preserveSubscriptionCategory} from '@/lib/subscription-category';
 import {normalizeDining} from '@/lib/purchase-memory';
@@ -37,12 +38,13 @@ export async function applyPreferences<T extends LearnedEntry>(book:string,entri
  return filled.map(e=>({...e,title:sceneTitle(e.scene,english)||e.title}));
 }
 
-export async function recordCategoryFeedback(c:PoolClient,book:string,userId:string,entry:{id:string;category:string;categorySource?:'explicit'|'model';categorySuggestion?:CategorySuggestion},previousCategory=''){
+export async function recordCategoryFeedback(c:PoolClient,book:string,userId:string,entry:{id:string;category:string;categorySource?:'explicit'|'model';categorySuggestion?:CategorySuggestion;profileContext?:import('@/lib/personal-profile').ProfileContext},previousCategory=''){
  const suggestion=entry.categorySuggestion;const proposed=suggestion?.category||previousCategory;const original=suggestion?.originalCategory||previousCategory;const corrected=!!proposed&&entry.category!==proposed;
  await c.query(`INSERT INTO category_feedback(transaction_id,book_id,user_id,proposed_category,original_category,final_category,source,corrected,confidence,basis,evidence_count,confirmed_at)
   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
   ON CONFLICT(transaction_id) DO UPDATE SET book_id=$2,user_id=$3,proposed_category=$4,original_category=$5,final_category=$6,source=$7,corrected=$8,confidence=$9,basis=$10,evidence_count=$11,confirmed_at=now()`,[entry.id,book,userId,proposed,original,entry.category,suggestion||entry.categorySource==='model'?'confirmed':'manual',corrected,suggestion?.confidence||null,suggestion?.basis||null,suggestion?.evidenceCount||0]);
  await persistMemoryFeedback(c,entry);
+ await saveProfileContext(c,userId,entry.id,entry.profileContext);
 }
 export async function persistMemoryFeedback(c:PoolClient,entry:{id:string;memorySuggestions?:unknown[];preferenceSuggestions?:unknown[]}){
  if(entry.preferenceSuggestions)await c.query('UPDATE transactions SET preference_suggestions=$1 WHERE id=$2',[JSON.stringify(entry.preferenceSuggestions),entry.id]);

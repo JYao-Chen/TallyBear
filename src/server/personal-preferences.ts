@@ -4,20 +4,13 @@ import {memoryEnabled,searchMemories} from './memory';
 import {memoryModel} from './memory-models';
 import {listCategories} from './categories';
 import {preserveSubscriptionCategory} from '@/lib/subscription-category';
+import {applyProfile,buildProfile} from '@/lib/personal-profile';
+import {profileEvidence,profileRules,sanitizeProfileContext} from './personal-profile';
 import {matchReceiptWallet,usableClue,type ReceiptOrigin} from '@/lib/receipt-origin';
-import {inferPreferences,rankPreferenceEvidence,preferenceText,hasPreferenceContext,type PreferenceEvidence,type PreferenceInput,type PreferenceSuggestion} from '@/lib/preference-learning';
+import {compatiblePreference,inferPreferences,rankPreferenceEvidence,preferenceText,hasPreferenceContext,type PreferenceEvidence,type PreferenceInput,type PreferenceSuggestion} from '@/lib/preference-learning';
 
 export async function personalEvidence(user:string):Promise<PreferenceEvidence[]>{
- return (await db.query(`SELECT * FROM (
-  SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.id,COALESCE(t.event_id,t.id) AS "eventId",
-   t.kind,t.category,t.payee,t.platform,t.title,t.product,t.note,t.scene,t.account_id AS "accountId",
-   t.preference_suggestions AS "preferenceSuggestions",t.updated_at AS at,to_char(t.date,'YYYY-MM-DD') AS date
-  FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$1
-  WHERE t.created_by=$1 AND NOT t.deleted AND t.kind IN ('expense','income')
-   AND NOT EXISTS(SELECT 1 FROM category_feedback other WHERE other.transaction_id=t.id AND other.user_id<>$1)
-   AND NOT EXISTS(SELECT 1 FROM memory_exclusions x JOIN transactions forgotten ON forgotten.id=x.source_id WHERE x.user_id=$1 AND x.source_type='transaction' AND COALESCE(forgotten.event_id,forgotten.id)=COALESCE(t.event_id,t.id))
-  ORDER BY COALESCE(t.event_id,t.id),t.updated_at DESC,t.id
- ) history ORDER BY at DESC LIMIT 2000`,[user])).rows;
+ return profileEvidence(user);
 }
 export async function personalWallets(user:string){
  // Wallet labels suffice; do not calculate balances for recommendations.
@@ -52,12 +45,13 @@ async function semanticEvidence(user:string,input:PreferenceInput,ranked:ReturnT
 
 export async function applyPersonalPreferences<T extends PreferenceInput&{receiptOrigin?:ReceiptOrigin;memorySuggestions?:import('@/lib/memory').MemorySuggestion[]}>(user:string,entries:T[],options:{query?:string;signal?:AbortSignal;semantic?:boolean;contexts?:PreferenceInput[]}={}):Promise<(T&{preferenceSuggestions?:PreferenceSuggestion[]})[]>{
  if(!await memoryEnabled(user))return entries;
- const [rows,walletRows,categories]=await Promise.all([personalEvidence(user),personalWallets(user),listCategories(user)]);
+ const [rows,walletRows,categories,rules]=await Promise.all([profileEvidence(user),personalWallets(user),listCategories(user),profileRules(user)]);
  const validCategories=new Set<string>(categories.filter(c=>!c.archived).map(c=>c.name));
  const result:(T&{preferenceSuggestions?:PreferenceSuggestion[]})[]=[],deadline=AbortSignal.timeout(8000);
  for(const [index,input] of entries.entries()){
   if(!['expense','income'].includes(input.kind)){result.push(input);continue;}
   const context=options.contexts?.[index]||input;
+  const insights=buildProfile(rows.filter(row=>compatiblePreference(context,row)));
   const ranked=rankPreferenceEvidence(context,rows,entries.length===1?options.query:'');
   const query=entries.length===1&&options.query?options.query:preferenceText(context);
   const semanticIds=options.semantic!==false&&!deadline.aborted&&!ranked.some(r=>r.eligible)&&hasPreferenceContext(query)?await semanticEvidence(user,context,ranked,query,options.signal,deadline):undefined;
@@ -68,8 +62,11 @@ export async function applyPersonalPreferences<T extends PreferenceInput&{receip
   const protectedFields=new Set<import('@/lib/preference-learning').PreferenceField>();
   if(preserveSubscriptionCategory({category:input.category||''},validCategories))protectedFields.add('category');
   if(input.memorySuggestions?.some(s=>s.fields.category&&(s.status==='matched'||s.conflicts.length)))protectedFields.add('category');
-  const inferred=inferPreferences(input,ranked,{wallets,categories:validCategories,semanticIds,protectedFields});
-  result.push({...inferred.value,preferenceSuggestions:inferred.suggestions});
+  const profileContext=await sanitizeProfileContext(user,input.profileContext);
+  // Device context is not a transaction fact. Only explicit transaction-place confirmation participates.
+  const profile=applyProfile(input,{...context,placeId:profileContext?.useAsTransactionPlace?profileContext.placeId:undefined},insights,rules,{wallets,categories:validCategories,protectedFields});
+  const inferred=inferPreferences(profile.value,ranked,{wallets,categories:validCategories,semanticIds,protectedFields:new Set([...protectedFields,...profile.blockedFields])});
+  result.push({...inferred.value,...(profileContext?{profileContext}:{}),preferenceSuggestions:[...profile.suggestions,...inferred.suggestions]});
  }
  return result;
 }

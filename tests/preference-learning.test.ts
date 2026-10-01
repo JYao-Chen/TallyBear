@@ -45,7 +45,7 @@ test('income habits do not cross into spending',()=>{
 });
 test('recent wallet corrections outweigh old history; generated defaults do not bootstrap certainty',()=>{
  const suggestion:PreferenceSuggestion={field:'accountId',value:'wechat',label:'微信',before:'',state:'applied',count:4,basis:'context',sources:[]};
- const old=copies({payee:'餐馆',at:new Date(now-240*86400000)}),changed=copies({payee:'餐馆',accountId:'bank',preferenceSuggestions:[suggestion]},2).map(r=>({...r,id:'new'+r.id}));assert.equal(infer(input({payee:'餐馆'}),[...old,...changed]).value.accountId,'bank');
+ const old=copies({payee:'餐馆',date:new Date(now-240*86400000).toISOString().slice(0,10),at:new Date(now)}),changed=copies({payee:'餐馆',accountId:'bank',preferenceSuggestions:[suggestion]},2).map(r=>({...r,id:'new'+r.id}));assert.equal(infer(input({payee:'餐馆'}),[...old,...changed]).value.accountId,'bank');
  assert.equal(infer(input({payee:'餐馆'}),copies({payee:'餐馆',preferenceSuggestions:[suggestion]},20)).value.accountId,undefined);
 });
 test('undo keeps subsequent manual changes; explicit candidate selection remains learnable',()=>{

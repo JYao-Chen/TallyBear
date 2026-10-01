@@ -4,6 +4,7 @@ import {receiptOriginSchema,receiptOriginInstructions,receiptPlatform,matchRecei
 import {listAssets} from './accounts';
 import {withDeviceTime,transactionTimeInstructions} from '@/lib/entry-time';
 import {sceneInstructions,diningInstructions} from '@/lib/entry-scene';
+import {sanitizeProfileContext} from './personal-profile';
 import {applyPreferences} from './receipt-preferences';
 import {cleanReceiptNote} from './receipt-note';
 import {deployment} from '@/lib/deployment';
@@ -87,13 +88,14 @@ Recognize platforms from explicit text or distinctive visual evidence following 
 export async function review(book:string,body:unknown){const b=z.object({entries:z.array(proposed).max(1000)}).parse(body);return {entries:reconcile(b.entries,await existingEntries(book))};}
 
 export async function recognize(book:string,body:unknown,progress:ModelProgress={},userId?:string){const english=deployment().language==='en';
+ const profileContext=userId?await sanitizeProfileContext(userId,(body as any).profileContext):undefined;
  const cachedStep=async<T,>(key:string,fn:()=>Promise<T>):Promise<T>=>{const saved=await progress.checkpoint?.get(key);if(saved)return saved;const value=await fn();await progress.checkpoint?.set(key,value);return value;};
  type Extracted=Awaited<ReturnType<typeof extractReceipt>>;
  type Result={message:string;entries:ReturnType<typeof reconcile>;ignored:Extracted['ignored']};
  const State=Annotation.Root({extracted:Annotation<Extracted>(),result:Annotation<Result>()});
  const graph=new StateGraph(State)
  .addNode('read_receipt',async()=>{progress.signal?.throwIfAborted();progress.onStage?.('识别助手：读取图片、归并订单和商品');return {extracted:await cachedStep('extracted',()=>extractReceipt(book,body,progress,userId))};})
- .addNode('normalize',async state=>{progress.signal?.throwIfAborted();progress.onStage?.(english?'Standardizing fields and matching relevant category preferences':'统一消费格式，匹配相关商家分类习惯');return {extracted:{...state.extracted,proposals:await applyPreferences(book,state.extracted.proposals,!!(body as {useHistory?:boolean}).useHistory,english,progress,userId,(body as {text?:string}).text||'')}};})
+ .addNode('normalize',async state=>{progress.signal?.throwIfAborted();progress.onStage?.(english?'Standardizing fields and matching relevant category preferences':'统一消费格式，匹配相关商家分类习惯');return {extracted:{...state.extracted,proposals:await applyPreferences(book,state.extracted.proposals.map(e=>({...e,profileContext})),!!(body as {useHistory?:boolean}).useHistory,english,progress,userId,(body as {text?:string}).text||'')}};})
  .addNode('match_wallet',async state=>{progress.onStage?.(english?'Matching payment method to your wallets':'根据付款方式匹配个人钱包');const wallets=userId?await listAssets(userId):[];return {extracted:{...state.extracted,proposals:state.extracted.proposals.map(e=>{const match=userId?matchReceiptWallet(e.receiptOrigin,wallets,userId):null;return {...e,platform:receiptPlatform(e.receiptOrigin)||e.platform,...(match?{accountId:match.accountId,walletCandidates:match.candidates,...(match.accountId&&match.basis?{walletMatch:match.basis}:{})}:{accountId:''})};})}};})
  .addNode('reconcile',async state=>{progress.signal?.throwIfAborted();progress.onStage?.('核对订单与已有流水、退款');const e=state.extracted;return {result:{message:e.message+(english?` Prepared ${e.proposals.length} drafts; skipped ${e.ignored.length} unpaid, closed or pending-refund records.`:`。生成${e.proposals.length}笔草稿，未支付/关闭/退款未到账${e.ignored.length}笔未入账。`),entries:reconcile(e.proposals,await existingEntries(book)),ignored:e.ignored}};})
  .addNode('check_amounts',async state=>{progress.signal?.throwIfAborted();progress.onStage?.('金额核验：逐项加总，与实付比较');const e=state.extracted;const checked=await cachedStep('verified',()=>verifyAndRepair(e.proposals,async(faults,attempt)=>{
