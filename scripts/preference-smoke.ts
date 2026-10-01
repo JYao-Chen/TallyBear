@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import {randomBytes,randomUUID} from 'node:crypto';
+import {db,withConnection} from '../src/server/db';
+import {entry} from '../src/server/model';
+import {insertEntry} from '../src/server/ledger';
+import {createAccount} from '../src/server/accounts';
+import {applyPersonalPreferences,personalEvidence} from '../src/server/personal-preferences';
+import {applyPreferences} from '../src/server/receipt-preferences';
+import {prepareChatAction} from '../src/server/chat-actions';
+import {recognize} from '../src/server/recognize';
+import {encrypt} from '../src/server/ai';
+import {sceneSchema} from '../src/lib/entry-scene';
+import {receiptOriginSchema} from '../src/lib/receipt-origin';
+assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_test'),'Requires an isolated test database');
+process.env.ENCRYPTION_KEY=randomBytes(32).toString('base64');
+const c=await db.connect(),originalFetch=globalThis.fetch;
+await c.query('BEGIN');
+try{await withConnection(c,async()=>{
+ const owner=randomUUID(),outsider=randomUUID(),book=randomUUID();
+ const user={id:owner,username:'preference-test',name:'Test',admin:false,avatar:'',theme:'bear'} as any;
+ for(const id of [owner,outsider])await c.query('INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,$2,$3)',[id,'Test','not-a-login']);
+ await c.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'Preference test','private',$2)",[book,owner]);await c.query("INSERT INTO members VALUES($1,$2,'owner')",[book,owner]);
+ const wallet=(await createAccount(owner,{name:'微信',type:'wechat',opening:0})).id,other=(await createAccount(owner,{name:'支付宝',type:'alipay',opening:0})).id;
+ const history:ReturnType<typeof entry.parse>[]=[];
+ for(let i=0;i<4;i++){const e=entry.parse({id:randomUUID(),kind:'expense',amount:1800,date:'2026-10-01',accountId:wallet,payee:'面馆',title:'面馆午餐',category:'餐饮',scene:{type:'dining',merchant:'面馆',meal:'午餐'}});await insertEntry(c,book,owner,e);history.push(e);}
+ const current={kind:'expense',category:'其他',payee:'面馆',title:'午餐',accountId:'',scene:sceneSchema.parse({type:'dining'}),amount:2300};
+ const [personal]=await applyPersonalPreferences(owner,[current],{semantic:false});assert.equal(personal.accountId,wallet);assert.equal(personal.amount,2300);
+ const [outsiderResult]=await applyPersonalPreferences(outsider,[current],{semantic:false});assert.equal(outsiderResult.accountId,'');
+ const [integrated]=await applyPreferences(book,[current],true,false,{},owner);assert.equal(integrated.accountId,wallet);assert.ok(integrated.preferenceSuggestions?.length);
+ const card=await prepareChatAction({kind:'entry',data:{...current,date:'2026-10-01'}},{book,user,useHistory:true},[]);assert.equal(card.data.accountId,wallet);assert.ok(card.data.preferenceSuggestions?.length);assert.equal(card.status,'pending');
+ const parsed=entry.parse({...card.data,id:card.id});await insertEntry(c,book,owner,parsed);
+ assert.ok((await personalEvidence(owner)).find(r=>r.id===card.id)?.preferenceSuggestions?.some(s=>s.field==='accountId'));
+ const proposal={...current,receiptOrigin:receiptOriginSchema.parse({}),id:randomUUID(),lineItems:[],status:'paid' as const,date:'2026-10-01',note:''};
+ const result=await recognize(book,{text:'面馆午餐23元',useHistory:true},{checkpoint:{get:async k=>k==='extracted'?{message:'test',proposals:[proposal],ignored:[]}:k==='verified'?{entries:[proposal],repaired:0,unresolved:0}:undefined,set:async()=>{}}},owner);
+ assert.equal(result.entries[0].accountId,wallet,'wallet matching must not erase the learned wallet');assert.ok(result.entries[0].preferenceSuggestions?.length,'draft schema preserves suggestions');
+ const [receipt]=await applyPersonalPreferences(owner,[{...current,receiptOrigin:receiptOriginSchema.parse({paymentChannel:{name:'支付宝',basis:'explicit',cues:['支付宝付款']}})}],{semantic:false});assert.equal(receipt.accountId,'','incompatible payment evidence must block old wallet');
+ await c.query('UPDATE accounts SET archived=true WHERE id=$1',[wallet]);assert.equal((await applyPersonalPreferences(owner,[current],{semantic:false}))[0].accountId,'');await c.query('UPDATE accounts SET archived=false WHERE id=$1',[wallet]);
+ await c.query("INSERT INTO memory_settings(user_id,enabled) VALUES($1,false) ON CONFLICT(user_id) DO UPDATE SET enabled=false",[owner]);assert.deepEqual((await applyPreferences(book,[current],true,false,{},owner))[0].accountId,'');await c.query('UPDATE memory_settings SET enabled=true WHERE user_id=$1',[owner]);
+ await c.query("INSERT INTO memory_exclusions(user_id,source_type,source_id) VALUES($1,'transaction',$2)",[owner,history[0].id]);assert.ok(!(await personalEvidence(owner)).some(r=>r.id===history[0].id));
+ const secondBook=randomUUID(),copyId=randomUUID();
+ await c.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'Linked book','private',$2)",[secondBook,owner]);await c.query("INSERT INTO members VALUES($1,$2,'owner')",[secondBook,owner]);
+ await insertEntry(c,secondBook,owner,{...history[0],id:copyId});
+ await c.query('UPDATE transactions SET event_id=$1 WHERE id=ANY($2::uuid[])',[history[0].id,[history[0].id,copyId]]);
+ assert.ok(!(await personalEvidence(owner)).some(r=>r.id===copyId),'forgetting also excludes linked book appearances');
+ await c.query('DELETE FROM members WHERE book_id=$1',[secondBook]);
+ await c.query('UPDATE category_feedback SET user_id=$1 WHERE transaction_id=$2',[outsider,history[2].id]);
+ assert.ok(!(await personalEvidence(owner)).some(r=>r.id===history[2].id),'another member correction is not a personal preference');
+ await c.query('UPDATE category_feedback SET user_id=$1 WHERE transaction_id=$2',[owner,history[2].id]);
+ await c.query('UPDATE transactions SET deleted=true WHERE id=$1',[history[1].id]);assert.ok(!(await personalEvidence(owner)).some(r=>r.id===history[1].id));
+ // Exercise the semantic protocol with controlled responses, not real-model accuracy claims.
+ for(const role of ['embedding','extraction','judgment'])await c.query("INSERT INTO memory_models(role,base_url,model,encrypted_key,dimensions) VALUES($1,'http://preference-model.test/v1','test',$2,1024) ON CONFLICT(role) DO UPDATE SET base_url=EXCLUDED.base_url,encrypted_key=EXCLUDED.encrypted_key",[role,encrypt('test')]);
+ globalThis.fetch=async(_url,init)=>{assert.ok(String(_url).startsWith('http://preference-model.test/'));const payload=JSON.parse(String(init?.body)),request=JSON.parse(payload.messages[1].content);return Response.json({choices:[{message:{content:JSON.stringify({matches:request.candidates.map((g:any)=>({index:g.index,quote:'工作餐'}))})}}]});};
+ const [semantic]=await applyPersonalPreferences(owner,[{...current,payee:'',title:'',scene:sceneSchema.parse({})}],{query:'工作餐'});assert.ok(semantic.preferenceSuggestions?.some(s=>s.basis==='semantic'));
+ globalThis.fetch=async()=>{throw new Error('model offline');};const [fallback]=await applyPersonalPreferences(owner,[{...current,payee:'',title:'',scene:sceneSchema.parse({})}],{query:'未知需求'});assert.equal(fallback.accountId,'');
+ await c.query('DELETE FROM members WHERE book_id=$1 AND user_id=$2',[book,owner]);assert.equal((await personalEvidence(owner)).length,0);
+ assert.notEqual(wallet,other);
+ console.log('PASS: personal scope, opt-out, wallet evidence, archived wallets, exclusions, deletion, revoked access, persisted feedback, assistant card, OCR pipeline, semantic protocol and offline fallback');
+});}finally{globalThis.fetch=originalFetch;await c.query('ROLLBACK');c.release();await db.end();}

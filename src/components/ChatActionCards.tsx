@@ -1,4 +1,5 @@
 'use client';
+import {PreferenceSuggestions} from './PreferenceSuggestions';
 import {changeMemorySelection,resolveMemoryField} from '@/lib/memory-fields';
 import {MemorySuggestions} from './MemorySuggestions';
 import {ChatActionEditor} from './ChatActionEditor';
@@ -18,6 +19,7 @@ export function ChatActionCards({onEdit,actions,disabled,confirmable,onConfirm,o
   {editing!==a.id&&typeof a.data.amount==='number'&&<div className="receipt-card-amount"><span>{tr('金额')}</span><strong>{formatMoney(a.data.amount)}</strong></div>}
   {editing!==a.id&&<details className="receipt-card-content" open={pending}><summary>{tr('查看卡片详情')}</summary>
   <dl className="receipt-facts">{a.summary.filter(s=>!(typeof a.data.amount==='number'&&s.label==='金额')).map((s,i)=><div className={['备注','核验说明','商品摘要'].includes(s.label)?'receipt-fact-wide':''} key={i}><dt>{tr(s.label)}</dt><dd>{s.icon&&<SymbolIcon icon={s.icon} size={22}/ >}{s.account&&<AccountIcon name={s.account} size={22}/>}<span>{s.value}</span></dd></div>)}</dl>
+  {pending&&a.kind==='entry'&&<PreferenceSuggestions value={a.data as any} disabled={disabled||!!saving} onChange={next=>onEdit(a.id,next)}/>}
   {pending&&<MemorySuggestions suggestions={a.data.memorySuggestions} name={a.data.product||a.data.title||''} disabled={disabled||!!saving} onChange={(next,resolution)=>{const filled=resolution?resolveMemoryField(a.data,next,resolution.id,resolution.itemId,resolution.field,resolution.useMemory):changeMemorySelection(a.data,a.data.memorySuggestions||[],next);return onEdit(a.id,{...filled.value,memorySuggestions:filled.suggestions});}}/>}
   {a.data.lineItems?.length>0&&<LineItemsView items={a.data.lineItems} total={a.data.amount||0}/>}
   {pending&&a.missing.length>0&&<section className="receipt-notice receipt-notice-missing"><strong>{tr('请补充信息')}</strong><p>{a.missing.map(m=>tr(m)).join('、')}</p></section>}

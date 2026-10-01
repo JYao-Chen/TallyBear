@@ -1,10 +1,11 @@
 import {normalizeTransactionTime} from '@/lib/entry-time';
 import {memorySuggestion} from '@/lib/memory';
+import {preferenceSuggestion} from '@/lib/preference-learning';
 import {z} from 'zod';
 import {sceneSchema} from '@/lib/entry-scene';
 import {lineItemsSchema} from '@/lib/line-items';
 import {categorySuggestionSchema} from '@/lib/category-learning';
-export const details={memorySuggestions:z.array(memorySuggestion).max(600).optional(),scene:sceneSchema,title:z.string().trim().max(80).default(''),photoIds:z.array(z.string().uuid()).default([]),retainReceipts:z.boolean().default(false),verificationReason:z.string().trim().max(500).default(''),attachmentIds:z.array(z.string().uuid()).default([]),lineItems:lineItemsSchema,platform:z.string().max(40).default(''),orderId:z.string().max(200).default(''),product:z.string().max(160).default(''),occurredAt:z.preprocess(normalizeTransactionTime,z.string()),source:z.string().max(200).default(''),refundOf:z.string().uuid().nullable().optional(),categorySource:z.enum(['explicit','model']).optional(),categorySuggestion:categorySuggestionSchema.optional()};
+export const details={preferenceSuggestions:z.array(preferenceSuggestion).max(36).optional(),memorySuggestions:z.array(memorySuggestion).max(600).optional(),scene:sceneSchema,title:z.string().trim().max(80).default(''),photoIds:z.array(z.string().uuid()).default([]),retainReceipts:z.boolean().default(false),verificationReason:z.string().trim().max(500).default(''),attachmentIds:z.array(z.string().uuid()).default([]),lineItems:lineItemsSchema,platform:z.string().max(40).default(''),orderId:z.string().max(200).default(''),product:z.string().max(160).default(''),occurredAt:z.preprocess(normalizeTransactionTime,z.string()),source:z.string().max(200).default(''),refundOf:z.string().uuid().nullable().optional(),categorySource:z.enum(['explicit','model']).optional(),categorySuggestion:categorySuggestionSchema.optional()};
 export type Comparable={id:string;kind:string;amount:number;date:string;payee:string;accountId:string;externalId?:string;orderId?:string;platform?:string;occurredAt?:string;product?:string;category?:string;note?:string;version?:number};
 const norm=(s?:string)=>(s||'').trim().toLowerCase().replace(/\s/g,'');
 export function matchReason(a:Comparable,b:Comparable):string|null{

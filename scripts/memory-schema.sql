@@ -1,6 +1,7 @@
 -- Apply after schema.sql. pgvector is installed separately; no production volume changes.
 CREATE TABLE IF NOT EXISTS memory_settings(user_id uuid PRIMARY KEY REFERENCES users ON DELETE CASCADE,enabled boolean NOT NULL DEFAULT true);
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS memory_suggestions jsonb NOT NULL DEFAULT '[]';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS preference_suggestions jsonb NOT NULL DEFAULT '[]';
 -- Add only identity metadata, never rewrite monetary facts or item order.
 BEGIN;
 ALTER TABLE transactions DISABLE TRIGGER transaction_updated_at;

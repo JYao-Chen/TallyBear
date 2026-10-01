@@ -412,3 +412,12 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
  .report-period-picker label{display:grid;gap:6px;flex:1 1 160px;min-width:0;font-size:14px}
  .report-period-picker .report-period-summary{flex-basis:100%;color:var(--muted);font-variant-numeric:tabular-nums}
  @media(max-width:600px){.report-period-picker{padding:12px;gap:10px}.report-period-picker label{flex-basis:100%}.report-period-picker>button{width:100%}}
+.preference-suggestions{grid-column:1/-1;min-width:0;margin-block:1rem;padding-block:1rem;border-block:1px solid var(--border,#e8dfd5)}
+.preference-heading,.preference-option{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.preference-suggestions p{margin:.25rem 0;font-size:.875rem}
+.preference-fields{display:grid;gap:1rem;margin-top:1rem}
+.preference-field{min-width:0}
+.preference-option{margin-top:.5rem;align-items:flex-start}
+.preference-option>div{flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
+.preference-option small{display:block;font-size:.875rem;color:var(--muted,#776c64)}
+.preference-option button,.preference-heading button{min-height:44px;flex-shrink:0}

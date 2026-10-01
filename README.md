@@ -73,6 +73,8 @@ The assistant uses the same permission-checked business handlers as the interfac
 
 During AI entry, the system retrieves relevant personal memory and proposes individual fields. There is no separate “buy again” workflow. A repeat purchase may reuse product identity, but it does not inherit an old price, quantity, payment date, order ID or wallet as a new fact.
 
+Personal preferences also learn from related confirmed transactions: category, wallet, merchant, platform and context are suggested independently. Repeated use and recent corrections guide the defaults; ambiguous alternatives remain selectable. Drafts and assistant cards show evidence and allow undoing a fill. Explicit payment evidence takes priority.
+
 Memory retrieval combines exact/keyword candidates with optional semantic embeddings and candidate judgment. It needs no fine-tuning or independent vector service. PostgreSQL with pgvector provides exact vector-distance queries. Model or extension unavailability falls back to keyword suggestions.
 
 Private memories stay private unless explicitly shared. Forgetting a memory does not delete its source transaction. [Implementation and limitations →](docs/financial-memory.md)
