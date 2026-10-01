@@ -173,7 +173,7 @@ Opening a card shows an inline detail panel with alternatives, recent versus ear
 
 ### Overview companion and status shortcuts
 
-The introduction reuses the project's existing `public/stickers/bubu-yier-001.gif` and matching `.png`; these are existing assets, not newly generated artwork. Only one companion GIF appears. Playback automatically stops after 4.5 seconds and a labeled 44px play/pause control allows another play or an earlier pause. Reduced-motion preference selects the static PNG and disables automatic playback. The minimal theme displays a compass icon with no GIF or playback control.
+The introduction uses two existing library stickers not assigned to other fixed application scenes: `public/stickers/bubu-yier-087.gif` (reading a book) before the first record, and `public/stickers/bubu-yier-171.gif` (typing at a keyboard) once records exist, with matching `.png` fallbacks. Neither contains language-specific captions. Only one companion GIF appears at a time. Playback automatically stops after 4.5 seconds and a labeled 44px play/pause control allows another play or an earlier pause. Reduced-motion preference selects the static PNG and disables automatic playback. The minimal theme displays a compass icon with no GIF or playback control.
 
 The three status shortcuts show global established, changed, and tentative counts. Selecting one filters the overview; selecting it again clears that status filter. These global counts are distinct from each scene heading's count of insights on the current page. The valid-record total and observed date range remain in the companion caption.
 

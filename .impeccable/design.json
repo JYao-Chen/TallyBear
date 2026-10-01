@@ -39,7 +39,7 @@
       {"name": "reduced-motion", "value": "@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}", "purpose": "Existing global reduced-motion rule."}
     ],
     "overview": {
-      "assets": {"animated": "public/stickers/bubu-yier-001.gif", "static": "public/stickers/bubu-yier-001.png", "provenance": "Existing project assets; not newly generated."},
+      "assets": {"animated": "public/stickers/bubu-yier-171.gif", "static": "public/stickers/bubu-yier-171.png", "emptyAnimated": "public/stickers/bubu-yier-087.gif", "emptyStatic": "public/stickers/bubu-yier-087.png", "provenance": "Existing library assets not assigned to other fixed scenes; typing for recorded habits, reading before the first record. No language-specific captions."},
       "layout": "Companion story beside vertical status shortcuts; at 1000px and below, story above horizontal shortcuts. Scene groups use three desktop tracks, two at 1000px and below, and one at 600px and below. Multi-insight groups span two columns and ceil(count / 2) rows, with two internal card columns and a full-width odd final card. On phones, groups and cards are single-column.",
       "counts": "Status shortcuts show global counts and toggle the status filter; each scene heading explicitly labels its current-page count.",
       "icons": "Scene and field line icons; wallet preferences reuse the existing AccountIcon logo resolver.",

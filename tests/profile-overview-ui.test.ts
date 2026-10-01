@@ -10,9 +10,15 @@ import type {ProfileInsight} from '../src/lib/personal-profile';
 test('overview respects minimal theme and renders a static companion before hydration',()=>{
  const view=h(ProfileOverviewSummary,{summary:{transactions:0,stable:0,changed:0,tentative:0},status:'',onStatus:()=>{}});
  const render=(theme:'bear'|'minimal')=>renderToStaticMarkup(h(LanguageProvider,{initial:'en',children:h(ThemeProvider,{initial:theme,children:view})}));
- assert.match(render('bear'),/bubu-yier-001.png/);
+ assert.match(render('bear'),/bubu-yier-087.png/);
  assert.doesNotMatch(render('minimal'),/bubu-yier-/);
  assert.match(render('bear'),/It starts with your first entry/);
+});
+
+test('an established profile uses the record-keeping companion, not the shared default bear',()=>{
+ const html=renderToStaticMarkup(h(ProfileOverviewSummary,{summary:{transactions:12,stable:1,changed:0,tentative:0},status:'',onStatus:()=>{}}));
+ assert.match(html,/bubu-yier-171.png/);
+ assert.doesNotMatch(html,/bubu-yier-(001|087)\./);
 });
 
 test('visual scene groups preserve evidence, changed choices and uncommon contexts',()=>{
