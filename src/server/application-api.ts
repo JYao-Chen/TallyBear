@@ -1,4 +1,5 @@
 import {memoryRoute} from '@/server/memory';
+import {itemReport} from '@/server/finance-items';
 import {personalProfileRoute,sanitizeProfileContext} from '@/server/personal-profile';
 import {costProjects} from '@/server/cost-projects';
 import {costSchedules} from '@/server/cost-schedules';
@@ -135,7 +136,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));
- if(resource==='chart-details'&&method==='GET'){if(req.nextUrl.searchParams.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,req.nextUrl.searchParams));const ids=z.array(z.string().uuid()).min(1).parse(req.nextUrl.searchParams.getAll('book'));for(const id of ids)await member(id,u);return NextResponse.json(await report(ids,req.nextUrl.searchParams,u.id));}
+ if(resource==='chart-details'&&method==='GET'){const p=req.nextUrl.searchParams,metric=p.get('metric');const ids=z.array(z.string().uuid()).min(1).parse(p.getAll('book'));for(const id of ids)await member(id,u);if(metric&&['item_amount','unit_price','quantity'].includes(metric))return NextResponse.json(await itemReport(ids,p,u.id,metric as 'item_amount'|'unit_price'|'quantity'));if(p.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,p));return NextResponse.json(await report(ids,p,u.id));}
  if(resource==='transaction-balance'&&method==='GET'){const id=uuid.parse(req.nextUrl.searchParams.get('id'));const rows=(await db.query('SELECT id,event_id FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted',[id,book])).rows;const result=await attachWalletBalances(u.id,rows);return NextResponse.json((result[0] as any)?.wallet_balances||[]);}
  if(resource==='report'&&method==='GET')return NextResponse.json(req.nextUrl.searchParams.get('scope')==='personal_wallet'?await personalWalletReport(u.id,req.nextUrl.searchParams):await report(book,req.nextUrl.searchParams,u.id));
  if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale,req.nextUrl.searchParams.get('scope')==='personal_wallet'?u.id:undefined),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});

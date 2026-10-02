@@ -61,6 +61,8 @@ Activities support types, dates, budgets, family participation, an archive view,
 
 The assistant can search accessible books, explain reports, inspect statements and prepare changes. Supported operations include entries, refunds, wallets, activities, categories, budgets, plans, family management and memory.
 
+Financial queries retain the same filters in summaries, charts and clickable details. Use daily, weekly or monthly trends and category/merchant/product/wallet/platform groups. Product analysis uses matching recorded merchandise rows for subtotals, quantities and weighted unit prices, excluding discounts and fees; missing evidence remains unknown. Complete totals do not depend on the current result page. See [financial queries](docs/assistant-finance-query.md).
+
 Messages and their scope are saved on send. Background jobs continue after you leave the conversation. Action cards distinguish the payment summary, items, adjustments, missing fields, warnings and processing notes. Editing a card is separate from confirming it; bookkeeping changes still require confirmation.
 
 The assistant uses the same permission-checked business handlers as the interface. Passwords, new secrets and file uploads stay in dedicated screens. This is a defined tool catalogue, **not unrestricted access to the server or database**. See the [capability audit](docs/assistant-capability-audit.md).

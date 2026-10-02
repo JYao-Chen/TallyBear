@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0 maintenance — 2026-10-02
+
+- Unified assistant filters across summaries, transaction lookup, charts and drilldown, with reusable query references and explicit pagination.
+- Added weekly trends and merchant/product/wallet/platform grouping, plus matching merchandise subtotals, quantities and quantity-weighted unit prices. Missing evidence remains unknown; checkout discounts and fees are excluded from merchandise analysis.
+- Fixed filtered chart titles showing unrestricted spending and drilldown losing the original filters. See [financial query behavior](docs/assistant-finance-query.md).
+
 ## 2.0.0 — 2026-09-27
 
 - Reorganized the manual into ordered sections with project introduction, examples, FAQs, feature shortcuts, assistant questions and switchable desktop/mobile screenshots. Added matching manual-entry, refund, import and reconciliation images.
