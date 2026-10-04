@@ -1,3 +1,4 @@
+import {detailOrder,detailSorts} from '@/lib/detail-sort';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import type {PoolClient} from 'pg';
@@ -72,7 +73,7 @@ export async function entryActivity(user:string,bookId:string,transactionId:stri
 
 export async function activityReport(user:string,id:string,params:URLSearchParams){
  const activity=await accessibleActivity(user,id);
- const filter=z.object({book:z.union([z.literal('all'),uuid]).default('all'),kind:z.enum(['all','expense','income','refund','transfer']).default('all'),category:z.string().max(60).default(''),account:z.union([z.literal('all'),uuid]).default('all'),q:z.string().trim().max(120).default(''),offset:z.coerce.number().int().min(0).default(0),limit:z.coerce.number().int().min(1).max(100).default(20)}).parse(Object.fromEntries(params));
+ const filter=z.object({sort:z.enum(detailSorts).default('date_desc'),book:z.union([z.literal('all'),uuid]).default('all'),kind:z.enum(['all','expense','income','refund','transfer']).default('all'),category:z.string().max(60).default(''),account:z.union([z.literal('all'),uuid]).default('all'),q:z.string().trim().max(120).default(''),offset:z.coerce.number().int().min(0).default(0),limit:z.coerce.number().int().min(1).max(100).default(20)}).parse(Object.fromEntries(params));
  const values:unknown[]=[id,user],where:string[]=['ae.activity_id=$1','NOT t.deleted'];
  if(!activity.family_id)where.push('ae.owner_id=$2');
  if(filter.book!=='all'){values.push(filter.book);where.push(`t.book_id=$${values.length}`);}
@@ -82,10 +83,10 @@ export async function activityReport(user:string,id:string,params:URLSearchParam
  if(filter.q){values.push('%'+filter.q.toLowerCase()+'%');where.push(`lower(concat_ws(' ',t.title,t.payee,t.product,t.note,t.order_id,t.external_id)) LIKE $${values.length}`);}
  values.push(filter.limit,filter.offset);const limit='$'+(values.length-1),offset='$'+values.length;
  const result=await db.query(`WITH matched AS (
- SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.book_id,b.name AS book_name,t.kind,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at
+ SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.book_id,b.name AS book_name,t.kind,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at,t.occurred_at
  FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id
  WHERE ${where.join(' AND ')} ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id
- ), page AS (SELECT * FROM matched ORDER BY date DESC,created_at DESC,id DESC LIMIT ${limit} OFFSET ${offset})
+ ), page AS (SELECT * FROM matched ORDER BY ${detailOrder(filter.sort)} LIMIT ${limit} OFFSET ${offset})
  SELECT json_build_object('rows',(SELECT COALESCE(json_agg(page),'[]'::json) FROM page),
  'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(amount) FILTER (WHERE kind='income'),0),'expense',COALESCE(sum(amount) FILTER (WHERE kind='expense'),0),'refund',COALESCE(sum(amount) FILTER (WHERE kind='refund'),0)) FROM matched),
  'categories',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT category,sum(CASE WHEN kind='refund' THEN -amount ELSE amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY category) x),

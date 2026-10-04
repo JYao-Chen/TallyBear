@@ -45,7 +45,8 @@ async function semanticEvidence(user:string,input:PreferenceInput,ranked:ReturnT
 
 export async function applyPersonalPreferences<T extends PreferenceInput&{receiptOrigin?:ReceiptOrigin;memorySuggestions?:import('@/lib/memory').MemorySuggestion[]}>(user:string,entries:T[],options:{query?:string;signal?:AbortSignal;semantic?:boolean;contexts?:PreferenceInput[]}={}):Promise<(T&{preferenceSuggestions?:PreferenceSuggestion[]})[]>{
  if(!await memoryEnabled(user))return entries;
- const [rows,walletRows,categories,rules]=await Promise.all([profileEvidence(user),personalWallets(user),listCategories(user),profileRules(user)]);
+ const [rows,walletRows,categories,rules,bookRows]=await Promise.all([profileEvidence(user),personalWallets(user),listCategories(user),profileRules(user),db.query("SELECT b.id,b.name FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer'",[user])]);
+ const books=new Map<string,string>(bookRows.rows.map(b=>[b.id,b.name]));
  const validCategories=new Set<string>(categories.filter(c=>!c.archived).map(c=>c.name));
  const result:(T&{preferenceSuggestions?:PreferenceSuggestion[]})[]=[],deadline=AbortSignal.timeout(8000);
  for(const [index,input] of entries.entries()){
@@ -64,8 +65,8 @@ export async function applyPersonalPreferences<T extends PreferenceInput&{receip
   if(input.memorySuggestions?.some(s=>s.fields.category&&(s.status==='matched'||s.conflicts.length)))protectedFields.add('category');
   const profileContext=await sanitizeProfileContext(user,input.profileContext);
   // Device context is not a transaction fact. Only explicit transaction-place confirmation participates.
-  const profile=applyProfile(input,{...context,placeId:profileContext?.useAsTransactionPlace?profileContext.placeId:undefined},insights,rules,{wallets,categories:validCategories,protectedFields});
-  const inferred=inferPreferences(profile.value,ranked,{wallets,categories:validCategories,semanticIds,protectedFields:new Set([...protectedFields,...profile.blockedFields])});
+  const profile=applyProfile(input,{...context,placeId:profileContext?.useAsTransactionPlace?profileContext.placeId:undefined},insights,rules,{wallets,categories:validCategories,books,protectedFields});
+  const inferred=inferPreferences(profile.value,ranked,{wallets,categories:validCategories,books,semanticIds,protectedFields:new Set([...protectedFields,...profile.blockedFields])});
   result.push({...inferred.value,...(profileContext?{profileContext}:{}),preferenceSuggestions:[...profile.suggestions,...inferred.suggestions]});
  }
  return result;

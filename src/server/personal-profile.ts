@@ -62,12 +62,13 @@ export async function saveProfileContext(c:PoolClient,user:string,id:string,valu
 async function options(user:string){
  const wallets=(await db.query('SELECT id,name,type FROM accounts WHERE owner_id=$1 AND NOT archived ORDER BY name',[user])).rows;
  const categories=(await listCategories(user)).filter(c=>!c.archived).map(c=>c.name);
- return {wallets,categories,fields:preferenceFields};
+ const books=(await db.query("SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user])).rows;
+ return {wallets,categories,books,fields:preferenceFields};
 }
 async function validateRule(user:string,raw:unknown){
  const rule=profileRuleSchema.parse(raw),available=await options(user);
  const pairs=[...Object.entries(rule.condition.fields),[rule.field,rule.value]];
- for(const [field,value] of pairs){if(!value)continue;if(field.startsWith('scene.')&&!sceneSchema.safeParse({[field.slice(6)]:value}).success)throw new Failure('Invalid preference value');if(field==='accountId'&&!available.wallets.some(w=>w.id===value))throw new Failure('Wallet not available',403);if(field==='category'&&!available.categories.includes(value))throw new Failure('Category not available');}
+ for(const [field,value] of pairs){if(!value)continue;if(field.startsWith('scene.')&&!sceneSchema.safeParse({[field.slice(6)]:value}).success)throw new Failure('Invalid preference value');if(field==='bookId'&&!available.books.some(b=>b.id===value))throw new Failure('Book not available',403);if(field==='accountId'&&!available.wallets.some(w=>w.id===value))throw new Failure('Wallet not available',403);if(field==='category'&&!available.categories.includes(value))throw new Failure('Category not available');}
  if(rule.condition.placeId&&!(await db.query('SELECT 1 FROM profile_places WHERE id=$1 AND user_id=$2',[rule.condition.placeId,user])).rowCount)throw new Failure('Place not found',404);
  return rule;
 }

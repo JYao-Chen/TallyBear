@@ -27,6 +27,7 @@ async function seed(db,lang){
  const en=lang==='en',label=(zh,enText)=>en?enText:zh;
  const user=randomUUID(),sam=randomUUID(),book=randomUUID(),privateBook=randomUUID(),family=randomUUID(),token=randomUUID();
  await db.query(await readFile('scripts/schema.sql','utf8'));await db.query(await readFile('scripts/memory-schema.sql','utf8'));
+ await db.query(await readFile('scripts/profile-schema.sql','utf8'));
  await db.query("INSERT INTO deployment_settings VALUES(1,$1)",[en?'USD':'CNY']);
  for(const [id,name,username] of [[user,label('小悠','Alex'),'alex.demo'],[sam,label('小林','Sam'),'sam.demo']])await db.query('INSERT INTO users(id,username,name,password,admin) VALUES($1,$2,$3,$4,true)',[id,username,name,'demo-login-disabled']);
  await db.query('INSERT INTO families(id,name,owner_id) VALUES($1,$2,$3)',[family,label('我们的家','Our household'),user]);
@@ -68,7 +69,14 @@ async function seed(db,lang){
  const action={id:randomUUID(),kind:'entry',bookId:book,title:draft.title,status:'pending',data:{...draft,processingHints:[label('演示草稿，请核对后保存。','Demo draft. Review before saving.')]},missing:[],warnings:[],summary:[{label:'记入账本',value:label('一起过日子','Everyday together')},{label:'资金钱包',value:label('微信钱包','Daily wallet')},{label:'交易日期',value:draft.date},{label:'分类',value:draft.category},{label:'备注',value:draft.note}]};
  await db.query("INSERT INTO finance_turns(id,conversation_id,question,answer,status,artifacts,model) VALUES($1,$2,$3,$4,'complete',$5,'demo fixture')",[randomUUID(),conversation,label('帮我记牛奶与蔬菜，优惠5元，配送3元，实付55.80元。','Prepare milk and vegetables: $5 discount, $3 delivery, $55.80 paid.'),label('这是演示对话。请核对下面的草稿，确认后才会入账。','This is a demonstration conversation. Review the draft below; it is saved only after confirmation.'),JSON.stringify({charts:[],tools:[],drafts:[],actions:[action],analysisBooks:[book]})]);
  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '3 hours')",[token,user]);
- return {token,book,conversation};
+ if(process.env.FUNDS_AUDIT_ONLY){
+  const other=randomUUID();await db.query("INSERT INTO accounts(id,name,type,opening,owner_id) VALUES($1,$2,'wechat',100000,$3)",[other,label('另一位成员的钱包','Other member wallet'),sam]);
+  for(const [sender,recipient,source,target,amount] of [[user,sam,wallets[0],other,14000],[sam,user,other,wallets[0],5700]])await db.query("INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,status) VALUES($1,$2,$3,$4,$5,$6,'transfer',$7,$8,'confirmed')",[randomUUID(),family,sender,recipient,source,target,amount,month+'-04']);
+  await db.query("INSERT INTO transactions(id,book_id,account_id,target_id,kind,amount,date,title,created_by) VALUES($1,$2,$3,$4,'transfer',10000,$5,$6,$7)",[randomUUID(),book,wallets[0],wallets[1],month+'-04',label('自有账户互转','Between my wallets'),user]);
+  await db.query('UPDATE transactions SET event_id=id WHERE id=$1',[transactions[0]]);
+  await db.query('INSERT INTO transactions(id,book_id,account_id,kind,amount,date,title,created_by,event_id) SELECT $1,$2,account_id,kind,amount,date,title,created_by,event_id FROM transactions WHERE id=$3',[randomUUID(),privateBook,transactions[0]]);
+ }
+ return {token,book,privateBook,conversation};
 }
 try{
  docker('run','-d','--name',container,'--label','tallybear.task=readme-screenshots','-e','POSTGRES_PASSWORD='+password,'-p','127.0.0.1::5432','--tmpfs','/var/lib/postgresql/data','postgres:16');
@@ -80,6 +88,8 @@ try{
   const database=lang==='en'?'readme_en_test':'readme_zh_test';await admin.query('CREATE DATABASE '+database);
   const databaseUrl=`postgres://postgres:${password}@127.0.0.1:${port}/${database}`;
   const db=new pg.Client({connectionString:databaseUrl});await db.connect();const fixture=await seed(db,lang);await db.end();
+  if(process.env.CHAT_AUDIT_ONLY)console.log(execFileSync(resolve(root,'node_modules/.bin/tsx'),['--test','tests/assistant-books-db.test.ts'],{cwd:root,env:{...process.env,CHAT_TEST_DATABASE_URL:databaseUrl,APP_LANGUAGE:lang,APP_CURRENCY:lang==='en'?'USD':'CNY'},encoding:'utf8'}));
+  if(process.env.FUNDS_AUDIT_ONLY)console.log(execFileSync(resolve(root,'node_modules/.bin/tsx'),['--test','tests/wallet-funds-db.test.ts'],{cwd:root,env:{...process.env,FUNDS_TEST_DATABASE_URL:databaseUrl,APP_LANGUAGE:lang,APP_CURRENCY:lang==='en'?'USD':'CNY'},encoding:'utf8'}));
   const origin='http://127.0.0.1:'+httpPort;
   const service=spawn(process.execPath,[resolve(runtime,'server.js')],{cwd:runtime,env:{PATH:process.env.PATH,NODE_ENV:'production',HOSTNAME:'127.0.0.1',PORT:String(httpPort),DATABASE_URL:databaseUrl,APP_ORIGIN:origin,APP_LANGUAGE:lang,APP_CURRENCY:lang==='en'?'USD':'CNY',ENCRYPTION_KEY:randomBytes(32).toString('base64'),RECEIPT_DIR:resolve(runtime,'receipts')},stdio:['ignore','pipe','pipe']});services.push(service);
   service.stdout.on('data',()=>{});service.stderr.on('data',b=>{if(b.toString().includes('Error'))console.error(b.toString());});
@@ -96,7 +106,34 @@ try{
    async function settle(){await page.waitForLoadState('networkidle');await page.evaluate(async()=>{await document.fonts.ready;});await page.waitForTimeout(600);}
    async function navigate(name){if(device==='desktop')await page.locator('#primary-navigation').getByRole('button',{name:t(name),exact:true}).click();else{await page.getByRole('button',{name:t('更多功能'),exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:t(name),exact:true}).click();}await settle();await page.evaluate(()=>window.scrollTo(0,0));}
    async function audit(key){await settle();if(lang==='en'){const text=await page.locator('body').innerText();const lines=text.split('\n').filter(line=>/[\u3400-\u9fff]/.test(line));if(lines.length){untranslated.push({device,feature:key,lines});console.warn('Untranslated UI:',key,JSON.stringify(lines));}}}
-   async function shot(key){await audit(key);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false,`${lang}/${device}/${key} overflow`);const filename=`${lang==='en'?'en':'zh'}-${device}-${key}.webp`;await sharp(await page.screenshot({animations:'disabled'})).webp({quality:90}).toFile(resolve(output,filename));captures.push({file:filename,language:lang,device,width,height,feature:key});console.log(filename);}
+   async function shot(key){await audit(key);const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert.equal(overflow,false,`${lang}/${device}/${key} overflow`);const filename=`${lang==='en'?'en':'zh'}-${device}-${key}.webp`;await sharp(await page.screenshot({animations:'disabled',fullPage:key==='profile-book-rule'})).webp({quality:90}).toFile(resolve(output,filename));captures.push({file:filename,language:lang,device,width,height,feature:key});console.log(filename);}
+   if(process.env.CHAT_AUDIT_ONLY){
+    await navigate('小熊对话');assert.equal(await page.locator('.chat-scope').count(),0);await shot('assistant-unified');
+    await page.getByRole('button',{name:t('打开对话历史和报告'),exact:true}).click();await page.getByText(lang==='en'?'Demo: prepare a grocery entry':'演示：准备一笔买菜记录',{exact:true}).click();await page.locator('.chat-action-card').waitFor();
+    await page.locator('.chat-action-card').getByRole('button',{name:t('继续修改'),exact:true}).click();await page.locator('.chat-inline-editor').waitFor();await shot('assistant-book-editor');
+    await page.locator('.chat-inline-editor').getByRole('button',{name:new RegExp('^'+t('记入账本'))}).click();await shot('assistant-book-choices');await page.getByRole('dialog').getByRole('button',{name:lang==='en'?'Personal journal':'我的小账本',exact:false}).click();
+    await page.locator('.chat-inline-editor').getByRole('button',{name:t('更新卡片'),exact:true}).click();await page.locator('.chat-inline-editor').waitFor({state:'hidden'});await settle();await page.locator('.chat-action-card').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('assistant-book-updated');
+    await navigate('个人资料');await page.getByRole('button',{name:t('个人画像'),exact:true}).click();await page.getByRole('button',{name:lang==='en'?'Habits & rules':'场景与规则',exact:true}).click();await settle();
+    await page.getByRole('button',{name:lang==='en'?'Add rule':'新增规则',exact:true}).click();await page.locator('.portrait-rule-editor').waitFor();await page.locator('.portrait-rule-editor fieldset').last().locator('select').first().selectOption('bookId');await page.locator('.portrait-rule-editor').scrollIntoViewIfNeeded();await shot('profile-book-rule');await context.close();continue;
+   }
+   if(process.env.FUNDS_AUDIT_ONLY){
+    await navigate('收支分析');await page.getByRole('button',{name:t('我的个人钱包'),exact:false}).click();await settle();await page.locator('.wallet-funds').waitFor();await page.locator('.funds-list>button').first().waitFor();
+    const data=await page.evaluate(async(month)=>{const r=await fetch('/api/assets/report?from='+month+'-01&to='+month+'-28&owner=personal');return r.json();},month);
+    assert.equal(data.funds.summary.transferOut,14000);assert.equal(data.funds.summary.transferIn,5700);assert.equal(data.funds.summary.internalTransfer,10000);
+    assert.equal(data.funds.summary.closingBalance,data.summary.netAssets);assert.equal(data.funds.count,34);
+    await page.locator('.wallet-funds').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('funds-summary');
+    await page.locator('.funds-filters select').selectOption('transfer');await settle();assert.equal(await page.locator('.funds-list>button').count(),2);
+    await page.locator('.funds-filters').scrollIntoViewIfNeeded();await shot('funds-transfers');await page.locator('.funds-list>button').first().click();await shot('funds-detail');await page.getByRole('dialog').getByRole('button',{name:t('关闭弹窗'),exact:true}).click();
+    const chooseSort=async(scope,value)=>{await scope.locator('.detail-sort select').selectOption(value,{force:true});await settle();};
+    await page.locator('.funds-filters select').selectOption('all');await chooseSort(page.locator('.wallet-funds'),'amount_desc');
+    await page.locator('.wallet-funds .detail-sort').scrollIntoViewIfNeeded();await shot('funds-sorted');
+    await page.locator('.records-panel').scrollIntoViewIfNeeded();await chooseSort(page.locator('.records-panel'),'amount_desc');await page.locator('.records-panel .detail-sort').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('records-sorted');
+    await page.locator('.interactive-chart:not(.funds-charts .interactive-chart) .chart-data-legend button:not(:disabled)').first().click();await settle();await chooseSort(page.getByRole('dialog'),'amount_asc');await shot('chart-sorted');await page.getByRole('dialog').getByRole('button',{name:t('关闭弹窗'),exact:true}).click();
+    await navigate('活动账');await page.locator('.activity-records').waitFor();await chooseSort(page.locator('.activity-records'),'amount_desc');await page.locator('.activity-records .detail-sort').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('activity-sorted');
+    await navigate('记一笔');await page.getByRole('button',{name:t('家庭往来'),exact:true}).click();await settle();await page.locator('.family-finance').waitFor();await chooseSort(page.locator('.family-finance'),'amount_desc');await page.locator('.family-finance .detail-sort').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('family-sorted');
+    await page.getByRole('button',{name:t('搜索整个账本系统'),exact:true}).click();await settle();await page.locator('.unified-search select').last().selectOption('amount_desc',{force:true});await settle();await shot('search-sorted');await page.getByRole('dialog').getByRole('button',{name:t('关闭弹窗'),exact:true}).click();
+    await navigate('资金资产');await page.locator('.wallet-funds').waitFor();await page.locator('.wallet-funds').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('asset-funds');await context.close();continue;
+   }
    if(process.env.HELP_FIGURES_ONLY){
     await navigate('记一笔');await page.getByRole('button',{name:t('手动记账'),exact:true}).click();await page.locator('.quick-entry').getByRole('button',{name:t('支出'),exact:true}).click();await page.locator('.entry-modes').scrollIntoViewIfNeeded();await page.locator('.entry-modes').evaluate(el=>el.scrollIntoView({block:'start'}));await shot('manual');
     await page.getByRole('button',{name:t('退款'),exact:true}).click();await page.locator('.refund-picker').scrollIntoViewIfNeeded();await shot('refund');

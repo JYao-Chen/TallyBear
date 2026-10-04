@@ -1,0 +1,50 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+
+test('unified assistant history, destination rules, card changes and book permissions',{skip:!process.env.CHAT_TEST_DATABASE_URL},async()=>{
+ process.env.DATABASE_URL=process.env.CHAT_TEST_DATABASE_URL;
+ const {db}=await import('../src/server/db');
+ try{
+  const {financeChat:chat}=await import('../src/server/finance-chat'),{prepareChatAction,confirmChatAction}=await import('../src/server/chat-actions');
+  const financeChat:(...args:Parameters<typeof chat>)=>Promise<any>=chat;
+  const {personalProfileRoute}=await import('../src/server/personal-profile');
+  const personalProfile=(u:any,m:string,b:any,p:URLSearchParams)=>personalProfileRoute(u,m,p,b);
+  const {executeFinanceTool}=await import('../src/server/finance-agent');
+  const user=(await db.query("SELECT * FROM users WHERE username='alex.demo'")).rows[0],other=(await db.query("SELECT * FROM users WHERE username='sam.demo'")).rows[0];
+  const books=(await db.query('SELECT b.* FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 ORDER BY b.created_at',[user.id])).rows;
+  const shared=books.find(b=>b.kind==='shared').id,personal=books.find(b=>b.kind==='private').id;
+  const signal=new AbortController().signal,params=new URLSearchParams(),month=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}).slice(0,7);
+  const created=await financeChat(personal,user,'POST',{operation:'create'},params,signal);
+  const history=await financeChat(shared,user,'GET',{},params,signal);
+  assert.ok(history.conversations.some((c:any)=>c.id===created.id));
+  assert.equal((await financeChat(shared,user,'GET',{},new URLSearchParams({id:created.id}),signal)).conversation.id,created.id);
+  await assert.rejects(()=>financeChat(shared,other,'GET',{},new URLSearchParams({id:created.id}),signal),/对话不存在/);
+  await personalProfile(user,'POST',{operation:'save_rule',rule:{condition:{kind:'expense',fields:{'scene.type':'transport'}},field:'bookId',value:personal,state:'confirmed'}},params);
+  const account=(await db.query('SELECT id FROM accounts WHERE owner_id=$1 LIMIT 1',[user.id])).rows[0].id;
+  const category=(await db.query('SELECT name FROM category_preferences WHERE user_id=$1 ORDER BY position LIMIT 1',[user.id])).rows[0].name;
+  const data={title:'Book routing test',kind:'expense',amount:601,date:month+'-26',accountId:account,category,categorySource:'explicit',scene:{type:'transport',transport:'地铁'}};
+  const actions:any[]=[];
+  const action=await prepareChatAction({kind:'entry',data},{book:shared,user,useHistory:true},actions);
+  assert.equal(action.bookId,personal);assert.ok(action.data.preferenceSuggestions.some((s:any)=>s.field==='bookId'&&s.state==='applied'));
+  const explicit=await prepareChatAction({kind:'entry',bookId:shared,data},{book:personal,user,useHistory:true},[]);assert.equal(explicit.bookId,shared);
+  const turn=randomUUID();await db.query("INSERT INTO finance_turns(id,conversation_id,question,answer,status,artifacts) VALUES($1,$2,'routing','ready','complete',$3)",[turn,created.id,JSON.stringify({charts:[],tools:[],drafts:[],actions})]);
+  await confirmChatAction(shared,user,{operation:'edit_action',id:created.id,turnId:turn,actionId:action.id,data:{targetBook:shared}});
+  const changed=(await db.query('SELECT artifacts FROM finance_turns WHERE id=$1',[turn])).rows[0].artifacts.actions[0];assert.equal(changed.bookId,shared);
+  await confirmChatAction(personal,user,{operation:'confirm_action',id:created.id,turnId:turn,actionId:action.id,acknowledgeWarnings:true});
+  const recorded=(await db.query('SELECT book_id FROM transactions WHERE id=$1',[action.id])).rows[0];assert.equal(recorded.book_id,shared);
+  await confirmChatAction(personal,user,{operation:'confirm_action',id:created.id,turnId:turn,actionId:action.id,acknowledgeWarnings:true});assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions WHERE id=$1',[action.id])).rows[0].n,1);
+  const ctx={book:shared,user,images:[],signal};
+  const artifacts={charts:[],tools:[],drafts:[]};
+  const all:any=await executeFinanceTool('find_transactions',{from:month+'-01',to:month+'-28',limit:100},ctx,artifacts);
+  assert.equal(all.books.length,2);
+  const narrow:any=await executeFinanceTool('find_transactions',{from:month+'-01',to:month+'-28',bookIds:[personal],limit:100},ctx,artifacts);assert.deepEqual(narrow.books,[personal]);assert.ok(narrow.rows.every((r:any)=>r.book_id===personal));
+  const {existingEntries}=await import('../src/server/recognize');
+  const combined=await existingEntries([shared,personal]);assert.ok(combined.some(r=>r.id===action.id));
+  assert.ok(combined.length>=(await existingEntries(personal)).length);
+  await db.query("UPDATE members SET role='viewer' WHERE book_id=$1 AND user_id=$2",[personal,user.id]);
+  await assert.rejects(()=>prepareChatAction({kind:'entry',bookId:personal,data},{book:shared,user},[]),/无权/);
+  await assert.rejects(()=>personalProfile(user,'POST',{operation:'save_rule',rule:{condition:{kind:'expense',fields:{}},field:'bookId',value:personal,state:'confirmed'}},params),/Book not available/);
+  await db.query("UPDATE members SET role='owner' WHERE book_id=$1 AND user_id=$2",[personal,user.id]);
+ }finally{await db.end();}
+});

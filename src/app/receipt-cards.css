@@ -98,6 +98,8 @@
 }
 @media(max-width:480px) {
  .chat-action-card {padding:16px; border-radius:16px;}
+ .chat-action-card .receipt-card-heading {display:grid; grid-template-columns:36px minmax(0,1fr);}
+ .chat-action-card .receipt-card-heading>.receipt-state {grid-column:2; justify-self:start; margin-left:0;}
  .line-items-editor {padding:12px;}
  .receipt-card-amount>strong {font-size:27px;}
 }

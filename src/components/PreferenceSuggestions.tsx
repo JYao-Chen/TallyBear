@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {preferenceValue,resolvePreference,type PreferenceInput,type PreferenceField} from '@/lib/preference-learning';
 import {useI18n} from './LanguageProvider';
 
-const labels:Record<PreferenceField,[string,string]>={category:['分类','Category'],accountId:['钱包','Wallet'],payee:['商家','Merchant'],platform:['平台','Platform'],'scene.type':['消费场景','Context'],'scene.transport':['交通方式','Transport'],'scene.origin':['出发地','Origin'],'scene.destination':['目的地','Destination'],'scene.merchant':['商家简称','Merchant name'],'scene.branch':['门店','Branch'],'scene.meal':['用餐类型','Meal'],'scene.diningMode':['用餐方式','Dining mode']};
+const labels:Record<PreferenceField,[string,string]>={bookId:['记入账本','Destination book'],category:['分类','Category'],accountId:['钱包','Wallet'],payee:['商家','Merchant'],platform:['平台','Platform'],'scene.type':['消费场景','Context'],'scene.transport':['交通方式','Transport'],'scene.origin':['出发地','Origin'],'scene.destination':['目的地','Destination'],'scene.merchant':['商家简称','Merchant name'],'scene.branch':['门店','Branch'],'scene.meal':['用餐类型','Meal'],'scene.diningMode':['用餐方式','Dining mode']};
 const values:Record<string,[string,string]>={transport:['交通','Transport'],dining:['餐饮','Dining'],shopping:['购物','Shopping'],groceries:['买菜','Groceries'],delivery:['外卖','Delivery'],dine_in:['堂食','Dine in'],takeaway:['自取','Takeaway']};
 export function PreferenceSuggestions<T extends PreferenceInput>({value,onChange,disabled=false}:{value:T;onChange:(value:T)=>void|Promise<void>;disabled?:boolean}){
  const {locale}=useI18n(),en=locale==='en';const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');

@@ -1,4 +1,5 @@
 {
+  "不可用账本": "Unavailable book",
   "不可用钱包": "Unavailable wallet",
   "已保存，不改变原账单。": "Saved. Original transactions are unchanged.",
   "画像分页": "Profile pages",
@@ -2121,5 +2122,9 @@
   "项 · 本页": "on this page",
   "该场景的一般习惯": "General habit in this context",
   "有其他选择": "Alternatives available",
-  "可纠正": "You can correct this"
+  "可纠正": "You can correct this",
+  "所选范围的小记录": "Entries in this period",
+  "绘制钱包资金流动": "Plot wallet cash flow",
+  "消费收支结余": "Spending surplus",
+  "收支分析的个人钱包范围和资金资产页面另有资金流动区。流入包括收入、退款和外部转入；流出包括支出支付和外部转出，包含已确认家庭往来。自有钱包互转抵消；余额校准单列，不计真实收支。资金明细可以按成员、钱包、名称、备注或支付编号搜索并分页。期末账面余额等于期初加资金净变化和余额校准。": "Analysis in personal-wallet scope and Assets include a cash-flow section. Money in includes income, refunds and incoming transfers; money out includes payments and outgoing transfers, including confirmed family movements. Transfers between your wallets cancel out. Balance adjustments are separate from payments. Search paginated entries by member, wallet, title, notes or payment reference. Closing book balance equals opening balance plus net flow and adjustments."
 }

@@ -1,5 +1,9 @@
 # Assistant financial queries
 
+The assistant now defaults to every book the current user can read. Optional `bookIds` narrows a query only when requested; each ID is checked against current membership. This scope is retained in chart filters and drilldown. Statement reconciliation also reads accessible books by default and deduplicates linked records. Conversation history is user-wide rather than grouped by the navigation book.
+
+New-entry destination selection is independent of query scope. Explicit instructions override personal-profile destination rules and learned suggestions. Writable books appear in the action-card editor; confirmation validates the selected book again. Changing an existing posted record keeps its original book unless a dedicated move operation is requested.
+
 The assistant uses one validated filter set for summaries, transaction lookup, charts and chart drilldown. Supported filters include dates, category, wallet, activity, creator, merchant, product, platform, order/payment reference and order amount range. Keyword searches still match order records; they are not semantic transaction searches.
 
 ## Consistent results

@@ -7,7 +7,7 @@ const operation=(title:string,method:string,path:string,fields:string,help='',fi
 // Closed catalog: model output cannot choose an HTTP method, URL or secret field.
 export const assistantOperations:Record<string,Operation>={
  personal_profile:operation('查询个人画像与场景规则','GET','personal-profile','section q status key page','section=overview/rules；只查询当前用户。返回的支持占比不是概率；不要把推断称为明确偏好。条件使用交易时间而非当前录入时间。'),
- profile_rule_save:operation('确认或纠正个人场景规则','POST','personal-profile','rule replaceConflicts','先查询真实条件与字段。rule={id?,version?,condition:{kind:expense|income,fields:{字段名:值},dayType?,timeBand?,placeId?},field,value,state:confirmed|rejected|disabled}。钱包用本人真实ID。本次例外不要扩展为长期规则。不得借规则推断家庭地址或改变账目。',{operation:'save_rule'}),
+ profile_rule_save:operation('确认或纠正个人场景规则','POST','personal-profile','rule replaceConflicts','先查询真实条件与字段。rule={id?,version?,condition:{kind:expense|income,fields:{字段名:值},dayType?,timeBand?,placeId?},field,value,state:confirmed|rejected|disabled}。钱包用本人真实ID；默认入账账本用field=bookId,value为可写账本真实ID，可按scene.type=transport或scene.transport等条件指定，先read_system personal_profile获取books与字段。本次例外不要扩展为长期规则。不得借规则推断家庭地址或改变账目。',{operation:'save_rule'}),
  profile_rule_delete:operation('删除个人场景规则','POST','personal-profile','id version','先查询规则和版本',{operation:'delete_rule'}),
  profile_rule_undo:operation('撤销个人规则变更','POST','personal-profile','id','先查询section=events中的可撤销事件',{operation:'undo'}),
  cost_schedules:operation('查询周期费用计划','GET','cost-schedules','offset'),

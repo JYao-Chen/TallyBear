@@ -1,4 +1,5 @@
 import {memoryRoute} from '@/server/memory';
+import {detailOrder,detailSorts} from '@/lib/detail-sort';
 import {itemReport} from '@/server/finance-items';
 import {personalProfileRoute,sanitizeProfileContext} from '@/server/personal-profile';
 import {costProjects} from '@/server/cost-projects';
@@ -109,6 +110,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  }
  if(path[0]==='installments'){if(method==='GET')return NextResponse.json(await listInstallments(u.id));if(method==='POST')return NextResponse.json(await changeInstallment(u.id,body));}
  if(path[0]==='assets'){
+  if(path[1]==='funds'&&method==='GET')return NextResponse.json((await accountReport(u.id,req.nextUrl.searchParams)).funds);
   if(path[1]==='merge'&&method==='POST')return NextResponse.json(await mergeAccounts(u.id,body));
   if(path[1]==='report'&&method==='GET')return NextResponse.json(await accountReport(u.id,req.nextUrl.searchParams));
   if(path[1]==='history'&&method==='GET')return NextResponse.json(await accountHistory(u.id,uuid.parse(req.nextUrl.searchParams.get('account'))));
@@ -155,7 +157,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
   const result=await search(u.id,params);return NextResponse.json(result.rows.map((r:any)=>r.detail));
  }
  if(resource==='accounts'&&method==='GET')return NextResponse.json(await listAccounts(book,u.id));
- if(resource==='attention'&&method==='GET'){const trash=req.nextUrl.searchParams.get('mode')==='trash';const offset=z.coerce.number().int().min(0).parse(req.nextUrl.searchParams.get('offset')||0);return NextResponse.json((await db.query(`SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,a.name AS account_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND t.deleted=$2 AND ($2 OR (jsonb_array_length(t.line_items)>0 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(t.line_items) item WHERE item->>'amount' IS NULL) OR (SELECT sum((item->>'amount')::bigint) FROM jsonb_array_elements(t.line_items) item)<>t.amount))) ORDER BY t.created_at DESC,t.id LIMIT $4 OFFSET $3`,[book,trash,offset,LIST_PAGE_SIZE])).rows);}
+ if(resource==='attention'&&method==='GET'){const trash=req.nextUrl.searchParams.get('mode')==='trash',sort=z.enum(detailSorts).parse(req.nextUrl.searchParams.get('sort')||'date_desc');const offset=z.coerce.number().int().min(0).parse(req.nextUrl.searchParams.get('offset')||0);return NextResponse.json((await db.query(`SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,a.name AS account_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND t.deleted=$2 AND ($2 OR (jsonb_array_length(t.line_items)>0 AND (EXISTS(SELECT 1 FROM jsonb_array_elements(t.line_items) item WHERE item->>'amount' IS NULL) OR (SELECT sum((item->>'amount')::bigint) FROM jsonb_array_elements(t.line_items) item)<>t.amount))) ORDER BY ${detailOrder(sort,'t.amount','t.id',true,'t.')} LIMIT $4 OFFSET $3`,[book,trash,offset,LIST_PAGE_SIZE])).rows);}
  if(resource==='receipts'&&method==='GET')return NextResponse.json((await db.query('SELECT f.id,f.name,r.purpose FROM receipt_files f JOIN transaction_receipts r ON r.file_id=f.id JOIN transactions t ON t.id=r.transaction_id WHERE t.book_id=$1 AND t.id=$2',[book,uuid.parse(req.nextUrl.searchParams.get('transaction'))])).rows);
  if(resource==='photos'&&(method==='POST'||method==='DELETE')){
   const b=z.object({transaction:uuid,ids:z.array(uuid)}).parse(body);

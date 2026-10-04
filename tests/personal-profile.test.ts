@@ -7,6 +7,18 @@ const evidence=(id:string,overrides:Partial<ProfileEvidence>={}):ProfileEvidence
 const rows=Array.from({length:5},(_,i)=>evidence(String(i)));
 const options={wallets:new Map([['wechat','微信'],['bank','银行卡']]),categories:new Set(['餐饮','其他','购物'])};
 const input={kind:'expense',category:'其他',payee:'面馆',scene:sceneSchema.parse({type:'dining'}),accountId:''};
+test('destination book rules respect explicit input, permissions and conflicts',()=>{
+ const books=new Map([['personal','Personal'],['shared','Shared']]),transport={...input,bookId:undefined as string|undefined,scene:sceneSchema.parse({type:'transport',transport:'地铁'})};
+ const condition=profileConditionSchema.parse({fields:{'scene.type':'transport'}});
+ const rule:ProfileRule={condition,field:'bookId',value:'personal',state:'confirmed'};
+ const result=applyProfile(transport,transport,[],[rule],{...options,books});
+ assert.equal(result.value.bookId,'personal');assert.equal(result.suggestions[0].label,'Personal');
+ const explicit={...transport,bookId:'shared'};
+ assert.equal(applyProfile(explicit,explicit,[],[rule],{...options,books}).value.bookId,'shared');
+ assert.equal(applyProfile(transport,transport,[],[rule],options).value.bookId,undefined);
+ const conflict=applyProfile(transport,transport,[],[rule,{...rule,value:'shared'}],{...options,books});
+ assert.equal(conflict.value.bookId,undefined);assert.equal(conflict.suggestions.filter(s=>s.state==='candidate').length,2);
+});
 test('generic profile groups multiple contexts without commute-specific defaults',()=>{
  const result=buildProfile([...rows,...rows.map(r=>({...r,id:'s'+r.id,eventId:'s'+r.id,payee:'超市',category:'购物',scene:sceneSchema.parse({type:'shopping'}),accountId:'bank'}))],now);
  assert.ok(result.some(i=>i.field==='accountId'&&i.condition.fields.payee==='面馆'&&i.status==='stable'&&i.choices[0].value==='wechat'));

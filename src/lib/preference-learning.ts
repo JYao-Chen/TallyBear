@@ -3,7 +3,7 @@ import {sceneSchema,sceneTitle,type EntryScene} from './entry-scene';
 import {normMemory,specConflict} from './memory';
 
 // Identity/context only. Prices, dates, quantities and payment references are never learned defaults.
-export const preferenceFields=['category','accountId','payee','platform','scene.type','scene.transport','scene.origin','scene.destination','scene.merchant','scene.branch','scene.meal','scene.diningMode'] as const;
+export const preferenceFields=['bookId','category','accountId','payee','platform','scene.type','scene.transport','scene.origin','scene.destination','scene.merchant','scene.branch','scene.meal','scene.diningMode'] as const;
 export type PreferenceField=typeof preferenceFields[number];
 export const preferenceSuggestion=z.object({
  field:z.enum(preferenceFields),value:z.string().max(160),label:z.string().max(160),before:z.string().default(''),
@@ -11,7 +11,7 @@ export const preferenceSuggestion=z.object({
  basis:z.enum(['context','semantic','profile','rule']),ruleId:z.string().uuid().optional(),insightKey:z.string().optional(),sources:z.array(z.object({id:z.string(),title:z.string(),date:z.string()})).max(3),
 });
 export type PreferenceSuggestion=z.infer<typeof preferenceSuggestion>;
-export type PreferenceInput={kind:string;category:string;categorySource?:'explicit'|'model';accountId?:string;payee:string;platform?:string;title?:string;product?:string;note?:string;scene?:EntryScene;date?:string;occurredAt?:string;profileContext?:import('./personal-profile').ProfileContext;preferenceSuggestions?:PreferenceSuggestion[]};
+export type PreferenceInput={bookId?:string;kind:string;category:string;categorySource?:'explicit'|'model';accountId?:string;payee:string;platform?:string;title?:string;product?:string;note?:string;scene?:EntryScene;date?:string;occurredAt?:string;profileContext?:import('./personal-profile').ProfileContext;preferenceSuggestions?:PreferenceSuggestion[]};
 export type PreferenceEvidence=PreferenceInput&{id:string;eventId?:string;at:string|Date;date:string;preferenceSuggestions?:PreferenceSuggestion[]};
 export function preferenceValue(input:PreferenceInput,field:PreferenceField):string{
  const value=field.startsWith('scene.')?input.scene?.[field.slice(6) as keyof EntryScene]:input[field as keyof PreferenceInput];
@@ -56,7 +56,7 @@ export function rankPreferenceEvidence(input:PreferenceInput,rows:PreferenceEvid
   return {row,score:matches.length*2+lexical+productMatch*3,basis:'context' as const,eligible:(strong&&(!productWords.size||productMatch>=.5))||lexical>=.55&&common.length>=2};
  }).sort((a,b)=>b.score-a.score||b.row.date.localeCompare(a.row.date));
 }
-export function inferPreferences<T extends PreferenceInput>(input:T,ranked:ReturnType<typeof rankPreferenceEvidence>,options:{wallets:Map<string,string>;categories:Set<string>;semanticIds?:Set<string>;now?:number;protectedFields?:Set<PreferenceField>}){
+export function inferPreferences<T extends PreferenceInput>(input:T,ranked:ReturnType<typeof rankPreferenceEvidence>,options:{wallets:Map<string,string>;categories:Set<string>;books?:Map<string,string>;semanticIds?:Set<string>;now?:number;protectedFields?:Set<PreferenceField>}){
  const lexical=ranked.filter(r=>r.eligible),best=lexical[0]?.score||0;
  const selected=lexical.length?lexical.filter(r=>r.score>=best-.75):ranked.filter(r=>options.semanticIds?.has(r.row.id));
  const seen=new Set<string>();const evidence=selected.filter(({row})=>{const id=row.eventId||row.id;if(seen.has(id))return false;seen.add(id);return true;}).slice(0,60);
@@ -68,7 +68,7 @@ export function inferPreferences<T extends PreferenceInput>(input:T,ranked:Retur
   const groups=new Map<string,{value:string;weight:number;independent:number;corrections:number;rows:PreferenceEvidence[]}>();
   for(const {row} of evidence){
    const candidate=preferenceValue(row,field);if(!candidate)continue;
-   if(field==='accountId'&&!options.wallets.has(candidate)||field==='category'&&!options.categories.has(candidate))continue;
+   if(field==='bookId'&&!options.books?.has(candidate)||field==='accountId'&&!options.wallets.has(candidate)||field==='category'&&!options.categories.has(candidate))continue;
    const prior=row.preferenceSuggestions?.find(s=>s.field===field&&s.state==='applied');
    if(row.preferenceSuggestions?.some(s=>s.field===field&&s.state==='dismissed'&&normMemory(s.value)===normMemory(candidate)))continue;
    const corrected=!!prior&&(prior.confirmed||normMemory(prior.value)!==normMemory(candidate)),inferred=!!prior&&!corrected;
@@ -81,7 +81,7 @@ export function inferPreferences<T extends PreferenceInput>(input:T,ranked:Retur
   const certain=(first.independent>=3||first.corrections>=2)&&first.weight/total>=.85&&first.weight>=1.5&&(first.rows.length/evidence.length>=.6||first.corrections>=2);
   for(const [index,g] of sorted.slice(0,3).entries()){
    const applied=certain&&index===0;
-   suggestions.push({field,value:g.value,label:field==='accountId'?options.wallets.get(g.value)!:g.value,before,state:applied?'applied':'candidate',count:g.rows.length,basis:lexical.length?'context':'semantic',sources:g.rows.slice(0,3).map(r=>({id:r.id,title:r.title||r.product||r.payee||r.category,date:r.date}))});
+   suggestions.push({field,value:g.value,label:field==='bookId'?options.books!.get(g.value)!:field==='accountId'?options.wallets.get(g.value)!:g.value,before,state:applied?'applied':'candidate',count:g.rows.length,basis:lexical.length?'context':'semantic',sources:g.rows.slice(0,3).map(r=>({id:r.id,title:r.title||r.product||r.payee||r.category,date:r.date}))});
    if(applied)value=setPreference(value,field,g.value);
   }
  }

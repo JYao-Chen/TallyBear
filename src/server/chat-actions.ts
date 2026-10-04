@@ -26,6 +26,7 @@ import {deployment} from '@/lib/deployment';
 import {translate} from '@/lib/i18n';
 import {actionNames,type ChatAction,type ChatActionKind} from '@/lib/chat-actions';
 import {applyPreferences} from './receipt-preferences';
+import {applyPersonalPreferences} from './personal-preferences';
 import {applyTransactionChange,transactionEntry,transactionForAction} from './transaction-changes';
 import {accessibleActivity,entryActivity,listActivities} from './activities';
 const uuid=z.string().uuid(),money=z.number().int().positive().max(100000000000),nonnegative=money.or(z.literal(0));
@@ -55,8 +56,19 @@ export async function actionOptions(book:string,user:User){await member(book,use
 export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;profileContext?:import("@/lib/personal-profile").ProfileContext;question?:string;useHistory?:boolean;language?:'en'|'zh-CN';generated?:boolean},actions:ChatAction[],recognizedId?:string){
  const b=z.object({actionId:uuid.optional(),kind:z.enum(['management','memory','family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
  const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
- const book=b.bookId||old?.bookId||ctx.book;await member(book,ctx.user,!['family','management'].includes(b.kind));
- const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data},missing:[],warnings:[],summary:[]};
+ let book=b.bookId||old?.bookId||ctx.book;
+ let bookSuggestions:import('@/lib/preference-learning').PreferenceSuggestion[]=[];
+ if(b.kind==='entry'&&!b.bookId&&!old&&ctx.useHistory){
+  const [preferred]=await applyPersonalPreferences(ctx.user.id,[{...b.data,bookId:undefined as string|undefined,kind:String(b.data.kind||'expense'),category:String(b.data.category||''),payee:String(b.data.payee||''),scene:sceneSchema.parse(b.data.scene||{})}],{query:ctx.question,semantic:false});
+  bookSuggestions=preferred.preferenceSuggestions?.filter(s=>s.field==='bookId')||[];
+  if(preferred.bookId)book=preferred.bookId;
+ }
+ if(!b.bookId&&!old&&!['family','management','memory'].includes(b.kind)){
+  const writable=(await db.query("SELECT b.id FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[ctx.user.id])).rows.map(r=>r.id);
+  if(!writable.includes(book))book=writable[0]||book;
+ }
+ await member(book,ctx.user,!['family','management'].includes(b.kind));
+ const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data,...(b.kind==='entry'?{bookId:book}:{}),...(bookSuggestions.length?{preferenceSuggestions:bookSuggestions}:{})},missing:[],warnings:[],summary:[]};
  if(a.kind==='management'){
   const prepared=await prepareOperation({operation:a.data.operation,params:{...(old&&old.data.operation===a.data.operation?old.data.params:{}),...a.data.params}},ctx.user);
   const {op,p}=resolveOperation({operation:prepared.operation,params:prepared.params},ctx.user);
@@ -75,6 +87,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
   a.warnings=['仅在确认后更新记忆，不修改原始账单。'];
   if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
  }
+ if(bookSuggestions.some(s=>s.state==='candidate'))a.warnings.push(ctx.language==='en'?'Several destination books match your habits. Choose a book before saving.':'有多个账本符合记账习惯，请在保存前选择记入账本。');
  const d=a.data;const changedContext=!!old&&['payee','product','scene','kind','accountId','platform'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind))Object.assign(d,withDeviceTime({date:d.date||'',occurredAt:d.occurredAt},ctx.deviceTime));
  if(a.kind==='transaction'){
   const operation=z.enum(['update','delete']).parse(d.operation),row=await transactionForAction(db,book,uuid.parse(d.transactionId));
@@ -96,7 +109,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const explicitChannel=typeof data.paymentChannel==='string'?data.paymentChannel.trim():'';
  const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
  if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
- if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
+ if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{bookId:book,date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
  a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
@@ -126,11 +139,11 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
 export async function confirmChatAction(book:string,user:User,body:unknown){
  const b=z.object({id:uuid,turnId:uuid,actionId:uuid,operation:z.enum(['confirm_action','cancel_action','edit_action']),data:z.record(z.unknown()).optional(),acknowledgeWarnings:z.boolean().default(false)}).parse(body);
  return transaction(async c=>{
-  const conversation=(await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND book_id=$2 AND user_id=$3 FOR UPDATE',[b.id,book,user.id])).rows[0];if(!conversation)throw new Failure('对话不存在',404);
+  const conversation=(await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE',[b.id,user.id])).rows[0];if(!conversation)throw new Failure('对话不存在',404);
   if((await c.query("SELECT 1 FROM ai_jobs WHERE kind='chat' AND payload->>'id'=$1 AND status IN ('queued','running')",[b.id])).rowCount)throw new Failure('助手正在更新内容，请完成后确认',409);
   const t=(await c.query('SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE',[b.id])).rows[0];if(!t||t.id!==b.turnId)throw new Failure('已有更新的对话，请核对最新确认卡片',409);
   const a=(t.artifacts.actions as ChatAction[]|undefined)?.find(a=>a.id===b.actionId);if(!a)throw new Failure('待确认操作不存在',404);if(a.status!=='pending')return {ok:true,status:a.status,result:a.result};
-  if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');const edited={...(b.data||{})};if(Object.prototype.hasOwnProperty.call(edited,'category')&&edited.category!==a.data.category)edited.categorySource='explicit';await prepareChatAction({actionId:a.id,kind:a.kind,bookId:a.bookId,data:edited},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
+  if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');const edited={...(b.data||{})};if(edited.targetBook){edited.bookId=edited.targetBook;if(a.kind==='entry')edited.preferenceSuggestions=(edited.preferenceSuggestions||a.data.preferenceSuggestions||[]).map((s:any)=>s.field==='bookId'?{...s,state:s.value===edited.targetBook?'applied':'dismissed',confirmed:s.value===edited.targetBook}:s);}if(Object.prototype.hasOwnProperty.call(edited,'category')&&edited.category!==a.data.category)edited.categorySource='explicit';await prepareChatAction({actionId:a.id,kind:a.kind,bookId:['entry','schedule','template','budget'].includes(a.kind)&&edited.targetBook?uuid.parse(edited.targetBook):a.bookId,data:edited},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
   if(b.operation==='cancel_action')a.status='cancelled';else{
    if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');
    if(a.kind!=='family'&&a.kind!=='memory'&&a.kind!=='management'){await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);}

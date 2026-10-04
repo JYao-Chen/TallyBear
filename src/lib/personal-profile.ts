@@ -94,10 +94,10 @@ export function buildProfile(rows:ProfileEvidence[],now=Date.now()):ProfileInsig
  return insights.sort((a,b)=>b.lastSeen.localeCompare(a.lastSeen)||b.count-a.count||a.key.localeCompare(b.key));
 }
 
-export function applyProfile<T extends PreferenceInput>(input:T,context:PreferenceInput&{date?:string;occurredAt?:string;placeId?:string},insights:ProfileInsight[],rules:ProfileRule[],options:{wallets:Map<string,string>;categories:Set<string>;protectedFields?:Set<PreferenceField>}){
+export function applyProfile<T extends PreferenceInput>(input:T,context:PreferenceInput&{date?:string;occurredAt?:string;placeId?:string},insights:ProfileInsight[],rules:ProfileRule[],options:{wallets:Map<string,string>;categories:Set<string>;books?:Map<string,string>;protectedFields?:Set<PreferenceField>}){
  let value={...input};const suggestions:PreferenceSuggestion[]=[];
  const matchingRules=rules.filter(r=>matchesProfile(r.condition,context));
- const valid=(field:PreferenceField,v:string)=>field==='accountId'?options.wallets.has(v):field==='category'?options.categories.has(v):!!v;
+ const valid=(field:PreferenceField,v:string)=>field==='bookId'?!!options.books?.has(v):field==='accountId'?options.wallets.has(v):field==='category'?options.categories.has(v):!!v;
  const blockedFields=new Set<PreferenceField>();
  for(const field of preferenceFields){
   const before=preferenceValue(context,field);if(before&&(field!=='category'||context.categorySource==='explicit'))continue;
@@ -108,7 +108,7 @@ export function applyProfile<T extends PreferenceInput>(input:T,context:Preferen
   if(explicit.length){
    const strongest=explicit.filter(r=>profileSpecificity(r.condition)===profileSpecificity(explicit[0].condition));
    const choices=[...new Map(strongest.map(r=>[normMemory(r.value),r])).values()];
-   for(const rule of choices.slice(0,3)){const applied=choices.length===1&&!rejected.has(normMemory(rule.value));suggestions.push({field,value:rule.value,label:field==='accountId'?options.wallets.get(rule.value)!:rule.value,before,state:applied?'applied':'candidate',count:0,basis:'rule',ruleId:rule.id,sources:[]});if(applied)value=setPreference(value,field,rule.value);}
+   for(const rule of choices.slice(0,3)){const applied=choices.length===1&&!rejected.has(normMemory(rule.value));suggestions.push({field,value:rule.value,label:field==='bookId'?options.books!.get(rule.value)!:field==='accountId'?options.wallets.get(rule.value)!:rule.value,before,state:applied?'applied':'candidate',count:0,basis:'rule',ruleId:rule.id,sources:[]});if(applied)value=setPreference(value,field,rule.value);}
    blockedFields.add(field);continue;
   }
   if(rejected.has(normMemory(preferenceValue(value,field))))value=setPreference(value,field,before);
@@ -121,7 +121,7 @@ export function applyProfile<T extends PreferenceInput>(input:T,context:Preferen
   for(const insight of best)for(const choice of insight.choices){const key=normMemory(choice.value);if(!rejected.has(key)&&valid(field,choice.value)&&!candidates.has(key))candidates.set(key,{insight,choice});}
   for(const [index,{insight,choice}] of [...candidates.values()].slice(0,3).entries()){
    const applied=certain&&index===0&&normMemory(choice.value)===normMemory(best[0].choices[0].value);
-   suggestions.push({field,value:choice.value,label:field==='accountId'?options.wallets.get(choice.value)!:choice.value,before,state:applied?'applied':'candidate',count:choice.count,basis:'profile',insightKey:insight.key,sources:choice.sources.slice(0,3)});
+   suggestions.push({field,value:choice.value,label:field==='bookId'?options.books!.get(choice.value)!:field==='accountId'?options.wallets.get(choice.value)!:choice.value,before,state:applied?'applied':'candidate',count:choice.count,basis:'profile',insightKey:insight.key,sources:choice.sources.slice(0,3)});
    if(applied)value=setPreference(value,field,choice.value);
   }
   if(candidates.size||rejected.size)blockedFields.add(field);

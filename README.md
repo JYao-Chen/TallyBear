@@ -23,6 +23,8 @@ The current version is **2.0**. It includes the current financial-memory system,
 
 ![TallyBear 2.0 spending analysis on desktop](docs/screenshots/v2/en-desktop-analysis.webp)
 
+Transaction detail lists support newest/oldest and highest/lowest amount ordering before pagination. Chart drill-down, activity entries, family movements and wallet cash flow share these controls. Search also retains relevance ordering; exports follow the selected record order.
+
 ## What you can do
 
 ### Record a purchase without losing its details
@@ -63,7 +65,7 @@ The assistant can search accessible books, explain reports, inspect statements a
 
 Financial queries retain the same filters in summaries, charts and clickable details. Use daily, weekly or monthly trends and category/merchant/product/wallet/platform groups. Product analysis uses matching recorded merchandise rows for subtotals, quantities and weighted unit prices, excluding discounts and fees; missing evidence remains unknown. Complete totals do not depend on the current result page. See [financial queries](docs/assistant-finance-query.md).
 
-Messages and their scope are saved on send. Background jobs continue after you leave the conversation. Action cards distinguish the payment summary, items, adjustments, missing fields, warnings and processing notes. Editing a card is separate from confirming it; bookkeeping changes still require confirmation.
+The assistant searches all accessible books by default, with one history across books. Name a book to narrow a query. Change a card’s destination in its editor. Personal profile rules can set a default destination book for a context such as public transport; explicit instructions take priority. Messages are saved on send. Background jobs continue after you leave the conversation. Action cards distinguish the payment summary, items, adjustments, missing fields, warnings and processing notes. Editing a card is separate from confirming it; bookkeeping changes still require confirmation.
 
 The assistant uses the same permission-checked business handlers as the interface. Passwords, new secrets and file uploads stay in dedicated screens. This is a defined tool catalogue, **not unrestricted access to the server or database**. See the [capability audit](docs/assistant-capability-audit.md).
 
@@ -88,6 +90,8 @@ Private memories stay private unless explicitly shared. Forgetting a memory does
 ### Manage shared spending without exposing private wallets
 
 Create a family and shared books, assign member roles and use **Entry → Family movements** for transfers, gifts, AA settlements, loans, repayments and shared contributions. Recipients confirm their own receiving wallet. These money movements remain separate from ordinary consumption totals.
+
+Open **Analysis → My personal wallets** or **Assets** for money in, money out, transfers and net cash flow. Search paginated entries and open their details. Opening balance plus net flow and balance adjustments reconciles the closing book balance. Internal transfers cancel out; ordinary family transfers are not counted again as consumption.
 
 Personal categories follow the user across books, including shared books. Another member's category choices do not overwrite yours. Global search covers accessible books and can find transactions, products in line items, payment references, activities, plans, reports and memories.
 

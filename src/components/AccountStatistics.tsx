@@ -4,6 +4,7 @@ import {Landmark,Wallet,ArrowDownLeft,ArrowUpRight} from 'lucide-react';
 import {PagedList} from './PagedList';
 import {ReportPeriodPicker} from './ReportPeriodPicker';
 import {FinanceChart} from './InteractiveFinanceChart';
+import {WalletFundsPanel} from './WalletFundsPanel';
 import {deployment} from '@/lib/deployment';
 import {getLocale} from '@/lib/i18n';
 import {useI18n} from './LanguageProvider';
@@ -45,5 +46,6 @@ export function AccountStatistics({month,revision,scope,scopeLabel,book}:{month:
    </>}
    <></>
   </section>
+  <WalletFundsPanel from={from} to={to} owner={scope} revision={revision}/>
  </>;
 }
