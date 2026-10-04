@@ -4,6 +4,16 @@ import {financeQuerySchema,financeQueryParams,chartDetailParams} from '../src/li
 import {financeChartData} from '../src/lib/finance-chart-data';
 import {reportFilter} from '../src/server/reports';
 const from='2026-09-01',to='2026-09-30';
+test('个人当期费用是独立口径，图表保留本人范围和所选账本',()=>{
+ const id='00000000-0000-4000-8000-000000000001';
+ const filters=financeQuerySchema.parse({from,to,scope:'personal_expense',bookIds:[id],category:'服务器'});
+ const p=chartDetailParams({from,to,filters,dimension:'daily_expense'},'2026-09-22',0,20);
+ assert.equal(p.get('scope'),'personal_expense');assert.equal(p.get('basis'),'period_expense');assert.deepEqual(p.getAll('book'),[id]);assert.equal(p.get('category'),'服务器');
+});
+test('图表明细只收窄类型，不把仅支出筛选扩成含退款，也不把收入筛选扩成支出',()=>{
+ for(const kind of ['expense','refund'] as const){const filters=financeQuerySchema.parse({from,to,kind});assert.equal(chartDetailParams({from,to,filters,dimension:'category'},'餐饮',0,20).get('kind'),kind);}
+ const filters=financeQuerySchema.parse({from,to,kind:'income'});const p=chartDetailParams({from,to,filters,dimension:'daily_expense'},from,0,20);assert.equal(p.get('kind'),'none');assert.ok(reportFilter('book',p).values.includes('none'));
+});
 test('完整查询条件与图表明细保持一致，不丢分类、商品、钱包及口径',()=>{
  const filters=financeQuerySchema.parse({from,to,category:'奶茶咖啡',product:'奶茶',payee:'茶店',platform:'微信',query:'大杯',accountId:'00000000-0000-4000-8000-000000000001',basis:'cashflow',min:100,max:10000});
  const p=chartDetailParams({from,to,filters,dimension:'daily_expense',metric:'unit_price',books:['book']},'2026-09-22',20,20);

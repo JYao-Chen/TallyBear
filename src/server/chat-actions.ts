@@ -21,6 +21,7 @@ import {checkVerification} from '@/lib/verification';
 import {schedules} from './schedules';
 import {templates} from './templates';
 import {allocations} from './allocations';
+import {periodLastDay,periodShare} from '@/lib/period';
 import {changeInstallment,listInstallments} from './installments';
 import {deployment} from '@/lib/deployment';
 import {translate} from '@/lib/i18n';
@@ -110,6 +111,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
  if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
  if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{bookId:book,date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
+ if(a.kind==='allocation'&&['month','year'].includes(data.periodUnit)&&date.safeParse(data.startDate).success)data.startDate=data.startDate.slice(0,7)+'-01';
  a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
  const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
  const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
@@ -131,7 +133,16 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  if(a.kind==='template')a.warnings.push(tr('只保存常用预设，本次不会产生收支。'));
  if(a.kind==='transaction')a.warnings.push(tr(d2.operation==='delete'?'确认后会删除这笔已入账账目，并重新计算相关余额。':'确认后会直接修改这笔已入账账目，并重新计算相关余额。'));
  if(a.kind==='entry'&&!a.missing.length){const item=entry.parse({...d,id:a.id});const r=await review(book,{entries:[item]});const checked=r.entries[0] as any;if(checked?.matches?.length)a.warnings.push(tr('发现疑似重复账单，请核对是否为另一笔。'));try{checkVerification(item.lineItems,item.amount,item.verificationReason);}catch(e){a.missing.push((e as Error).message);}if(item.kind==='refund'&&!item.refundOf)a.warnings.push(tr('退款尚未关联原消费。'));}
- if(d.transactionId){const row=(await db.query("SELECT title,payee,amount::float8 AS amount,version FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted",[uuid.parse(d.transactionId),book])).rows[0];if(!row)a.missing.push('原账单');else{add('原账单',`${row.title||row.payee} · ${fmt(row.amount)}`);if(a.kind==='allocation')a.data.version=row.version;}}
+ if(d.transactionId){const row=(await db.query("SELECT title,payee,amount::float8 AS amount,version,to_char(date,'YYYY-MM-DD') AS date,category FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted",[uuid.parse(d.transactionId),book])).rows[0];if(!row)a.missing.push('原账单');else{add('原账单',`${row.title||row.payee} · ${fmt(row.amount)}`);if(a.kind==='allocation'){
+  a.data.version=row.version;a.data.name=row.title||row.payee||tr('费用分摊');
+  add('原付款日期',row.date);add('分类',row.category);
+  if(!actionMissing(a).length){
+   const p=parseAction(a) as {startDate:string;periodUnit:'day'|'week'|'month'|'year';periodCount:number};
+   add('覆盖截止日期',periodLastDay(p.startDate,p.periodUnit,p.periodCount));
+   const refunded=Number((await db.query("SELECT COALESCE(sum(amount),0)::float8 AS amount FROM transactions WHERE refund_of=$1 AND book_id=$2 AND kind='refund' AND NOT deleted",[d.transactionId,book])).rows[0]?.amount||0),net=row.amount-refunded;
+   add('首月费用',fmt(Math.sign(net)*periodShare(Math.abs(net),p.startDate,p.periodUnit,p.periodCount,p.startDate.slice(0,7))));
+  }
+ }}}
  if(a.kind==='repayment'&&d.planId){const plan=(await listInstallments(ctx.user.id)).plans.find(p=>p.id===d.planId);if(!plan)a.missing.push('分期计划');else{a.data.version=plan.version;add('分期计划',plan.name);add('剩余本金',fmt(plan.remaining));add('提前结清',tr(d.settle?'是':'否'));}}
  if(a.kind==='budget'&&!a.missing.length){const old=(await db.query('SELECT amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2 AND category=$3',[book,d.month,d.category])).rows[0];a.data.previousAmount=old?.amount??null;if(old)add('当前预算',fmt(old.amount));}
  a.missing=Array.from(new Set([...actionMissing(a),...a.missing.filter(m=>m!=='最新记录版本')]));if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;

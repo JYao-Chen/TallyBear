@@ -53,7 +53,9 @@ Activities support types, dates, budgets, family participation, an archive view,
 
 ### Explore the numbers and the underlying records
 
-**Spending analysis** combines charts, filters, search and paginated transactions. Choose a year, month, week, day or custom range, then inspect categories and daily trends. Click a chart result to reach the corresponding records and their full details.
+**Spending analysis** has three views: **Book expenses** includes everyday spending and period allocations in selected books; **My expenses** shows your share across books, even when another household member paid; **Wallet cash flow** shows actual receipts and payments, including household transfers. Select multiple books without double-counting linked copies. Year, month, week, day and custom ranges share the same date boundaries; expense filters apply to totals, charts, paginated entries and export. Open chart results for the underlying records and their full details.
+
+A 600 server purchase covering 36 months costs about 16.67 per month in period expenses, while the wallet pays 600 on the purchase date. For shared rent paid by one member, My expenses reports your share. Settlements between members appear in cash flow without creating a second rent expense. Never add the two views together.
 
 **Assets** adds balance distribution and cash-flow charts to wallet management. Personal and family-owned wallets have separate scopes. Balance corrections are recorded as adjustments; statement reconciliation helps investigate missing or duplicate records before changing a balance.
 
@@ -91,7 +93,7 @@ Private memories stay private unless explicitly shared. Forgetting a memory does
 
 Create a family and shared books, assign member roles and use **Entry → Family movements** for transfers, gifts, AA settlements, loans, repayments and shared contributions. Recipients confirm their own receiving wallet. These money movements remain separate from ordinary consumption totals.
 
-Open **Analysis → My personal wallets** or **Assets** for money in, money out, transfers and net cash flow. Search paginated entries and open their details. Opening balance plus net flow and balance adjustments reconciles the closing book balance. Internal transfers cancel out; ordinary family transfers are not counted again as consumption.
+Open **Analysis → Wallet cash flow** or **Assets** for money in, money out, transfers and net cash flow. Search paginated entries and open their details. Opening balance plus net flow and balance adjustments reconciles the closing book balance. Internal transfers cancel out; ordinary family transfers are not counted again as consumption.
 
 Personal categories follow the user across books, including shared books. Another member's category choices do not overwrite yours. Global search covers accessible books and can find transactions, products in line items, payment references, activities, plans, reports and memories.
 

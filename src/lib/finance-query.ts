@@ -6,8 +6,8 @@ export const financeQuerySchema=z.object({
  from:day,to:day,bookIds:z.array(z.string().uuid()).min(1).optional(),sort:z.enum(detailSorts).default('date_desc'),query:z.string().trim().max(200).default(''),category:z.string().max(60).default(''),
  accountId:z.string().uuid().optional(),activityId:z.string().uuid().optional(),creatorId:z.string().uuid().optional(),
  payee:z.string().max(120).default(''),product:z.string().max(160).default(''),platform:z.string().max(120).default(''),orderId:z.string().max(160).default(''),externalId:z.string().max(160).default(''),
- kind:z.enum(['all','expense','income','refund','transfer','net_expense']).default('all'),
- mode:z.enum(['contains','exact']).default('contains'),basis:z.enum(['period_expense','cashflow']).default('period_expense'),scope:z.enum(['books','personal_wallet']).default('books'),
+ kind:z.enum(['all','expense','income','refund','transfer','net_expense','none']).default('all'),
+ mode:z.enum(['contains','exact']).default('contains'),basis:z.enum(['period_expense','cashflow']).default('period_expense'),scope:z.enum(['books','personal_wallet','personal_expense']).default('books'),
  min:z.number().int().nonnegative().optional(),max:z.number().int().nonnegative().optional(),offset:z.number().int().nonnegative().default(0),limit:z.number().int().min(1).max(100).default(30),
 }).refine(v=>v.to>=v.from,'结束日期不能早于开始日期').refine(v=>v.min===undefined||v.max===undefined||v.max>=v.min,'最高金额不能低于最低金额');
 export type FinanceQuery=z.infer<typeof financeQuerySchema>;
@@ -17,8 +17,9 @@ export type FinanceMetric='net_expense'|'income'|'item_amount'|'unit_price'|'qua
 export function financeQueryParams(query:FinanceQuery){
  const p=new URLSearchParams();for(const [key,value] of Object.entries(query)){if(value===undefined||value==='')continue;if(key==='bookIds'){for(const book of value as string[])p.append('book',book);continue;}const name=({query:'q',accountId:'account',activityId:'activity',creatorId:'creator'} as Record<string,string>)[key]||key;p.set(name,String(value));}return p;
 }
+export function chartKind(kind:string,income:boolean){return income?(kind==='all'||kind==='income'?'income':'none'):kind==='income'||kind==='transfer'||kind==='none'?'none':kind==='expense'||kind==='refund'?kind:'net_expense';}
 export function chartDetailParams(chart:{from:string;to:string;dimension?:string;filters?:FinanceQuery;metric?:FinanceMetric;books?:string[];scope?:string},point:string,offset:number,limit:number){
- const p=chart.filters?financeQueryParams(chart.filters):new URLSearchParams({from:chart.from,to:chart.to});p.set('limit',String(limit));p.set('offset',String(offset));p.set('kind',chart.metric==='income'||chart.dimension?.endsWith('income')?'income':'net_expense');
+ const p=chart.filters?financeQueryParams(chart.filters):new URLSearchParams({from:chart.from,to:chart.to});p.set('limit',String(limit));p.set('offset',String(offset));const income=chart.metric==='income'||chart.dimension?.endsWith('income'),previous=p.get('kind')||'all';p.set('kind',chartKind(previous,!!income));
  chart.books?.forEach(b=>p.append('book',b));if(chart.scope)p.set('scope',chart.scope);if(chart.metric)p.set('metric',chart.metric);
  const grouped:Record<string,string>={category:'category',payee:'payee',product:'product',account:'account',platform:'platform'};
  if(chart.dimension&&grouped[chart.dimension]){p.set('groupField',chart.dimension);p.set('groupValue',point);}

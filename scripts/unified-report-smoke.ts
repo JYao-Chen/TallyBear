@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {db} from '../src/server/db';
 import {createAccount} from '../src/server/accounts';
 import {costProjects} from '../src/server/cost-projects';
-import {report,personalWalletReport,exportCSV} from '../src/server/reports';
+import {report,personalWalletReport,personalExpenseReport,exportCSV} from '../src/server/reports';
 import {attachWalletBalances} from '../src/server/wallet-history';
 assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_cost_test'));
 const a=randomUUID(),b=randomUUID(),viewer=randomUUID(),family=randomUUID(),ba=randomUUID(),bb=randomUUID(),shared=randomUUID(),project=randomUUID(),payment=randomUUID(),copy=randomUUID();
@@ -25,6 +25,10 @@ try{
  assert.equal((await report(bb,range(),b)).totals.expense,140000);
  assert.equal((await report(shared,range(),a)).totals.expense,430000);
  assert.equal((await report([ba,bb,shared],range(),a)).totals.expense,430000,'Shared and private copies must not double count');
+ assert.equal((await personalExpenseReport(a,range(),[ba,shared])).totals.expense,290000,'My share, not total paid or household cost');
+ assert.equal((await personalExpenseReport(b,range(),[bb,shared])).totals.expense,140000,'A member gets their share even when another member paid');
+ await assert.rejects(()=>personalExpenseReport(viewer,range(),[ba]),/查看权限/);
+ const clipped=await report(ba,range('2026-10-10','2026-10-19'),a);for(const day of clipped.daily)assert.equal((await report(ba,range(day.date,day.date),a)).totals.expense,day.expense,'Clipped charts retain original daily rounding');
  const full=await report(ba,range(),a);for(const d of full.daily)assert.equal((await report(ba,range(d.date,d.date),a)).totals.expense,d.expense,'Day drilldown must equal chart');
  assert.equal(full.daily.reduce((n:number,d:any)=>n+d.expense,0),290000);
  const ordinary=randomUUID(),refund=randomUUID(),transfer=randomUUID(),last=randomUUID();
@@ -36,6 +40,8 @@ try{
  assert.deepEqual((await attachWalletBalances(viewer,[{id:copy,event_id:payment}]) as any[])[0].wallet_balances,[]);
  assert.equal((await personalWalletReport(a,range())).totals.expense,1291100,'Wallet scope remains actual cash');
  assert.equal((await report(ba,range(),a)).totals.expense,291100);
+ assert.equal((await personalExpenseReport(a,range(),[ba,shared])).totals.expense,291100);
+ const personalCSV=new URLSearchParams({...Object.fromEntries(range()),scope:'personal_expense'});assert.match(await exportCSV([ba,shared],personalCSV,'zh-CN',a),/2900.00/);assert.doesNotMatch(await exportCSV([ba,shared],personalCSV,'zh-CN',a),/4300.00|12900.00/);
  assert.match(await exportCSV(ba,range()),/当期分摊/);
  await db.query('UPDATE transactions SET deleted=true WHERE id=$1',[ordinary]);
  assert.equal((await attachWalletBalances(a,[{id:last}]) as any[])[0].wallet_balances[0].balance,705400,'Deleting/backdating recomputes later balances');
@@ -47,6 +53,10 @@ try{
  await db.query("INSERT INTO expense_allocations(transaction_id,start_month,months,start_date,period_unit,period_count) VALUES($1,'2026-10-01',3,'2026-10-01','month',3)",[legacy]);
  const withLegacy=await report(ba,range(),a);assert.equal(withLegacy.totals.expense,301100);assert.ok(withLegacy.rows.some((r:any)=>r.cost_row_key?.startsWith('legacy:')));
  assert.equal(withLegacy.daily.reduce((n:number,r:any)=>n+r.expense,0),300900);
+ const server=randomUUID();await entry(server,'expense',60000,'2026-10-22');await db.query("INSERT INTO expense_allocations(transaction_id,start_month,months,start_date,period_unit,period_count) VALUES($1,'2026-10-01',36,'2026-10-01','month',36)",[server]);
+ const serverMonth=await personalExpenseReport(a,range(),[ba,shared]);assert.equal(serverMonth.totals.expense,302767,'A 600-unit server is 16.67 this month, not 600');
+ assert.equal((await personalWalletReport(a,range())).totals.expense,1381100,'Actual payment remains 600 in the wallet');
+ const clippedLegacy=await personalExpenseReport(a,range('2026-10-10','2026-10-19'),[ba,shared]);for(const day of clippedLegacy.daily)assert.equal((await personalExpenseReport(a,range(day.date,day.date),[ba,shared])).totals.expense-(await personalExpenseReport(a,range(day.date,day.date),[ba,shared])).totals.refund,day.expense,'Legacy and modern allocations share exact daily precision');
  console.log('Passed unified personal/family totals, cross-book deduplication, daily drilldown, exports, actual wallet flow, historical balances, transfers, corrections, edits and privacy.');
  console.log(JSON.stringify({user:a,book:ba,project}));
 }finally{await db.end();}

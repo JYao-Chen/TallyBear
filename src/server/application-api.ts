@@ -36,7 +36,7 @@ import { user,member,session,passwordHash,verifyPassword,Failure } from '@/serve
 import { entry } from '@/server/model';
 import {schedules} from '@/server/schedules';
 import {attachWalletBalances} from './wallet-history';
-import {report,personalWalletReport,exportCSV} from '@/server/reports';
+import {report,personalWalletReport,personalExpenseReport,exportCSV} from '@/server/reports';
 import {listCategories,changeCategory,checkCategory} from '@/server/categories';
 import {templates} from '@/server/templates';
 import {getDraft,saveDraft} from '@/server/drafts';
@@ -138,10 +138,15 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  if(resource==='reuse'&&method==='POST')return NextResponse.json(await reuse(book,u.id,body));
  if(resource==='metadata'&&method==='PUT')return NextResponse.json(await bookMetadata(book,body));
  if(resource==='allocations'&&(method==='GET'||method==='PUT'))return NextResponse.json(await allocations(book,method,body,req.nextUrl.searchParams));
- if(resource==='chart-details'&&method==='GET'){const p=req.nextUrl.searchParams,metric=p.get('metric');const ids=z.array(z.string().uuid()).min(1).parse(p.getAll('book'));for(const id of ids)await member(id,u);if(metric&&['item_amount','unit_price','quantity'].includes(metric))return NextResponse.json(await itemReport(ids,p,u.id,metric as 'item_amount'|'unit_price'|'quantity'));if(p.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,p));return NextResponse.json(await report(ids,p,u.id));}
+ if(resource==='chart-details'&&method==='GET'){const p=req.nextUrl.searchParams,metric=p.get('metric');const ids=z.array(z.string().uuid()).min(1).parse(p.getAll('book'));for(const id of ids)await member(id,u);if(metric&&['item_amount','unit_price','quantity'].includes(metric))return NextResponse.json(await itemReport(ids,p,u.id,metric as 'item_amount'|'unit_price'|'quantity'));if(p.get('scope')==='personal_wallet')return NextResponse.json(await personalWalletReport(u.id,p));if(p.get('scope')==='personal_expense')return NextResponse.json(await personalExpenseReport(u.id,p,ids));return NextResponse.json(await report(ids,p,u.id));}
  if(resource==='transaction-balance'&&method==='GET'){const id=uuid.parse(req.nextUrl.searchParams.get('id'));const rows=(await db.query('SELECT id,event_id FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted',[id,book])).rows;const result=await attachWalletBalances(u.id,rows);return NextResponse.json((result[0] as any)?.wallet_balances||[]);}
- if(resource==='report'&&method==='GET')return NextResponse.json(req.nextUrl.searchParams.get('scope')==='personal_wallet'?await personalWalletReport(u.id,req.nextUrl.searchParams):await report(book,req.nextUrl.searchParams,u.id));
- if(resource==='export'&&method==='GET')return new Response(await exportCSV(book,req.nextUrl.searchParams,locale,req.nextUrl.searchParams.get('scope')==='personal_wallet'?u.id:undefined),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
+ if((resource==='report'||resource==='export')&&method==='GET'){
+  const p=req.nextUrl.searchParams,requested=p.getAll('book');const ids=requested.length?z.array(z.string().uuid()).min(1).parse([...new Set(requested)]):[book];for(const id of ids)await member(id,u);
+  const personal=p.get('scope')==='personal_expense';
+  if(resource==='report')return NextResponse.json(personal?await personalExpenseReport(u.id,p,requested.length?ids:undefined):p.get('scope')==='personal_wallet'?await personalWalletReport(u.id,p):await report(ids,p,u.id));
+  return new Response(await exportCSV(personal&&!requested.length?(await db.query('SELECT book_id FROM members WHERE user_id=$1',[u.id])).rows.map(r=>r.book_id):ids,p,locale,p.get('scope')?.startsWith('personal_')?u.id:undefined),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename=ledger.csv','Cache-Control':'no-store'}});
+ }
+
  if(resource==='categories'){if(method==='GET')return NextResponse.json(await listCategories(u.id));if(method==='PUT')return NextResponse.json(await changeCategory(u.id,body));}
  if(resource==='schedules')return NextResponse.json(await schedules(book,u.id,method,body));
  if(resource==='templates')return NextResponse.json(await templates(book,u.id,method,body));

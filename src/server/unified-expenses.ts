@@ -5,7 +5,7 @@ import {movementReportSource} from './movement-report';
 import {advancePeriod,periodShare} from '@/lib/period';
 
 // Projections only. No synthetic transaction is written and no wallet is charged.
-export async function unifiedExpenseSource(books:string[],from:string,to:string,values:unknown[]){
+export async function unifiedExpenseSource(books:string[],from:string,to:string,values:unknown[],movementSource=movementReportSource){
  const payload=await transaction(async c=>{
   const projects=(await c.query(`SELECT p.* FROM cost_projects p WHERE p.active_plan IS NOT NULL AND (
    EXISTS(SELECT 1 FROM cost_source_claims s JOIN transactions t ON COALESCE(t.event_id,t.id)=s.event_id WHERE s.project_id=p.id AND t.book_id=ANY($1::uuid[]))
@@ -26,7 +26,7 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
    for(const m of members){const destinations=new Set([...sharedBooks,...(books.includes(m.book_id)?[m.book_id]:[])]);if(!destinations.size)continue;
     for(const period of periods){const start=period.start>from?period.start:from,end=period.end<until?period.end:until;
      if(end<=start)continue;const amount=intersectAmount(period.shares.find(s=>s.userId===m.user_id)?.amount||0,period.start,period.end,start,end);if(!amount)continue;
-     for(const bookId of destinations)rows.push({id:p.id,book_id:bookId,created_by:m.user_id,kind:'expense',amount,date:start,title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.updated_at,cost_project_id:p.id,cost_period_end:end,cost_row_key:`${p.id}:${m.user_id}:${period.start}`});
+     for(const bookId of destinations)rows.push({id:p.id,book_id:bookId,created_by:m.user_id,kind:'expense',amount,date:start,title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.updated_at,cost_project_id:p.id,cost_owner_id:m.user_id,cost_basis_amount:period.shares.find(s=>s.userId===m.user_id)?.amount||0,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`${p.id}:${m.user_id}:${period.start}`});
     }
    }
   }
@@ -43,27 +43,28 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
    refunds.push(...returned.map(r=>r.event));claims.push({event:t.event,amount:Number(t.amount)});
    const copies=(await c.query('SELECT id,book_id,created_by FROM transactions WHERE COALESCE(event_id,id)=$1 AND NOT deleted AND book_id=ANY($2::uuid[])',[t.event,books])).rows;
    const finish=advancePeriod(t.start,t.period_unit,t.period_count);
+   const costOwner=(await c.query('SELECT owner_id FROM accounts WHERE id=$1',[t.account_id])).rows[0]?.owner_id||t.created_by;
    for(let month=from.slice(0,7)+'-01';month<=to;month=advancePeriod(month,'month',1)){
     const monthEnd=advancePeriod(month,'month',1),start=[month,t.start,from].sort().at(-1)!,end=[monthEnd,finish,until].sort()[0];if(end<=start)continue;
     const monthAmount=periodShare(Math.abs(net),t.start,t.period_unit,t.period_count,month.slice(0,7));
     const periodStart=month>t.start?month:t.start,periodEnd=monthEnd<finish?monthEnd:finish;
     const amount=intersectAmount(monthAmount,periodStart,periodEnd,start,end);if(!amount)continue;
-    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'',line_items:[],cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
+    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,cost_owner_id:costOwner,cost_basis_amount:monthAmount,cost_basis_start:periodStart,cost_basis_end:periodEnd,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'',line_items:[],cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
    }
   }
   return {claims,rows,excluded,refunds};
  });
  values.push(JSON.stringify(payload));const arg='$'+values.length;
- const source=movementReportSource.replace('ledger_source AS','cash_source AS');
+ const source=movementSource.replace('ledger_source AS','cash_source AS');
  return {excluded:payload.excluded,source:`${source}, cost_payload AS(SELECT ${arg}::jsonb AS data), cost_claims AS(
  SELECT (j->>'event')::uuid AS event,sum((j->>'amount')::bigint) AS amount FROM cost_payload,jsonb_array_elements(data->'claims') j GROUP BY 1
  ), ledger_source AS (
  SELECT (jsonb_populate_record(NULL::transactions,to_jsonb(t)||jsonb_build_object('amount',CASE WHEN t.kind='expense' THEN GREATEST(0,t.amount-COALESCE(c.amount,0)) ELSE t.amount END))).*,
- t.family_movement_id,t.movement_family_id,t.movement_status,NULL::uuid AS cost_project_id,NULL::date AS cost_period_end,NULL::text AS cost_row_key,t.amount AS actual_amount
+ t.family_movement_id,t.movement_family_id,t.movement_status,NULL::uuid AS cost_project_id,NULL::date AS cost_period_end,NULL::text AS cost_row_key,t.amount AS actual_amount,NULL::uuid AS cost_owner_id,NULL::bigint AS cost_basis_amount,NULL::date AS cost_basis_start,NULL::date AS cost_basis_end
  FROM cash_source t LEFT JOIN cost_claims c ON c.event=COALESCE(t.event_id,t.id)
  WHERE (t.kind<>'expense' OR t.amount>COALESCE(c.amount,0)) AND NOT EXISTS(SELECT 1 FROM cost_payload,jsonb_array_elements_text(data->'refunds') r WHERE r::uuid=COALESCE(t.event_id,t.id))
  UNION ALL
- SELECT (jsonb_populate_record(NULL::transactions,j)).*,NULL::uuid,NULL::uuid,NULL::text,(j->>'cost_project_id')::uuid,(j->>'cost_period_end')::date,j->>'cost_row_key',NULL::bigint
+ SELECT (jsonb_populate_record(NULL::transactions,j)).*,NULL::uuid,NULL::uuid,NULL::text,(j->>'cost_project_id')::uuid,(j->>'cost_period_end')::date,j->>'cost_row_key',NULL::bigint,(j->>'cost_owner_id')::uuid,(j->>'cost_basis_amount')::bigint,(j->>'cost_basis_start')::date,(j->>'cost_basis_end')::date
  FROM cost_payload,jsonb_array_elements(data->'rows') j
  )`};
 }

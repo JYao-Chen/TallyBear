@@ -32,7 +32,12 @@ test('unified assistant history, destination rules, card changes and book permis
   await confirmChatAction(shared,user,{operation:'edit_action',id:created.id,turnId:turn,actionId:action.id,data:{targetBook:shared}});
   const changed=(await db.query('SELECT artifacts FROM finance_turns WHERE id=$1',[turn])).rows[0].artifacts.actions[0];assert.equal(changed.bookId,shared);
   await confirmChatAction(personal,user,{operation:'confirm_action',id:created.id,turnId:turn,actionId:action.id,acknowledgeWarnings:true});
-  const recorded=(await db.query('SELECT book_id FROM transactions WHERE id=$1',[action.id])).rows[0];assert.equal(recorded.book_id,shared);
+  const recorded=(await db.query('SELECT book_id,title FROM transactions WHERE id=$1',[action.id])).rows[0];assert.equal(recorded.book_id,shared);
+  const allocation=await prepareChatAction({kind:'allocation',bookId:shared,data:{transactionId:action.id,startDate:month+'-15',periodUnit:'month',periodCount:36}},{book:shared,user},[]);
+  assert.equal(allocation.data.startDate,month+'-01');
+  assert.equal(allocation.data.name,recorded.title);assert.equal(allocation.missing.length,0);
+  assert.ok(allocation.summary.some(s=>s.label==='首月费用'||s.label==='First-month expense'));
+  assert.ok(allocation.summary.some(s=>s.label==='覆盖截止日期'||s.label==='Coverage end date'));
   await confirmChatAction(personal,user,{operation:'confirm_action',id:created.id,turnId:turn,actionId:action.id,acknowledgeWarnings:true});assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions WHERE id=$1',[action.id])).rows[0].n,1);
   const ctx={book:shared,user,images:[],signal};
   const artifacts={charts:[],tools:[],drafts:[]};

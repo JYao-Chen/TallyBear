@@ -6,21 +6,27 @@ import {ChevronRight,Search} from 'lucide-react';
 import {useI18n} from './LanguageProvider';
 import {FinanceChart} from './InteractiveFinanceChart';
 import {Sheet} from './Sheet';
+import {FormSelect} from './FormSelect';
+import {accountLabel,type AccountIdentity} from '@/lib/accounts';
 import {deployment} from '@/lib/deployment';
 import type {FundsData,FundRow} from '@/lib/wallet-funds';
 import './wallet-funds.css';
 export function WalletFundsPanel({from,to,owner='personal',revision}:{from:string;to:string;owner?:string;revision:unknown}){
+ const [account,setAccount]=useState('all'),[accounts,setAccounts]=useState<(AccountIdentity&{id:string;ownership:string;family_id?:string})[]>([]);
+ useEffect(()=>{setAccount('all');},[owner]);
+ useEffect(()=>{const abort=new AbortController();fetch('/api/assets',{signal:abort.signal}).then(r=>r.json()).then(rows=>{if(!abort.signal.aborted)setAccounts(rows.filter((a:any)=>owner==='personal'?a.ownership==='personal':a.family_id===owner));}).catch(()=>{});return()=>abort.abort();},[owner,revision]);
  const [sort,setSort]=useState<DetailSort>('date_desc');
  const {locale}=useI18n(),en=locale.startsWith('en'),text=(zh:string,eng:string)=>en?eng:zh;
  const money=(n:number)=>new Intl.NumberFormat(locale,{style:'currency',currency:deployment().currency}).format(n/100);
  const [data,setData]=useState<FundsData|null>(null),[query,setQuery]=useState(''),[flow,setFlow]=useState('all'),[offset,setOffset]=useState(0),[loading,setLoading]=useState(false),[error,setError]=useState(''),[detail,setDetail]=useState<FundRow|null>(null);
- useEffect(()=>{setOffset(0);setDetail(null);setData(null);},[from,to,owner]);
- useEffect(()=>{const abort=new AbortController();setError('');setLoading(true);const timer=setTimeout(()=>{fetch('/api/assets/funds?'+new URLSearchParams({from,to,owner,sort,q:query,flow,offset:String(offset)}),{signal:abort.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);return d;}).then(d=>{if(!abort.signal.aborted)setData(d);}).catch(e=>{if(!abort.signal.aborted)setError(e.message);}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});},query?250:0);return()=>{clearTimeout(timer);abort.abort();};},[from,to,owner,sort,query,flow,offset,revision]);
+ useEffect(()=>{setOffset(0);setDetail(null);setData(null);},[from,to,owner,account]);
+ useEffect(()=>{const abort=new AbortController();setError('');setLoading(true);const timer=setTimeout(()=>{fetch('/api/assets/funds?'+new URLSearchParams({from,to,owner,account,sort,q:query,flow,offset:String(offset)}),{signal:abort.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);return d;}).then(d=>{if(!abort.signal.aborted)setData(d);}).catch(e=>{if(!abort.signal.aborted){setError(e.message);setData(null);}}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});},query?250:0);return()=>{clearTimeout(timer);abort.abort();};},[from,to,owner,account,sort,query,flow,offset,revision]);
  const label=(r:FundRow)=>r.internal?text('自有钱包互转','Internal transfer'):r.kind==='adjustment'?text('余额校准','Balance adjustment'):r.kind==='transfer'?text('转账往来','Transfer'):r.kind==='income'?text('收入到账','Income'):r.kind==='refund'?text('退款到账','Refund'):text('消费支付','Purchase');
  const title=(r:FundRow)=>r.origin==='family'?`${label(r)} · ${r.counterparty||text('共同钱包','Shared wallet')}`:r.origin==='adjustment'?label(r):r.title;
  const filter=(value:string)=>{setFlow(value);setOffset(0);};const s=data?.summary;
  return <section className="panel wallet-funds" aria-label={text('钱包资金流动','Wallet cash flow')}>
   <header className="funds-heading"><div><h2>{text('钱包资金流动','Wallet cash flow')}</h2><p className="muted">{text('消费是花在了什么；资金流动是钱包实际进出多少。','Spending shows what you bought; cash flow shows money moving into and out of your wallets.')}</p></div><small>{from} — {to}</small></header>
+  <label className="funds-wallet-choice">{text('资金钱包','Funding wallets')}<FormSelect value={account} onChange={value=>{setAccount(value);setOffset(0);}}><option value="all">{text('全部钱包（互转抵消）','All wallets (internal transfers cancel)')}</option>{accounts.map(a=><option key={a.id} value={a.id}>{accountLabel(a,locale)}</option>)}</FormSelect></label>
   <p className="funds-scope">{owner==='personal'?text('本人钱包 · 跨全部账本','My wallets · Across all books'):text('家庭共同钱包','Shared household wallets')} · {text('仅已确认流水，包含家庭往来；搜索只筛选下方资金明细。','Confirmed entries and family movements only. Search filters entries below, not period totals.')}</p>
   {error&&<p className="error" role="alert">{error}</p>}{loading&&!error&&<p role="status">{text('正在汇总资金流水…','Loading cash flow…')}</p>}
   {data&&s&&<>
