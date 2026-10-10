@@ -3,6 +3,7 @@ import {validSources} from './cost-projects';
 import {calculateCostPlan,intersectAmount} from '@/lib/cost-attribution';
 import {movementReportSource} from './movement-report';
 import {advancePeriod,periodShare} from '@/lib/period';
+import {scheduledCostPlan} from '@/lib/cost-schedule';
 
 // Projections only. No synthetic transaction is written and no wallet is charged.
 export async function unifiedExpenseSource(books:string[],from:string,to:string,values:unknown[],movementSource=movementReportSource){
@@ -14,6 +15,22 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
   ) ORDER BY p.id`,[books])).rows;
   const claims:{event:string;amount:number}[]=[],rows:any[]=[],excluded:string[]=[],refunds:string[]=[];
   const until=new Date(Date.parse(to)+86400000).toISOString().slice(0,10);
+  const prepaid=(await c.query(`SELECT s.id,s.rule,s.version,v.sender_id,m.book_id,to_char(x.due_date,'YYYY-MM-DD') AS due_date,sum(x.amount)::float8 AS amount,min(x.created_at) AS created_at
+   FROM cost_schedule_settlements x JOIN cost_schedules s ON s.id=x.schedule_id JOIN family_movements v ON v.id=x.movement_id
+   JOIN cost_schedule_members m ON m.schedule_id=s.id AND m.user_id=v.sender_id
+   JOIN members access ON access.book_id=m.book_id AND access.user_id=m.user_id
+   JOIN family_members f ON f.family_id=s.family_id AND f.user_id=m.user_id
+   WHERE m.book_id=ANY($1::uuid[]) AND v.status='confirmed'
+    AND NOT EXISTS(SELECT 1 FROM cost_schedule_occurrences o WHERE o.schedule_id=x.schedule_id AND o.due_date=x.due_date)
+   GROUP BY s.id,v.sender_id,m.book_id,x.due_date`,[books])).rows;
+  for(const p of prepaid){
+   const scheduled=scheduledCostPlan(p.rule,p.due_date,p.id);
+   const {plan,periods}=calculateCostPlan({...scheduled,sources:[{transactionId:p.id,amount:p.amount}],shares:[{userId:p.sender_id,amount:p.amount}]});
+   for(const period of periods){const start=period.start>from?period.start:from,end=period.end<until?period.end:until;
+    if(end<=start)continue;const amount=intersectAmount(period.amount,period.start,period.end,start,end);if(!amount)continue;
+    rows.push({id:p.id,book_id:p.book_id,created_by:p.sender_id,kind:'expense',amount,date:start,title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.created_at,cost_project_id:null,cost_owner_id:p.sender_id,cost_basis_amount:period.amount,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`prepaid:${p.id}:${p.due_date}:${p.sender_id}:${period.start}`});
+   }
+  }
   for(const p of projects){
    if(p.active_stale||!await validSources(c,p)){excluded.push(p.title);continue;}
    const {plan,periods}=calculateCostPlan(p.active_plan);

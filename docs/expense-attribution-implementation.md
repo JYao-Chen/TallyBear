@@ -55,3 +55,7 @@ Example: a plan beginning 2026-10-15 with three-month cycles and monthly shares 
 See `cost-projects-ui.md` for the observed interface structure and `expense-attribution-design.zh-CN.md` for the broader design.
 
 `scripts/cost-settlement-smoke.ts` verifies duplicate requests, receipt permissions, wallet ownership, cancellation, confirmation through the existing family workflow, and unchanged 2,900/1,400 cost shares after a 4,300 payment. `scripts/cost-settlement-browser.mjs` exercises sender and recipient forms at desktop and mobile sizes against synthetic data.
+
+### Early received member shares in analysis
+
+A confirmed schedule settlement immediately projects the sender’s received amount across the cycle’s reporting months in their chosen attribution ledger and My expenses. Partial receipts project only the amount paid. The recipient gets no expense from receiving the transfer. Wallet cash flow and personal transfer rows show the linked schedule title while retaining transfer classification and the actual transfer date. Once the occurrence is processed, its prepaid projection is excluded and the resulting cost project supplies the period costs. This is a read projection: no extra transaction or wallet debit is created.

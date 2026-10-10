@@ -1,9 +1,9 @@
 import {detailSort,sortDetails} from './detail-sort';
-export type FundEvent={id:string;date:string;createdAt?:string;occurredAt?:string;kind:'income'|'expense'|'refund'|'transfer'|'adjustment';amount:number;sourceId:string|null;targetId:string|null;title:string;counterparty:string;sourceName:string;targetName:string;note:string;origin:'transaction'|'family'|'adjustment';bookId?:string;reference?:string};
+export type FundEvent={id:string;date:string;createdAt?:string;occurredAt?:string;kind:'income'|'expense'|'refund'|'transfer'|'adjustment';amount:number;sourceId:string|null;targetId:string|null;title:string;counterparty:string;sourceName:string;targetName:string;note:string;origin:'transaction'|'family'|'adjustment';bookId?:string;reference?:string;costTitle?:string};
 export type FundRow=FundEvent&{inflow:number;outflow:number;delta:number;internal:boolean};
 export function fundRowsPage(rows:FundRow[],params:URLSearchParams){
  const query=(params.get('q')||'').trim().toLowerCase(),flow=params.get('flow')||'all';
- const filtered=rows.filter(r=>(!query||[r.title,r.counterparty,r.sourceName,r.targetName,r.note,r.reference,r.date].join(' ').toLowerCase().includes(query))&&(flow==='all'||flow==='in'&&r.inflow>0||flow==='out'&&r.outflow>0||flow==='transfer'&&r.kind==='transfer'&&!r.internal||flow==='internal'&&r.internal||flow==='adjustment'&&r.kind==='adjustment'));
+ const filtered=rows.filter(r=>(!query||[r.title,r.costTitle,r.counterparty,r.sourceName,r.targetName,r.note,r.reference,r.date].join(' ').toLowerCase().includes(query))&&(flow==='all'||flow==='in'&&r.inflow>0||flow==='out'&&r.outflow>0||flow==='transfer'&&r.kind==='transfer'&&!r.internal||flow==='internal'&&r.internal||flow==='adjustment'&&r.kind==='adjustment'));
  const offset=Math.max(0,Number(params.get('offset'))||0),limit=20;
  return {rows:sortDetails(filtered,detailSort(params.get('sort')),r=>({date:r.date,time:r.occurredAt,created:r.createdAt,amount:r.amount,id:r.id})).slice(offset,offset+limit),count:filtered.length,offset,hasMore:offset+limit<filtered.length};
 }
