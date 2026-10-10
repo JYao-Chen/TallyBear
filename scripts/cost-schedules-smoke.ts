@@ -37,6 +37,27 @@ try{
  await call(a,[id,'pause'],{version:5,paused:false});
  await db.query('DELETE FROM family_members WHERE family_id=$1 AND user_id=$2',[family,b]);await assert.rejects(call(a,[id,'confirm'],{version:6,dueDate:'2026-07-15',bookId:aBook,accountId:account,paidDate:'2026-07-15'}),/家庭/);
  await db.query('INSERT INTO family_members(family_id,user_id) VALUES($1,$2)',[family,b]);
+ const prepayId=randomUUID(),today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}),tomorrow=new Date(Date.parse(today+'T00:00:00+08:00')+86400000).toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}),prepayRule={...rule,title:'预收分摊测试',firstDate:tomorrow,shares:[{userId:a,amount:290000},{userId:b,amount:140000}]};
+ const sharedBook=randomUUID();await db.query("INSERT INTO books(id,name,kind,owner_id,family_id) VALUES($1,'家庭测试账本','shared',$2,$3)",[sharedBook,a,family]);for(const u of [a,b])await db.query("INSERT INTO members VALUES($1,$2,'editor')",[sharedBook,u]);
+ await call(a,[],{id:prepayId,rule:prepayRule,bookId:sharedBook});await call(b,[prepayId,'respond'],{version:1,accept:true,bookId:sharedBook});
+ const transferId=randomUUID();await db.query("INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,kind,amount,date,note,status) VALUES($1,$2,$3,$4,$5,'transfer',420000,$6,'提前转本期分摊','pending')",[transferId,family,b,a,(await createAccount(b,{name:'参与人付款钱包',opening:500000,type:'bank'})).id,today]);
+ const aBefore=Number((await listAssets(a)).find((x:any)=>x.id===account).balance);
+ const receipt=await call(a,[prepayId,'receive'],{version:2,dueDate:tomorrow,movementId:transferId,targetId:account});assert.equal(receipt.received,420000);assert.equal(Number((await listAssets(a)).find((x:any)=>x.id===account).balance),aBefore+420000,'Early share receipt credits the selected wallet');
+ const repeated=await call(a,[prepayId,'receive'],{version:2,dueDate:tomorrow,movementId:transferId,targetId:account});assert.equal(repeated.alreadyReceived,true,'Retry does not credit a receipt twice');
+ assert.equal((await db.query('SELECT next_date::text FROM cost_schedules WHERE id=$1',[prepayId])).rows[0].next_date,tomorrow,'Receiving a share does not advance the rent payment schedule');
+ const otherProject=await costProjects(a,'GET',['cost-projects',one.project_id],{},new URLSearchParams()) as any;
+ await assert.rejects(costProjects(a,'POST',['cost-projects',one.project_id,'settlements'],{version:otherProject.version,movementId:transferId,amount:420000},new URLSearchParams()),/周期计划/);
+ await assert.rejects(call(a,[prepayId,'edit'],{version:3,rule:prepayRule,bookId:sharedBook}),/已有成员分摊到账/);
+ // Move the fixture clock to its due date without waiting a day.
+ await db.query('UPDATE cost_schedule_settlements SET due_date=$2 WHERE schedule_id=$1',[prepayId,today]);await db.query('UPDATE cost_schedules SET next_date=$2,version=version+1 WHERE id=$1',[prepayId,today]);
+ const paid=await call(a,[prepayId,'confirm'],{version:4,dueDate:today,bookId:aBook,accountId:account,paidDate:today});
+ assert.equal(Number((await db.query('SELECT amount FROM cost_settlements WHERE project_id=$1 AND movement_id=$2',[paid.project_id,transferId])).rows[0].amount),420000,'Early received share is carried into this cycle settlement');
+ const settled=await costProjects(b,'GET',['cost-projects',paid.project_id],{},new URLSearchParams()) as any;
+ assert.equal(settled.settlement.find((s:any)=>s.userId===b).balance,0,'Paid member has nothing left to settle when the expense is posted');
+ const confirmedId=randomUUID(),confirmedPlan=randomUUID();await call(a,[],{id:confirmedPlan,rule:prepayRule,bookId:sharedBook});await call(b,[confirmedPlan,'respond'],{version:1,accept:true,bookId:sharedBook});
+ await db.query("INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,status) SELECT $1,family_id,sender_id,recipient_id,source_id,target_id,kind,100000,date,'confirmed' FROM family_movements WHERE id=$2",[confirmedId,transferId]);
+ const confirmedBefore=JSON.stringify(await listAssets(a));await call(a,[confirmedPlan,'receive'],{version:2,dueDate:tomorrow,movementId:confirmedId});assert.equal(JSON.stringify(await listAssets(a)),confirmedBefore,'Linking an already received partial share never credits it again');
+ const partial=(await call(a,[])).find((s:any)=>s.id===confirmedPlan);assert.equal(partial.received.find((r:any)=>r.user_id===b).amount,100000);
  await call(a,[],{id:randomUUID(),rule:{...rule,title:'未来房租',firstDate:'2099-10-15'},bookId:aBook});
  const future=(await call(a,[])).find((s:any)=>s.rule.title==='未来房租');assert.equal(future.due,false);
  await assert.rejects(call(a,[future.id,'confirm'],{version:1,dueDate:'2099-10-15',bookId:aBook,accountId:account,paidDate:'2099-10-15'}),/未到/);
@@ -58,5 +79,5 @@ try{
  assert.equal((await call(a,[])).find((s:any)=>s.id===id).completed,true,'Skipped cycle counts');
  assert.equal(JSON.stringify(await listAssets(a)),editBaseline,'Editing and skipping never charge wallets');
  assert.equal((await call(a,[id,'history'])).length,3);
- console.log('Cost schedules passed: payments, consent, editing, history preservation, finite cycles, completion and no extra debit.');
+ console.log('Cost schedules passed: payments, consent, editing, history preservation, finite cycles, completion, early receipts with shared ledgers, idempotent wallet credits, already received partial shares, reserved transfers and zero remaining settlement.');
 }finally{await db.end();}

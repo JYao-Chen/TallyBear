@@ -435,3 +435,10 @@ CREATE TABLE IF NOT EXISTS cost_schedule_occurrences (
  project_id uuid REFERENCES cost_projects(id), skipped boolean NOT NULL DEFAULT false,
  PRIMARY KEY(schedule_id,due_date)
 );
+CREATE TABLE IF NOT EXISTS cost_schedule_settlements (
+ schedule_id uuid NOT NULL REFERENCES cost_schedules(id), due_date date NOT NULL,
+ movement_id uuid NOT NULL UNIQUE REFERENCES family_movements(id),
+ recipient_id uuid NOT NULL REFERENCES users(id), amount bigint NOT NULL CHECK(amount>0),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(schedule_id,due_date,movement_id)
+);

@@ -142,7 +142,7 @@ export async function costProjects(user:string,method:string,path:string[],body:
   const p=await authorized(c,user,uuid.parse(path[1]));
   if(path[2]==='movements'&&method==='GET'){
    const ids=(p.active_plan||p.proposed_plan)!.shares.map(s=>s.userId);
-   return (await c.query(`SELECT m.id,m.amount::float8 AS amount,to_char(m.date,'YYYY-MM-DD') AS date,s.name AS sender,r.name AS recipient FROM family_movements m JOIN users s ON s.id=m.sender_id JOIN users r ON r.id=m.recipient_id WHERE m.family_id=$1 AND m.status='confirmed' AND m.kind IN ('transfer','aa') AND m.expense_id IS NULL AND m.sender_id=ANY($2::uuid[]) AND m.recipient_id=ANY($2::uuid[]) AND $3 IN(m.sender_id,m.recipient_id) ORDER BY m.date DESC,m.id LIMIT 100`,[p.family_id,ids,user])).rows;
+   return (await c.query(`SELECT m.id,m.amount::float8 AS amount,to_char(m.date,'YYYY-MM-DD') AS date,s.name AS sender,r.name AS recipient FROM family_movements m JOIN users s ON s.id=m.sender_id JOIN users r ON r.id=m.recipient_id WHERE m.family_id=$1 AND m.status='confirmed' AND m.kind IN ('transfer','aa') AND m.expense_id IS NULL AND m.sender_id=ANY($2::uuid[]) AND m.recipient_id=ANY($2::uuid[]) AND $3 IN(m.sender_id,m.recipient_id) AND NOT EXISTS(SELECT 1 FROM cost_schedule_settlements x LEFT JOIN cost_schedule_occurrences o ON o.schedule_id=x.schedule_id AND o.due_date=x.due_date WHERE x.movement_id=m.id AND o.project_id IS DISTINCT FROM $4::uuid) ORDER BY m.date DESC,m.id LIMIT 100`,[p.family_id,ids,user,p.id])).rows;
   }
   if(method==='GET')return detail(c,p,user,params);
   if(path[2]==='settlement-transfer'&&method==='POST'){
@@ -221,6 +221,7 @@ export async function costProjects(user:string,method:string,path:string[],body:
    const ids=p.active_plan.shares.map(s=>s.userId);
    if(!m||![m.sender_id,m.recipient_id].includes(user)||!ids.includes(m.sender_id)||!ids.includes(m.recipient_id)||m.family_id!==p.family_id||!['transfer','aa'].includes(m.kind)||m.status!=='confirmed')throw new Failure('请选择参与人之间已确认的转账或 AA 结算');
    if(m.kind==='aa'&&m.expense_id)throw new Failure('该 AA 已关联旧消费，不能再次用于新项目结算');
+   if((await c.query(`SELECT 1 FROM cost_schedule_settlements s LEFT JOIN cost_schedule_occurrences o ON o.schedule_id=s.schedule_id AND o.due_date=s.due_date WHERE s.movement_id=$1 AND o.project_id IS DISTINCT FROM $2::uuid`,[movementId,p.id])).rowCount)throw new Failure('这笔转款已用于周期计划的本期分摊');
    const used=Number((await c.query('SELECT COALESCE(sum(amount),0) AS n FROM cost_settlements WHERE movement_id=$1 AND project_id<>$2',[movementId,p.id])).rows[0].n);
    if(used+amount>Number(m.amount))throw new Failure('结算关联金额超过转账可用金额');
    await c.query('INSERT INTO cost_settlements(project_id,movement_id,amount) VALUES($1,$2,$3) ON CONFLICT(project_id,movement_id) DO UPDATE SET amount=$3',[p.id,movementId,amount]);await record(c,p,user,'settlement');return {ok:true};
