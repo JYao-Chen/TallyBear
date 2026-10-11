@@ -296,6 +296,7 @@
   "删除预算": "Delete budget",
   "保存预算": "Save budget",
   "我的分类小伙伴": "Your categories",
+  "同一家庭的成员可复用彼此创建的分类。你的排序、停用和个人设置适用于自己的所有账本，不会修改他人的设置。": "Family members can reuse each other’s custom categories. Your ordering, deactivation and personal settings apply across your own books without editing anyone else’s preferences.",
   "个人分类适用于你的所有账本，不会改变其他成员的分类。": "Your categories are available in all your books and do not change other members’ categories.",
   "个人分类已更新，并应用到你的所有账本；如有未同步草稿，请重新读取云端版本。": "Your categories now apply to all your books. Reload cloud drafts if you have unsynced changes.",
   "＋ 添加分类": "＋ Add category",

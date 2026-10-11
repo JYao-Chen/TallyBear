@@ -222,3 +222,11 @@ Confirmed gifts appear as personal expenses and income in each participant’s s
 ### 从图表查看账单详情
 
 点击图表或图例，再点击列表中的账单，可查看交易日期／时间、所属账本与钱包、商家平台、订单号／流水号、商品明细、优惠费用、备注、记录人及创建／修改时间。已保存的凭证和生活附图也可打开查看。未记录的字段会显示“未填写”，不会根据商家或金额猜补。使用“返回列表”可回到原图表筛选结果及页码。
+
+## Family category reuse / 家庭分类复用
+
+同一家庭成员在账本设置创建的自定义分类，会自动出现在其他成员的分类选项中，名称和图标可直接复用。已经创建且未停用、未删除的分类也适用。个人保存的同名设置优先；排序、停用、删除和修改自己的偏好不修改其他成员已保存的设置。复用或排序保存的副本不会自动转发到自己加入的其他家庭。分类选项会用于手动记账、常用预设、识别和助手；其他成员新增分类后刷新页面即可获取。已保存的本人分类和历史账目不会因退出家庭而被删除。
+
+Custom categories created by members of the same family are available for reuse, including existing active definitions. Your saved preferences take precedence for the same name. Sorting, hiding and editing your copy do not edit other members’ saved preferences. Borrowed copies are not republished to your other families. Manual entries, presets, recognition and the assistant use these options. Refresh to pick up another member’s new category. Leaving a family does not delete your saved preferences or historical entries.
+
+Deployment: apply `scripts/family-category-sharing.sql` before updating the application. The additional `family_shared` marker distinguishes category definitions from saved personal copies; rollback can retain this column.

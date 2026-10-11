@@ -442,3 +442,5 @@ CREATE TABLE IF NOT EXISTS cost_schedule_settlements (
  created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(schedule_id,due_date,movement_id)
 );
+-- Existing custom definitions are reusable; newly saved copies keep personal preferences.
+ALTER TABLE category_preferences ADD COLUMN IF NOT EXISTS family_shared boolean NOT NULL DEFAULT true;
