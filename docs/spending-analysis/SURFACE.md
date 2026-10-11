@@ -53,3 +53,7 @@ SpendingAnalysis 组织口径、账本选择、周期、费用汇总及图表；
 截图目录为 `/home/yao/artifacts/tallybear/20261004-analysis/screenshots/`。manifest.json 记录 42 张中英文截图，桌面 1440×1000、手机 390×844，并补充家庭钱包 360px 宽截图。内容包括三种口径、账本选择、筛选、下钻、互转、详情、单钱包及家庭钱包。截图使用隔离合成家庭数据，未调用真实模型。
 
 代表截图为 zh-desktop-analysis-books.webp、en-desktop-analysis-wallets.webp、zh-mobile-analysis-personal.webp 和 en-mobile-analysis-wallets.webp。已查看桌面账本与英文手机钱包截图确认层级和布局；截图不能替代实体手机触控、软键盘或全部真实数据状态验证。
+
+## Daily wallet cash-flow details
+
+Click a bar, line point or date/value row in Daily net cash flow to open the day's actual wallet movements. The sheet keeps the chart's wallet ownership and wallet selection, independently of the main entry search or flow filter. It shows money in, money out, net cash flow, sorting and 20-row pagination; clicking a movement opens its detail with a return to the daily list. Internal transfers cancel out and balance adjustments are shown separately from the chart's net cash flow. This uses the existing funds API and creates no financial entries.
