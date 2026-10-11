@@ -58,8 +58,8 @@ export async function changeCategory(user:string,body:unknown){
   }
   const position=old?.position??(categories.reduce((largest,category)=>Math.max(largest,category.position??-1),-1)+1);
   const existing=(await c.query('SELECT family_shared FROM category_preferences WHERE user_id=$1 AND name=$2',[user,b.newName||b.name])).rows[0];
-  const familyShared=existing?.family_shared??(!old||!!b.newName&&b.newName!==b.name);
-  await c.query('INSERT INTO category_preferences(user_id,name,icon,archived,position,family_shared) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,name) DO UPDATE SET icon=$3,archived=$4,deleted=false,position=$5',[user,b.newName||b.name,b.icon,b.archived,position,familyShared]);
+  const familyShared=b.newName&&b.newName!==b.name?true:existing?.family_shared??!old;
+  await c.query('INSERT INTO category_preferences(user_id,name,icon,archived,position,family_shared) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,name) DO UPDATE SET icon=$3,archived=$4,deleted=false,position=$5,family_shared=$6',[user,b.newName||b.name,b.icon,b.archived,position,familyShared]);
   return {ok:true};
  });
 }
