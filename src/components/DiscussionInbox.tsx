@@ -1,0 +1,18 @@
+'use client';
+import {useCallback,useEffect,useState} from 'react';
+import {Avatar} from './ManagementPages';
+import {MessageCircle} from 'lucide-react';
+import {Discussion,discussionRequest} from './Discussion';
+import {Sheet} from './Sheet';
+import {useI18n} from './LanguageProvider';
+import {formatMoney} from '@/lib/deployment';
+export function DiscussionInbox({revision,onOpenSource}:{revision:number;onOpenSource:(row:any)=>Promise<void>}){
+ const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
+ const [data,setData]=useState<any>(null),[error,setError]=useState(''),[offset,setOffset]=useState(0),[selected,setSelected]=useState<any>(null),[busy,setBusy]=useState(false);
+ const load=useCallback(async(signal?:AbortSignal)=>{const d=await discussionRequest('/inbox?offset='+offset,undefined,signal);if(!d.rows.length&&offset){setOffset(0);return;}setData(d);setError('');},[offset]);
+ useEffect(()=>{const controller=new AbortController();const refresh=()=>{if(document.visibilityState==='visible')void load(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});};refresh();const timer=setInterval(refresh,30000);window.addEventListener('focus',refresh);window.addEventListener('discussions-changed',refresh);return()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('discussions-changed',refresh);};},[load,revision]);
+ const kindName=(kind:string)=>({movement:l('家庭转账','Family transfer'),transaction:l('共享账单','Shared transaction'),project:l('费用分摊','Cost allocation'),schedule:l('周期计划','Recurring plan')}[kind]);
+ return <>{(!!data?.total||!!error)&&<section className="panel home-inbox"><div className="panel-title"><h2><MessageCircle size={22}/>{l('账目消息','Account messages')} <small>{data?.total||''}</small></h2><button type="button" className="text-button" onClick={()=>void load().catch(e=>setError(e.message))}>{l('刷新','Refresh')}</button></div>{error&&<p role="alert" className="error">{error}</p>}{data?.rows.map((r:any)=><article key={r.id} className="home-inbox-row discussion-inbox-row"><div><div className="discussion-person"><Avatar value={r.avatar} size={36}/><strong>{r.name} · {r.title}</strong></div><small>{kindName(r.kind)}{r.scope?' · '+r.scope:''}{r.amount!=null?' · '+formatMoney(r.amount):''} · {r.unread} {l('条未读','unread')}</small><p>{r.body}</p></div><button type="button" onClick={()=>{setSelected(r);setError('');}}>{l('查看回复','View discussion')}</button></article>)}{data?.total>5&&<nav className="discussion-pagination" aria-label={l('账目消息分页','Account message pages')}><button type="button" className="secondary" disabled={!offset} onClick={()=>setOffset(v=>v-5)}>{l('上一页','Previous')}</button><span>{offset+1}–{Math.min(offset+5,data.total)} / {data.total}</span><button type="button" className="secondary" disabled={offset+5>=data.total} onClick={()=>setOffset(v=>v+5)}>{l('下一页','Next')}</button></nav>}</section>}
+ {selected&&<Sheet title={selected.title} onClose={()=>{if(!busy)setSelected(null);}}><p className="muted">{kindName(selected.kind)}{selected.scope?' · '+selected.scope:''}{selected.amount!=null?' · '+formatMoney(selected.amount):''}</p><button type="button" className="secondary" disabled={busy} onClick={async()=>{setBusy(true);try{await onOpenSource(selected);setSelected(null);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{l('打开原记录','Open original record')}</button>{error&&<p role="alert" className="error">{error}</p>}<Discussion key={selected.id} target={{kind:selected.kind,id:selected.target_id,scope:selected.scope}}/></Sheet>}
+ </>;
+}

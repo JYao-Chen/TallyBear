@@ -50,6 +50,7 @@ export async function costSchedules(user:string,method:string,path:string[],body
   const id=uuid.parse(path[1]);
   const s=(await c.query(`SELECT s.*,to_char(next_date,'YYYY-MM-DD') AS next_date FROM cost_schedules s WHERE s.id=$2 AND ${accessible} FOR UPDATE OF s`,[user,id])).rows[0];
   if(!s)throw new Failure('周期计划不存在或无权访问',404);
+  if(method==='GET'&&!path[2]){s.members=(await c.query('SELECT m.user_id,m.accepted,u.name,CASE WHEN m.user_id=$2 THEN m.book_id ELSE NULL END AS book_id FROM cost_schedule_members m JOIN users u ON u.id=m.user_id WHERE schedule_id=$1',[id,user])).rows;return s;}
   if(method==='GET'&&path[2]==='history'){
    const offset=z.coerce.number().int().min(0).parse(params.get('offset')||0);
    return (await c.query('SELECT to_char(due_date,\'YYYY-MM-DD\') AS due_date,project_id,skipped,count(*) OVER()::int AS total FROM cost_schedule_occurrences WHERE schedule_id=$1 ORDER BY due_date DESC LIMIT 20 OFFSET $2',[id,offset])).rows;
@@ -74,7 +75,7 @@ export async function costSchedules(user:string,method:string,path:string[],body
    const received=Number((await c.query('SELECT COALESCE(sum(x.amount),0) AS amount FROM cost_schedule_settlements x JOIN family_movements v ON v.id=x.movement_id WHERE x.schedule_id=$1 AND x.due_date=$2 AND v.sender_id=$3',[id,dueDate,movement.sender_id])).rows[0].amount);
    const senderShare=s.rule.shares.find((p:any)=>p.userId===movement.sender_id),remaining=senderShare?senderShare.amount*s.rule.months-received:0;if(remaining<=0||Number(movement.amount)>remaining)throw new Failure('本期该成员剩余应付金额与这笔转款不符');
    if(movement.status==='pending'){
-    const targetId=uuid.parse(body.targetId);await familyFinance(user,s.family_id,'POST',{operation:'confirm',id:movementId,targetId},c);
+    const targetId=uuid.parse(body.targetId);await familyFinance(user,s.family_id,'POST',{operation:'confirm',id:movementId,targetId,reply:body.reply},c);
    }else{
     if(!(await c.query('SELECT 1 FROM accounts WHERE id=$1 AND owner_id=$2',[movement.target_id,user])).rowCount)throw new Failure('这笔转款尚未记入你的个人钱包');
    }

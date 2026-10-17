@@ -36,9 +36,11 @@ Each scope has its own base URL, API key, text model and vision model. The assis
 
 Back up first. Stop web and worker, obtain the desired release and run `docker compose up -d --build`. Initialization reruns the bundled idempotent schema updates before services start. Never restore an older database over newer changes without also restoring its matching files/configuration.
 
+Account discussions add three tables through `scripts/discussions-schema.sql`. Apply it before starting the updated web and worker. Existing private movement notes are not published or migrated. An application rollback may leave these additive tables in place; keep them to preserve any messages written after the upgrade. See [account discussions](account-discussions.md).
+
 ## Upgrading to 2.0.0
 
-The current Compose image name is `tallybear:2.0.0`. Keep your existing PostgreSQL major version, database and receipt volumes, language/currency and encryption key. Back up first; stop web and worker, obtain the intended 2.0 revision, then run `docker compose up -d --build`. The initializer runs **both** `scripts/schema.sql` and `scripts/memory-schema.sql` before runtime processes start. Do not create fresh volumes as an upgrade shortcut.
+The current Compose image name is `tallybear:2.0.0`. Keep your existing PostgreSQL major version, database and receipt volumes, language/currency and encryption key. Back up first; stop web and worker, obtain the intended 2.0 revision, then run `docker compose up -d --build`. The initializer runs `scripts/schema.sql`, `scripts/memory-schema.sql`, `scripts/profile-schema.sql` and `scripts/discussions-schema.sql` before runtime processes start. Do not create fresh volumes as an upgrade shortcut.
 
 Financial memory needs separate embedding, extraction and judgment settings, accessible through **Profile → Memory center → Learning & settings**. Existing official DashScope credentials can supply defaults; independent memory configuration takes precedence. Default PostgreSQL 16 does not bundle pgvector. Install a matching-major-version extension and run `CREATE EXTENSION IF NOT EXISTS vector;` in the target database to enable vector queries; without it, retrieval falls back to keywords. Do not change a production database major version merely to install the extension. See [financial memory](financial-memory.md) for historical organization, model-version rebuilds and privacy boundaries.
 

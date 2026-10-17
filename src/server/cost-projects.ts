@@ -146,7 +146,7 @@ export async function costProjects(user:string,method:string,path:string[],body:
   }
   if(method==='GET')return detail(c,p,user,params);
   if(path[2]==='settlement-transfer'&&method==='POST'){
-   const b=z.object({operation:z.enum(['create','confirm','cancel']),id:uuid,sourceId:uuid.optional(),recipientId:uuid.optional(),targetId:uuid.optional(),amount:z.number().int().positive().max(100000000000).optional(),date:z.string().optional(),note:z.string().max(500).default(''),allowSimilar:z.boolean().default(false)}).parse(body);
+   const b=z.object({operation:z.enum(['create','confirm','cancel']),id:uuid,sourceId:uuid.optional(),recipientId:uuid.optional(),targetId:uuid.optional(),amount:z.number().int().positive().max(100000000000).optional(),date:z.string().optional(),note:z.string().max(500).default(''),reply:z.string().trim().max(2000).optional(),allowSimilar:z.boolean().default(false)}).parse(body);
    if(!p.family_id)throw new Failure('成员结算需要关联家庭');
    const linked=(await c.query("SELECT m.*,to_char(m.date,'YYYY-MM-DD') AS date FROM cost_settlements s JOIN family_movements m ON m.id=s.movement_id WHERE s.project_id=$1 AND s.movement_id=$2",[p.id,b.id])).rows[0];
    if(b.operation==='create'&&linked){
@@ -158,7 +158,7 @@ export async function costProjects(user:string,method:string,path:string[],body:
     if(b.operation==='confirm'&&linked.status==='cancelled')throw new Failure('这笔转款已取消，不能确认到账',409);
     if(b.operation==='cancel'&&linked.status==='confirmed')throw new Failure('这笔转款已到账，不能作为待确认转款取消',409);
     // The existing family receipt workflow remains the authority for who may confirm.
-    await familyFinance(user,p.family_id,'POST',{operation:b.operation,id:b.id,targetId:b.targetId},c);
+    await familyFinance(user,p.family_id,'POST',{operation:b.operation,id:b.id,targetId:b.targetId,reply:b.reply},c);
     if(linked.status==='pending')await record(c,p,user,b.operation==='confirm'?'settlement_confirmed':'settlement_cancelled');
     return {ok:true};
    }

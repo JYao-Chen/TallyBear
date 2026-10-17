@@ -1,3 +1,4 @@
+import {discussions} from '@/server/discussions';
 import {memoryRoute} from '@/server/memory';
 import {detailOrder,detailSorts} from '@/lib/detail-sort';
 import {itemReport} from '@/server/finance-items';
@@ -78,6 +79,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
   if(method==='GET')return NextResponse.json(await listActivities(u.id));
   return NextResponse.json(await changeActivity(u.id,method,body));
  }
+ if(path[0]==='discussions')return NextResponse.json(await discussions(u.id,method,path,body,req.nextUrl.searchParams));
  if(path[0]==='family-inbox'&&method==='GET')return NextResponse.json(await familyInbox(u.id,req.nextUrl.searchParams));
  if(path[0]==='book-movements'&&method==='GET')return NextResponse.json(await bookMovements(u.id,path[1],req.nextUrl.searchParams));
  if(path[0]==='family-finance')return NextResponse.json(await familyFinance(u.id,path[1],method,body));
@@ -173,7 +175,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
   });return NextResponse.json({ok:true});
  }
  if(resource==='transactions'){
-  if(method==='GET'){const month=req.nextUrl.searchParams.get('month');const args:unknown[]=[book,u.id];let filter='';if(month){if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw new Failure('月份无效');args.push(month+'-01');filter=" AND t.date >= $3::date AND t.date < $3::date+interval '1 month'";}return NextResponse.json((await db.query('SELECT t.*,(SELECT ae.activity_id FROM activity_entries ae WHERE ae.transaction_id=t.id AND ae.owner_id=$2) AS activity_id,t.amount::float8 AS amount,to_char(t.date,\'YYYY-MM-DD\') AS date,a.name AS account_name,a.type AS account_type,a.holder AS account_holder,a.institution AS account_institution,a.suffix AS account_suffix,a.ownership AS account_ownership,(SELECT json_build_object(\'name\',dest.name,\'type\',dest.type,\'holder\',dest.holder,\'institution\',dest.institution,\'suffix\',dest.suffix,\'ownership\',dest.ownership) FROM accounts dest WHERE dest.id=t.target_id) AS target_account,(SELECT name FROM accounts dest WHERE dest.id=t.target_id) AS target_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND NOT t.deleted'+filter+' ORDER BY t.date DESC,t.created_at DESC LIMIT 10000',args)).rows);}
+  if(method==='GET'){const month=req.nextUrl.searchParams.get('month');const args:unknown[]=[book,u.id];let filter='';if(month){if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw new Failure('月份无效');args.push(month+'-01');filter=" AND t.date >= $3::date AND t.date < $3::date+interval '1 month'";}if(req.nextUrl.searchParams.has('id')){args.push(uuid.parse(req.nextUrl.searchParams.get('id')));filter+=' AND t.id=$'+args.length;}return NextResponse.json((await db.query('SELECT t.*,(SELECT ae.activity_id FROM activity_entries ae WHERE ae.transaction_id=t.id AND ae.owner_id=$2) AS activity_id,t.amount::float8 AS amount,to_char(t.date,\'YYYY-MM-DD\') AS date,a.name AS account_name,a.type AS account_type,a.holder AS account_holder,a.institution AS account_institution,a.suffix AS account_suffix,a.ownership AS account_ownership,(SELECT json_build_object(\'name\',dest.name,\'type\',dest.type,\'holder\',dest.holder,\'institution\',dest.institution,\'suffix\',dest.suffix,\'ownership\',dest.ownership) FROM accounts dest WHERE dest.id=t.target_id) AS target_account,(SELECT name FROM accounts dest WHERE dest.id=t.target_id) AS target_name,u.name AS creator_name FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.book_id=$1 AND NOT t.deleted'+filter+' ORDER BY t.date DESC,t.created_at DESC LIMIT 10000',args)).rows);}
   if(method==='POST'){
    const items=z.array(z.object({action:z.enum(['create','skip','merge']).default('create'),mergeId:uuid.optional(),mergeVersion:z.number().int().optional()}).passthrough()).min(1).max(1000).parse(body.entries);const targetBook=body.targetBook?uuid.parse(body.targetBook):book;const destinations=new Map(items.map(raw=>[raw.id,raw.targetBook?uuid.parse(raw.targetBook):targetBook]));let added=0,merged=0;
    await withReceiptTransaction(async(c,copied)=>{for(const id of [...new Set([book,...destinations.values()])].sort())await lockBook(c,id);const created:string[]=[];

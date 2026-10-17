@@ -1,4 +1,5 @@
 'use client';
+import {Discussion} from './Discussion';
 import {TransactionBalance} from './TransactionBalance';
 import {useI18n} from './LanguageProvider';
 import {LineItemsView} from './LineItems';
@@ -8,7 +9,7 @@ import {displayTimestamp} from '@/lib/entry-time';
 
 export function ChartTransactionDetail({row,money}:{row:Record<string,any>;money:(amount:number)=>string}){
  const {t,locale}=useI18n();
- if(row.cost_row_key)return <article className="chart-transaction-detail"><h3>{row.title}</h3><p>{locale==='en'?'Allocated expense for the selected period; no additional wallet debit.':'所选期间应承担的费用，不会再次扣减钱包。'}</p><strong>{money(Number(row.amount)/100)}</strong><p>{row.date?.slice(0,10)} — {new Date(Date.parse(row.cost_period_end)-86400000).toISOString().slice(0,10)}</p><p>{row.book_name} · {row.category}</p></article>;
+ if(row.cost_row_key)return <article className="chart-transaction-detail"><h3>{row.title}</h3><p>{locale==='en'?'Allocated expense for the selected period; no additional wallet debit.':'所选期间应承担的费用，不会再次扣减钱包。'}</p><strong>{money(Number(row.amount)/100)}</strong><p>{row.date?.slice(0,10)} — {new Date(Date.parse(row.cost_period_end)-86400000).toISOString().slice(0,10)}</p><p>{row.book_name} · {row.category}</p>{row.cost_project_id&&<Discussion key={row.cost_project_id} target={{kind:'project',id:row.cost_project_id}} hideUnavailable/>}</article>;
  const wallet=accountLabel({name:row.account_name||'',type:row.account_type,holder:row.account_holder,institution:row.account_institution,suffix:row.account_suffix,ownership:row.account_ownership},locale);
  const groups:[string,[string,unknown][]][]=[
   ['交易信息',[['交易日期',row.date?.slice(0,10)],['交易时间',row.occurred_at],['记入账本',row.book_name],['分类',row.category],['资金账户',wallet],['钱包归属',row.account_ownership?t(walletOwnership[row.account_ownership as WalletOwnership]||'待确认'):null],...(row.kind==='transfer'?[['转入账户',row.target_account?accountLabel(row.target_account,locale):row.target_name] as [string,unknown]]:[])]],
@@ -26,5 +27,6 @@ export function ChartTransactionDetail({row,money}:{row:Record<string,any>;money
   <section><h3>{t('备注')}</h3><p className="chart-transaction-note">{row.note||t('未填写')}</p></section>
   <section><h3>{t('记录信息')}</h3><dl className="chart-transaction-fields">{groups[2][1].map(([label,value])=><div key={label}><dt>{t(label)}</dt><dd>{value?String(value):t('未填写')}</dd></div>)}</dl></section>
   {!row.family_movement_id&&row.book_id&&<section><h3>{t('凭证与附图')}</h3><ReceiptAttachments key={row.id} book={row.book_id} transaction={row.id} allowRecognize={false} showEmpty/></section>}
+ {!row.family_movement_id&&row.book_id&&<Discussion key={row.id} target={{kind:'transaction',id:row.id}} hideUnavailable/>}
  </article>;
 }

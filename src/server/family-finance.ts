@@ -1,3 +1,5 @@
+import {postDiscussionMessage} from './discussions';
+import {randomUUID} from 'node:crypto';
 import {movementBookOptions,linkMovementBook} from './family-books';
 import {z} from 'zod';
 import {transaction} from './db';
@@ -61,12 +63,12 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  }
  await c.query(`INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,note,expense_id,loan_id,status,confirmed_by,confirmed_at,external_id,platform) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CASE WHEN $13='confirmed' THEN now() ELSE NULL END,$15,$16)`,[b.id,family,user,target?null:b.recipientId,b.sourceId,b.targetId||null,b.kind,b.amount,b.date,b.note,b.kind==='aa'?b.expenseId:null,b.kind==='repayment'?b.loanId:null,target?'confirmed':'pending',target?user:null,b.externalId||null,b.platform]);await linkMovementBook(c,user,b.id,b.displayBookId);return {ok:true};
  }
- const b=z.object({id:uuid,displayBookId:uuid.nullable().optional(),targetId:uuid.optional()}).parse(body),v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('无权处理此记录',403);
+ const b=z.object({id:uuid,displayBookId:uuid.nullable().optional(),targetId:uuid.optional(),reply:z.string().trim().max(2000).optional()}).parse(body),v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('无权处理此记录',403);
  if(v.status!=='pending')return {ok:true};
  if(op==='cancel'){await c.query("UPDATE family_movements SET status='cancelled' WHERE id=$1",[v.id]);return {ok:true};}
  if(v.recipient_id!==user)throw new Failure('请由收款人确认到账',403);
  if(v.kind==='aa'){const t=await expense(c,v.expense_id,family,user);const shares=(await c.query('SELECT shares FROM family_expense_shares WHERE transaction_id=$1',[t.id])).rows[0]?.shares||[];if(shares.reduce((n:number,s:any)=>n+s.amount,0)!==Number(t.amount)||t.owner_id!==user)throw new Failure('原消费已调整，请取消本次结算并重新核对分担');}
  const target=await wallet(c,uuid.parse(b.targetId),user,family);if(target.owner_id!==user)throw new Failure('请选择自己的到账钱包');
  await wallet(c,v.source_id,v.sender_id,family);
- await c.query("UPDATE family_movements SET target_id=$2,status='confirmed',confirmed_by=$3,confirmed_at=now() WHERE id=$1",[v.id,target.id,user]);await linkMovementBook(c,user,v.id,b.displayBookId);return {ok:true};
+ await c.query("UPDATE family_movements SET target_id=$2,status='confirmed',confirmed_by=$3,confirmed_at=now() WHERE id=$1",[v.id,target.id,user]);await linkMovementBook(c,user,v.id,b.displayBookId);if(b.reply)await postDiscussionMessage(c,user,{kind:'movement',id:v.id},{id:randomUUID(),body:b.reply});return {ok:true};
  };return client?run(client):transaction(run);}

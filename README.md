@@ -93,6 +93,8 @@ Private memories stay private unless explicitly shared. Forgetting a memory does
 
 Create a family and shared books, assign member roles and use **Entry → Family movements** for transfers, gifts, AA settlements, loans, repayments and shared contributions. Recipients confirm their own receiving wallet. These money movements remain separate from ordinary consumption totals.
 
+Discuss family transfers, shared-book transactions, cost projects and recurring cycles in their details. Replies appear in the home inbox; personal movement notes stay private. See [account discussions](docs/account-discussions.md).
+
 Open **Analysis → Wallet cash flow** or **Assets** for money in, money out, transfers and net cash flow. Search paginated entries and open their details. Opening balance plus net flow and balance adjustments reconciles the closing book balance. Internal transfers cancel out; ordinary family transfers are not counted again as consumption.
 
 Personal categories follow the user across books, including shared books. Another member's category choices do not overwrite yours. Global search covers accessible books and can find transactions, products in line items, payment references, activities, plans, reports and memories.
@@ -162,7 +164,7 @@ Keys are encrypted with `ENCRYPTION_KEY`. Keep it with your backups. AI requests
 
 1. Back up the database, receipts and environment configuration together.
 2. Preserve the existing PostgreSQL major version, data volume, encryption key, language and currency.
-3. Stop web and worker; update to the intended code revision and rebuild with Compose. Initialization applies both schema scripts.
+3. Stop web and worker; update to the intended code revision and rebuild with Compose. Initialization applies the schema scripts, including account discussions.
 4. Start web and worker together, check `/api/health`, and verify existing records and attachments.
 5. Configure memory models and pgvector if needed; historical memory organization is a separate background task.
 

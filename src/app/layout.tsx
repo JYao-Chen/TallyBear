@@ -16,3 +16,5 @@ export const viewport={width:'device-width',initialScale:1,viewportFit:'cover',t
 export async function generateMetadata(){const theme=validTheme((await cookies()).get('bubu_theme')?.value);const locale=deployment().language;return {title:translate(themes[theme].name,locale),description:locale==='en'?'AI-assisted personal and family bookkeeping':'智能个人与家庭账本',manifest:locale==='en'?themes[theme].manifest.replace('.webmanifest','-en.webmanifest'):themes[theme].manifest,icons:{icon:themes[theme].icon}};}
 export default async function Layout({children}: {children:React.ReactNode}) { const theme=validTheme((await cookies()).get('bubu_theme')?.value);const locale=deployment().language;const config=await checkDeploymentCurrency();return <html lang={locale} data-theme={theme} data-currency={config.currency}><head><link rel="stylesheet" href="/fonts/wenkai.css"/></head><body><MobileViewport/><LanguageProvider initial={locale} currency={config.currency}><ThemeProvider initial={theme}>{children}</ThemeProvider></LanguageProvider></body></html>; }
 import '../components/transaction-balances.css';
+
+import '../components/discussion.css';
