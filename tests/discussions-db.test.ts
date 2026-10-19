@@ -13,7 +13,7 @@ test('账目讨论：权限、回复、分页、未读、账期隔离与收款�
  const {familyFinance}=await import('../src/server/family-finance');
  const c=await db.connect();
  try{
-  await c.query(await readFile('scripts/schema.sql','utf8'));await c.query(await readFile('scripts/discussions-schema.sql','utf8'));
+  await c.query(await readFile('scripts/schema.sql','utf8'));await c.query(await readFile('scripts/discussions-schema.sql','utf8'));await c.query(await readFile('scripts/expense-claims-schema.sql','utf8'));
   await c.query('BEGIN');
   await withConnection(c,async()=>{
    const f=await discussionFixtures(c);

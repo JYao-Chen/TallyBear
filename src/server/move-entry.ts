@@ -1,3 +1,4 @@
+import {assertClaimEditable} from './claim-access';
 import {randomUUID} from 'node:crypto';
 import {copyFile,unlink} from 'node:fs/promises';
 import path from 'node:path';
@@ -38,7 +39,7 @@ export async function movePreview(book:string,id:string|string[]){
 }
 export async function moveInTransaction(c:PoolClient,book:string,user:string,targetBook:string,rows:any[],copied:string[]){
  for(const id of [book,targetBook]){const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[id,user])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('需要拥有两个账本的记账权限',403);}
- for(const r of rows){await checkCategory(c,user,r.category);
+ for(const r of rows){await assertClaimEditable(c,r.id,user);await checkCategory(c,user,r.category);
   if((await c.query('SELECT 1 FROM transactions WHERE book_id=$1 AND ((external_id IS NOT NULL AND external_id=$2) OR (event_id IS NOT NULL AND event_id=$3))',[targetBook,r.external_id,r.event_id])).rowCount)throw new Failure('目标账本已有相同流水或关联记录，请先核对');
  }
  const ids=rows.map(r=>r.id);

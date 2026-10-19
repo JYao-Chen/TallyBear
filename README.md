@@ -51,6 +51,8 @@ Personal-wallet reporting combines the signed-in user's own wallets across books
 
 Activities support types, dates, budgets, family participation, an archive view, reactivation and deletion. Deleting an activity removes its associations, not the original transactions. Family participation does not grant access to private books.
 
+Purchases can be assigned to a family member when entering a bill or from an existing expense detail. The recipient receives a home invitation and chooses a private or shared book they can edit. Acceptance changes consumption attribution, not the actual payment wallet, and creates no debt. See [purchase claims](docs/purchase-claims.md).
+
 ### Explore the numbers and the underlying records
 
 **Spending analysis** has three views: **Book expenses** includes everyday spending and period allocations in selected books; **My expenses** shows your share across books, even when another household member paid; **Wallet cash flow** shows actual receipts and payments, including household transfers. Select multiple books without double-counting linked copies. Year, month, week, day and custom ranges share the same date boundaries; expense filters apply to totals, charts, paginated entries and export. Open chart results for the underlying records and their full details.

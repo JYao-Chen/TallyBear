@@ -18,3 +18,5 @@ export default async function Layout({children}: {children:React.ReactNode}) { c
 import '../components/transaction-balances.css';
 
 import '../components/discussion.css';
+
+import '../components/expense-claims.css';

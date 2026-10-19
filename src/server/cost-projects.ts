@@ -15,6 +15,7 @@ async function authorized(c:PoolClient,user:string,id:string){
 async function source(c:PoolClient,user:string,id:string,kind:string){
  let row=(await c.query(`SELECT t.*,a.owner_id,a.family_id FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1 AND NOT t.deleted AND t.kind=$3 AND m.role<>'viewer'`,[id,user,kind])).rows[0];
  if(!row||row.owner_id!==user)throw new Failure('请选择本人钱包支付或收到、且可编辑的原始账单',403);
+ if((await c.query("SELECT 1 FROM expense_claims WHERE event_id=$1 AND status IN ('pending','accepted')",[row.event_id||row.id])).rowCount)throw new Failure('这笔账已有成员认领，请先撤回认领再设置费用分担');
  // Lock all display copies, so two different books cannot reserve the same payment twice.
  await c.query('SELECT id FROM transactions WHERE COALESCE(event_id,id)=$1 ORDER BY id FOR UPDATE',[row.event_id||row.id]);
  row=(await c.query(`SELECT t.*,a.owner_id,a.family_id FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1 AND NOT t.deleted AND t.kind=$3 AND m.role<>'viewer'`,[id,user,kind])).rows[0];

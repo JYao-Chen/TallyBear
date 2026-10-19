@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS discussion_threads (
  id uuid PRIMARY KEY,
- kind text NOT NULL CHECK(kind IN ('movement','transaction','project','schedule')),
+ kind text NOT NULL CHECK(kind IN ('movement','transaction','project','schedule','claim')),
  target_id uuid NOT NULL,
  scope text NOT NULL DEFAULT '',
  UNIQUE(kind,target_id,scope),

@@ -39,7 +39,7 @@ export function Discussion({target,hideUnavailable=false}:{target:DiscussionTarg
  if(unavailable)return null;
  return <section ref={section} className="discussion" aria-label={l('账目讨论','Account discussion')}>
   <div className="panel-title"><h3><MessageCircle size={19}/>{scope?l('本期讨论','Cycle discussion'):l('账目讨论','Discussion')}</h3><button type="button" className="text-button" disabled={loading||busy} onClick={()=>{setLoading(true);void load().catch(e=>setError(e.message)).finally(()=>setLoading(false));}}>{l('刷新','Refresh')}</button></div>
-  {data&&<p className="muted discussion-audience">{kind==='movement'?l('仅转账双方可见','Visible only to the sender and recipient'):kind==='transaction'?l('本共享账本有权查看的成员可见','Visible to members with access to this shared book'):l('本项目参与成员可见','Visible to project participants')} · {data.people.map((p:any)=>p.name).join('、')}{scope&&<> · {scope}</>}</p>}
+  {data&&<p className="muted discussion-audience">{kind==='claim'?l('仅付款人和认领人可见','Visible only to the payer and recipient'):kind==='movement'?l('仅转账双方可见','Visible only to the sender and recipient'):kind==='transaction'?l('本共享账本有权查看的成员可见','Visible to members with access to this shared book'):l('本项目参与成员可见','Visible to project participants')} · {data.people.map((p:any)=>p.name).join('、')}{scope&&<> · {scope}</>}</p>}
   {data?.context.note&&<div className="discussion-original"><strong>{l('转账留言','Transfer note')}</strong><p>{data.context.note}</p></div>}
   {loading&&<p role="status">{l('正在读取讨论…','Loading discussion…')}</p>}
   {!loading&&data&&!data.rows.length&&<p className="muted">{l('还没有留言，可以在这里核对用途、金额或分担。','No messages yet. Discuss the purpose, amount or allocation here.')}</p>}

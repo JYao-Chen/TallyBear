@@ -6,7 +6,7 @@ import {Failure} from './access';
 import type {DiscussionTarget} from '@/lib/discussions';
 
 const uuid=z.string().uuid();
-const targetSchema=z.object({kind:z.enum(['movement','transaction','project','schedule']),id:uuid,scope:z.string().regex(/^(|\d{4}-\d{2}-\d{2})$/).default('')});
+const targetSchema=z.object({kind:z.enum(['movement','transaction','project','schedule','claim']),id:uuid,scope:z.string().regex(/^(|\d{4}-\d{2}-\d{2})$/).default('')});
 // Resolve membership from the source records on every request, including the inbox.
 // A linked copy in another book deliberately has a separate discussion audience.
 const audiences=`
@@ -24,6 +24,10 @@ const audiences=`
  UNION ALL
  SELECT 'schedule',s.id,u.id,s.rule->>'title',NULL::uuid,s.family_id,NULL::float8,NULL::text,''
  FROM cost_schedules s JOIN users u ON u.id=s.owner_id OR EXISTS(SELECT 1 FROM cost_schedule_members m JOIN family_members f ON f.user_id=m.user_id AND f.family_id=s.family_id WHERE m.schedule_id=s.id AND m.user_id=u.id)
+ UNION ALL
+ SELECT 'claim',c.id,u.id,COALESCE(NULLIF(c.snapshot->>'title',''),NULLIF(c.snapshot->>'product',''),NULLIF(c.snapshot->>'payee',''),c.snapshot->>'category'),NULL::uuid,NULL::uuid,(c.snapshot->>'amount')::float8,c.snapshot->>'date',''
+ FROM expense_claims c JOIN users u ON u.id IN(c.sender_id,c.recipient_id)
+ WHERE EXISTS(SELECT 1 FROM family_members a JOIN family_members b ON b.family_id=a.family_id WHERE a.user_id=c.sender_id AND b.user_id=c.recipient_id)
 `;
 async function access(c:PoolClient,user:string,input:DiscussionTarget){
  const t=targetSchema.parse(input);

@@ -32,6 +32,7 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  if(op==='display'){const b=z.object({id:uuid,displayBookId:uuid.nullable()}).parse(body);const v=(await c.query('SELECT sender_id,recipient_id FROM family_movements WHERE id=$1 AND family_id=$2',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('只能调整自己的往来展示',403);await linkMovementBook(c,user,b.id,b.displayBookId);return {ok:true};}
  if(op==='shares'){
  const b=z.object({transactionId:uuid,shares:z.array(z.object({userId:uuid,amount:z.number().int().nonnegative()})).min(1)}).parse(body),t=await expense(c,b.transactionId,family,user);
+ if((await c.query("SELECT 1 FROM expense_claims WHERE event_id=$1 AND status IN ('pending','accepted')",[t.event_id||t.id])).rowCount)throw new Failure('这笔账已有成员认领，请先撤回认领再设置费用分担');
  if(t.owner_id!==user)throw new Failure('由实际付款人设置费用承担份额',403);
  if(new Set(b.shares.map(s=>s.userId)).size!==b.shares.length||b.shares.reduce((n,s)=>n+s.amount,0)!==Number(t.amount))throw new Failure('各人承担金额之和必须等于原消费金额');
  for(const s of b.shares)if(!(await c.query('SELECT 1 FROM family_members WHERE family_id=$1 AND user_id=$2',[family,s.userId])).rowCount)throw new Failure('承担人必须是家庭成员');

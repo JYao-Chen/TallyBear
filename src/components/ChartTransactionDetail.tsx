@@ -1,4 +1,5 @@
 'use client';
+import {ExpenseClaimRecord} from './ExpenseClaims';
 import {Discussion} from './Discussion';
 import {TransactionBalance} from './TransactionBalance';
 import {useI18n} from './LanguageProvider';
@@ -27,6 +28,7 @@ export function ChartTransactionDetail({row,money}:{row:Record<string,any>;money
   <section><h3>{t('备注')}</h3><p className="chart-transaction-note">{row.note||t('未填写')}</p></section>
   <section><h3>{t('记录信息')}</h3><dl className="chart-transaction-fields">{groups[2][1].map(([label,value])=><div key={label}><dt>{t(label)}</dt><dd>{value?String(value):t('未填写')}</dd></div>)}</dl></section>
   {!row.family_movement_id&&row.book_id&&<section><h3>{t('凭证与附图')}</h3><ReceiptAttachments key={row.id} book={row.book_id} transaction={row.id} allowRecognize={false} showEmpty/></section>}
+ {row.kind==='expense'&&!row.family_movement_id&&row.book_id&&<ExpenseClaimRecord key={'claim:'+row.id} transactionId={row.id}/>}
  {!row.family_movement_id&&row.book_id&&<Discussion key={row.id} target={{kind:'transaction',id:row.id}} hideUnavailable/>}
  </article>;
 }

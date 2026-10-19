@@ -2138,5 +2138,22 @@
   "讨论不存在或无权访问": "Discussion not found or access denied",
   "账期不存在": "Cycle not found",
   "回复的留言不属于这段讨论": "The reply must reference a message in this discussion",
-  "留言已变化，请刷新后重试": "The message changed. Refresh and try again"
+  "留言已变化，请刷新后重试": "The message changed. Refresh and try again",
+  "这笔账来自认领，请在认领设置中调整账本或取消认领": "This is a claimed purchase. Change its destination or cancel it in the claim settings.",
+  "这笔认领账单请由原付款人修改": "Ask the original payer to edit this claimed purchase.",
+  "请选择仍在同一家庭的其他成员": "Choose another current member of the same family.",
+  "只能为本人实际付款且可编辑的消费指定认领人": "Choose an editable purchase paid from your own wallet.",
+  "认领的账单不能再次转交给其他成员": "A claimed purchase cannot be assigned to another member.",
+  "请先撤回已认领的关联，再更换认领人": "Withdraw the accepted claim before changing the recipient.",
+  "这笔账已有成员费用分担，请在费用项目中调整": "This purchase already has member cost allocation. Adjust it in the cost project.",
+  "无权查看这笔账": "You do not have access to this purchase.",
+  "账单不存在": "Purchase not found.",
+  "认领不存在或无权访问": "Claim not found or access denied.",
+  "账单或认领状态已变化，请刷新后重试": "The purchase or claim changed. Refresh and try again.",
+  "无权处理这笔认领": "You cannot perform this claim action.",
+  "这笔邀请已经结束": "This invitation has ended.",
+  "请选择自己可编辑的账本": "Choose a book you can edit.",
+  "原账单已删除": "The original purchase was deleted.",
+  "认领状态已变化，请刷新后重试": "The claim changed. Refresh and try again.",
+  "这笔账已有成员认领，请先撤回认领再设置费用分担": "Withdraw the purchase claim before setting member cost allocation."
 }

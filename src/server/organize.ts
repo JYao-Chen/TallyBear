@@ -1,3 +1,4 @@
+import {assertClaimEditable} from './claim-access';
 import {z} from 'zod';
 import {lockBook} from './db';
 import {Failure} from './access';
@@ -11,7 +12,7 @@ export async function organize(book:string,user:string,body:unknown){
   const target=b.operation==='delete'?undefined:b.targetBook;
   for(const id of [...new Set([book,...(target?[target]:[])])].sort())await lockBook(c,id);
   for(const id of [book,...(target?[target]:[])]){const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[id,user])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有账本的记账权限',403);}
-  const rows=await selectedGroup(c,book,b.ids);
+  const rows=await selectedGroup(c,book,b.ids);for(const r of rows)await assertClaimEditable(c,r.id,user);
   if(rows.length!==Object.keys(b.versions).length||rows.some(r=>r.version!==b.versions[r.id]))throw new Failure('记录已变化，请重新打开整理窗口',409);
   if(b.operation==='move')return moveInTransaction(c,book,user,target!,rows,copied);
   if(b.operation==='delete'){
