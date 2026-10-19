@@ -21,7 +21,20 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  const details=(await c.query('SELECT * FROM family_movement_details WHERE user_id=$1',[user])).rows;const attachments=(await c.query('SELECT id,movement_id,name,movement_purpose AS purpose FROM receipt_files WHERE user_id=$1 AND movement_id=ANY($2::uuid[]) ORDER BY created_at',[user,movements.map(v=>v.id)])).rows;
  const display=await movementBookOptions(c,user);const links=(await c.query('SELECT movement_id,book_id FROM family_movement_books WHERE user_id=$1',[user])).rows;return {userId:user,people,wallets,movements:movements.map(v=>({...v,details:details.find(d=>d.movement_id===v.id)||null,attachments:attachments.filter(a=>a.movement_id===v.id),displayBookId:links.find(l=>l.movement_id===v.id)?.book_id||null})),expenses,...display};
  }
- const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit'])}).parse(body).operation;
+ const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit','correct-source'])}).parse(body).operation;
+ if(op==='correct-source'){
+ const b=z.object({id:uuid,sourceId:uuid,expectedSourceId:uuid}).parse(body);
+ const v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];
+ if(!v||v.sender_id!==user)throw new Failure('只能由转出人更正付款钱包',403);
+ if(v.status==='cancelled')throw new Failure('已取消的转账不能更正付款钱包');
+ if(v.source_id!==b.expectedSourceId)throw new Failure('付款钱包已改变，请刷新后再更正',409);
+ const source=await wallet(c,b.sourceId,user,family);
+ if(source.id===v.target_id)throw new Failure('转入与转出钱包不能相同');
+ if(v.kind!=='transfer'&&source.owner_id!==user)throw new Failure('此用途需要使用本人的个人钱包');
+ await c.query('UPDATE family_movements SET source_id=$2 WHERE id=$1',[b.id,source.id]);
+ await c.query('INSERT INTO family_movement_details(movement_id,user_id,note,platform,external_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(movement_id,user_id) DO UPDATE SET updated_at=now()',[b.id,user,v.note,v.platform||'',v.external_id||'']);
+ return {ok:true};
+ }
  if(op==='edit'){
  const b=z.object({id:uuid,displayBookId:uuid.nullable(),title:z.string().trim().max(200),note:z.string().max(2000),transactionTime:z.string().regex(/^(|([01]\d|2[0-3]):[0-5]\d)$/),platform:z.string().trim().max(60),externalId:z.string().trim().max(200),removeAttachments:z.array(uuid).default([])}).parse(body);
  const v=(await c.query('SELECT sender_id,recipient_id FROM family_movements WHERE id=$1 AND family_id=$2',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('只能编辑自己的往来记录',403);

@@ -422,3 +422,7 @@ button,a,input,select,textarea,summary{-webkit-tap-highlight-color:transparent}
 .preference-option>div{flex:1 1 12rem;min-width:0;overflow-wrap:anywhere}
 .preference-option small{display:block;font-size:.875rem;color:var(--muted,#776c64)}
 .preference-option button,.preference-heading button{min-height:44px;flex-shrink:0}
+.movement-source-correction {margin:12px 0 24px;min-width:0}
+.movement-source-correction .muted {line-height:1.7;margin:12px 0}
+.movement-source-actions {display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+@media(max-width:600px){.movement-source-actions>button{flex:1 1 130px}}
