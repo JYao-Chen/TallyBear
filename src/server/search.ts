@@ -1,3 +1,4 @@
+import {claimBookVisibility} from './claim-visibility';
 import {deployment} from '@/lib/deployment';
 import {detailSorts} from '@/lib/detail-sort';
 import {memoryVisibility} from './memory';
@@ -21,6 +22,7 @@ export async function search(user:string,params:URLSearchParams){
  t.category,t.account_id,t.target_id,t.kind,t.date AS day,t.amount AS money,t.line_items AS items,t.deleted,t.created_at AS stamp,
  to_jsonb(t)||jsonb_build_object('date',to_char(t.date,'YYYY-MM-DD'),'amount',t.amount::float8,'account_name',a.name,'creator_name',u.name,'account_ownership',a.ownership,'writable',v.role<>'viewer','remaining',t.amount-COALESCE((SELECT sum(r.amount) FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted AND r.id IS DISTINCT FROM ${exclude}::uuid),0)) AS detail
  FROM transactions t JOIN visible v ON v.id=t.book_id JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by LEFT JOIN accounts dest ON dest.id=t.target_id
+ WHERE (${claimBookVisibility()}${params.get('purpose')==='refund'?" OR (t.kind='expense' AND a.owner_id=$1)":''})${params.get('purpose')==='refund'?" AND NOT EXISTS(SELECT 1 FROM expense_claim_links refund_claim_copy WHERE refund_claim_copy.target_id=t.id AND refund_claim_copy.managed)":''}
  UNION ALL SELECT 'book',v.id::text,v.id,v.name,ARRAY[v.name,v.description],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,v.created_at,jsonb_build_object('description',v.description) FROM visible v
  UNION ALL SELECT 'activity',a.id::text,NULL::uuid,a.name,ARRAY[a.name,a.category,a.description,COALESCE(f.name,'')],a.category,NULL,NULL,NULL,a.starts_on,NULL,'[]',false,a.created_at,jsonb_build_object('description',a.description,'category',a.category,'familyName',f.name,'archived',a.archived) FROM activities a LEFT JOIN families f ON f.id=a.family_id WHERE (a.family_id IS NULL AND a.owner_id=$1) OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=$1)
  UNION ALL SELECT 'cost_project',p.id::text,NULL::uuid,p.title,ARRAY[p.title,COALESCE(p.active_plan->>'category',p.proposed_plan->>'category')],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,p.updated_at,jsonb_build_object('archived',p.archived) FROM cost_projects p WHERE p.owner_id=$1 OR EXISTS(SELECT 1 FROM cost_project_members cm JOIN family_members fm ON fm.family_id=p.family_id AND fm.user_id=cm.user_id WHERE cm.project_id=p.id AND cm.user_id=$1)

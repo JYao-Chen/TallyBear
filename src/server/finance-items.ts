@@ -8,7 +8,7 @@ import type {FinanceMetric,FinanceDimension} from '@/lib/finance-query';
 // Item costs are recorded line totals, not apportioned order payments. Unknowns stay unknown.
 export async function itemReport(books:string[],params:URLSearchParams,user:string,metric:FinanceMetric,dimension:FinanceDimension='product'){
  const itemGroup=params.get('groupField')==='product';const orderParams=new URLSearchParams(params);if(itemGroup){orderParams.delete('groupField');orderParams.delete('groupValue');}
- const {input,values,where:base}=reportFilter(books,orderParams);let where=base+" AND t.kind IN ('expense','refund')";
+ const {input,values,where:base}=reportFilter(books,orderParams,params.get('scope')!=='personal_wallet');let where=base+" AND t.kind IN ('expense','refund')";
  const personal=params.get('scope')==='personal_wallet';if(personal){values.push(user);where+=` AND a.owner_id=$${values.length}`;}
  let itemWhere="COALESCE(i->>'kind','item')='item'";
  if(input.product){values.push(input.product);itemWhere+=' AND '+textMatch("ARRAY[i->>'name']",'$'+values.length,input.mode);}

@@ -19,11 +19,15 @@ Manual entry and AI/import draft review reuse the labeled recipient selector, de
 
 Home Purchase claims & updates follows the existing inbox-row vocabulary: current author avatar/name and invitation or update context, purchase title and amount, date, then Review & claim or View update. Preserve five-row pagination and visible ranges, refresh, error and changed-event updates.
 
+Home > 为他人购买 (Purchases for others) is the payer's permanent history, independent of unread notices. Its collapsible list retains sent, accepted and ended claims after reading and reloading. Reuse flat home rows with recipient avatar/name, purchase title/amount, date/status and View bill & discussion; retain five-row pagination, readable ranges, retry and expanded-state semantics. Opening a row shows the shared bill and discussion, never the recipient's destination-book identity, private notes or other records.
+
 The existing Sheet opens the single purchase. Read from payer avatar/name and status to purchase identity, amount/date/category, refunds and net consumption where present, line items and shared note. Place the no-debt/no-wallet-charge explanation before the destination choice. Destination options explicitly identify Private or Shared; explain shared-book visibility and that the sender receives no private-book access. Claim discussion follows the accounting context rather than replacing it.
 
 ## States and interaction
 
-Pending recipients can accept into a chosen book or decline. Accepted recipients can change destination or cancel; senders can withdraw an active invitation. Retain confirmation for cancellation/withdrawal, disabled busy actions, loading/error feedback and manual refresh. Source updates and deletion produce contextual home notices; withdrawn or declined details preserve their frozen snapshot. Consumption copies remain one financial event, with wallet flows tied to the original payer. Private/shared destination choice must never suggest repayment or give the sender access to private books.
+Pending recipients can accept into a chosen book or decline. Acceptance makes that book the exclusive consumption destination: ordinary source-book records, reports, item/activity totals and search exclude the purchase and linked refunds, as do other pre-existing book copies. Selecting the original shared book keeps its single visible record. Financial-event identity and original payment facts remain intact; wallet history and the payer's permanent history continue to show the payment.
+
+Accepted recipients can change destination or cancel; senders can withdraw an active invitation. Changing destination removes consumption from the former book; cancellation/withdrawal restores original attribution. Retain confirmation for cancellation/withdrawal, disabled busy actions, loading/error feedback and manual refresh. Source updates and deletion produce contextual home notices; withdrawn or declined details preserve their frozen snapshot. Explain exclusive destination, permanent payer access and no debt/wallet charge together before the picker. Private/shared destination choice must never suggest repayment or give the sender access to private books.
 
 ## Visual and responsive treatment
 
@@ -33,9 +37,9 @@ Use flat record sections with the existing top rule, wrapping identities and pre
 
 ## Evidence and disposition
 
-Sources are the targets above and `docs/purchase-claims.md`. Direction: `/home/yao/artifacts/tallybear/claims-20261019/direction.md`. Ten synthetic-data captures in its `screenshots/` directory cover desktop/mobile entry, existing-bill invitation, home claims, private destination, changing to shared, source updates and withdrawal notices at (1440 × 1000) and (375 × 812). There is no approved image comp; the narrow extension is code-led. Detector findings: none reported.
+Sources are the targets above and `docs/purchase-claims.md`. Current direction: `/home/yao/artifacts/tallybear/claims-20261019/claim-move/direction.md`. Twelve synthetic-data captures in `claim-move/screenshots/` cover desktop/mobile payer history and claims, invitation, acceptance, private/shared destination changes and source-book exclusion at desktop (1440px) and mobile (375px). The payer history remains accessible after reading and reloading. There is no approved image comp; the narrow extension is code-led.
 
-The finish reviewer returned **ship**, with no material fixes: private/shared destination, home invitation/update context, current avatars, no-debt/wallet explanation and original-payer control match the confirmed direction. Evidence is isolated synthetic browser/database verification, not deployment or physical-device acceptance. A production-build repeat of browser flows was underway at documentation time and is not recorded here as complete. Root design documentation and its sidecar remain unchanged because these are local surface decisions.
+Fresh finish reviewer `claim_move_ui_review` returned **ship**, with no material fixes: incumbent rows, current avatars and Sheet remain consistent, mobile stays readable, and destination privacy is explicit. Evidence is isolated synthetic browser/database validation, not deployment or physical-device acceptance. This iteration is uncommitted and undeployed and adds no schema. Root design documentation and its sidecar remain unchanged because these are local surface decisions.
 
 ## Existing-entry editor correction (2026-10-19)
 

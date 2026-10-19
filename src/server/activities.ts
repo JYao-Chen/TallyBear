@@ -1,3 +1,4 @@
+import {claimBookVisibility} from './claim-visibility';
 import {detailOrder,detailSorts} from '@/lib/detail-sort';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
@@ -24,7 +25,7 @@ async function checkFamily(c:PoolClient,user:string,familyId:string|null){
 
 export async function listActivities(user:string){
  return (await db.query(`SELECT a.id,a.name,a.category,a.family_id AS "familyId",f.name AS "familyName",a.owner_id AS "ownerId",(a.owner_id=$1 OR f.owner_id=$1) AS editable,a.description,to_char(a.starts_on,'YYYY-MM-DD') AS "startsOn",to_char(a.ends_on,'YYYY-MM-DD') AS "endsOn",a.budget::float8 AS budget,a.archived,
- (SELECT count(DISTINCT COALESCE(t.event_id,t.id))::int FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$1 WHERE ae.activity_id=a.id AND (a.family_id IS NOT NULL OR ae.owner_id=$1) AND NOT t.deleted) AS "entryCount"
+ (SELECT count(DISTINCT COALESCE(t.event_id,t.id))::int FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$1 WHERE ae.activity_id=a.id AND (a.family_id IS NOT NULL OR ae.owner_id=$1) AND NOT t.deleted AND ${claimBookVisibility()}) AS "entryCount"
  FROM activities a LEFT JOIN families f ON f.id=a.family_id
  WHERE a.family_id IS NULL AND a.owner_id=$1 OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=$1)
  ORDER BY a.archived,a.created_at DESC`,[user])).rows;
@@ -74,7 +75,7 @@ export async function entryActivity(user:string,bookId:string,transactionId:stri
 export async function activityReport(user:string,id:string,params:URLSearchParams){
  const activity=await accessibleActivity(user,id);
  const filter=z.object({sort:z.enum(detailSorts).default('date_desc'),book:z.union([z.literal('all'),uuid]).default('all'),kind:z.enum(['all','expense','income','refund','transfer']).default('all'),category:z.string().max(60).default(''),account:z.union([z.literal('all'),uuid]).default('all'),q:z.string().trim().max(120).default(''),offset:z.coerce.number().int().min(0).default(0),limit:z.coerce.number().int().min(1).max(100).default(20)}).parse(Object.fromEntries(params));
- const values:unknown[]=[id,user],where:string[]=['ae.activity_id=$1','NOT t.deleted'];
+ const values:unknown[]=[id,user],where:string[]=['ae.activity_id=$1','NOT t.deleted',claimBookVisibility()];
  if(!activity.family_id)where.push('ae.owner_id=$2');
  if(filter.book!=='all'){values.push(filter.book);where.push(`t.book_id=$${values.length}`);}
  if(filter.kind!=='all'){values.push(filter.kind);where.push(`t.kind=$${values.length}`);}

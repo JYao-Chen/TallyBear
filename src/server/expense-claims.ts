@@ -53,6 +53,13 @@ export async function expenseClaims(user:string,method:string,path:string[],body
    AND (c.recipient_id=$1 AND c.status='pending' AND NOT t.deleted OR EXISTS(SELECT 1 FROM expense_claim_events e WHERE e.claim_id=c.id AND e.user_id=$1 AND NOT e.seen))
    ORDER BY c.updated_at DESC,c.id LIMIT 5 OFFSET $2`,[user,offset])).rows;return {rows,total:rows[0]?.total||0};
  }
+ if(path[1]==='sent'&&method==='GET'){
+  const offset=z.coerce.number().int().min(0).parse(params.get('offset')||0);
+  const rows=(await c.query(`SELECT c.id,c.status,c.updated_at,COALESCE(NULLIF(c.snapshot->>'title',''),NULLIF(c.snapshot->>'product',''),NULLIF(c.snapshot->>'payee',''),c.snapshot->>'category') AS title,
+   (c.snapshot->>'amount')::float8 AS amount,c.snapshot->>'date' AS date,u.name,u.avatar,count(*) OVER()::int AS total
+   FROM expense_claims c JOIN users u ON u.id=c.recipient_id WHERE c.sender_id=$1 ORDER BY c.created_at DESC,c.id LIMIT 5 OFFSET $2`,[user,offset])).rows;
+  return {rows,total:rows[0]?.total||0};
+ }
  if(path[1]==='for-record'&&method==='GET'){
   const id=uuid.parse(params.get('id'));
   if(!(await c.query('SELECT 1 FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1',[id,user])).rowCount)throw new Failure('无权查看这笔账',403);
