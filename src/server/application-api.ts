@@ -1,3 +1,4 @@
+import {walletEntryDelete} from './wallet-entry-delete';
 import {claimBookVisibility} from './claim-visibility';
 import {expenseClaims,inviteExpense} from './expense-claims';
 import {assertClaimEditable} from './claim-access';
@@ -116,6 +117,7 @@ export async function applicationApi(req:NextRequest,ctx:Ctx,actor?:User){const 
  }
  if(path[0]==='installments'){if(method==='GET')return NextResponse.json(await listInstallments(u.id));if(method==='POST')return NextResponse.json(await changeInstallment(u.id,body));}
  if(path[0]==='assets'){
+  if(path[1]==='funds'&&path[2]==='entry')return NextResponse.json(await walletEntryDelete(u.id,method,method==='GET'?{id:req.nextUrl.searchParams.get('id')}:body));
   if(path[1]==='funds'&&method==='GET')return NextResponse.json((await accountReport(u.id,req.nextUrl.searchParams)).funds);
   if(path[1]==='merge'&&method==='POST')return NextResponse.json(await mergeAccounts(u.id,body));
   if(path[1]==='report'&&method==='GET')return NextResponse.json(await accountReport(u.id,req.nextUrl.searchParams));

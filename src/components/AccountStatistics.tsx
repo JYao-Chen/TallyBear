@@ -16,7 +16,7 @@ const money=(n:number)=>new Intl.NumberFormat(getLocale(),{style:'currency',curr
 type Flow=AccountIdentity&{id:string;balance:number;income:number;expense:number;refund:number;transferIn:number;transferOut:number;archived:boolean};
 type Data={scope:string;summary:{cashPaid:number;debtPurchases:number;bankDeposits:number;walletAndCash:number;assets:number;liabilities:number;netAssets:number;income:number;expense:number;refund:number};accounts:Flow[];sources:{kind:string;category:string;counterparty:string;amount:number;count:number}[];daily:{date:string;income:number;expense:number}[];categories:{name:string;value:number}[]};
 
-export function AccountStatistics({month,revision,scope,scopeLabel,book}:{month:string;revision:unknown;scope:string;scopeLabel:string;book:string}){
+export function AccountStatistics({month,revision,scope,scopeLabel,book,onChanged}:{month:string;revision:unknown;scope:string;scopeLabel:string;book:string;onChanged?:()=>Promise<void>}){
  const {t:tr}=useI18n();
  const range=monthRange(month),[from,setFrom]=useState(range.from),[to,setTo]=useState(range.to),[data,setData]=useState<Data|null>(null),[error,setError]=useState('');
  useEffect(()=>{const next=monthRange(month);setFrom(next.from);setTo(next.to);},[month]);
@@ -46,6 +46,6 @@ export function AccountStatistics({month,revision,scope,scopeLabel,book}:{month:
    </>}
    <></>
   </section>
-  <WalletFundsPanel from={from} to={to} owner={scope} revision={revision}/>
+  <WalletFundsPanel from={from} to={to} owner={scope} revision={revision} onChanged={onChanged}/>
  </>;
 }

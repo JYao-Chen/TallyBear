@@ -49,7 +49,7 @@ export function SpendingAnalysis(props:Props){
    <button type="button" className="text-button" onClick={props.onReconcile}><ScanLine size={17}/>{text('智能核对账单','Reconcile statements')}</button>
   </div>
   <ReportPeriodPicker value={range} onChange={value=>{setRange(value);setResult(null);setLoading(true);}}/>
-  {mode==='funds'?<WalletFundsPanel key={owner} owner={owner} from={range.from} to={range.to} revision={props.revision}/>:<>
+  {mode==='funds'?<WalletFundsPanel key={owner} owner={owner} from={range.from} to={range.to} revision={props.revision} onChanged={props.onChanged}/>:<>
    {!!r?.excludedCosts?.length&&<aside className="notice" role="status"><strong>{text('部分分摊需要重新核对','Some allocations need review')}</strong><p>{text('原付款已变化，当前暂按原付款显示，不能视为完整的分摊结果。','Original payments changed. The affected payments are shown in full until reviewed; these are not complete allocation totals.')}</p><button type="button" className="text-button" onClick={props.onPlans}>{text('前往计划与分摊','Review allocation plans')}</button></aside>}
    <div className="analysis-summary" aria-busy={loading} aria-label={text('筛选结果汇总','Filtered totals')}>
     {[[text('收入','Income'),income,'income'],[text('当期净支出','Period net expenses'),expense,'expense'],[text('收支结余','Income less expenses'),income-expense,'']].map(([label,value,cls])=><div key={String(label)}><span>{label}</span><strong className={String(cls)}>{loading||!r?'—':money(Number(value))}</strong></div>)}

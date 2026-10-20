@@ -2,7 +2,7 @@
 version: 1
 slug: "src-components-walletfundspanel-tsx"
 primary_target: "src/components/WalletFundsPanel.tsx"
-related_targets: ["src/components/AccountStatistics.tsx","src/components/Workspace.tsx"]
+related_targets: ["src/components/AccountStatistics.tsx","src/components/Workspace.tsx","src/components/WalletEntryActions.tsx","src/components/wallet-funds.css"]
 ---
 
 # Wallet cash-flow extension
@@ -44,3 +44,15 @@ Rows expose date, movement type, relevant wallet direction, and amount; househol
 Source: `src/components/WalletFundsPanel.tsx`, `src/components/wallet-funds.css`, `src/components/AccountStatistics.tsx`, and the personal-wallet placement in `src/components/Workspace.tsx`. Render evidence: `/home/yao/artifacts/tallybear/wallet-funds-20261004/screenshots`, covering summary, transfer filter, details, and asset placement in Chinese/English on desktop/mobile. These captures use synthetic household data; their example balances are evidence of layout, not product claims or seed values.
 
 The finish-review disposition was ship after the panel-header collision and list-range fixes. Those fixes preserve readable component boundaries and pagination; they are not new global visual rules. No task-specific metric, chart layout, or accounting note is promoted into `DESIGN.md` or the design sidecar.
+
+## Ordinary wallet-entry deletion (2026-10-20)
+
+Transaction-origin income, expense, refund and own-wallet transfer details now place Delete this entry below the existing facts and accounting explanation, in both the main list and daily drilldown. Family movements and balance adjustments retain their separate, unchanged management. Reuse the incumbent Sheet and secondary button; a restrained top rule separates actions, with readable wrapping helper/error text on desktop and mobile.
+
+Explain that deletion removes the recorded funding event across all currently live same-event book copies, moving them into existing recycle bins with metadata and attachments intact. This is not merely hiding one list row and does not reverse a bank/payment transaction. Wallet balances recalculate; internal transfers disappear from both wallets. Explicit confirmation names this scope before mutation; cancelling it changes nothing.
+
+Eligibility requires management of every involved funding wallet, including the actual payer's event when a linked display copy is in a recipient's private book, without exposing that book. Recipients cannot delete another person's funding event. Active refunds, cost-project sources and settlement dependencies block deletion with an explanation. Stale or permission failures remain visible beside a Reload action; preserve loading and disabled busy states. Existing claim source-deletion behavior withdraws affected claims.
+
+After success close the entry detail, reset main/day pagination and refresh main and daily entries, cash-flow totals and parent wallet/analysis summaries. If parent refresh fails after deletion, explicitly state that the entry was deleted and the page needs refreshing rather than implying deletion failed.
+
+Sources: `WalletFundsPanel.tsx`, `WalletEntryActions.tsx`, `wallet-funds.css` and `docs/wallet-entry-deletion.md`. Direction: `/home/yao/artifacts/tallybear/wallet-delete-20261020/direction.md`; synthetic UI evidence is `screenshots/delete-1440.png` and `screenshots/delete-375.png` beneath that directory. Synthetic database/UI tests passed, including confirmation cancellation, payload, refresh and conflict/permission feedback. Fresh reviewer `wallet_delete_ui_review` returned **ship**, with no material fixes. The current build was ongoing at documentation time. This is development evidence, not production or physical-device validation; no live deletion, commit or deployment occurred in this iteration. No schema or global design change is introduced.
