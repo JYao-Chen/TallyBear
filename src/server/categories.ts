@@ -1,3 +1,4 @@
+import {renameCategoryRecords,renameCategoryBudgets} from './category-rename';
 import {z} from 'zod';
 import stickers from '@/lib/stickers.json';
 import {deployment} from '@/lib/deployment';
@@ -49,7 +50,9 @@ export async function changeCategory(user:string,body:unknown){
    if(!old)throw new Failure('原分类不存在');
    if(categories.some(category=>category.name===b.newName))throw new Failure('目标分类已存在，请使用其他名称',409);
    await c.query('INSERT INTO category_preferences(user_id,name,icon,archived,deleted,family_shared) VALUES($1,$2,$3,true,true,false) ON CONFLICT(user_id,name) DO UPDATE SET archived=true,deleted=true',[user,b.name,old.icon]);
-   await c.query('UPDATE transactions t SET category=$1,version=version+1 WHERE t.created_by=$2 AND t.category=$3 AND EXISTS(SELECT 1 FROM members m WHERE m.book_id=t.book_id AND m.user_id=$2)',[b.newName,user,b.name]);
+   const writableBooks=(await c.query("SELECT b.id FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.id FOR UPDATE OF b",[user])).rows.map(row=>row.id as string);
+   await renameCategoryBudgets(c,writableBooks,b.name,b.newName);
+   await renameCategoryRecords(c,writableBooks,b.name,b.newName,user);
    await c.query('UPDATE category_feedback SET final_category=CASE WHEN final_category=$3 THEN $1 ELSE final_category END,proposed_category=CASE WHEN proposed_category=$3 THEN $1 ELSE proposed_category END,original_category=CASE WHEN original_category=$3 THEN $1 ELSE original_category END WHERE user_id=$2 AND (final_category=$3 OR proposed_category=$3 OR original_category=$3)',[b.newName,user,b.name]);
    const drafts=(await c.query("SELECT book_id,section,value FROM entry_drafts WHERE user_id=$1 AND section<>'images'",[user])).rows;
    for(const draft of drafts){let changed=false;if(draft.value.category===b.name){draft.value.category=b.newName;changed=true;}for(const entry of draft.value.entries||[])if(entry.category===b.name){entry.category=b.newName;changed=true;}if(changed)await c.query('UPDATE entry_drafts SET value=$1::jsonb,version=version+1 WHERE book_id=$2 AND user_id=$3 AND section=$4',[JSON.stringify(draft.value),draft.book_id,user,draft.section]);}
