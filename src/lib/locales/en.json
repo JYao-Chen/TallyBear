@@ -2155,5 +2155,10 @@
   "请选择自己可编辑的账本": "Choose a book you can edit.",
   "原账单已删除": "The original purchase was deleted.",
   "认领状态已变化，请刷新后重试": "The claim changed. Refresh and try again.",
-  "这笔账已有成员认领，请先撤回认领再设置费用分担": "Withdraw the purchase claim before setting member cost allocation."
+  "这笔账已有成员认领，请先撤回认领再设置费用分担": "Withdraw the purchase claim before setting member cost allocation.",
+  "打开原账单": "Open original entry",
+  "管理费用项目": "Manage cost project",
+  "管理周期计划": "Manage recurring plan",
+  "重试": "Retry",
+  "正在读取账单…": "Loading entry\u2026"
 }
