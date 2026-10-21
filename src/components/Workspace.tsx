@@ -88,7 +88,7 @@ export default function Workspace(){const {t:tr,locale}=useI18n();
  const [openingDetail,setOpeningDetail]=useState<{row:Row;error?:string}|null>(null);
  const [claimDetail,setClaimDetail]=useState(''),[claimEditable,setClaimEditable]=useState(false);
  const [scheduleDiscussionTarget,setScheduleDiscussionTarget]=useState<{id:string;scope:string}|undefined>();
- const [searchNavigation,setSearchNavigation]=useState<{book:string;id:string;entity:string}|null>(null);const [selected,setSelected]=useState<Row|null>(null);const [searchTarget,setSearchTarget]=useState<{book:string;row:Row}|null>(null);const [chatPrefill,setChatPrefill]=useState<{id:string;text:string;source?:'help'}|null>(null);
+ const [searchNavigation,setSearchNavigation]=useState<{book:string;id:string;entity:string}|null>(null);const [selected,setSelected]=useState<Row|null>(null);const [searchTarget,setSearchTarget]=useState<{book:string;row:Row;edit?:boolean}|null>(null);const [chatPrefill,setChatPrefill]=useState<{id:string;text:string;source?:'help'}|null>(null);
  const [aiProgress,setAIProgress]=useState(''),[aiCharacters,setAICharacters]=useState(0),[aiRunning,setAIRunning]=useState(false);const aiAbort=useRef<AbortController|null>(null);
  const [statisticsRange,setStatisticsRange]=useState(()=>monthRange(today().slice(0,7)));
  useEffect(()=>{if(searchNavigation?.entity==='cost_project'){setCostTarget(searchNavigation.id);setPlanTab('cost');setSearchNavigation(null);}},[searchNavigation]);
@@ -134,7 +134,7 @@ export default function Workspace(){const {t:tr,locale}=useI18n();
  useEffect(()=>{const update=()=>{void refresh().catch(e=>setError(e.message));};window.addEventListener('cost-payment-recorded',update);return()=>window.removeEventListener('cost-payment-recorded',update);},[book,month]);
 
  useEffect(()=>()=>aiAbort.current?.abort(),[]);
- useEffect(()=>{if(searchTarget&&book===searchTarget.book){setSelected(searchTarget.row);setSearchTarget(null);}},[book,accounts,searchTarget]);
+ useEffect(()=>{if(searchTarget&&book===searchTarget.book){if(searchTarget.edit){setEditing(searchTarget.row);setEntryMode('manual');switchPage('entry');}else setSelected(searchTarget.row);setSearchTarget(null);}},[book,accounts,searchTarget]);
  async function requestAI(){const requestedBook=book;aiAbort.current?.abort();const controller=new AbortController();aiAbort.current=controller;setAIRunning(true);setAIProgress('正在连接模型…');setAICharacters(0);try{const result=await askAssistant(`books/${book}/assistant`,{profileContext:history?profileContext:undefined,deviceTime:deviceDateTime(),text,images:intent==='record'?images.map(i=>i.data):undefined,useHistory:history,intent,month},controller.signal,(message,count)=>{if(activeBook.current===requestedBook){setAIProgress(message);setAICharacters(count);}});if(activeBook.current!==requestedBook)return;setProfileContext(undefined);if(intent==='record')setDrafts(old=>appendDraftBatch(old,result.entries.map((item:Entry)=>({...item,activityId:item.activityId||entryActivityId||null}))));setNotice(result.message);}catch(e){if(controller.signal.aborted){setNotice('任务继续在后台处理，可在“后台任务”查看结果。');return;}throw e;}finally{setAIRunning(false);}}
  async function run(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');setNotice('');try{await fn();}catch(e){setError(e instanceof Error?e.message:'操作失败');}finally{setBusy(false);}}
  function switchPage(p:string){const target=p==='records'?'insights':p;setPage(target);window.scrollTo({top:0,behavior:'instant'});setError('');setNotice('');if(target==='settings'&&user?.admin)Promise.all([api('ai-settings'),api('assistant-ai-settings')]).then(([recognition,assistant])=>{setConfig(old=>({...old,...recognition,key:''}));setAssistantConfig(old=>({...old,...assistant,key:''}));}).catch(e=>setError(e.message));}
@@ -153,11 +153,11 @@ export default function Workspace(){const {t:tr,locale}=useI18n();
 
  if(loading)return <main className="login"><Bear/><p>{tr("正在打开账本…")}</p></main>;
  if(!user)return <main className="login"><div className="login-card"><Bear name="hello" size={160}/><h1>{tr("欢迎回到")}{tr(themes[theme].name)}</h1><p>{tr("管理个人收支，也照顾家庭计划。")}</p><form onSubmit={e=>{const f=fields(e);run(async()=>{await api('login','POST',f);await init();});}}><label>{tr("账号")}<input name="username" autoComplete="username" required/></label><label>{tr("密码")}<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy}>{tr("登录")}</button></form>{error&&<p role="alert" className="error">{tr(error)}</p>}</div></main>;
- function openEntry(row:Row){
+ function openEntry(row:Row,options?:{edit?:boolean}){
   const request=++detailRequest.current;setSelected(null);setClaimEditable(false);setError('');setOpeningDetail({row});
   void resolveEntryDetail(row,book,(target,id)=>api('books/'+target+'/transactions?'+new URLSearchParams({id}))).then(source=>{
-   if(request!==detailRequest.current)return;setOpeningDetail(null);
-   if(source.book_id&&source.book_id!==book){setBook(source.book_id);setSearchTarget({book:source.book_id,row:source});}else setSelected(source);
+   if(request!==detailRequest.current)return;setOpeningDetail(null);if(options?.edit){if(source.book_id&&source.book_id!==book){setBook(source.book_id);setSearchTarget({book:source.book_id,row:source,edit:true});}else{setEditing(source);setEntryMode('manual');switchPage('entry');}return;}
+   if(source.claim_id){setClaimDetail(source.claim_id);return;}if(source.book_id&&source.book_id!==book){setBook(source.book_id);setSearchTarget({book:source.book_id,row:source});}else setSelected(source);
   }).catch(e=>{if(request===detailRequest.current)setOpeningDetail({row,error:e.message});});
  }
  const list=(limit=6)=>(periodReport?.rows.length)?<TransactionList rows={periodReport.rows.slice(0,limit)} shared={current?.kind==='shared'} onSelect={openEntry}/>:<div className="empty"><Bear name="quiet"/><p>{tr("所选日期内还没有记录。")}</p></div>;

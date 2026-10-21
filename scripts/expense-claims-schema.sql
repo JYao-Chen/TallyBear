@@ -31,7 +31,7 @@ BEGIN
   WHERE c.status='accepted' AND l.active AND l.source_id=NEW.id
  LOOP
   UPDATE transactions t SET amount=NEW.amount,date=NEW.date,account_id=NEW.account_id,kind=NEW.kind,
-   title=NEW.title,product=NEW.product,payee=NEW.payee,line_items=NEW.line_items,deleted=NEW.deleted,
+   title=CASE WHEN t.title IS NOT DISTINCT FROM OLD.title THEN NEW.title ELSE t.title END,product=NEW.product,payee=NEW.payee,line_items=NEW.line_items,deleted=NEW.deleted,
    version=t.version+1,updated_at=now()
   FROM expense_claim_links l WHERE l.claim_id=claim.id AND l.active AND l.source_id=NEW.id AND t.id=l.target_id AND t.id<>NEW.id;
  END LOOP;

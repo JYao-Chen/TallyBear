@@ -27,8 +27,15 @@ export async function receiptRoute(req:Request,parts:string[],u:User){
  }
  if(req.method!=='GET')throw new Failure('操作不存在',404);
  const id=parts[1];if(!/^[0-9a-f-]{36}$/.test(id||''))throw new Failure('附件不存在',404);
- const row=(await db.query('SELECT * FROM receipt_files WHERE id=$1',[id])).rows[0];if(!row)throw new Failure('附件不存在',404);if(row.movement_id){if(row.user_id!==u.id||!(await db.query('SELECT 1 FROM family_movements v JOIN family_members m ON m.family_id=v.family_id AND m.user_id=$2 WHERE v.id=$1 AND (v.sender_id=$2 OR v.recipient_id=$2)',[row.movement_id,u.id])).rowCount)throw new Failure('无权查看此附件',403);}else if(row.book_id)await member(row.book_id,u);else if(row.user_id!==u.id)throw new Failure('无权查看此附件',403);
- if(row.user_id!==u.id&&!(await db.query('SELECT 1 FROM transaction_receipts r JOIN transactions t ON t.id=r.transaction_id WHERE r.file_id=$1 AND t.book_id=$2',[id,row.book_id])).rowCount)throw new Failure('附件尚未共享',403);
+ const row=(await db.query('SELECT * FROM receipt_files WHERE id=$1',[id])).rows[0];if(!row)throw new Failure('附件不存在',404);if(row.movement_id){if(row.user_id!==u.id||!(await db.query('SELECT 1 FROM family_movements v JOIN family_members m ON m.family_id=v.family_id AND m.user_id=$2 WHERE v.id=$1 AND (v.sender_id=$2 OR v.recipient_id=$2)',[row.movement_id,u.id])).rowCount)throw new Failure('无权查看此附件',403);}else{
+ const claim=new URL(req.url).searchParams.get('claim');
+ const access=await db.query(`SELECT 1 WHERE
+  EXISTS(SELECT 1 FROM members m WHERE m.book_id=$3 AND m.user_id=$2 AND ($4::uuid=$2 OR EXISTS(SELECT 1 FROM transaction_receipts r JOIN transactions t ON t.id=r.transaction_id WHERE r.file_id=$1 AND t.book_id=$3)))
+  OR ($3::uuid IS NULL AND $4::uuid=$2)
+  OR EXISTS(SELECT 1 FROM transaction_receipts r JOIN expense_claim_links l ON l.source_id=r.transaction_id AND l.active JOIN expense_claims ec ON ec.id=l.claim_id AND ec.status='accepted' JOIN transactions t ON t.id=l.target_id AND NOT t.deleted JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE r.file_id=$1)
+  OR EXISTS(SELECT 1 FROM transaction_receipts r JOIN expense_claims ec ON ec.source_id=r.transaction_id WHERE r.file_id=$1 AND ec.id=$5::uuid AND $2 IN(ec.sender_id,ec.recipient_id) AND ec.status IN ('pending','accepted') AND EXISTS(SELECT 1 FROM family_members a JOIN family_members b ON b.family_id=a.family_id WHERE a.user_id=ec.sender_id AND b.user_id=ec.recipient_id))`,[id,u.id,row.book_id,row.user_id,claim&&/^[0-9a-f-]{36}$/.test(claim)?claim:null]);
+ if(!access.rowCount)throw new Failure('无权查看此附件',403);
+ }
  return new Response(await readReceiptFile(id),{headers:{'Content-Type':row.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 }
 export async function linkReceipts(c:PoolClient,book:string,user:string,entry:string,ids:string[]=[],retain=false,purpose='receipt'){if(!retain)return;for(const id of new Set(ids)){const valid=await c.query('SELECT 1 FROM receipt_files f WHERE id=$1 AND book_id=$2 AND (user_id=$3 OR EXISTS(SELECT 1 FROM transaction_receipts WHERE file_id=f.id)) FOR UPDATE OF f',[id,book,user]);if(!valid.rowCount)throw new Failure('小票附件不存在或没有访问权限',403);await c.query('INSERT INTO transaction_receipts(transaction_id,file_id,purpose) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[entry,id,purpose]);await c.query('UPDATE receipt_files SET temporary=false WHERE id=$1',[id]);}}

@@ -3,6 +3,8 @@ import {z} from 'zod';
 import type {PoolClient} from 'pg';
 import {transaction,lockBook} from './db';
 import {Failure} from './access';
+import {checkCategory} from './categories';
+import {attachWalletBalances} from './wallet-history';
 import {reuseInTransaction,lockRelatedBooks} from './reuse';
 const uuid=z.string().uuid();
 async function notify(c:PoolClient,id:string,user:string,kind:string){await c.query('INSERT INTO expense_claim_events(claim_id,user_id,kind) VALUES($1,$2,$3)',[id,user,kind]);}
@@ -74,12 +76,22 @@ export async function expenseClaims(user:string,method:string,path:string[],body
  }
  const id=uuid.parse(path[1]);
  let claim=(await c.query('SELECT * FROM expense_claims WHERE id=$1',[id])).rows[0];if(!claim||![claim.sender_id,claim.recipient_id].includes(user))throw new Failure('认领不存在或无权访问',404);
+ if(path[2]==='receipts'&&method==='GET'){
+  if(!['pending','accepted'].includes(claim.status)){if(user!==claim.sender_id||!(await c.query('SELECT 1 FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1',[claim.source_id,user])).rowCount)return [];}else await familyPair(c,claim.sender_id,claim.recipient_id);
+  return (await c.query('SELECT f.id,f.name,r.purpose FROM transaction_receipts r JOIN receipt_files f ON f.id=r.file_id WHERE r.transaction_id=$1',[claim.source_id])).rows;
+ }
  if(method==='GET'){
-  const source=(await c.query("SELECT title,product,payee,category,note,line_items,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date,deleted,(SELECT COALESCE(sum(r.amount),0)::float8 FROM transactions r WHERE r.refund_of=transactions.id AND NOT r.deleted) AS refunded FROM transactions WHERE id=$1",[claim.source_id])).rows[0];
+  const source=(await c.query("SELECT t.id,t.book_id,t.version,t.event_id,t.kind,t.title,t.product,t.payee,t.category,t.note,t.line_items,t.scene,t.platform,t.order_id,t.external_id,t.occurred_at,t.verification_reason,t.account_id,t.target_id,t.refund_of,t.created_at,t.updated_at,a.name AS account_name,a.type AS account_type,a.ownership AS account_ownership,u.name AS creator_name,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.deleted,(SELECT COALESCE(sum(r.amount),0)::float8 FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted) AS refunded FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by WHERE t.id=$1",[claim.source_id])).rows[0];
   const people=(await c.query('SELECT id,name,avatar FROM users WHERE id=ANY($1::uuid[])',[[claim.sender_id,claim.recipient_id]])).rows;
   const books=(await c.query("SELECT b.id,b.name,b.icon,b.kind FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user])).rows;
-  const target=claim.recipient_id===user&&claim.target_id?(await c.query('SELECT book_id FROM transactions WHERE id=$1',[claim.target_id])).rows[0]:null;
-  return {claim:{...claim,source_id:undefined,event_id:undefined,target_id:claim.recipient_id===user?claim.target_id:null},source:['pending','accepted'].includes(claim.status)?source:claim.snapshot,people,books,userId:user,targetBookId:target?.book_id||null};
+  const target=claim.recipient_id===user&&claim.status==='accepted'&&claim.target_id?(await c.query('SELECT book_id FROM transactions WHERE id=$1',[claim.target_id])).rows[0]:null;
+  const active=['pending','accepted'].includes(claim.status);
+  if(active)await familyPair(c,claim.sender_id,claim.recipient_id);
+  const ownRecord=claim.recipient_id===user&&claim.target_id&&active?(await c.query("SELECT t.id,t.book_id,t.version,t.title,t.category,t.note,m.role FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1 AND NOT t.deleted",[claim.target_id,user])).rows[0]:null;
+  const sourceBook=claim.sender_id===user?(await c.query('SELECT b.id,b.name,b.kind,b.icon,m.role FROM books b JOIN members m ON m.book_id=b.id AND m.user_id=$2 WHERE b.id=$1',[source.book_id,user])).rows[0]:null;
+  const visibleSource=active||claim.sender_id===user?{...source,wallet_balances:(await attachWalletBalances(user,[source]))[0].wallet_balances}:{...claim.snapshot,kind:'expense',wallet_balances:[]};
+  if(claim.recipient_id===user)delete visibleSource.book_id;
+  return {claim:{...claim,source_id:undefined,event_id:undefined,target_id:claim.recipient_id===user?claim.target_id:null},source:visibleSource,ownRecord,sourceBook,canEditSource:!!sourceBook&&sourceBook.role!=='viewer'&&!source.deleted,canEditOwn:!!ownRecord&&ownRecord.role!=='viewer'&&claim.recipient_id===user,people,books,userId:user,targetBookId:target?.book_id||null};
  }
  if(method!=='POST')throw new Failure('操作不存在',404);
  const sourceBook=(await c.query('SELECT book_id FROM transactions WHERE id=$1',[claim.source_id])).rows[0].book_id;
@@ -87,6 +99,16 @@ export async function expenseClaims(user:string,method:string,path:string[],body
  await lockRelatedBooks(c,sourceBook,claim.source_id,user,book);
  claim=(await c.query('SELECT * FROM expense_claims WHERE id=$1 FOR UPDATE',[id])).rows[0];
  if(z.number().int().parse(body.version)!==claim.version)throw new Failure('账单或认领状态已变化，请刷新后重试',409);
+ if(body.operation==='edit-record'){
+  if(user!==claim.recipient_id||claim.status!=='accepted'||!claim.target_id)throw new Failure('请先认领后再修改自己的账单信息',403);
+  const b=z.object({recordVersion:z.number().int(),title:z.string().max(200),category:z.string().trim().min(1).max(60),note:z.string().max(2000)}).parse(body);
+  const allowed=(await c.query("SELECT 1 FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 AND m.role<>'viewer' WHERE t.id=$1 AND NOT t.deleted",[claim.target_id,user])).rowCount;
+  if(!allowed)throw new Failure('无权修改这笔账',403);
+  const oldCategory=(await c.query('SELECT category FROM transactions WHERE id=$1',[claim.target_id])).rows[0].category;await checkCategory(c,user,b.category,oldCategory);
+  const result=await c.query('UPDATE transactions SET title=$1,category=$2,note=$3,version=version+1 WHERE id=$4 AND version=$5 AND NOT deleted',[b.title,b.category,b.note,claim.target_id,b.recordVersion]);
+  if(!result.rowCount)throw new Failure('记录已被其他成员修改，请刷新后再试',409);
+  return {ok:true};
+ }
  const op=z.enum(['accept','decline','withdraw','cancel','read']).parse(body.operation);
  if(op==='read'){await c.query('UPDATE expense_claim_events SET seen=true WHERE claim_id=$1 AND user_id=$2',[id,user]);return {ok:true};}
  if(['accept','decline','cancel'].includes(op)&&user!==claim.recipient_id||op==='withdraw'&&user!==claim.sender_id)throw new Failure('无权处理这笔认领',403);
