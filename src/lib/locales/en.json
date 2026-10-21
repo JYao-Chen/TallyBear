@@ -2160,5 +2160,12 @@
   "管理费用项目": "Manage cost project",
   "管理周期计划": "Manage recurring plan",
   "重试": "Retry",
-  "正在读取账单…": "Loading entry\u2026"
+  "正在读取账单…": "Loading entry\u2026",
+  "预算明细": "Budget details",
+  "修改预算": "Edit budget",
+  "按当前账本、所选月份和预算分类统计，退款冲减消费。": "Uses the current ledger, selected month and budget category. Refunds reduce spending.",
+  "已消费": "Spent",
+  "本月此分类暂无消费。": "No expenses in this category this month.",
+  "该分类已有预算，请修改已有预算": "This category already has a budget. Edit the existing budget.",
+  "预算已删除，请刷新后再试": "This budget was deleted. Refresh and try again."
 }
