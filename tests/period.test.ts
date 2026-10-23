@@ -3,3 +3,17 @@ import {advancePeriod,periodShare,periodLastDay} from '../src/lib/period';
 test('custom days/weeks and calendar month/year anchors',()=>{assert.equal(advancePeriod('2026-12-28','day',10),'2027-01-07');assert.equal(advancePeriod('2026-01-25','week',2),'2026-02-08');assert.equal(advancePeriod('2026-01-31','month',1),'2026-02-28');assert.equal(advancePeriod('2026-02-28','month',1,31),'2026-03-31');assert.equal(advancePeriod('2027-02-28','year',1,29),'2028-02-29');assert.equal(advancePeriod('2026-01-01','month',1201),'2126-02-01');assert.throws(()=>advancePeriod('2026-01-01','year',100000));assert.throws(()=>advancePeriod('2026-01-01','day',1.5));});
 test('daily and weekly allocations sum exactly across months including pennies',()=>{for(const total of [1,10001,100000000000]){const jan=periodShare(total,'2026-01-25','week',2,'2026-01'),feb=periodShare(total,'2026-01-25','week',2,'2026-02');assert.equal(jan+feb,total);assert.equal(periodShare(total,'2026-01-25','week',2,'2026-03'),0);}assert.equal(periodLastDay('2026-01-25','week',2),'2026-02-07');assert.equal(periodShare(300,'2024-02-28','day',3,'2024-02'),200);assert.equal(periodShare(300,'2024-02-28','day',3,'2024-03'),100);});
 test('months and years preserve equal monthly shares',()=>{assert.deepEqual(['2026-01','2026-02','2026-03'].map(m=>periodShare(10000,'2026-01-01','month',3,m)),[3334,3333,3333]);assert.equal(Array.from({length:24},(_,i)=>periodShare(10001,'2026-01-01','year',2,`${2026+Math.floor(i/12)}-${String(i%12+1).padStart(2,'0')}`)).reduce((a,b)=>a+b,0),10001);});
+
+test('inclusive arbitrary date ranges cover partial months and preserve every cent',async()=>{
+ const {inclusivePeriodDays}=await import('../src/lib/period');
+ const start='2026-10-23',end='2027-10-29',count=inclusivePeriodDays(start,end);
+ assert.equal(count,372);assert.equal(periodLastDay(start,'day',count),end);
+ const months=Array.from({length:13},(_,i)=>advancePeriod('2026-10-01','month',i+1).slice(0,7));months.unshift('2026-10');
+ for(const total of [1,10001,37200,100000000000]){
+  assert.equal(months.reduce((sum,m):number=>sum+periodShare(total,start,'day',count,m),0),total);
+  assert.equal(periodShare(total,start,'day',count,'2026-09'),0);assert.equal(periodShare(total,start,'day',count,'2027-11'),0);
+ }
+ assert.equal(periodShare(37200,start,'day',count,'2026-10'),900);assert.equal(periodShare(37200,start,'day',count,'2027-10'),2900);
+ assert.equal(inclusivePeriodDays('2028-02-28','2028-03-01'),3);assert.equal(inclusivePeriodDays(start,start),1);
+ assert.throws(()=>inclusivePeriodDays(end,start));assert.throws(()=>inclusivePeriodDays('2026-02-30',end));
+});

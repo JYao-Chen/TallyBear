@@ -14,8 +14,8 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.TE
 const base={id:'server',version:1,title:'腾讯云服务器（三年）',category:'订阅',amount:63160,refunded:0,start:'2026-10',start_date:'2026-10-01',period_unit:'month',period_count:36,months:36,end:'2029-09-30',monthly:1755};
 let payload={items:[base,{...base,id:'membership',title:'麦金卡会员（一年）',amount:6535,period_count:12,months:12,end:'2027-09-30',monthly:545}],allocated:2300,ordinary:102744,total:105044};
 try{
- const page=await browser.newPage({reducedMotion:'reduce'});page.on('pageerror',e=>errors.push(e.message));let puts=0,fail=false;
- await page.route('**/api/**',route=>{if(route.request().method()==='PUT'){puts++;return route.fulfill({json:{ok:true}})}return route.fulfill({status:fail?500:200,json:fail?{error:'读取失败'}:payload})});
+ const page=await browser.newPage({reducedMotion:'reduce'});page.on('pageerror',e=>errors.push(e.message));let puts=0,fail=false,lastPut;
+ await page.route('**/api/**',route=>{if(route.request().method()==='PUT'){puts++;lastPut=route.request().postDataJSON();if(lastPut.endDate){payload={...payload,items:payload.items.map(x=>x.id===lastPut.id?{...x,version:x.version+1,start_date:lastPut.startDate,start:lastPut.startDate.slice(0,7),end:lastPut.endDate,period_unit:'day',period_count:Math.round((Date.parse(lastPut.endDate)-Date.parse(lastPut.startDate))/86400000)+1}:x)};}return route.fulfill({json:{ok:true}})}return route.fulfill({status:fail?500:200,json:fail?{error:'读取失败'}:payload})});
  for(const lang of ['zh','en'])for(const width of [1440,390,360]){
  await page.setViewportSize({width,height:1000});await page.goto(`http://127.0.0.1:${server.address().port}/?${lang}`);await page.locator('.allocation-item').first().waitFor();
  assert.equal(await page.locator('.allocation-item').count(),2);assert.ok(await page.getByText(base.title,{exact:true}).isVisible());assert.equal(await page.locator('.allocation-list>details').count(),0);
@@ -23,10 +23,30 @@ try{
  await page.screenshot({path:resolve(out,`${lang}-${width}.png`),fullPage:true});
  }
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.getByRole('button',{name:'调整分摊',exact:true}).first().click();await page.getByRole('button',{name:'保存分摊',exact:true}).click();await page.getByRole('button',{name:'调整分摊',exact:true}).first().waitFor();assert.equal(puts,1);
- payload={...payload,items:Array.from({length:25},(_,i)=>({...base,id:'p'+i,title:'测试分摊 '+i}))};await page.reload();while(await page.getByRole('button',{name:'下一页',exact:true}).isEnabled())await page.getByRole('button',{name:'下一页',exact:true}).click();assert.ok(await page.getByText('测试分摊 24',{exact:true}).isVisible());
+ for(const lang of ['zh','en'])for(const width of [1440,390]){
+ await page.setViewportSize({width,height:1000});await page.goto(`http://127.0.0.1:${server.address().port}/?${lang}`);
+ const en=lang==='en',editName=en?'Edit allocation':'调整分摊',saveName=en?'Save allocation':'保存分摊';
+ await page.getByRole('button',{name:editName,exact:true}).first().click();
+ const editor=page.locator('.allocation-editor').first();
+ if(await editor.locator('select').first().inputValue()!=='range'){
+  await editor.getByRole('button',{name:en?'Coverage settings: Fixed periods':'设置方式: 按固定周期',exact:true}).click();
+  await page.getByRole('button',{name:en?'Date range (daily allocation)':'指定起止日期（按天分摊）',exact:true}).click();
+ }
+ async function chooseDate(label,value){await editor.getByRole('button',{name:new RegExp('^'+label)}).click();await page.getByRole('textbox',{name:en?'Enter date':'手动输入日期',exact:true}).fill(value);await page.getByRole('button',{name:en?'Apply':'确定',exact:true}).click();}
+ await chooseDate(en?'Start date':'开始日期','2026-10-23');await chooseDate(en?'End date':'结束日期（含当天）','2027-10-29');
+ assert.ok((await editor.locator('.notice').textContent()).includes('372'));
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await page.screenshot({path:resolve(out,`range-${lang}-${width}.png`),fullPage:true});
+ await page.getByRole('button',{name:saveName,exact:true}).click();await page.getByRole('button',{name:editName,exact:true}).first().waitFor();
+ assert.equal(lastPut.startDate,'2026-10-23');assert.equal(lastPut.endDate,'2027-10-29');
+ await page.reload();await page.getByRole('button',{name:editName,exact:true}).first().click();
+ assert.equal(await page.locator('.allocation-editor input[type="date"]').nth(0).inputValue(),'2026-10-23');assert.equal(await page.locator('.allocation-editor input[type="date"]').nth(1).inputValue(),'2027-10-29');
+ await chooseDate(en?'End date':'结束日期（含当天）','2026-10-22');assert.equal(await page.getByRole('button',{name:saveName,exact:true}).isDisabled(),true);
+ }
+ payload={...payload,items:Array.from({length:25},(_,i)=>({...base,id:'p'+i,title:'测试分摊 '+i}))};await page.goto(`http://127.0.0.1:${server.address().port}/`);while(await page.getByRole('button',{name:'下一页',exact:true}).isEnabled())await page.getByRole('button',{name:'下一页',exact:true}).click();assert.ok(await page.getByText('测试分摊 24',{exact:true}).isVisible());
  payload={...payload,items:[{...base,start_date:'2027-01-01',monthly:0},{...base,id:'ended',end:'2026-09-30',monthly:0}]};await page.reload();await page.getByText('尚未开始',{exact:true}).waitFor();assert.ok(await page.getByText('已结束',{exact:true}).isVisible());
  payload={items:[],ordinary:0,allocated:0,total:0};await page.reload();await page.getByText('还没有设置费用分摊',{exact:true}).waitFor();await page.screenshot({path:resolve(out,'empty-mobile.png'),fullPage:true});
  fail=true;await page.reload();await page.getByRole('button',{name:'重新加载',exact:true}).waitFor();fail=false;await page.getByRole('button',{name:'重新加载',exact:true}).click();await page.getByText('还没有设置费用分摊',{exact:true}).waitFor();
  payload={...payload,items:[base]};await page.goto(`http://127.0.0.1:${server.address().port}/?readonly`);await page.locator('.allocation-item').waitFor();assert.equal(await page.getByRole('button',{name:'调整分摊',exact:true}).count(),0);
- assert.deepEqual(errors,[]);console.log('PASS: bilingual desktop/mobile, visible list, editing refresh, pagination, status, empty, retry and read-only. '+out);
+ assert.deepEqual(errors,[]);console.log('PASS: bilingual desktop/mobile, arbitrary date ranges, inclusive 372-day preview, saving and reopening exact dates, invalid range blocking, visible list, pagination, status, empty, retry and read-only. '+out);
 }finally{await browser.close();server.close();}

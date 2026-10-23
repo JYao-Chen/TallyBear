@@ -16,3 +16,12 @@ export function periodShare(total:number,start:string,unit:PeriodUnit,count:numb
  const cumulative=(n:number)=>Math.floor(total/days)*n+Math.min(n,total%days);return cumulative(right)-cumulative(left);
 }
 export function periodLastDay(start:string,unit:PeriodUnit,count:number){return new Date(Date.parse(advancePeriod(start,unit,count))-86400000).toISOString().slice(0,10);}
+
+// The date-range editor includes both boundary dates; storage uses an exclusive end.
+export function inclusivePeriodDays(start:string,end:string){
+ advancePeriod(start,'day',1);
+ const exclusive=advancePeriod(end,'day',1);
+ const count=(Date.parse(exclusive)-Date.parse(start))/86400000;
+ if(count<1)throw new Error('结束日期不能早于开始日期');
+ return count;
+}

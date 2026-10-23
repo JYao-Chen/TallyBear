@@ -61,6 +61,8 @@ A 600 server purchase covering 36 months costs about 16.67 per month in period e
 
 **Assets** adds balance distribution and cash-flow charts to wallet management. Personal and family-owned wallets have separate scopes. Balance corrections are recorded as adjustments; statement reconciliation helps investigate missing or duplicate records before changing a balance.
 
+**Expense period allocation** supports an explicit start and end date, including both boundary dates. For example, 2026-10-23 through 2027-10-29 allocates over 372 days: 9 days in the first month and 29 in the last. Daily shares retain every cent and are included in expense analysis without another wallet charge. Existing fixed calendar-month allocations remain editable in fixed-period mode. No database migration is needed.
+
 **Monthly budgets** retain a monthly basis. Recurring bills, installment purchases, repayments and cost allocation are managed under **Plans & allocation**. Repayment principal and transfers are distinct from new consumption; interest and fees need their appropriate treatment.
 
 ### Ask the assistant, then confirm the action
