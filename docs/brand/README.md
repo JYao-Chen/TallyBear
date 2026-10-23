@@ -11,3 +11,7 @@ Create the finished TallyBear app brand logo featuring BOTH reference characters
 ## Sticker provenance
 
 `sticker-sources.json` preserves the maintainer-supplied extraction list. The optional library also includes the shopping collection supplied subsequently. Inclusion does not relicense upstream artwork under the code's MIT license.
+
+## 微信文章补充（2026-10-23）
+
+从用户提供的《一二布布表情包~不要难过不要哭，我会永远陪着你》完整页面归档提取，来源：https://mp.weixin.qq.com/s/OQrf2XnnsTKLppMNOYs2ww 。新增 `565`–`571` 共 7 张 GIF 及首帧 PNG；`571` 为“干杯”。文章的“点个关注”提示不加入图片库。原 HTML、配套资源和 GIF 预览保存在本机 `/home/yao/artifacts/tallybear/wechat-stickers-20261023/`，具体来源记录在 `sticker-sources.json`。
