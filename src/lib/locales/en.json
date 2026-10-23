@@ -2167,5 +2167,7 @@
   "已消费": "Spent",
   "本月此分类暂无消费。": "No expenses in this category this month.",
   "该分类已有预算，请修改已有预算": "This category already has a budget. Edit the existing budget.",
-  "预算已删除，请刷新后再试": "This budget was deleted. Refresh and try again."
+  "预算已删除，请刷新后再试": "This budget was deleted. Refresh and try again.",
+  "结束日期（含当天）": "End date (inclusive)",
+  "按实际覆盖天数分摊，包含开始和结束当天，不会再次扣款或改变钱包余额。": "Allocate by actual covered days, including both boundary dates, without another charge or a change to wallet balances."
 }
