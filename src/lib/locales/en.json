@@ -2169,5 +2169,9 @@
   "该分类已有预算，请修改已有预算": "This category already has a budget. Edit the existing budget.",
   "预算已删除，请刷新后再试": "This budget was deleted. Refresh and try again.",
   "结束日期（含当天）": "End date (inclusive)",
-  "按实际覆盖天数分摊，包含开始和结束当天，不会再次扣款或改变钱包余额。": "Allocate by actual covered days, including both boundary dates, without another charge or a change to wallet balances."
+  "按实际覆盖天数分摊，包含开始和结束当天，不会再次扣款或改变钱包余额。": "Allocate by actual covered days, including both boundary dates, without another charge or a change to wallet balances.",
+  "费用分摊起始月份": "First expense month",
+  "费用分摊月数": "Expense allocation months",
+  "本金费用分摊": "Allocate purchase costs",
+  "还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。": "Repayment dates and terms only set the repayment schedule. Expense allocation uses its own first month and month count, with equal calendar-month shares. Turn it off to create only a repayment plan."
 }
