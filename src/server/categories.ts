@@ -1,3 +1,4 @@
+import type {LineItem} from '@/lib/line-items';
 import {renameCategoryRecords,renameCategoryBudgets} from './category-rename';
 import {z} from 'zod';
 import stickers from '@/lib/stickers.json';
@@ -65,4 +66,9 @@ export async function changeCategory(user:string,body:unknown){
   await c.query('INSERT INTO category_preferences(user_id,name,icon,archived,position,family_shared) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id,name) DO UPDATE SET icon=$3,archived=$4,deleted=false,position=$5,family_shared=$6',[user,b.newName||b.name,b.icon,b.archived,position,familyShared]);
   return {ok:true};
  });
+}
+
+export async function checkItemCategories(c:PoolClient,user:string,items:LineItem[],previous:LineItem[]=[]){
+ const unchanged=new Set(previous.map(i=>i.category).filter(Boolean));
+ for(const name of new Set(items.map(i=>i.category).filter((v):v is string=>!!v)))await checkCategory(c,user,name,unchanged.has(name)?name:undefined);
 }

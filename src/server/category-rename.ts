@@ -4,8 +4,9 @@ import {Failure} from './access';
 // Match the current classification, so manually reclassified records are preserved.
 export async function renameCategoryRecords(c:PoolClient,books:string[],from:string,to:string,creator?:string){
  if(from===to||!books.length)return 0;
- const result=await c.query(`UPDATE transactions t SET category=$3,version=t.version+1
-  WHERE t.book_id=ANY($1::uuid[]) AND t.category=$2
+ const result=await c.query(`UPDATE transactions t SET category=CASE WHEN t.category=$2 THEN $3 ELSE t.category END,
+ line_items=(SELECT COALESCE(jsonb_agg(CASE WHEN i->>'category'=$2 THEN jsonb_set(i,'{category}',to_jsonb($3::text)) ELSE i END ORDER BY ord),'[]'::jsonb) FROM jsonb_array_elements(t.line_items) WITH ORDINALITY item(i,ord)),version=t.version+1
+  WHERE t.book_id=ANY($1::uuid[]) AND (t.category=$2 OR EXISTS(SELECT 1 FROM jsonb_array_elements(t.line_items) i WHERE i->>'category'=$2))
    AND ($4::uuid IS NULL OR t.created_by=$4 OR EXISTS(SELECT 1 FROM books b WHERE b.id=t.book_id AND b.kind='shared'))`,[books,from,to,creator||null]);
  return result.rowCount||0;
 }

@@ -37,7 +37,7 @@ export function SpendingAnalysis(props:Props){
  const changeMode=(next:Mode)=>{setMode(next);setResult(null);setLoading(true);setSelectedBooks(next==='book'?[props.book]:props.books.map(b=>b.id));};
  const r=result?.report,expense=(r?.totals.expense||0)-(r?.totals.refund||0),income=r?.totals.income||0;
  const money=(n:number)=>new Intl.NumberFormat(locale,{style:'currency',currency:deployment().currency}).format(n/100);
- const filters=result?financeQuerySchema.parse({from:range.from,to:range.to,bookIds:ids,scope:mode==='personal_expense'?mode:'books',basis:'period_expense',query:new URLSearchParams(result.query).get('q')||'',category:new URLSearchParams(result.query).get('category')||'',kind:new URLSearchParams(result.query).get('kind')||'all'}):undefined;
+ const filters=result?financeQuerySchema.parse({from:range.from,to:range.to,bookIds:ids,scope:mode==='personal_expense'?mode:'books',basis:'period_expense',query:new URLSearchParams(result.query).get('q')||'',categories:new URLSearchParams(result.query).getAll('category'),kind:new URLSearchParams(result.query).get('kind')||'all'}):undefined;
  const chartBase={books:ids,filters,...(mode==='personal_expense'?{scope:'personal_expense' as const}:{}),...range,unit:deployment().currency};
  return <div className="spending-analysis">
   <div className="analysis-modes" role="group" aria-label={text('统计口径','Accounting view')}>

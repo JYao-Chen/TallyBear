@@ -103,3 +103,10 @@
  .line-items-editor {padding:12px;}
  .receipt-card-amount>strong {font-size:27px;}
 }
+
+.item-category-mode {margin-block:16px;}
+.item-category-mode>label {display:block;max-width:420px;}
+.line-item-edit .item-category {grid-column:1 / -1;}
+.item-category-breakdown {margin-block:16px;}
+.item-category-breakdown dt {display:flex;align-items:center;gap:8px;}
+.item-summary-row small:has(.symbol-icon) {display:flex;align-items:center;gap:6px;}

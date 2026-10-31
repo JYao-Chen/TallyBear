@@ -230,3 +230,14 @@ Confirmed gifts appear as personal expenses and income in each participant’s s
 Custom categories created by members of the same family are available for reuse, including existing active definitions. Your saved preferences take precedence for the same name. Sorting, hiding and editing your copy do not edit other members’ saved preferences. Borrowed copies are not republished to your other families. Manual entries, presets, recognition and the assistant use these options. Refresh to pick up another member’s new category. Leaving a family does not delete your saved preferences or historical entries.
 
 Deployment: apply `scripts/family-category-sharing.sql` before updating the application. The additional `family_shared` marker distinguishes category definitions from saved personal copies; rollback can retain this column.
+
+
+## 一笔付款中的多种商品分类
+
+在手动录入、AI 草稿或对话确认卡的「商品与优惠费用」中，选择「按商品分别分类」，为每项商品选择类别。例如超市同一笔付款可同时计入蔬菜、米面粮油和服饰；未单独分类的商品及费用沿用整单分类。整单优惠未指定类别时按各类金额分配，指定类别的优惠只减该类，尾差精确到分。启用前须补全明细金额并核平实付，不会把未知金额当成零。
+
+零食店等希望统一归类的购物，选择「整单统一分类」，再将整单分类设为零食，即会清除原来的商品分类，保留商品和付款信息。旧账单也可在同一编辑页切换。AI 可识别和准备两种分类方式，最终仍由用户确认保存。
+
+收支分析、预算及活动分类统计按各项实际归属金额计算；类别可多选，汇总、图表、明细和导出共用选择。筛选后账单仍是一笔，列表显示匹配金额并注明整单金额，详情保留全部商品。钱包只记一次实际付款。关联原消费的全额退款未另填明细时沿用原单各类；部分商品退款可填写退款商品及类别。费用计划中明确设置的计划分类仍按计划统计。
+
+A payment can use one category for the whole order or separate categories for its items. Unassigned lines inherit the order category; an unassigned order discount is shared proportionally, with exact minor-unit rounding. Item amounts must be complete and reconciled before saving. AI prepares editable confirmation cards. Reports, budgets, activity breakdowns and exports use the matching category shares without adding another wallet debit. Switching back to one order category clears item categories while retaining the purchase details.

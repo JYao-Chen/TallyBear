@@ -1,3 +1,4 @@
+import {categoryAmounts,hasItemCategories} from '@/lib/item-categories';
 import {transaction} from './db';
 import {validSources} from './cost-projects';
 import {calculateCostPlan,intersectAmount} from '@/lib/cost-attribution';
@@ -55,8 +56,14 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
    ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id`,[books])).rows;
   for(const t of legacy){
    if(claims.some(s=>s.event===t.event))continue;
-   const returned=(await c.query(`SELECT DISTINCT ON(COALESCE(r.event_id,r.id)) COALESCE(r.event_id,r.id) AS event,r.amount FROM transactions r JOIN transactions original ON original.id=r.refund_of WHERE COALESCE(original.event_id,original.id)=$1 AND NOT r.deleted AND r.kind='refund' ORDER BY COALESCE(r.event_id,r.id),r.created_at,r.id`,[t.event])).rows;
+   const returned=(await c.query(`SELECT DISTINCT ON(COALESCE(r.event_id,r.id)) COALESCE(r.event_id,r.id) AS event,r.amount,r.category,r.line_items FROM transactions r JOIN transactions original ON original.id=r.refund_of WHERE COALESCE(original.event_id,original.id)=$1 AND NOT r.deleted AND r.kind='refund' ORDER BY COALESCE(r.event_id,r.id),r.created_at,r.id`,[t.event])).rows;
    const net=Number(t.amount)-returned.reduce((n,r)=>n+Number(r.amount),0);
+   let categoryItems=t.line_items;
+   if(net&&(hasItemCategories(t.line_items)||returned.some(r=>hasItemCategories(r.line_items)))){
+    const parts=new Map(categoryAmounts(t.line_items,Number(t.amount),t.category).map(p=>[p.category,p.amount]));
+    for(const refund of returned)for(const p of categoryAmounts(refund.line_items,Number(refund.amount),refund.category))parts.set(p.category,(parts.get(p.category)||0)-p.amount);
+    categoryItems=[...parts].map(([category,amount])=>({name:category,category,kind:'item',amount:amount*Math.sign(net),quantity:null,unitPrice:null}));
+   }
    refunds.push(...returned.map(r=>r.event));claims.push({event:t.event,amount:Number(t.amount)});
    const copies=(await c.query('SELECT id,book_id,created_by FROM transactions WHERE COALESCE(event_id,id)=$1 AND NOT deleted AND book_id=ANY($2::uuid[])',[t.event,books])).rows;
    const finish=advancePeriod(t.start,t.period_unit,t.period_count);
@@ -66,7 +73,7 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
     const monthAmount=periodShare(Math.abs(net),t.start,t.period_unit,t.period_count,month.slice(0,7));
     const periodStart=month>t.start?month:t.start,periodEnd=monthEnd<finish?monthEnd:finish;
     const amount=intersectAmount(monthAmount,periodStart,periodEnd,start,end);if(!amount)continue;
-    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,cost_owner_id:costOwner,cost_basis_amount:monthAmount,cost_basis_start:periodStart,cost_basis_end:periodEnd,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'',line_items:[],cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
+    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,cost_owner_id:costOwner,cost_basis_amount:monthAmount,cost_basis_start:periodStart,cost_basis_end:periodEnd,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'',line_items:categoryItems,cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
    }
   }
   return {claims,rows,excluded,refunds};

@@ -24,7 +24,7 @@ export function ChartTransactionDetail({row,money,onOpenSource,onOpenProject,onO
   {row.event_id&&<p className="context-note">{t('跨账本关联记录，同一笔实际收付不会重复计入钱包。')}</p>}
   {row.family_movement_id&&<p className="context-note">{t('此记录来自家庭往来。')}</p>}
   {groups.slice(0,2).map(([title,fields])=><section key={title}><h3>{t(title)}</h3><dl className="chart-transaction-fields">{fields.map(([label,value])=><div key={label}><dt>{t(label)}</dt><dd>{value?String(value):t('未填写')}</dd></div>)}</dl></section>)}
-  <section><h3>{t('商品与结算')}</h3>{row.line_items?.length?<LineItemsView items={row.line_items} total={Number(row.amount)}/>:<p className="muted">{t('未记录商品明细')}</p>}{row.verification_reason&&<p>{t('核验确认：')}{row.verification_reason}</p>}</section>
+  <section><h3>{t('商品与结算')}</h3>{row.line_items?.length?<LineItemsView category={row.category} items={row.line_items} total={Number(row.amount)}/>:<p className="muted">{t('未记录商品明细')}</p>}{row.verification_reason&&<p>{t('核验确认：')}{row.verification_reason}</p>}</section>
   <section><h3>{t('备注')}</h3><p className="chart-transaction-note">{row.note||t('未填写')}</p></section>
   <section><h3>{t('记录信息')}</h3><dl className="chart-transaction-fields">{groups[2][1].map(([label,value])=><div key={label}><dt>{t(label)}</dt><dd>{value?String(value):t('未填写')}</dd></div>)}</dl></section>
   {!row.family_movement_id&&row.book_id&&<section><h3>{t('凭证与附图')}</h3><ReceiptAttachments key={row.id} book={row.book_id} transaction={row.id} allowRecognize={false} showEmpty/></section>}

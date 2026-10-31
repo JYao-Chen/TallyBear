@@ -3,7 +3,7 @@ import {z} from 'zod';
 
 const day=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s,'日期无效');
 export const financeQuerySchema=z.object({
- from:day,to:day,bookIds:z.array(z.string().uuid()).min(1).optional(),sort:z.enum(detailSorts).default('date_desc'),query:z.string().trim().max(200).default(''),category:z.string().max(60).default(''),
+ from:day,to:day,bookIds:z.array(z.string().uuid()).min(1).optional(),sort:z.enum(detailSorts).default('date_desc'),query:z.string().trim().max(200).default(''),category:z.string().max(60).default(''),categories:z.array(z.string().min(1).max(60)).default([]),
  accountId:z.string().uuid().optional(),activityId:z.string().uuid().optional(),creatorId:z.string().uuid().optional(),
  payee:z.string().max(120).default(''),product:z.string().max(160).default(''),platform:z.string().max(120).default(''),orderId:z.string().max(160).default(''),externalId:z.string().max(160).default(''),
  kind:z.enum(['all','expense','income','refund','transfer','net_expense','none']).default('all'),
@@ -15,7 +15,7 @@ export const financeDimensions=['category','daily_expense','daily_income','weekl
 export type FinanceDimension=typeof financeDimensions[number];
 export type FinanceMetric='net_expense'|'income'|'item_amount'|'unit_price'|'quantity';
 export function financeQueryParams(query:FinanceQuery){
- const p=new URLSearchParams();for(const [key,value] of Object.entries(query)){if(value===undefined||value==='')continue;if(key==='bookIds'){for(const book of value as string[])p.append('book',book);continue;}const name=({query:'q',accountId:'account',activityId:'activity',creatorId:'creator'} as Record<string,string>)[key]||key;p.set(name,String(value));}return p;
+ const p=new URLSearchParams();for(const [key,value] of Object.entries(query)){if(value===undefined||value==='')continue;if(key==='category'||key==='categories')continue;if(key==='bookIds'){for(const book of value as string[])p.append('book',book);continue;}const name=({query:'q',accountId:'account',activityId:'activity',creatorId:'creator'} as Record<string,string>)[key]||key;p.set(name,String(value));}for(const category of new Set([query.category,...(query.categories||[])].filter(Boolean)))p.append('category',category);return p;
 }
 export function chartKind(kind:string,income:boolean){return income?(kind==='all'||kind==='income'?'income':'none'):kind==='income'||kind==='transfer'||kind==='none'?'none':kind==='expense'||kind==='refund'?kind:'net_expense';}
 export function chartDetailParams(chart:{from:string;to:string;dimension?:string;filters?:FinanceQuery;metric?:FinanceMetric;books?:string[];scope?:string},point:string,offset:number,limit:number){

@@ -43,7 +43,7 @@ export async function search(user:string,params:URLSearchParams){
  if(p.entity!=='all')filters.push('s.entity='+arg(p.entity));
  if(p.field!=='all'&&p.entity!=='activity')filters.push("s.entity='transaction'");
  if(p.state==='trash')filters.push('s.deleted');else if(p.state==='active')filters.push('NOT s.deleted');
- if(p.category)filters.push('s.category='+arg(p.category));
+ if(p.category){const category=arg(p.category);filters.push(`(CASE WHEN s.entity='transaction' AND EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(i->>'category','')<>'') THEN EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(NULLIF(i->>'category',''),s.category)=${category}) ELSE s.category=${category} END)`);}
  if(p.account!=='all'){const a=arg(p.account);filters.push(`(s.account_id=${a}::uuid OR s.target_id=${a}::uuid)`);}
  if(p.kind!=='all')filters.push('s.kind='+arg(p.kind));
  if(p.from)filters.push('s.day>='+arg(p.from)+'::date');if(p.to)filters.push('s.day<='+arg(p.to)+'::date');

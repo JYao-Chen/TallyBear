@@ -1,4 +1,9 @@
 {
+  "未分类项默认分类": "Default category for unassigned items",
+  "整单金额（元）": "Order total (CNY)",
+  "分类计入金额": "Category amounts",
+  "按商品分类前，请补全所有明细金额，并使明细合计与实付一致": "Complete all line amounts and reconcile them to the paid total before item classification",
+  "分类优惠不能超过该类商品金额，请核对商品与优惠的分类": "Category discounts cannot exceed that category’s item amounts; check the item and discount categories",
   "原付款日期": "Original payment date",
   "原账单": "Original transaction",
   "覆盖周期": "Coverage period",

@@ -1,3 +1,4 @@
+import {categoryPartsSql} from './item-category-sql';
 import {claimBookVisibility} from './claim-visibility';
 import {detailOrder,detailSorts} from '@/lib/detail-sort';
 import {randomUUID} from 'node:crypto';
@@ -79,20 +80,20 @@ export async function activityReport(user:string,id:string,params:URLSearchParam
  if(!activity.family_id)where.push('ae.owner_id=$2');
  if(filter.book!=='all'){values.push(filter.book);where.push(`t.book_id=$${values.length}`);}
  if(filter.kind!=='all'){values.push(filter.kind);where.push(`t.kind=$${values.length}`);}
- if(filter.category){values.push(filter.category);where.push(`t.category=$${values.length}`);}
+ let categoryPredicate='TRUE';if(filter.category){values.push(filter.category);categoryPredicate=`p->>'category'=$${values.length}`;where.push(`EXISTS(SELECT 1 FROM jsonb_array_elements(${categoryPartsSql()}) p WHERE ${categoryPredicate})`);}
  if(filter.account!=='all'){values.push(filter.account);where.push(`(t.account_id=$${values.length} OR t.target_id=$${values.length})`);}
  if(filter.q){values.push('%'+filter.q.toLowerCase()+'%');where.push(`lower(concat_ws(' ',t.title,t.payee,t.product,t.note,t.order_id,t.external_id)) LIKE $${values.length}`);}
  values.push(filter.limit,filter.offset);const limit='$'+(values.length-1),offset='$'+values.length;
  const result=await db.query(`WITH matched AS (
- SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.book_id,b.name AS book_name,t.kind,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at,t.occurred_at
- FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id
+ SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.book_id,b.name AS book_name,t.kind,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at,t.occurred_at,t.line_items,classification.parts AS category_parts,(SELECT sum((p->>'amount')::numeric) FROM jsonb_array_elements(classification.parts) p)::float8 AS matched_amount
+ FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id CROSS JOIN LATERAL (SELECT jsonb_agg(p) AS parts FROM jsonb_array_elements(${categoryPartsSql()}) p WHERE ${categoryPredicate}) classification
  WHERE ${where.join(' AND ')} ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id
- ), page AS (SELECT * FROM matched ORDER BY ${detailOrder(filter.sort)} LIMIT ${limit} OFFSET ${offset})
+ ), page AS (SELECT * FROM matched ORDER BY ${detailOrder(filter.sort,'matched_amount')} LIMIT ${limit} OFFSET ${offset})
  SELECT json_build_object('rows',(SELECT COALESCE(json_agg(page),'[]'::json) FROM page),
- 'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(amount) FILTER (WHERE kind='income'),0),'expense',COALESCE(sum(amount) FILTER (WHERE kind='expense'),0),'refund',COALESCE(sum(amount) FILTER (WHERE kind='refund'),0)) FROM matched),
- 'categories',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT category,sum(CASE WHEN kind='refund' THEN -amount ELSE amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY category) x),
- 'wallets',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT account_id AS id,account_name AS name,sum(CASE WHEN kind='refund' THEN -amount ELSE amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY account_id,account_name) x),
- 'books',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT book_id AS id,book_name AS name,sum(CASE WHEN kind='refund' THEN -amount ELSE amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY book_id,book_name) x),
- 'daily',(SELECT COALESCE(json_agg(x ORDER BY x.date),'[]'::json) FROM (SELECT date,sum(CASE WHEN kind='refund' THEN -amount WHEN kind='expense' THEN amount ELSE 0 END)::float8 AS amount FROM matched GROUP BY date) x)) AS report`,values);
+ 'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(matched_amount) FILTER (WHERE kind='income'),0),'expense',COALESCE(sum(matched_amount) FILTER (WHERE kind='expense'),0),'refund',COALESCE(sum(matched_amount) FILTER (WHERE kind='refund'),0)) FROM matched),
+ 'categories',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT p->>'category' AS category,sum(CASE WHEN kind='refund' THEN -1 ELSE 1 END*(p->>'amount')::numeric)::float8 AS amount FROM matched CROSS JOIN LATERAL jsonb_array_elements(category_parts) p WHERE kind IN ('expense','refund') GROUP BY 1) x),
+ 'wallets',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT account_id AS id,account_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY account_id,account_name) x),
+ 'books',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT book_id AS id,book_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY book_id,book_name) x),
+ 'daily',(SELECT COALESCE(json_agg(x ORDER BY x.date),'[]'::json) FROM (SELECT date,sum(CASE WHEN kind='refund' THEN -matched_amount WHEN kind='expense' THEN matched_amount ELSE 0 END)::float8 AS amount FROM matched GROUP BY date) x)) AS report`,values);
  return {activity,...result.rows[0].report};
 }

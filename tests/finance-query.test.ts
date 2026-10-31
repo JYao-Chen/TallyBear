@@ -32,3 +32,25 @@ test('多字段筛选金额边界与合法日期校验',()=>{
  assert.throws(()=>financeQuerySchema.parse({from:'2026-02-30',to}));assert.throws(()=>financeQuerySchema.parse({from,to,min:500,max:100}));
  const f=reportFilter('book',new URLSearchParams({from,to,payee:'店铺',product:'奶茶',orderId:'order',externalId:'payment',min:'100',max:'500'}));assert.ok(f.where.includes('t.order_id'));assert.ok(f.where.includes('t.external_id'));assert.ok(f.where.includes('jsonb_array_elements'));assert.ok(f.values.includes('奶茶'));
 });
+test('多类别取并集，图表分组继续收窄，类别名称中的逗号保持原样',()=>{
+ const categories=['餐饮','奶茶,咖啡'];
+ const filters=financeQuerySchema.parse({from,to,categories});
+ const params=financeQueryParams(filters);
+ assert.deepEqual(params.getAll('category'),categories);
+ const report=reportFilter('book',params);
+ assert.ok(report.categoryPredicate.includes("(p->>'category')=ANY("));
+ assert.ok(report.values.some(v=>Array.isArray(v)&&JSON.stringify(v)===JSON.stringify(categories)));
+ const drill=chartDetailParams({from,to,filters,dimension:'category'},'餐饮',0,20);
+ assert.deepEqual(drill.getAll('category'),categories);
+ const narrowed=reportFilter('book',drill);
+ assert.ok(narrowed.categoryPredicate.includes("AND (p->>'category')="));
+ assert.equal(drill.get('groupValue'),'餐饮');
+ const all=reportFilter('book',new URLSearchParams({from,to}));
+ assert.ok(all.categoryPredicate==='TRUE');
+ params.append('category','x'.repeat(61));assert.throws(()=>reportFilter('book',params));
+});
+
+test('已保存的旧图表不含多类别字段时仍能打开明细',()=>{
+ const old=financeQuerySchema.parse({from,to,category:'餐饮'});delete (old as Partial<typeof old>).categories;
+ assert.deepEqual(chartDetailParams({from,to,filters:old,dimension:'category'},'餐饮',0,20).getAll('category'),['餐饮']);
+});
