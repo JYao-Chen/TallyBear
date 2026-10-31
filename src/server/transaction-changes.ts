@@ -1,6 +1,7 @@
 import type {PoolClient} from 'pg';
 import {z} from 'zod';
 import {Failure} from './access';
+import {assertClaimEditable} from './claim-access';
 import {accountAccess,validateActiveAccounts} from './accounts';
 import {checkCategory,checkItemCategories} from './categories';
 import {validateRefund,type Entry} from './ledger';
@@ -23,6 +24,7 @@ export function transactionEntry(row:any,patch:Record<string,unknown>={}):Entry{
 
 export async function applyTransactionChange(c:PoolClient,book:string,user:string,data:any){
  const operation=z.enum(['update','delete']).parse(data.operation),id=uuid.parse(data.transactionId),version=z.number().int().nonnegative().parse(data.version);
+ await assertClaimEditable(c,id,user);
  const previous=await transactionForAction(c,book,id);
  if(previous.version!==version)throw new Failure('账目已被修改，请让助手重新读取后再操作',409);
  await validateActiveAccounts(c,book,{accountId:previous.accountId,targetId:previous.targetId,kind:previous.kind} as Entry,user,[previous.accountId,previous.targetId].filter(Boolean));

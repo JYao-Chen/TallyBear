@@ -3,7 +3,8 @@ import {sceneSchema,sceneTitle,type EntryScene} from './entry-scene';
 import {normMemory,specConflict} from './memory';
 
 // Identity/context only. Prices, dates, quantities and payment references are never learned defaults.
-export const preferenceFields=['bookId','category','accountId','payee','platform','scene.type','scene.transport','scene.origin','scene.destination','scene.merchant','scene.branch','scene.meal','scene.diningMode'] as const;
+export const learnedPreferenceFields=['bookId','category','accountId','payee','platform','scene.type','scene.transport','scene.origin','scene.destination','scene.merchant','scene.branch','scene.meal','scene.diningMode'] as const;
+export const preferenceFields=[...learnedPreferenceFields,'title','product','note','scene.summary'] as const;
 export type PreferenceField=typeof preferenceFields[number];
 export const preferenceSuggestion=z.object({
  field:z.enum(preferenceFields),value:z.string().max(160),label:z.string().max(160),before:z.string().default(''),
@@ -61,7 +62,7 @@ export function inferPreferences<T extends PreferenceInput>(input:T,ranked:Retur
  const selected=lexical.length?lexical.filter(r=>r.score>=best-.75):ranked.filter(r=>options.semanticIds?.has(r.row.id));
  const seen=new Set<string>();const evidence=selected.filter(({row})=>{const id=row.eventId||row.id;if(seen.has(id))return false;seen.add(id);return true;}).slice(0,60);
  const suggestions:PreferenceSuggestion[]=[];let value={...input};
- for(const field of preferenceFields){
+ for(const field of learnedPreferenceFields){
   if(options.protectedFields?.has(field))continue;
   const before=preferenceValue(input,field);
   if(before&&(field!=='category'||input.categorySource==='explicit'))continue;

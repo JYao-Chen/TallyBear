@@ -6,8 +6,33 @@ type Operation={title:string;method:string;path:string;fields:string;help:string
 const operation=(title:string,method:string,path:string,fields:string,help='',fixed?:Record<string,unknown>):Operation=>({title,method,path,fields,help,fixed});
 // Closed catalog: model output cannot choose an HTTP method, URL or secret field.
 export const assistantOperations:Record<string,Operation>={
+ profile_settings:operation('调整个人学习与位置设置','POST','personal-profile','enabled locationEnabled retainLocation','先读取personal_profile设置，保留未修改值',{operation:'settings'}),
+ profile_place_save:operation('新增或修改消费区域','POST','personal-profile','id version name latitude longitude radius','仅使用用户明确提供的区域与坐标，不推断家庭地址',{operation:'save_place'}),
+ profile_place_delete:operation('删除消费区域','POST','personal-profile','id','',{operation:'delete_place'}),
+ profile_locations_forget:operation('清除本人位置关联','POST','personal-profile','','',{operation:'forget_locations'}),
+ profile_export:operation('导出本人画像与规则','POST','personal-profile','','',{operation:'export'}),
+ family_movement_source:operation('更正家庭转款付款钱包','POST','family-finance/:familyId','id sourceId expectedSourceId','先查询family_finance中的原source_id和本人可用钱包；仅转出人更正，不重复转账',{operation:'correct-source'}),
+ transaction_detail:operation('查询完整已入账账单','GET','books/:bookId/transactions','id','返回场景、商品、版本与完整字段；修改场景摘要使用prepare_transaction_change的changes.scene.summary'),
+ claim_people:operation('查询可指定的认领成员','GET','expense-claims/people',''),
+ claim_inbox:operation('查询待认领账单与动态','GET','expense-claims/inbox','offset'),
+ claim_sent:operation('查询为他人购买的账单','GET','expense-claims/sent','offset'),
+ claim_for_record:operation('查询账单认领与编辑权限','GET','expense-claims/for-record','id'),
+ claim_detail:operation('查询认领完整详情','GET','expense-claims/:id',''),
+ claim_receipts:operation('查询认领账单图片','GET','expense-claims/:id/receipts',''),
+ claim_invite:operation('指定或取消账单认领人','POST','expense-claims/invite','sourceId recipientId','recipientId=null取消待认领邀请；仅本人付款的可编辑支出'),
+ claim_respond:operation('认领、拒绝或撤回账单','POST','expense-claims/:id','operation version bookId','operation=accept/decline/withdraw/cancel/read；先读取claim_detail与版本，accept选择本人可写账本，不代表他人接受'),
+ claim_record_edit:operation('修改本人认领账单信息','POST','expense-claims/:id','version recordVersion title category note','先查claim_detail，保留未改字段',{operation:'edit-record'}),
+ discussion_inbox:operation('查询账目讨论消息','GET','discussions/inbox','offset'),
+ discussion:operation('查询账目讨论及参与成员','GET','discussions','kind id scope offset','kind=movement/transaction/project/schedule/claim；scope仅周期账期日期，其他为空'),
+ discussion_post:operation('发送留言或回复','POST','discussions/messages','target id body replyTo','target={kind,id,scope}；id为新UUID，replyTo为同段讨论已有留言ID或null；只按用户要求发言，不代替其他成员'),
+ discussion_read:operation('标记讨论已读','POST','discussions/read','target upTo','upTo为已查询到的留言seq字符串'),
+ budget_update:operation('修改预算金额或分类','PUT','books/:bookId/budgets','month category previousCategory amount','amount整数分；可更改原预算分类'),
+ book_movements:operation('查询账本家庭资金流水','GET','book-movements/:bookId','from to offset'),
+ transaction_balance:operation('查询交易后钱包余额','GET','books/:bookId/transaction-balance','id'),
+ draft_read:operation('查询记账草稿','GET','books/:bookId/drafts','section'),
+ draft_save:operation('保存记账草稿','PUT','books/:bookId/drafts','section version value','仅修改用户明确要求的草稿；先读取原值'),
  personal_profile:operation('查询个人画像与场景规则','GET','personal-profile','section q status key page','section=overview/rules；只查询当前用户。返回的支持占比不是概率；不要把推断称为明确偏好。条件使用交易时间而非当前录入时间。'),
- profile_rule_save:operation('确认或纠正个人场景规则','POST','personal-profile','rule replaceConflicts','先查询真实条件与字段。rule={id?,version?,condition:{kind:expense|income,fields:{字段名:值},dayType?,timeBand?,placeId?},field,value,state:confirmed|rejected|disabled}。钱包用本人真实ID；默认入账账本用field=bookId,value为可写账本真实ID，可按scene.type=transport或scene.transport等条件指定，先read_system personal_profile获取books与字段。本次例外不要扩展为长期规则。不得借规则推断家庭地址或改变账目。',{operation:'save_rule'}),
+ profile_rule_save:operation('确认或纠正个人场景规则','POST','personal-profile','rule replaceConflicts','先查询真实条件与字段。rule={id?,version?,condition:{kind:expense|income,fields:{字段名:值},dayType?,timeBand?,placeId?},field,value,state:confirmed|rejected|disabled}。钱包用本人真实ID；默认入账账本用field=bookId,value为可写账本真实ID，可按scene.type=transport或scene.transport等条件指定，先read_system personal_profile获取books与字段；支持title、product、note、scene.summary作为条件或结果，文本条件为精确匹配，场景摘要最长80字。本次例外不要扩展为长期规则。不得借规则推断家庭地址或改变账目。',{operation:'save_rule'}),
  profile_rule_delete:operation('删除个人场景规则','POST','personal-profile','id version','先查询规则和版本',{operation:'delete_rule'}),
  profile_rule_undo:operation('撤销个人规则变更','POST','personal-profile','id','先查询section=events中的可撤销事件',{operation:'undo'}),
  cost_schedules:operation('查询周期费用计划','GET','cost-schedules','offset'),
@@ -29,7 +54,7 @@ export const assistantOperations:Record<string,Operation>={
  cost_settlement_transfer:operation('在费用项目记录成员转款或确认到账','POST','cost-projects/:projectId/settlement-transfer','version operation id sourceId recipientId targetId amount date note allowSimilar','projectId为费用项目，operation=create记录本人已经真实转出的款项，id为新转款UUID，金额分，选择本人sourceId和项目内recipientId；对方确认后自动结算，不新增消费。confirm仅收款人明确到账后传已有转款id、本人targetId；cancel取消已有待确认转款。不得代替其他成员确认，不执行真实银行转账。'),
  cost_movements:operation('查询可关联的费用结算','GET','cost-projects/:id/movements',''),
  cost_personal_offsets:operation('设置本人的收入抵减','POST','cost-projects/:id/personal-offsets','version entries','entries为完整数组：{id UUID,transactionId收入ID或null预计,userId本人ID,month YYYY-MM,amount整数分,shared布尔}。先读取cost_project保留已有personalOffsets，只使用本人收入；不改变他人承担或钱包余额'),
- export:operation('导出账本 CSV','GET','books/:bookId/export','from to q category account kind mode activity scope','先确认日期与筛选；scope=personal_wallet可导出个人钱包；返回下载链接，由用户点击下载'),
+ export:operation('导出账本 CSV','GET','books/:bookId/export','from to q category account kind mode activity scope book creator payee product platform orderId externalId min max basis sort','先确认日期与筛选；scope=personal_wallet可导出个人钱包；返回下载链接，由用户点击下载'),
  books:operation('查询账本','GET','books',''),
  book_create:operation('创建账本','POST','books','name kind','kind=private/shared'),
  book_edit:operation('修改账本','PUT','books/:bookId/metadata','name icon description kind','提供完整信息，保留未修改字段'),
@@ -98,7 +123,7 @@ export const assistantOperations:Record<string,Operation>={
  allocation_remove:operation('取消费用分摊','PUT','books/:bookId/allocations','id version remove','remove=true'),
  attention:operation('查询待补充或回收站','GET','books/:bookId/attention','mode offset','mode=trash查询已删除账目'),
  transaction_restore:operation('恢复已删除账目','PATCH','books/:bookId/transactions','id version','',{deleted:false}),
- organize_preview:operation('查询批量整理影响','GET','books/:bookId/organize','ids','ids为逗号分隔真实交易ID'),
+ organize_preview:operation('查询批量整理影响','GET','books/:bookId/organize','id','重复id查询真实交易ID'),
  organize:operation('批量移动、关联或删除账目','POST','books/:bookId/organize','ids operation targetBook versions','operation=move/copy/delete；先organize_preview读取完整关联组和版本'),
  receipts:operation('查询账单凭证','GET','books/:bookId/receipts','transaction'),
  photos_attach:operation('关联已有照片','POST','books/:bookId/photos','transaction ids','只能选择已经上传且有权使用的照片编号'),
@@ -163,7 +188,7 @@ export async function runOperation(input:unknown,user:User,write=false){
  if(op.method!=='GET'&&!write)throw new Failure('此操作必须由用户确认卡片后执行');
  const origin=process.env.APP_ORIGIN||'http://localhost:3000',url=new URL('/api/'+path.join('/'),origin);
  if(op.query)url.search=new URLSearchParams(op.query).toString();
- if(op.method==='GET')for(const [key,value] of Object.entries(body))if(value!==undefined&&value!==null)url.searchParams.set(key,String(value));
+ if(op.method==='GET')for(const [key,value] of Object.entries(body))if(value!==undefined&&value!==null){if(Array.isArray(value))for(const item of value)url.searchParams.append(key,String(item));else url.searchParams.set(key,String(value));}
  const {applicationApi}=await import('./application-api');
  const response=await applicationApi(new NextRequest(url,{method:op.method,headers:{origin,'content-type':'application/json'},...(op.method==='GET'?{}:{body:JSON.stringify(body)})}),{params:Promise.resolve({path})},user);
  if(response.ok&&response.headers.get('content-type')?.includes('text/csv'))return {downloadUrl:url.pathname+url.search,title:'下载账本 CSV'};

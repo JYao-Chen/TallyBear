@@ -9,6 +9,7 @@ import {matchReceiptWallet,receiptOriginSchema,usableClue} from '@/lib/receipt-o
 import {familyFinance} from './family-finance';
 import {familyActionSchema,prepareFamilySummary} from './family-actions';
 import {sceneSchema} from '@/lib/entry-scene';
+import type {PoolClient} from 'pg';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {db,transaction,lockBook,withConnection} from './db';
@@ -35,7 +36,7 @@ const uuid=z.string().uuid(),money=z.number().int().positive().max(100000000000)
 const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>Number.isFinite(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s);
 const name=z.string().trim().min(1).max(80),category=z.string().trim().min(1).max(60);
 const units=z.enum(['day','week','month','year']),frequency=z.enum(['daily','weekly','monthly','yearly']);
-// The same persisted proposal is validated again at confirmation. Model tools never execute it.
+// Preparation and execution share validation for both user clicks and assistant tools.
 export function parseAction(a:ChatAction){
  const d=a.data;
  switch(a.kind){
@@ -90,11 +91,11 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
   if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
  }
  if(bookSuggestions.some(s=>s.state==='candidate'))a.warnings.push(ctx.language==='en'?'Several destination books match your habits. Choose a book before saving.':'有多个账本符合记账习惯，请在保存前选择记入账本。');
- const d=a.data;const changedContext=!!old&&['payee','product','scene','kind','accountId','platform'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene)d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind))Object.assign(d,withDeviceTime({date:d.date||'',occurredAt:d.occurredAt},ctx.deviceTime));
+ const d=a.data;const changedContext=!!old&&['payee','product','scene','kind','accountId','platform'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene&&a.kind!=='transaction')d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind))Object.assign(d,withDeviceTime({date:d.date||'',occurredAt:d.occurredAt},ctx.deviceTime));
  if(a.kind==='transaction'){
   const operation=z.enum(['update','delete']).parse(d.operation),row=await transactionForAction(db,book,uuid.parse(d.transactionId));
   row.activityId=(await entryActivity(ctx.user.id,book,row.id)).activityId;
-  a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,operation,transactionId:row.id,version:row.version,id:undefined};
+  a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,scene:sceneSchema.parse({...row.scene,...d.scene}),operation,transactionId:row.id,version:row.version,id:undefined};
  }
  const data=a.data;if(a.kind==='entry'&&ctx.profileContext)data.profileContext=ctx.profileContext;else if(a.kind==='entry'&&!old)delete data.profileContext;
  if(ctx.generated&&typeof data.note==='string'){
@@ -111,7 +112,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  const explicitChannel=typeof data.paymentChannel==='string'?data.paymentChannel.trim():'';
  const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
  if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
- if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{bookId:book,date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
+ if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{bookId:book,date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',note:data.note||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,note:preferred.note,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
  if(a.kind==='allocation'&&data.endDate!=null){try{const days=inclusivePeriodDays(data.startDate,data.endDate);data.periodUnit='day';data.periodCount=days;}catch{}}
  if(a.kind==='allocation'&&data.endDate==null&&['month','year'].includes(data.periodUnit)&&date.safeParse(data.startDate).success)data.startDate=data.startDate.slice(0,7)+'-01';
  a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
@@ -127,7 +128,7 @@ export async function prepareChatAction(input:unknown,ctx:{book:string;user:User
  if(d2.category){const c=options.categories.find(c=>c.name===d2.category);if(!c)a.missing.push('分类');add('分类',d2.category,{icon:c?.icon||'🏷️'});if(d2.categorySuggestion){const basis=tr(({template:'常用一笔',route:'相同路线',merchant_context:'相同商家与商品',merchant:'相同商家',context:'相似商品'} as Record<string,string>)[d2.categorySuggestion.basis]||'个人分类习惯');add('分类依据',`${basis} · ${tr('匹配度')} ${Math.round(d2.categorySuggestion.confidence*100)}% · ${d2.categorySuggestion.evidenceCount}${tr('条个人记录')}`);}}
  for(const [key,label] of [['amount','金额'],['principal','本次还款本金'],['fee','本次手续费'],['fees','总手续费']])if(d2[key]!==undefined)add(label,fmt(d2[key]));
  for(const [key,label] of [['date','交易日期'],['occurredAt','交易时间'],['payee','商家'],['nextDate','首次扣款日期'],['month','预算月份'],['startDate','分摊开始日期'],['endDate','结束日期（含当天）'],['firstDate','首次还款日期'],['terms','分期期数'],['allocationStart','分摊开始日期'],['allocationMonths','分摊月数'],['product','商品摘要'],['note','备注']])add(label,key==='occurredAt'&&d2[key]&&Number.isFinite(Date.parse(d2[key]))?new Date(d2[key]).toLocaleString(deployment().language,{timeZone:'Asia/Shanghai',hour12:false}):d2[key]);
- if(d2.scene)for(const [key,label] of [['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d2.scene[key]);
+ if(d2.scene)for(const [key,label] of [['summary','场景摘要'],['diningMode','用餐方式'],['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d2.scene[key]);
  if(d2.frequency)add('重复周期',`${d2.intervalCount??'?'} ${tr(({daily:'天',weekly:'周',monthly:'月',yearly:'年'} as any)[d2.frequency]||d2.frequency)}`);
  if(d2.periodUnit)add('覆盖周期',`${d2.periodCount??'?'} ${tr(({day:'天',week:'周',month:'月',year:'年'} as any)[d2.periodUnit]||d2.periodUnit)}`);
  add('关联原消费',d2.refundTitle);add('核验说明',d2.verificationReason);if(d2.attachmentIds?.length)add('保留图片凭证',tr(d2.retainReceipts?'是':'否'));
@@ -161,15 +162,23 @@ export async function confirmChatAction(book:string,user:User,body:unknown){
   if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');const edited={...(b.data||{})};if(edited.targetBook){edited.bookId=edited.targetBook;if(a.kind==='entry')edited.preferenceSuggestions=(edited.preferenceSuggestions||a.data.preferenceSuggestions||[]).map((s:any)=>s.field==='bookId'?{...s,state:s.value===edited.targetBook?'applied':'dismissed',confirmed:s.value===edited.targetBook}:s);}if(Object.prototype.hasOwnProperty.call(edited,'category')&&edited.category!==a.data.category)edited.categorySource='explicit';await prepareChatAction({actionId:a.id,kind:a.kind,bookId:['entry','schedule','template','budget'].includes(a.kind)&&edited.targetBook?uuid.parse(edited.targetBook):a.bookId,data:edited},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
   if(b.operation==='cancel_action')a.status='cancelled';else{
    if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');
+   await executePreparedAction(c,a,user,b.id,b.acknowledgeWarnings);
+  }
+  await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true,status:a.status,result:a.result};
+ });
+}
+
+async function executePreparedAction(c:PoolClient,a:ChatAction,user:User,conversationId:string,acknowledgeWarnings:boolean){
+ if(a.status!=='pending')return;
    if(a.kind!=='family'&&a.kind!=='memory'&&a.kind!=='management'){await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);}
    if(a.missing.length)throw new Failure('请先补充：'+a.missing.join('、'));
    const data=parseAction(a) as any;
    if(data.category||data.value?.category)await checkCategory(c,user.id,data.category||data.value.category);
-   if(a.kind==='management'){if(data.operation==='conversation_delete'&&data.params.id===b.id)throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');a.result=await withConnection(c,()=>runOperation(data,user,true));}
+   if(a.kind==='management'){if(data.operation==='conversation_delete'&&data.params.id===conversationId)throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');a.result=await withConnection(c,()=>runOperation(data,user,true));}
    else if(a.kind==='memory')a.result=await memoryRoute(user,'POST',new URLSearchParams(),data,c);
    else if(a.kind==='entry'){
     const checked=(await review(a.bookId,{entries:[data]})).entries[0] as any;
-    if((checked?.matches?.length||data.kind==='refund'&&!data.refundOf)&&!b.acknowledgeWarnings)throw new Failure('请核对重复或退款关联，再勾选核对确认后保存',409);
+    if((checked?.matches?.length||data.kind==='refund'&&!data.refundOf)&&!acknowledgeWarnings)throw new Failure('请核对重复或退款关联，再勾选核对确认后保存',409);
     const count=await insertEntry(c,a.bookId,user.id,data);if(!count)throw new Failure('这条账单已存在，请核对已有记录',409);a.result={id:data.id};
    }else if(a.kind==='transaction')a.result=await applyTransactionChange(c,a.bookId,user.id,data);
    else if(a.kind==='family')a.result=await familyFinance(user.id,data.familyId,'POST',data,c);
@@ -182,7 +191,19 @@ export async function confirmChatAction(book:string,user:User,body:unknown){
     await c.query('INSERT INTO budgets VALUES($1,$2,$3,$4) ON CONFLICT(book_id,month,category) DO UPDATE SET amount=$4',[a.bookId,data.month,data.category,data.amount]);a.result={ok:true};
    }
    a.status='confirmed';a.confirmedAt=new Date().toISOString();
-  }
-  await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true,status:a.status,result:a.result};
+}
+
+// Execution and its visible audit record commit together, including interrupted turns.
+export async function executeAgentAction(turnId:string,user:User,actions:ChatAction[],actionId:string,acknowledgeWarnings=false,operation:'execute'|'cancel'='execute'){
+ return transaction(async c=>{
+  const turn=(await c.query('SELECT t.id,t.conversation_id FROM finance_turns t JOIN finance_conversations v ON v.id=t.conversation_id WHERE t.id=$1 AND v.user_id=$2 FOR UPDATE OF t',[uuid.parse(turnId),user.id])).rows[0];
+  if(!turn)throw new Failure('对话不存在',404);
+  const a=actions.find(a=>a.id===uuid.parse(actionId));if(!a)throw new Failure('操作不存在',404);
+  const saved=(await c.query('SELECT artifacts FROM finance_turns WHERE id=$1',[turn.id])).rows[0]?.artifacts?.actions?.find((v:ChatAction)=>v.id===a.id);
+  if(saved?.status==='confirmed'){Object.assign(a,saved);return {ok:true,status:a.status,result:a.result};}
+  const next=structuredClone(a);
+  if(operation==='cancel'){if(next.status==='pending')next.status='cancelled';}else {await withConnection(c,()=>executePreparedAction(c,next,user,turn.conversation_id,acknowledgeWarnings));if(next.status==='confirmed')next.executedBy='assistant';}
+  await c.query("UPDATE finance_turns SET artifacts=jsonb_set(COALESCE(artifacts,'{}'::jsonb),'{actions}',$1::jsonb) WHERE id=$2",[JSON.stringify(actions.map(v=>v.id===next.id?next:v)),turn.id]);
+  Object.assign(a,next);return {ok:true,status:a.status,result:a.result};
  });
 }

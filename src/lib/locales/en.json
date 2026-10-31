@@ -2185,5 +2185,6 @@
   "费用分摊起始月份": "First expense month",
   "费用分摊月数": "Expense allocation months",
   "本金费用分摊": "Allocate purchase costs",
-  "还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。": "Repayment dates and terms only set the repayment schedule. Expense allocation uses its own first month and month count, with equal calendar-month shares. Turn it off to create only a repayment plan."
+  "还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。": "Repayment dates and terms only set the repayment schedule. Expense allocation uses its own first month and month count, with equal calendar-month shares. Turn it off to create only a repayment plan.",
+  "场景摘要": "Scene summary"
 }

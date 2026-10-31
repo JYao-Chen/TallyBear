@@ -46,9 +46,30 @@ test('对话沿用待确认卡片并按原ID修订，模型不持有确认工具
  const result=await runFinanceAgent({book:'book',user,question:'改成30元，确认',month:'2026-09',history:[],previousActions:[previous],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args,ctx,artifacts)=>{if(name==='prepare_action'){assert.equal((args as any).actionId,id);artifacts.actions![0].data.amount=3000;return artifacts.actions![0];}return {};});
  assert.equal(result.artifacts.actions!.length,1);assert.equal(result.artifacts.actions![0].status,'pending');assert.equal(result.artifacts.actions![0].data.amount,3000);assert.equal(previous.data.amount,3200);
 });
-test('助手可准备已入账账目变更，但仍没有直接执行或确认工具',async()=>{
+test('助手准备账目变更并提供执行工具，执行成功后才报告写入',async()=>{
  const transactionId='00000000-0000-4000-8000-000000000001',bookId='00000000-0000-4000-8000-000000000002';let round=0,prepared=false;
- const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.ok(!tools.some((t:any)=>/confirm_action|delete_transaction|update_transaction/.test(t.function.name)));assert.ok(tools.some((t:any)=>t.function.name==='prepare_transaction_change'));assert.match(String(messages[0].content),/点击确认后才算写入/);if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'change',type:'function',function:{name:'prepare_transaction_change',arguments:JSON.stringify({operation:'update',bookId,transactionId,changes:{kind:'transfer'}})}}]}};delta('已准备修改卡片，请确认。');return {model:'test',message:{role:'assistant',content:'已准备修改卡片，请确认。'}};};
+ const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.ok(!tools.some((t:any)=>/confirm_action|delete_transaction|update_transaction/.test(t.function.name)));assert.ok(tools.some((t:any)=>t.function.name==='prepare_transaction_change'));assert.match(String(messages[0].content),/execute_action成功/);assert.ok(tools.some((t:any)=>t.function.name==='execute_action'));if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'change',type:'function',function:{name:'prepare_transaction_change',arguments:JSON.stringify({operation:'update',bookId,transactionId,changes:{kind:'transfer'}})}}]}};delta('已准备修改卡片，请确认。');return {model:'test',message:{role:'assistant',content:'已准备修改卡片，请确认。'}};};
  await runFinanceAgent({book:bookId,user,question:'把这笔改成转账',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args)=>{if(name==='prepare_transaction_change'){prepared=true;assert.equal((args as any).transactionId,transactionId);}return {};});
  assert.equal(prepared,true);
+});
+test('明确操作请求可连续准备并执行，保留已执行结果而非只留待确认卡',async()=>{
+ const id='ef0fb54a-17ad-44b3-a7d2-69355522a98f';let round=0;
+ const call=(name:string,args:any)=>({id:name,type:'function' as const,function:{name,arguments:JSON.stringify(args)}});
+ const model:typeof chatCompletion=async(messages,tools,delta)=>{
+  assert.ok(tools.some((t:any)=>t.function.name==='execute_action'));
+  assert.match(String(messages[0].content),/不要强制用户再点击确认/);
+  if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[call('prepare_action',{kind:'budget',data:{month:'2026-10',category:'购物',amount:10000}})]}};
+  if(round===2)return {model:'test',message:{role:'assistant',content:null,tool_calls:[call('execute_action',{actionId:id})]}};
+  assert.match(String(messages.at(-1)?.content),/confirmed/);delta('预算已保存。');return {model:'test',message:{role:'assistant',content:'预算已保存。'}};
+ };
+ const result=await runFinanceAgent({book:'book',user,question:'将购物预算设为100元并保存',month:'2026-10',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args,ctx,artifacts)=>{
+  if(name==='prepare_action'){const action={id,kind:'budget' as const,bookId:'book',title:'预算',status:'pending' as const,data:{},missing:[],warnings:[],summary:[]};artifacts.actions!.push(action);return action;}
+  if(name==='execute_action'){assert.equal((args as any).actionId,id);artifacts.actions![0].status='confirmed';return {ok:true,status:'confirmed'};}
+  return {};
+ });assert.equal(result.artifacts.actions![0].status,'confirmed');
+});
+test('多步自动操作可超过旧版六轮限制',async()=>{
+ let round=0;
+ const model:typeof chatCompletion=async()=>round++<8?{model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'step-'+round,type:'function',function:{name:'read_system',arguments:JSON.stringify({operation:'books'})}}]}}:{model:'test',message:{role:'assistant',content:'多步完成'}};
+ const result=await runFinanceAgent({book:'book',user,question:'连续处理多个操作',month:'2026-10',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async()=>({ok:true}));assert.equal(result.text,'多步完成');assert.equal(round,9);
 });

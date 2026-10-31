@@ -43,6 +43,8 @@ export function FinanceChat({onNavigate,books,book,month,canWrite,onDrafts,onCha
  useEffect(()=>{if(!initialPrompt)return;setReport(null);setTab('chat');setText(tr(initialPrompt.text));setNotice(initialPrompt.source==='help'?(locale==='en'?'The help topic is ready. Add your question, then send.':'已带入说明主题，请补充问题后发送。'):tr('请上传需要核对的支付账单截图，然后发送消息。'));onPromptOpened?.();requestAnimationFrame(()=>bodyRef.current?.parentElement?.querySelector('textarea')?.focus());},[initialPrompt?.id]);
  useEffect(()=>{if(nearBottom.current)bodyRef.current?.scrollTo({top:bodyRef.current.scrollHeight});},[turns,status]);
  useEffect(()=>{if(!id||busy)return;let alive=true;const t=setInterval(()=>api(book,undefined,id).then(d=>{if(alive)setTurns(d.turns);}).catch(()=>{}),2000);return()=>{alive=false;clearInterval(t);};},[book,id,busy]);
+ const appliedActions=turns.flatMap(t=>(t.artifacts.actions||[]).filter(a=>a.executedBy==='assistant'&&a.status==='confirmed').map(a=>a.id)).sort().join(',');const appliedSeen=useRef('');
+ useEffect(()=>{if(appliedSeen.current===appliedActions)return;appliedSeen.current=appliedActions;if(appliedActions)void onChanged?.();},[appliedActions,onChanged]);
  async function send(prompt=text){
   if(busy||uploading||turns.some(t=>t.status==='running')||!prompt.trim()&&!images.length)return;
   setError('');setNotice('');setBusy(true);setReport(null);setTab('chat');

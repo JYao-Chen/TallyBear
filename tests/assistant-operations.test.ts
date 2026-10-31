@@ -36,3 +36,9 @@ test('费用成员结算分别传递项目和转款编号，必须确认才可�
  assert.equal(resolved.body.id,movement);assert.equal(resolved.body.amount,140000);
  await assert.rejects(()=>runOperation(input,user),/确认/);
 });
+test('能力目录覆盖新增认领讨论预算草稿和家庭钱包更正',()=>{
+ const ids=operationCatalog(user).map(o=>o.id);
+ for(const id of ['transaction_detail','claim_people','claim_inbox','claim_detail','claim_invite','claim_respond','claim_record_edit','discussion','discussion_post','discussion_read','budget_update','draft_read','draft_save','family_movement_source','profile_settings','profile_place_save'])assert.ok(ids.includes(id),id);
+ const draft=resolveOperation({operation:'draft_save',params:{bookId:user.id,section:'manual',version:1,value:{}}},user);assert.equal(draft.body.version,1);
+ assert.deepEqual(resolveOperation({operation:'organize_preview',params:{bookId:user.id,id:[user.id]}},user).body.id,[user.id]);
+});

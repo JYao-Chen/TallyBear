@@ -76,3 +76,10 @@ test('location is coarse and region matching does not manufacture a venue',()=>{
 test('condition equality is order- and spelling-normalized',()=>{
  assert.equal(conditionKey(profileConditionSchema.parse({fields:{payee:'Cafe A',platform:'App'}})),conditionKey(profileConditionSchema.parse({fields:{platform:'app',payee:'cafe a'}})));
 });
+test('显式文本规则支持标题商品备注及场景摘要，历史不会自动复制这些文本',()=>{
+ const current={...input,title:'',product:'固定商品',note:''};
+ const rule:ProfileRule={condition:{kind:'expense',fields:{product:'固定商品'}},field:'scene.summary',value:'固定摘要',state:'confirmed'};
+ assert.equal(applyProfile(current,current,[],[rule],options).value.scene.summary,'固定摘要');
+ const mismatch={...current,product:'另一个商品'};assert.equal(applyProfile(mismatch,mismatch,[],[rule],options).value.scene.summary,'');
+ assert.ok(!buildProfile(rows).some(i=>['title','product','note','scene.summary'].includes(i.field)));
+});

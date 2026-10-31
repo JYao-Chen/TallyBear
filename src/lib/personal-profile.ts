@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {normMemory} from './memory';
-import {preferenceFields,preferenceValue,setPreference,type PreferenceEvidence,type PreferenceField,type PreferenceInput,type PreferenceSuggestion} from './preference-learning';
+import {learnedPreferenceFields,preferenceFields,preferenceValue,setPreference,type PreferenceEvidence,type PreferenceField,type PreferenceInput,type PreferenceSuggestion} from './preference-learning';
 
 export const timeBands=['overnight','morning','midday','afternoon','evening'] as const;
 export const profileContextSchema=z.object({
@@ -78,7 +78,7 @@ export function buildProfile(rows:ProfileEvidence[],now=Date.now()):ProfileInsig
  const seen=new Set<string>(),groups=new Map<string,{condition:ProfileCondition;rows:ProfileEvidence[]}>();
  for(const row of rows){if(!['expense','income'].includes(row.kind)||seen.has(row.eventId||row.id))continue;seen.add(row.eventId||row.id);for(const c of conditions(row)){const key=conditionKey(c),group=groups.get(key)||{condition:c,rows:[]};group.rows.push(row);groups.set(key,group);}}
  const insights:ProfileInsight[]=[];
- for(const [key,group] of groups)for(const field of preferenceFields){
+ for(const [key,group] of groups)for(const field of learnedPreferenceFields){
   if(group.condition.fields[field])continue;
   const choices=new Map<string,ProfileChoice>();
   for(const row of group.rows){const value=preferenceValue(row,field);if(!value)continue;const weight=evidenceWeight(row,field,now);if(!weight.weight)continue;const normalized=normMemory(value),choice=choices.get(normalized)||{value,count:0,independent:0,weight:0,share:0,recentCount:0,previousCount:0,sources:[]};choice.count++;choice.weight+=weight.weight;choice.independent+=Number(weight.independent);if(weight.independent){if(weight.age<=30)choice.recentCount++;else choice.previousCount++;}choice.sources.push({id:row.id,title:row.title||row.product||row.payee||row.category,date:row.date});choices.set(normalized,choice);}
