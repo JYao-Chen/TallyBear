@@ -6,9 +6,10 @@ import {Discussion,discussionRequest} from './Discussion';
 import {Sheet} from './Sheet';
 import {useI18n} from './LanguageProvider';
 import {formatMoney} from '@/lib/deployment';
-export function DiscussionInbox({revision,onOpenSource}:{revision:number;onOpenSource:(row:any)=>Promise<void>}){
+export function DiscussionInbox({revision,onOpenSource,onCount}:{onCount?:(count:number)=>void;revision:number;onOpenSource:(row:any)=>Promise<void>}){
  const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
  const [data,setData]=useState<any>(null),[error,setError]=useState(''),[offset,setOffset]=useState(0),[selected,setSelected]=useState<any>(null),[busy,setBusy]=useState(false);
+ useEffect(()=>{onCount?.(error?-1:data?.total||0);},[data?.total,error,onCount]);
  const load=useCallback(async(signal?:AbortSignal)=>{const d=await discussionRequest('/inbox?offset='+offset,undefined,signal);if(!d.rows.length&&offset){setOffset(0);return;}setData(d);setError('');},[offset]);
  useEffect(()=>{const controller=new AbortController();const refresh=()=>{if(document.visibilityState==='visible')void load(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});};refresh();const timer=setInterval(refresh,30000);window.addEventListener('focus',refresh);window.addEventListener('discussions-changed',refresh);return()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('discussions-changed',refresh);};},[load,revision]);
  const kindName=(kind:string)=>({claim:l('账单认领','Purchase claim'),movement:l('家庭转账','Family transfer'),transaction:l('共享账单','Shared transaction'),project:l('费用分摊','Cost allocation'),schedule:l('周期计划','Recurring plan')}[kind]);

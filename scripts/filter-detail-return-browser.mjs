@@ -7,7 +7,7 @@ const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const out=process.env.TEST_ARTIFACT_DIR;assert.ok(out);await mkdir(out,{recursive:true});
 const result=await build({stdin:{contents:`import {createRoot} from 'react-dom/client';import Workspace from './src/components/Workspace';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';createRoot(document.getElementById('root')).render(<LanguageProvider initial="zh-CN"><ThemeProvider initial="bear"><Workspace/></ThemeProvider></LanguageProvider>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"development"'},logLevel:'silent'});
 const js=result.outputFiles.find(f=>f.path.endsWith('.js')).contents;
-const css=(await Promise.all(['globals','mobile-refinement','desktop-refinement','workspace-polish'].map(n=>readFile(`src/app/${n}.css`,'utf8')))).join('\n')+'\n'+result.outputFiles.filter(f=>f.path.endsWith('.css')).map(f=>f.text).join('\n');
+const layout=await readFile('src/app/layout.tsx','utf8');const css=(await Promise.all([...layout.matchAll(/import ['"]\.\/(.+?\.css)['"]/g)].map(m=>readFile('src/app/'+m[1],'utf8')))).join('\n')+'\n'+result.outputFiles.filter(f=>f.path.endsWith('.css')).map(f=>f.text).join('\n');
 const server=createServer((req,res)=>{if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);}else if(req.url==='/style.css'){res.setHeader('Content-Type','text/css');res.end(css);}else if(req.url.startsWith('/fonts/'))readFile(resolve('public','.'+req.url)).then(b=>res.end(b)).catch(()=>{res.statusCode=404;res.end()});else res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"><style>main{max-width:1440px;margin:32px auto;padding:16px;width:100%}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>')});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM_PATH}),errors=[];
@@ -29,7 +29,8 @@ try{
  else if(path==='assets/funds/entry')data={canDelete:false,reason:'Read-only fixture'};
  else if(path==='assets')data=[account];
  else if(path==='expense-claims/for-record')data={canEdit:true,claim:null,people:[]};
- else if(path.includes('expense-claims'))data={items:[],total:0,people:[]};
+ else if(path.includes('expense-claims'))data={rows:[],items:[],total:0,people:[]};
+ else if(path==='discussions/inbox')data={rows:[],total:0};
  else if(path.startsWith('discussions')){return route.fulfill({status:404,json:{error:'Unavailable'}});}
  else if(path.endsWith('/budgets'))data=[{category:'餐饮',amount:100000}];
  else if(path.endsWith('/accounts'))data=[account];
@@ -47,7 +48,7 @@ try{
  for(const width of [1440,390])for(const foreign of [false,true]){
  cross=foreign;await page.setViewportSize({width,height:1000});await page.goto(`http://127.0.0.1:${server.address().port}/`);
  const nav=page.locator(width<600?'.mobile-nav':'#primary-navigation');await nav.getByRole('button',{name:'收支分析',exact:true}).click();
- await page.locator('#analysis-records .transaction-row').first().waitFor();
+ await page.getByRole('tab',{name:'明细',exact:true}).click();await page.locator('#analysis-records .transaction-row').first().waitFor();
  await page.getByRole('button',{name:'记账分类：全部分类',exact:true}).click();await page.getByRole('button',{name:'餐饮',exact:true}).click();await page.getByRole('button',{name:'奶茶',exact:true}).click();await page.getByRole('button',{name:'完成选择',exact:true}).click();
  await page.locator('#analysis-records').getByRole('button',{name:'收支类型: 全部类型',exact:true}).click();await page.getByRole('button',{name:'消费支出',exact:true}).click();await page.locator('#analysis-records').getByRole('button',{name:'明细排序: 时间 · 从新到旧',exact:true}).click();await page.getByRole('button',{name:'金额 · 从高到低',exact:true}).click();
  const search=page.getByRole('textbox',{name:'搜索流水',exact:true});await search.fill('Filter test');await page.waitForTimeout(350);
@@ -59,10 +60,12 @@ try{
  const exported=page.waitForRequest(r=>r.url().includes('/export?'));await page.getByRole('button',{name:'导出全部结果',exact:true}).click();assert.deepEqual(new URL((await exported).url()).searchParams.getAll('category'),['餐饮','奶茶']);
  await page.getByRole('button',{name:'记账分类：餐饮、奶茶',exact:true}).click();assert.equal(await page.getByRole('button',{name:'餐饮',exact:true}).getAttribute('aria-pressed'),'true');assert.equal(await page.getByRole('button',{name:'奶茶',exact:true}).getAttribute('aria-pressed'),'true');await page.screenshot({path:resolve(out,`category-picker-${width}.png`)});await page.getByRole('button',{name:'完成选择',exact:true}).click();
  // A chart drilldown remains open below the canonical entry detail.
+ await page.getByRole('tab',{name:'概览',exact:true}).click();
  await page.locator('.analysis-charts .chart-data-legend button').filter({hasText:'餐饮'}).first().click();
  await page.getByRole('dialog').last().getByRole('button').filter({hasText:row.title}).click();await page.getByRole('dialog').last().getByRole('button',{name:'修改记录',exact:true}).waitFor();await page.keyboard.press('Escape');
  assert.equal(await page.getByRole('dialog').count(),1);await page.getByRole('dialog').last().getByRole('button',{name:'关闭弹窗',exact:true}).click();assert.ok(await page.getByRole('button',{name:'记账分类：餐饮、奶茶',exact:true}).isVisible());assert.equal(await search.inputValue(),'Filter test');
  // Verification list filters survive opening and closing an entry.
+ await page.getByRole('tab',{name:'明细',exact:true}).click();
  await page.getByRole('button',{name:'待核验记录',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'打开核验',exact:true}).click();await page.getByRole('dialog').last().getByRole('button',{name:'修改记录',exact:true}).waitFor();await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),1);assert.ok(await page.getByRole('dialog').getByRole('button',{name:'打开核验',exact:true}).isVisible());await page.getByRole('dialog').getByRole('button',{name:'关闭弹窗',exact:true}).click();
 
  await page.getByRole('button',{name:'记账分类：餐饮、奶茶',exact:true}).click();await page.getByRole('button',{name:'奶茶',exact:true}).click();assert.equal(await page.getByRole('button',{name:'奶茶',exact:true}).getAttribute('aria-pressed'),'false');await page.getByRole('button',{name:'全部分类',exact:true}).click();await page.getByRole('button',{name:'完成选择',exact:true}).click();assert.ok(await page.getByRole('button',{name:'记账分类：全部分类',exact:true}).isVisible());
@@ -83,6 +86,6 @@ try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('.mobile-nav').getByRole('button',{name:'收支分析',exact:true}).click();await page.getByRole('button',{name:/钱包资金流 实际进出/}).click();
  await page.getByRole('searchbox',{name:'搜索资金明细',exact:true}).fill('Filter test');await page.getByRole('combobox',{name:'资金流动类型',exact:true}).selectOption('out');await page.locator('.funds-list button').first().waitFor();await page.locator('.funds-pagination').getByRole('button',{name:'下一页',exact:true}).click();await page.locator('.funds-list button').first().waitFor();const fundsPage=await page.locator('.funds-pagination').innerText();await page.locator('.funds-list button').first().click();await page.getByRole('dialog').getByRole('button',{name:'关闭弹窗',exact:true}).click();assert.equal(await page.getByRole('searchbox',{name:'搜索资金明细',exact:true}).inputValue(),'Filter test');assert.equal(await page.getByRole('combobox',{name:'资金流动类型',exact:true}).inputValue(),'out');assert.equal(await page.locator('.funds-pagination').innerText(),fundsPage);
  // Keeping the current book must not grant its write permission to a foreign read-only book.
- books[1].role='viewer';cross=true;await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('.mobile-nav').getByRole('button',{name:'收支分析',exact:true}).click();await page.locator('#analysis-records .transaction-row').first().click();await page.getByRole('dialog').getByRole('heading',{name:'这笔小记录',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').getByRole('button',{name:'修改记录',exact:true}).count(),0);assert.equal(await page.getByRole('dialog').getByRole('button',{name:'删除记录',exact:true}).count(),0);
+ books[1].role='viewer';cross=true;await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('.mobile-nav').getByRole('button',{name:'收支分析',exact:true}).click();await page.getByRole('tab',{name:'明细',exact:true}).click();await page.locator('#analysis-records .transaction-row').first().click();await page.getByRole('dialog').getByRole('heading',{name:'这笔小记录',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').getByRole('button',{name:'修改记录',exact:true}).count(),0);assert.equal(await page.getByRole('dialog').getByRole('button',{name:'删除记录',exact:true}).count(),0);
  assert.deepEqual(errors,[]);console.log('PASS: same/cross-book details preserve category, query and pagination; nested chart, verification and budget lists return to their previous state at desktop/mobile sizes.');
-}catch(e){console.error(errors,requests.slice(-8));throw e;}finally{await browser.close();server.close();}
+}catch(e){console.error(errors,requests.slice(-12));const p=browser.contexts()[0].pages()[0];console.error((await p.locator('body').innerText()).slice(-2300));await p.screenshot({path:resolve(out,'filter-failure.png')});throw e;}finally{await browser.close();server.close();}

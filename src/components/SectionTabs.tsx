@@ -1,0 +1,5 @@
+'use client';
+import {useId,type ReactNode} from 'react';
+export function SectionTabs({label,value,onChange,items}:{label:string;value:string;onChange:(key:string)=>void;items:{key:string;label:ReactNode;content:ReactNode}[]}){
+ const id=useId();return <div className="section-tabs"><div role="tablist" aria-label={label} onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const i=items.findIndex(t=>t.key===value),next=e.key==='Home'?0:e.key==='End'?items.length-1:(i+(e.key==='ArrowRight'?1:items.length-1))%items.length;e.preventDefault();onChange(items[next].key);document.getElementById(id+'-tab-'+items[next].key)?.focus();}}>{items.map(t=><button type="button" role="tab" id={id+'-tab-'+t.key} aria-controls={id+'-panel-'+t.key} aria-selected={t.key===value} tabIndex={t.key===value?0:-1} key={t.key} onClick={()=>onChange(t.key)}>{t.label}</button>)}</div>{items.map(t=><div role="tabpanel" id={id+'-panel-'+t.key} aria-labelledby={id+'-tab-'+t.key} hidden={value!==t.key} key={t.key}>{t.content}</div>)}</div>;
+}

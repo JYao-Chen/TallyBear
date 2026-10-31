@@ -1,4 +1,5 @@
 'use client';
+import {FormSelect} from './FormSelect';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowRight,BookOpen,ChevronLeft,ChevronRight,Clock3,Compass,History,LockKeyhole,MapPin,Plus,Search,Settings2,SlidersHorizontal,Sparkles,X} from 'lucide-react';
 import type {ProfileCondition,ProfileInsight,ProfileRule} from '@/lib/personal-profile';
@@ -32,7 +33,7 @@ export function PersonalProfile({admin=false,initialId}:{admin?:boolean;initialI
  const select=(i:ProfileInsight)=>{setSelected(i);setSourcePage(1);setEditor(null);};
  return <div className="personal-portrait">
   <header className="portrait-heading"><div><h2>{t('个人画像','Personal profile')}</h2><p>{t('从真实记账中学习，在不同场景下给出合适的建议。你始终决定采用什么。','Learned from your records, adapted to each context. You decide which suggestions to use.')}</p></div><span className="portrait-private"><LockKeyhole size={15}/>{t('仅自己可见','Only you can see this')}</span></header>
-  <nav className="portrait-tabs" aria-label={t('个人画像栏目','Personal profile sections')}>{tabs.map(([key,zh,english,Icon])=><button type="button" key={key} aria-current={section===key?'page':undefined} onClick={()=>switchSection(key)}><Icon size={17}/><span>{t(zh,english)}</span></button>)}</nav>
+  <label className="portrait-mobile-sections">{t('画像栏目','Profile section')}<FormSelect aria-label={t('画像栏目','Profile section')} value={section} onChange={switchSection}>{tabs.map(([key,zh,english])=><option value={key} key={key}>{t(zh,english)}</option>)}</FormSelect></label><nav className="portrait-tabs" aria-label={t('个人画像栏目','Personal profile sections')}>{tabs.map(([key,zh,english,Icon])=><button type="button" key={key} aria-current={section===key?'page':undefined} onClick={()=>switchSection(key)}><Icon size={17}/><span>{t(zh,english)}</span></button>)}</nav>
   {error&&<p className="error" role="alert">{error}<button type="button" className="text-button" onClick={()=>setRevision(n=>n+1)}>{t('重新加载','Reload')}</button></p>}{notice&&<p className="notice" role="status">{notice}</p>}
   {loading||loadedSection!==section?<p className="portrait-loading" role="status">{t('正在读取有效记录…','Reading current records…')}</p>:data&&<>
    {(section==='overview'||section==='review')&&<>

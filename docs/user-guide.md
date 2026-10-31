@@ -86,7 +86,7 @@ This scope follows money through accounts, not book membership:
 - Income, expenses and received refunds affect cash flow; transfers are shown as transfers and do not become income or spending. Credit purchases and repayments keep the debt semantics described below.
 - Current balances include archived personal wallets. Date filters control period flows, not a reconstructed historical closing balance.
 
-进入 **收支分析** 即可同时使用图表和明细。下方的日期、类型、钱包、分类与关键词筛选会同步更新汇总、图表、分页明细和 CSV 导出结果；无需再进入单独的“收支明细”。把范围从 **当前账本** 切换到 **我的个人钱包**，即可跨全部账本查看本人钱包的真实资金收支。这一范围只认当前用户本人持有的个人钱包，排除家庭共同钱包与其他成员钱包；关联复用到多本账本的同一事件只计算一次。转账会展示但不计入收支，退款冲减支出。当前余额包含已归档的本人钱包；日期范围用于期间流水，不代表历史期末余额。
+进入 **收支分析** 即可同时使用图表和明细。顶部的日期、类型、钱包、分类与关键词筛选会同步更新汇总、图表、分页明细和 CSV 导出结果；无需再进入单独的“收支明细”。把范围从 **当前账本** 切换到 **我的个人钱包**，即可跨全部账本查看本人钱包的真实资金收支。这一范围只认当前用户本人持有的个人钱包，排除家庭共同钱包与其他成员钱包；关联复用到多本账本的同一事件只计算一次。转账会展示但不计入收支，退款冲减支出。当前余额包含已归档的本人钱包；日期范围用于期间流水，不代表历史期末余额。
 
 In **Assets**, choose **My assets** or a family asset scope. Balance distribution, daily spending, daily income and category charts use the selected wallet ownership scope and date range; the wallet cash-flow table remains available below. Family scope includes only that family's shared wallets, not members' personal wallets. / 在 **资金资产** 中选择“我的资产”或某个家庭资产范围，余额分布、每日支出、每日收入和分类图表会按所选钱包归属及日期统计，下方仍保留钱包收支表。家庭范围只包含该家庭的共同钱包，不会混入成员个人钱包。
 
@@ -241,3 +241,11 @@ Deployment: apply `scripts/family-category-sharing.sql` before updating the appl
 收支分析、预算及活动分类统计按各项实际归属金额计算；类别可多选，汇总、图表、明细和导出共用选择。筛选后账单仍是一笔，列表显示匹配金额并注明整单金额，详情保留全部商品。钱包只记一次实际付款。关联原消费的全额退款未另填明细时沿用原单各类；部分商品退款可填写退款商品及类别。费用计划中明确设置的计划分类仍按计划统计。
 
 A payment can use one category for the whole order or separate categories for its items. Unassigned lines inherit the order category; an unassigned order discount is shared proportionally, with exact minor-unit rounding. Item amounts must be complete and reconciled before saving. AI prepares editable confirmation cards. Reports, budgets, activity breakdowns and exports use the matching category shares without adding another wallet debit. Switching back to one order category clears item categories while retaining the purchase details.
+
+## 分栏目查看与短表单
+
+记账时先填写金额、分类、日期、钱包和标题；消费对象、活动、订单备注及生活附图按需展开。桌面可直接编辑商品行，手机点击商品摘要展开该项。整单分类与按商品分类仍可自由切换。
+
+账目详情按“概览、商品、讨论、附件”查看，底部保留编辑等操作；切换栏目保留未发送的讨论文字。家庭往来的私人补充信息位于“我的记录”。
+
+AI 批量识别后，先在列表选择一笔再编辑，可按“待核对、可保存、已跳过”筛选。收支分析的“概览”和“明细”共用顶部筛选，多类别可一起统计，打开详情后返回保留筛选与分页。费用分摊创建按三个步骤填写，返回上一步可继续修改。

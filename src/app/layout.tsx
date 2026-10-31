@@ -20,3 +20,5 @@ import '../components/transaction-balances.css';
 import '../components/discussion.css';
 
 import '../components/expense-claims.css';
+
+import './task-layout.css';
