@@ -1,9 +1,10 @@
 // Mirrors categoryAmounts; reads existing JSON item details, never creates wallet movements.
 export function categoryPartsSql(t='t',amount=t+'.amount'){
- return `(SELECT CASE WHEN EXISTS(SELECT 1 FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'category','')<>'') THEN (
- WITH weights AS (SELECT COALESCE(NULLIF(i->>'category',''),${t}.category) COLLATE "C" AS category,sum(COALESCE((i->>'amount')::numeric,0)) AS weight
- FROM jsonb_array_elements(${t}.line_items) i WHERE NOT ((COALESCE(i->>'kind','item')='discount' OR COALESCE((i->>'amount')::numeric,0)<0) AND COALESCE(i->>'category','')='') GROUP BY 1), shares AS (
- SELECT category,weight,sum(weight) OVER(ORDER BY category) AS cumulative,sum(weight) OVER() AS total FROM weights WHERE weight<>0)
+ return `(SELECT CASE WHEN EXISTS(SELECT 1 FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'kind','item') NOT IN ('discount','fee') AND COALESCE((i->>'amount')::numeric,0)>=0 AND COALESCE(i->>'category','')<>'') THEN (
+ WITH goods AS (SELECT COALESCE(NULLIF(i->>'category',''),${t}.category) COLLATE "C" AS category,sum(COALESCE((i->>'amount')::numeric,0)) AS weight
+ FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'kind','item') NOT IN ('discount','fee') AND COALESCE((i->>'amount')::numeric,0)>=0 GROUP BY 1), weights AS (
+ SELECT g.category,g.weight+COALESCE((SELECT sum(COALESCE((i->>'amount')::numeric,0)) FROM jsonb_array_elements(${t}.line_items) i WHERE (COALESCE(i->>'kind','item') IN ('discount','fee') OR COALESCE((i->>'amount')::numeric,0)<0) AND i->>'category'=g.category),0) AS weight FROM goods g), shares AS (
+ SELECT category,weight,sum(weight) OVER(ORDER BY category) AS cumulative,sum(weight) OVER() AS total FROM weights WHERE weight>0)
  SELECT COALESCE(jsonb_agg(jsonb_build_object('category',category,'amount',floor(${amount}::numeric*cumulative/total)-floor(${amount}::numeric*(cumulative-weight)/total)) ORDER BY category),'[]'::jsonb) FROM shares
  ) ELSE jsonb_build_array(jsonb_build_object('category',${t}.category,'amount',${amount})) END)`;
 }
