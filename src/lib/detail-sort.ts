@@ -2,10 +2,11 @@ export const detailSorts=['date_desc','date_asc','amount_desc','amount_asc'] as 
 export type DetailSort=typeof detailSorts[number];
 export function detailSort(value:string|null|undefined):DetailSort{return detailSorts.includes(value as DetailSort)?value as DetailSort:'date_desc';}
 // Expressions are supplied by query builders, never by request parameters.
-export function detailOrder(value:string,amount='amount',id='id',time=true,prefix=''){
+export function detailOrder(value:string,amount='amount',id='id',time=true,prefix='',allocations=false){
  const sort=detailSort(value),direction=sort.endsWith('_asc')?'ASC':'DESC';
  const chronological=`${prefix}date ${direction},${time?`COALESCE(NULLIF(${prefix}occurred_at,''),to_char(${prefix}created_at AT TIME ZONE 'Asia/Shanghai','HH24:MI:SS')) ${direction},`:''}${prefix}created_at ${direction},${id} ${direction}`;
- return sort.startsWith('amount')?`abs(${amount}) ${direction} NULLS LAST,${prefix}date DESC,${prefix}created_at DESC,${id} DESC`:chronological;
+ const allocationOrder=allocations&&sort==='date_desc'?`(${prefix}cost_row_key IS NOT NULL) ASC,`:'';
+ return sort.startsWith('amount')?`abs(${amount}) ${direction} NULLS LAST,${prefix}date DESC,${prefix}created_at DESC,${id} DESC`:allocationOrder+chronological;
 }
 export function sortDetails<T>(rows:T[],value:DetailSort,fields:(row:T)=>{date:string;time?:string|null;created?:string|Date|null;amount:number|null;id:string}){
  return [...rows].sort((a,b)=>{

@@ -31,3 +31,10 @@ test('资金明细先排序全部匹配结果再分页，不改变输入、汇�
  params.set('offset','20');const second=fundRowsPage(rows,params);assert.equal(second.rows[0].amount,500);assert.equal(second.rows.at(-1)?.amount,100);
  assert.deepEqual(rows,original);
 });
+
+test('默认时间倒序把分摊放在真实流水之后，金额和正序排序仍遵循选择',()=>{
+ assert.match(detailOrder('date_desc','amount','id',true,'',true),/^\(cost_row_key IS NOT NULL\) ASC,date DESC/);
+ assert.ok(!detailOrder('date_asc','amount','id',true,'',true).includes('cost_row_key'));
+ assert.ok(!detailOrder('amount_desc','amount','id',true,'',true).includes('cost_row_key'));
+ assert.ok(!detailOrder('date_desc').includes('cost_row_key'));
+});

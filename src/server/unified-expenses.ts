@@ -29,7 +29,7 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
    const {plan,periods}=calculateCostPlan({...scheduled,sources:[{transactionId:p.id,amount:p.amount}],shares:[{userId:p.sender_id,amount:p.amount}]});
    for(const period of periods){const start=period.start>from?period.start:from,end=period.end<until?period.end:until;
     if(end<=start)continue;const amount=intersectAmount(period.amount,period.start,period.end,start,end);if(!amount)continue;
-    rows.push({id:p.id,book_id:p.book_id,created_by:p.sender_id,kind:'expense',amount,date:start,title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.created_at,cost_project_id:null,cost_owner_id:p.sender_id,cost_basis_amount:period.amount,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`prepaid:${p.id}:${p.due_date}:${p.sender_id}:${period.start}`});
+    rows.push({id:p.id,book_id:p.book_id,created_by:p.sender_id,kind:'expense',amount,date:start,occurred_at:'00:00:00',title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.created_at,cost_project_id:null,cost_owner_id:p.sender_id,cost_basis_amount:period.amount,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`prepaid:${p.id}:${p.due_date}:${p.sender_id}:${period.start}`});
    }
   }
   for(const p of projects){
@@ -44,7 +44,7 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
    for(const m of members){const destinations=new Set([...sharedBooks,...(books.includes(m.book_id)?[m.book_id]:[])]);if(!destinations.size)continue;
     for(const period of periods){const start=period.start>from?period.start:from,end=period.end<until?period.end:until;
      if(end<=start)continue;const amount=intersectAmount(period.shares.find(s=>s.userId===m.user_id)?.amount||0,period.start,period.end,start,end);if(!amount)continue;
-     for(const bookId of destinations)rows.push({id:p.id,book_id:bookId,created_by:m.user_id,kind:'expense',amount,date:start,title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.updated_at,cost_project_id:p.id,cost_owner_id:m.user_id,cost_basis_amount:period.shares.find(s=>s.userId===m.user_id)?.amount||0,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`${p.id}:${m.user_id}:${period.start}`});
+     for(const bookId of destinations)rows.push({id:p.id,book_id:bookId,created_by:m.user_id,kind:'expense',amount,date:start,occurred_at:'00:00:00',title:plan.title,category:plan.category,payee:'',note:'',line_items:[],scene:{},deleted:false,version:p.version,created_at:p.created_at,updated_at:p.updated_at,cost_project_id:p.id,cost_owner_id:m.user_id,cost_basis_amount:period.shares.find(s=>s.userId===m.user_id)?.amount||0,cost_basis_start:period.start,cost_basis_end:period.end,cost_period_end:end,cost_row_key:`${p.id}:${m.user_id}:${period.start}`});
     }
    }
   }
@@ -73,7 +73,7 @@ export async function unifiedExpenseSource(books:string[],from:string,to:string,
     const monthAmount=periodShare(Math.abs(net),t.start,t.period_unit,t.period_count,month.slice(0,7));
     const periodStart=month>t.start?month:t.start,periodEnd=monthEnd<finish?monthEnd:finish;
     const amount=intersectAmount(monthAmount,periodStart,periodEnd,start,end);if(!amount)continue;
-    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,cost_owner_id:costOwner,cost_basis_amount:monthAmount,cost_basis_start:periodStart,cost_basis_end:periodEnd,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'',line_items:categoryItems,cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
+    for(const copy of copies)rows.push({...t,id:copy.id,event_id:null,book_id:copy.book_id,created_by:copy.created_by,account_id:null,target_id:null,cost_owner_id:costOwner,cost_basis_amount:monthAmount,cost_basis_start:periodStart,cost_basis_end:periodEnd,amount,kind:net<0?'refund':'expense',date:start,occurred_at:'00:00:00',line_items:categoryItems,cost_period_end:end,cost_row_key:`legacy:${t.event}:${month}`});
    }
   }
   return {claims,rows,excluded,refunds};
