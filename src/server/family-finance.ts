@@ -21,7 +21,15 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  const details=(await c.query('SELECT * FROM family_movement_details WHERE user_id=$1',[user])).rows;const attachments=(await c.query('SELECT id,movement_id,name,movement_purpose AS purpose FROM receipt_files WHERE user_id=$1 AND movement_id=ANY($2::uuid[]) ORDER BY created_at',[user,movements.map(v=>v.id)])).rows;
  const display=await movementBookOptions(c,user);const links=(await c.query('SELECT movement_id,book_id FROM family_movement_books WHERE user_id=$1',[user])).rows;return {userId:user,people,wallets,movements:movements.map(v=>({...v,details:details.find(d=>d.movement_id===v.id)||null,attachments:attachments.filter(a=>a.movement_id===v.id),displayBookId:links.find(l=>l.movement_id===v.id)?.book_id||null})),expenses,...display};
  }
- const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit','correct-source'])}).parse(body).operation;
+ const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit','correct-source','edit-note'])}).parse(body).operation;
+ if(op==='edit-note'){
+ const b=z.object({id:uuid,note:z.string().trim().max(500),expectedNote:z.string().max(500)}).parse(body);
+ const v=(await c.query('SELECT sender_id,status,note FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];
+ if(!v||v.sender_id!==user)throw new Failure('只有转出人可以修改转账留言',403);
+ if(v.status==='cancelled')throw new Failure('已取消的转账不能修改留言');
+ if(v.note!==b.expectedNote)throw new Failure('转账留言已变化，请刷新后再修改',409);
+ await c.query('UPDATE family_movements SET note=$2 WHERE id=$1',[b.id,b.note]);return {ok:true,note:b.note};
+ }
  if(op==='correct-source'){
  const b=z.object({id:uuid,sourceId:uuid,expectedSourceId:uuid}).parse(body);
  const v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];
@@ -32,7 +40,7 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  if(source.id===v.target_id)throw new Failure('转入与转出钱包不能相同');
  if(v.kind!=='transfer'&&source.owner_id!==user)throw new Failure('此用途需要使用本人的个人钱包');
  await c.query('UPDATE family_movements SET source_id=$2 WHERE id=$1',[b.id,source.id]);
- await c.query('INSERT INTO family_movement_details(movement_id,user_id,note,platform,external_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(movement_id,user_id) DO UPDATE SET updated_at=now()',[b.id,user,v.note,v.platform||'',v.external_id||'']);
+ await c.query('INSERT INTO family_movement_details(movement_id,user_id,note,platform,external_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(movement_id,user_id) DO UPDATE SET updated_at=now()',[b.id,user,'',v.platform||'',v.external_id||'']);
  return {ok:true};
  }
  if(op==='edit'){

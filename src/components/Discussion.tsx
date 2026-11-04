@@ -9,7 +9,7 @@ export async function discussionRequest(path:string,body?:unknown,signal?:AbortS
  const r=await fetch('/api/discussions'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal});
  const d=await r.json();if(!r.ok)throw Object.assign(new Error(d.error||'Request failed'),{status:r.status});return d;
 }
-export function Discussion({target,hideUnavailable=false}:{target:DiscussionTarget;hideUnavailable?:boolean}){
+export function Discussion({target,hideUnavailable=false,revision}:{target:DiscussionTarget;hideUnavailable?:boolean;revision?:string}){
  const {locale}=useI18n(),en=locale==='en',l=(zh:string,english:string)=>en?english:zh;
  const inputId=useId(),[data,setData]=useState<any>(null),[error,setError]=useState(''),[unavailable,setUnavailable]=useState(false),[text,setText]=useState(''),[reply,setReply]=useState<DiscussionMessage|null>(null),[busy,setBusy]=useState(false),[offset,setOffset]=useState(0),[loading,setLoading]=useState(true);
  const requestId=useRef(''),section=useRef<HTMLElement>(null),lastMarked=useRef('');
@@ -23,7 +23,7 @@ export function Discussion({target,hideUnavailable=false}:{target:DiscussionTarg
   const d=await discussionRequest('?'+new URLSearchParams({kind,id,scope,offset:String(offset)}),undefined,signal);
   setData(d);setError('');setUnavailable(false);
   await markRead(d,signal);
- },[kind,id,scope,offset,markRead]);
+ },[kind,id,scope,offset,markRead,revision]);
  useEffect(()=>{if(!data||!section.current)return;const controller=new AbortController();const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting))void markRead(data,controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});});observer.observe(section.current);return()=>{controller.abort();observer.disconnect();};},[data,markRead]);
  useEffect(()=>{const controller=new AbortController();setLoading(true);setData(null);setError('');setUnavailable(false);
   load(controller.signal).catch(e=>{if(!controller.signal.aborted){if(e.status===404&&hideUnavailable)setUnavailable(true);else setError(e.message);}}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});

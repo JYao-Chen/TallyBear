@@ -42,3 +42,8 @@ test('能力目录覆盖新增认领讨论预算草稿和家庭钱包更正',()=
  const draft=resolveOperation({operation:'draft_save',params:{bookId:user.id,section:'manual',version:1,value:{}}},user);assert.equal(draft.body.version,1);
  assert.deepEqual(resolveOperation({operation:'organize_preview',params:{bookId:user.id,id:[user.id]}},user).body.id,[user.id]);
 });
+
+test('共享留言与私人备注使用不同助手操作',()=>{
+ const shared=resolveOperation({operation:'family_movement_note',params:{familyId:user.id,id:user.id,note:'共享',expectedNote:''}},user);assert.equal(shared.body.operation,'edit-note');
+ assert.equal(resolveOperation({operation:'family_movement_edit',params:{familyId:user.id,id:user.id,note:'私人'}},user).body.operation,'edit');
+});
