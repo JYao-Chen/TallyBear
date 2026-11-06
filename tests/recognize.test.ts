@@ -30,3 +30,11 @@ test('nine images batch automatically and complementary orders merge without add
   assert.equal(result.entries[0].amount,1800);assert.ok(result.entries[0].source.includes('原图9'));assert.equal(result.ignored.length,1);assert.deepEqual(result.entries[1].missing,['金额','账户']);
  }finally{db.query=originalQuery;globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.ENCRYPTION_KEY;else process.env.ENCRYPTION_KEY=oldKey;}
 });
+test('empty recognition is an actionable failure and empty old checkpoints do not become successful drafts',async()=>{
+ const originalQuery=db.query,originalFetch=globalThis.fetch,oldKey=process.env.ENCRYPTION_KEY;process.env.ENCRYPTION_KEY=Buffer.alloc(32,1).toString('base64');let calls=0;
+ try{
+  (db as any).query=async(sql:string)=>({rows:sql.includes('ai_settings')?[{base_url:'https://fixture.invalid',vision_model:'vision',model:'text',encrypted_key:encrypt('test-key')}]:[]});
+  globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({entries:[]})}}]}),{headers:{'Content-Type':'application/json'}});};
+  await assert.rejects(recognize(randomUUID(),{text:'看这张账单',images:['data:image/png;base64,'+readFileSync(new URL('./fixtures/itemized-receipt.png',import.meta.url)).toString('base64')],useHistory:false},{checkpoint:{get:async key=>key==='extracted'?{proposals:[],ignored:[],message:''}:key==='batch:0'?{entries:[]}:undefined,set:async()=>{}}}),/未识别到可入账记录/);assert.ok(calls>0);
+ }finally{db.query=originalQuery;globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.ENCRYPTION_KEY;else process.env.ENCRYPTION_KEY=oldKey;}
+});

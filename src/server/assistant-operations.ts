@@ -147,6 +147,7 @@ export const assistantOperations:Record<string,Operation>={
  ai_test:{...operation('测试记账模型连接','POST','ai-settings','','',{background:true}),admin:true},
  assistant_update:{...operation('修改助手模型（保留密钥）','PUT','assistant-ai-settings','baseUrl model visionModel','保留现有密钥'),admin:true},
  assistant_test:{...operation('测试助手模型连接','POST','assistant-ai-settings','','',{background:true}),admin:true},
+ memory_models_reuse:{...operation('复用现有模型密钥修复记忆连接','PUT','memories','role source','role=embedding/extraction/judgment；source=recognition/assistant；仅同一服务地址可复用，不改变模型或向量版本',{operation:'reuse-key'}),query:'admin=models',admin:true},
  memory_models_update:{...operation('修改记忆模型（保留密钥）','PUT','memories','role base_url model dimensions','role=embedding/extraction/judgment；更换嵌入模型需要重建'),query:'admin=models',admin:true},
  assistant_settings:{...operation('查询助手模型配置','GET','assistant-ai-settings',''),admin:true},
  memory_models:{...operation('查询记忆模型配置','GET','memories','',''),query:'admin=models',admin:true},
