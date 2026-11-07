@@ -21,7 +21,7 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  const details=(await c.query('SELECT * FROM family_movement_details WHERE user_id=$1',[user])).rows;const attachments=(await c.query('SELECT id,movement_id,name,movement_purpose AS purpose FROM receipt_files WHERE user_id=$1 AND movement_id=ANY($2::uuid[]) ORDER BY created_at',[user,movements.map(v=>v.id)])).rows;
  const display=await movementBookOptions(c,user);const links=(await c.query('SELECT movement_id,book_id FROM family_movement_books WHERE user_id=$1',[user])).rows;return {userId:user,people,wallets,movements:movements.map(v=>({...v,details:details.find(d=>d.movement_id===v.id)||null,attachments:attachments.filter(a=>a.movement_id===v.id),displayBookId:links.find(l=>l.movement_id===v.id)?.book_id||null})),expenses,...display};
  }
- const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit','correct-source','edit-note'])}).parse(body).operation;
+ const op=z.object({operation:z.enum(['create','confirm','cancel','shares','display','edit','correct-source','correct-target','edit-note'])}).parse(body).operation;
  if(op==='edit-note'){
  const b=z.object({id:uuid,note:z.string().trim().max(500),expectedNote:z.string().max(500)}).parse(body);
  const v=(await c.query('SELECT sender_id,status,note FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];
@@ -41,6 +41,19 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  if(v.kind!=='transfer'&&source.owner_id!==user)throw new Failure('此用途需要使用本人的个人钱包');
  await c.query('UPDATE family_movements SET source_id=$2 WHERE id=$1',[b.id,source.id]);
  await c.query('INSERT INTO family_movement_details(movement_id,user_id,note,platform,external_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(movement_id,user_id) DO UPDATE SET updated_at=now()',[b.id,user,'',v.platform||'',v.external_id||'']);
+ return {ok:true};
+ }
+ if(op==='correct-target'){
+ const b=z.object({id:uuid,targetId:uuid,expectedTargetId:uuid}).parse(body);
+ const v=(await c.query('SELECT * FROM family_movements WHERE id=$1 AND family_id=$2 FOR UPDATE',[b.id,family])).rows[0];
+ if(!v||v.recipient_id!==user)throw new Failure('只能由收款人更正到账钱包',403);
+ if(v.status!=='confirmed')throw new Failure('只有已到账的转账可以更正到账钱包');
+ if(v.target_id!==b.expectedTargetId)throw new Failure('到账钱包已改变，请刷新后再更正',409);
+ const target=await wallet(c,b.targetId,user,family);
+ if(target.owner_id!==user)throw new Failure('请选择自己的到账钱包');
+ if(target.id===v.source_id)throw new Failure('转入与转出钱包不能相同');
+ await c.query('UPDATE family_movements SET target_id=$2 WHERE id=$1',[b.id,target.id]);
+ await c.query('INSERT INTO family_movement_details(movement_id,user_id) VALUES($1,$2) ON CONFLICT(movement_id,user_id) DO UPDATE SET updated_at=now()',[b.id,user]);
  return {ok:true};
  }
  if(op==='edit'){

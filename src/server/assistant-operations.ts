@@ -11,6 +11,7 @@ export const assistantOperations:Record<string,Operation>={
  profile_place_delete:operation('删除消费区域','POST','personal-profile','id','',{operation:'delete_place'}),
  profile_locations_forget:operation('清除本人位置关联','POST','personal-profile','','',{operation:'forget_locations'}),
  profile_export:operation('导出本人画像与规则','POST','personal-profile','','',{operation:'export'}),
+ family_movement_target:operation('更正家庭转款到账钱包','POST','family-finance/:familyId','id targetId expectedTargetId','先查询family_finance中的原target_id和本人可用钱包；仅已到账的收款人更正，不重复收款',{operation:'correct-target'}),
  family_movement_source:operation('更正家庭转款付款钱包','POST','family-finance/:familyId','id sourceId expectedSourceId','先查询family_finance中的原source_id和本人可用钱包；仅转出人更正，不重复转账',{operation:'correct-source'}),
  transaction_detail:operation('查询完整已入账账单','GET','books/:bookId/transactions','id','返回场景、商品、版本与完整字段；修改场景摘要使用prepare_transaction_change的changes.scene.summary'),
  claim_people:operation('查询可指定的认领成员','GET','expense-claims/people',''),

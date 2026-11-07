@@ -21,8 +21,22 @@ test('家庭往来付款钱包更正：已到账余额、待收款、权限与�
    const history=await attachWalletBalances<{id:string;wallet_balances?:{account_id:string}[]}>(f.alice,[{id:f.movement}]);assert.ok(history[0].wallet_balances?.some(b=>b.account_id===f.wallet));assert.ok(!history[0].wallet_balances?.some(b=>b.account_id===bank));
    await assert.rejects(()=>correct(f.bob,f.bobWallet,f.wallet),/转出人/);await assert.rejects(()=>correct(f.carol,bank,f.wallet),/转出人/);await assert.rejects(()=>correct(f.alice,bank,bank),/已改变/);await assert.rejects(()=>correct(f.alice,f.bobWallet,f.wallet),/自己的钱包/);await assert.rejects(()=>correct(f.alice,archived,f.wallet),/自己的钱包/);
    await c.query("UPDATE family_movements SET kind='loan',expense_id=$2 WHERE id=$1",[f.movement,f.expense]);await assert.rejects(()=>correct(f.alice,shared,f.wallet),/个人钱包/);await correct(f.alice,bank,f.wallet);assert.equal((await c.query('SELECT expense_id FROM family_movements WHERE id=$1',[f.movement])).rows[0].expense_id,f.expense);
+   const receiveBank=randomUUID();await c.query("INSERT INTO accounts(id,name,type,owner_id,opening) VALUES($1,'收款银行卡','bank',$2,200000)",[receiveBank,f.bob]);
+   const targetCorrect=(user:string,targetId:string,expectedTargetId:string)=>familyFinance(user,f.family,'POST',{operation:'correct-target',id:f.movement,targetId,expectedTargetId},c);
+   const beforeTarget=(await c.query('SELECT * FROM family_movements WHERE id=$1',[f.movement])).rows[0];const payerBalance=(await balances())[bank];
+   await c.query("INSERT INTO family_movement_details(movement_id,user_id,note) VALUES($1,$2,'收款私密备注')",[f.movement,f.bob]);
+   await targetCorrect(f.bob,receiveBank,f.bobWallet);
+   assert.equal((await balances())[f.bobWallet],before[f.bobWallet]);assert.equal((await balances())[bank],payerBalance);
+   assert.equal(Number((await c.query(`SELECT ${accountBalance} AS balance FROM accounts a WHERE a.id=$1`,[receiveBank])).rows[0].balance),210000);
+   const afterTarget=(await c.query('SELECT * FROM family_movements WHERE id=$1',[f.movement])).rows[0];assert.deepEqual({...afterTarget,target_id:beforeTarget.target_id},beforeTarget,'receiving correction only changes target');
+   assert.equal((await c.query('SELECT note FROM family_movement_details WHERE movement_id=$1 AND user_id=$2',[f.movement,f.bob])).rows[0].note,'收款私密备注');
+   await assert.rejects(()=>targetCorrect(f.alice,bank,receiveBank),/收款人/);await assert.rejects(()=>targetCorrect(f.carol,shared,receiveBank),/收款人/);
+   await assert.rejects(()=>targetCorrect(f.bob,f.bobWallet,f.bobWallet),/已改变/);await assert.rejects(()=>targetCorrect(f.bob,bank,receiveBank),/自己的钱包/);await assert.rejects(()=>targetCorrect(f.bob,shared,receiveBank),/自己的到账钱包/);
+   await targetCorrect(f.bob,receiveBank,receiveBank);assert.equal(Number((await c.query(`SELECT ${accountBalance} AS balance FROM accounts a WHERE a.id=$1`,[receiveBank])).rows[0].balance),210000,'repeat correction does not double credit');
+   const receivedHistory=await attachWalletBalances<{id:string;wallet_balances?:{account_id:string}[]}>(f.bob,[{id:f.movement}]);assert.ok(receivedHistory[0].wallet_balances?.some(b=>b.account_id===receiveBank));assert.ok(!receivedHistory[0].wallet_balances?.some(b=>b.account_id===f.bobWallet));
+   await c.query("UPDATE family_movements SET status='pending' WHERE id=$1",[f.movement]);await assert.rejects(()=>targetCorrect(f.bob,f.bobWallet,receiveBank),/已到账/);await c.query("UPDATE family_movements SET status='confirmed' WHERE id=$1",[f.movement]);
    const direct=randomUUID();await familyFinance(f.alice,f.family,'POST',{operation:'create',id:direct,sourceId:bank,targetId:shared,kind:'transfer',amount:35000,date:'2026-10-19',allowSimilar:true},c);await assert.rejects(()=>correct(f.alice,shared,bank,direct),/不能相同/);
-   await c.query("UPDATE family_movements SET status='cancelled' WHERE id=$1",[f.movement]);await assert.rejects(()=>correct(f.alice,f.wallet,bank),/已取消/);
+   await c.query("UPDATE family_movements SET status='cancelled' WHERE id=$1",[f.movement]);await assert.rejects(()=>correct(f.alice,f.wallet,bank),/已取消/);await assert.rejects(()=>targetCorrect(f.bob,f.bobWallet,receiveBank),/已到账/);
   });
  }finally{await c.query('ROLLBACK');c.release();await db.end();}
 });
