@@ -21,7 +21,7 @@ try{
  user='recipient';await load();assert.equal(await page.getByRole('button',{name:'更正转出钱包',exact:true}).count(),0);
  fail=false;
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});await load();await page.getByRole('button',{name:'更正到账钱包',exact:true}).click();await page.getByRole('button',{name:/^正确的到账钱包：/}).click();assert.equal(await page.getByRole('button',{name:'建设银行 · 1234',exact:true}).count(),0);await page.getByRole('button',{name:'收款银行',exact:true}).click();await page.getByRole('button',{name:'确认更正钱包',exact:true}).click();await page.waitForFunction(()=>window.refreshed&&window.closedDetail);assert.deepEqual(body,{operation:'correct-target',id:'movement',targetId:'receivebank',expectedTargetId:'received'});
+  await page.setViewportSize({width,height:1000});await load();assert.equal(await page.getByRole('button',{name:'更正到账钱包',exact:true}).count(),0);await page.getByRole('button',{name:'修改私人记录',exact:true}).click();await page.getByRole('button',{name:/^到账钱包：/}).click();assert.equal(await page.getByRole('button',{name:'建设银行 · 1234',exact:true}).count(),0);await page.getByRole('button',{name:'收款银行',exact:true}).click();await page.getByRole('button',{name:'保存私人记录',exact:true}).click();await page.waitForFunction(()=>window.refreshed&&window.closedDetail);assert.equal(body.operation,'edit');assert.equal(body.targetId,'receivebank');assert.equal(body.expectedTargetId,'received');
  }
  status='pending';await load();assert.equal(await page.getByRole('button',{name:'更正到账钱包',exact:true}).count(),0);
  status='cancelled';await load();assert.equal(await page.getByRole('button',{name:'更正到账钱包',exact:true}).count(),0);

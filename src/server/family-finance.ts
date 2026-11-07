@@ -57,8 +57,9 @@ export async function familyFinance(user:string,familyId:string,method:string,bo
  return {ok:true};
  }
  if(op==='edit'){
- const b=z.object({id:uuid,displayBookId:uuid.nullable(),title:z.string().trim().max(200),note:z.string().max(2000),transactionTime:z.string().regex(/^(|([01]\d|2[0-3]):[0-5]\d)$/),platform:z.string().trim().max(60),externalId:z.string().trim().max(200),removeAttachments:z.array(uuid).default([])}).parse(body);
+ const b=z.object({id:uuid,displayBookId:uuid.nullable(),title:z.string().trim().max(200),note:z.string().max(2000),transactionTime:z.string().regex(/^(|([01]\d|2[0-3]):[0-5]\d)$/),platform:z.string().trim().max(60),externalId:z.string().trim().max(200),targetId:uuid.optional(),expectedTargetId:uuid.optional(),removeAttachments:z.array(uuid).default([])}).parse(body);
  const v=(await c.query('SELECT sender_id,recipient_id FROM family_movements WHERE id=$1 AND family_id=$2',[b.id,family])).rows[0];if(!v||![v.sender_id,v.recipient_id].includes(user))throw new Failure('只能编辑自己的往来记录',403);
+ if(b.targetId)await familyFinance(user,family,'POST',{operation:'correct-target',id:b.id,targetId:b.targetId,expectedTargetId:b.expectedTargetId},c);
  await c.query(`INSERT INTO family_movement_details(movement_id,user_id,title,note,transaction_time,platform,external_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(movement_id,user_id) DO UPDATE SET title=EXCLUDED.title,note=EXCLUDED.note,transaction_time=EXCLUDED.transaction_time,platform=EXCLUDED.platform,external_id=EXCLUDED.external_id,updated_at=now()`,[b.id,user,b.title,b.note,b.transactionTime,b.platform,b.externalId]);
  await c.query('UPDATE receipt_files SET movement_id=NULL,movement_purpose=NULL,temporary=true WHERE id=ANY($1::uuid[]) AND movement_id=$2 AND user_id=$3',[b.removeAttachments,b.id,user]);
  await linkMovementBook(c,user,b.id,b.displayBookId);return {ok:true};

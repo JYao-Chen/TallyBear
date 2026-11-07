@@ -25,7 +25,7 @@ test('家庭往来付款钱包更正：已到账余额、待收款、权限与�
    const targetCorrect=(user:string,targetId:string,expectedTargetId:string)=>familyFinance(user,f.family,'POST',{operation:'correct-target',id:f.movement,targetId,expectedTargetId},c);
    const beforeTarget=(await c.query('SELECT * FROM family_movements WHERE id=$1',[f.movement])).rows[0];const payerBalance=(await balances())[bank];
    await c.query("INSERT INTO family_movement_details(movement_id,user_id,note) VALUES($1,$2,'收款私密备注')",[f.movement,f.bob]);
-   await targetCorrect(f.bob,receiveBank,f.bobWallet);
+   await familyFinance(f.bob,f.family,'POST',{operation:'edit',id:f.movement,targetId:receiveBank,expectedTargetId:f.bobWallet,displayBookId:null,title:'收款记录',note:'收款私密备注',transactionTime:'12:30',platform:'',externalId:''},c);
    assert.equal((await balances())[f.bobWallet],before[f.bobWallet]);assert.equal((await balances())[bank],payerBalance);
    assert.equal(Number((await c.query(`SELECT ${accountBalance} AS balance FROM accounts a WHERE a.id=$1`,[receiveBank])).rows[0].balance),210000);
    const afterTarget=(await c.query('SELECT * FROM family_movements WHERE id=$1',[f.movement])).rows[0];assert.deepEqual({...afterTarget,target_id:beforeTarget.target_id},beforeTarget,'receiving correction only changes target');
