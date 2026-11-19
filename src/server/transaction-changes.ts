@@ -1,3 +1,4 @@
+import {attachEntryInstallment} from './entry-installment';
 import type {PoolClient} from 'pg';
 import {z} from 'zod';
 import {Failure} from './access';
@@ -49,5 +50,6 @@ export async function applyTransactionChange(c:PoolClient,book:string,user:strin
  if(value.activityId!==undefined)await setEntryActivity(c,user,book,id,value.activityId);
  if(previous.category!==value.category&&(value.kind==='expense'||value.kind==='income'))await recordCategoryFeedback(c,book,user,value,previous.category);
  if(value.kind==='expense')await c.query('UPDATE transactions SET category=$1,version=version+1 WHERE book_id=$2 AND refund_of=$3 AND NOT deleted',[value.category,book,value.id]);
- return {id,deleted:false,version:result.rows[0].version};
+ await attachEntryInstallment(c,book,user,id,value.installment);
+ return {id,deleted:false,version:value.installment?(await c.query('SELECT version FROM transactions WHERE id=$1',[id])).rows[0].version:result.rows[0].version};
 }

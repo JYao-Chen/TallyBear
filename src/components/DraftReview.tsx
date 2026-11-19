@@ -1,4 +1,5 @@
 'use client';
+import {EntryInstallmentFields} from './EntryInstallmentFields';
 import {PagedList} from './PagedList';
 import {verifyItemTotal} from '@/lib/line-items';
 import {ClaimRecipientSelect} from './ClaimRecipientSelect';
@@ -27,7 +28,7 @@ import {purchaseDefaults,purchaseFromRow} from '@/lib/purchase-memory';
 import {RefundPicker} from './RefundPicker';
 import {amountToCents} from '@/server/model';
 import type {CategorySuggestion} from '@/lib/category-learning';
-export type Draft={claimRecipientId?:string|null;preferenceSuggestions?:import('@/lib/preference-learning').PreferenceSuggestion[];memorySuggestions?:import("@/lib/memory").MemorySuggestion[];activityId?:string|null;categorySource?:'explicit'|'model';categorySuggestion?:CategorySuggestion;walletCandidates?:string[];walletMatch?:'funding'|'channel';receiptOrigin?:import('@/lib/receipt-origin').ReceiptOrigin;scene?:EntryScene;targetBook?:string;title?:string;photoIds?:string[];retainReceipts?:boolean;verificationReason?:string;attachmentIds?:string[];lineItems?:LineItem[];id:string;accountId:string;targetId?:string|null;kind:'income'|'expense'|'transfer'|'refund';amount:number;date:string;payee:string;category:string;note:string;externalId?:string;platform?:string;orderId?:string;product?:string;occurredAt?:string;source?:string;refundOf?:string|null;status?:string;action?:'create'|'skip'|'merge';mergeId?:string;mergeVersion?:number;matches?:{record:Original;reason:string}[];refundCandidates?:Original[];missing?:string[]};
+export type Draft={installment?:import('@/lib/entry-installment').EntryInstallment|null;claimRecipientId?:string|null;preferenceSuggestions?:import('@/lib/preference-learning').PreferenceSuggestion[];memorySuggestions?:import("@/lib/memory").MemorySuggestion[];activityId?:string|null;categorySource?:'explicit'|'model';categorySuggestion?:CategorySuggestion;walletCandidates?:string[];walletMatch?:'funding'|'channel';receiptOrigin?:import('@/lib/receipt-origin').ReceiptOrigin;scene?:EntryScene;targetBook?:string;title?:string;photoIds?:string[];retainReceipts?:boolean;verificationReason?:string;attachmentIds?:string[];lineItems?:LineItem[];id:string;accountId:string;targetId?:string|null;kind:'income'|'expense'|'transfer'|'refund';amount:number;date:string;payee:string;category:string;note:string;externalId?:string;platform?:string;orderId?:string;product?:string;occurredAt?:string;source?:string;refundOf?:string|null;status?:string;action?:'create'|'skip'|'merge';mergeId?:string;mergeVersion?:number;matches?:{record:Original;reason:string}[];refundCandidates?:Original[];missing?:string[]};
 export type Original={id:string;kind:string;amount:number;date:string;payee:string;product?:string;version?:number};
 export function DraftReview({book,books,drafts,setDrafts,accounts,originals,busy,onReview,onSave,focusRequest}:{focusRequest?:{id:string;key:number};book:string;books:ManagedBook[];drafts:Draft[];setDrafts:(d:Draft[])=>void;accounts:(AccountIdentity&{id:string})[];originals:Original[];busy:boolean;onReview:()=>void;onSave:()=>void}){const {t:tr,locale}=useI18n();
  const [uploading,setUploading]=useState(0),[selected,setSelected]=useState(''),[filter,setFilter]=useState('all');
@@ -35,7 +36,7 @@ export function DraftReview({book,books,drafts,setDrafts,accounts,originals,busy
  useEffect(()=>{if(!focusRequest||!drafts.some(d=>d.id===focusRequest.id))return;setFilter('all');setSelected(focusRequest.id);const frame=requestAnimationFrame(()=>root.current?.scrollIntoView({block:'start',behavior:'smooth'}));return()=>cancelAnimationFrame(frame);},[focusRequest]);
  const categories=useContext(CategoryIcons);
  const change=(id:string,patch:Partial<Draft>)=>setDrafts(drafts.map(d=>{if(d.id!==id)return d;const next={...d,...patch};if(['kind','payee','scene','title','product','lineItems'].some(key=>Object.prototype.hasOwnProperty.call(patch,key)))delete next.categorySuggestion;return next;}));
- const incomplete=drafts.filter(d=>d.action!=='skip'&&(d.action==='merge'?!d.mergeId:!d.amount||!d.accountId||!d.category.trim()||(d.kind==='transfer'&&(!d.targetId||d.targetId===d.accountId))));
+ const incomplete=drafts.filter(d=>d.action!=='skip'&&((d.installment&&(!d.installment.terms||!d.installment.firstDate||d.installment.fees==null||!accounts.some(a=>a.id===d.accountId&&a.type==='credit')))||(d.action==='merge'?!d.mergeId:!d.amount||!d.accountId||!d.category.trim()||(d.kind==='transfer'&&(!d.targetId||d.targetId===d.accountId)))));
  const money=(n:number)=>formatMoney(n);
  const needs=(d:Draft)=>incomplete.some(v=>v.id===d.id)||!!d.matches?.length||d.status==='unknown'||['mismatch','incomplete'].includes(verifyItemTotal(d.lineItems||[],d.amount).status);
  const filtered=drafts.filter(d=>filter==='all'||filter==='needs'&&d.action!=='skip'&&needs(d)||filter==='ready'&&d.action!=='skip'&&!needs(d)||filter==='skip'&&d.action==='skip');
@@ -58,6 +59,7 @@ export function DraftReview({book,books,drafts,setDrafts,accounts,originals,busy
  {d.accountId&&d.walletMatch==='funding'&&<small className="wallet-match-note" role="status">{tr("已根据明确扣款信息自动选择。")}</small>}
  {!d.accountId&&(d.walletCandidates?.length||0)>1&&<small className="wallet-match-note" role="status">{tr("找到多个符合付款信息的钱包，请选择实际扣款账户。")}</small>}
  {d.kind==='refund'&&<></>}
+ {d.kind==='expense'&&<EntryInstallmentFields value={d.installment} onChange={installment=>change(d.id,{installment})} credit={accounts.some(a=>a.id===d.accountId&&a.type==='credit')}/>}
  {d.kind!=='transfer'&&<LineItemsEditor category={d.category} categories={categories} items={(d.lineItems || [])} onChange={items=>change(d.id,{lineItems:items})} total={d.amount} onTotal={amount=>change(d.id,{amount})}/>}
  {!!d.attachmentIds?.length&&<label className="receipt-retention"><input type="checkbox" checked={!!d.retainReceipts} onChange={e=>change(d.id,{retainReceipts:e.target.checked})}/>{tr("保存图片凭证（")}{d.attachmentIds.length}{tr("张）")}</label>}
  <TransactionPhotos book={book} ids={(d.photoIds || [])} onChange={ids=>change(d.id,{photoIds:ids})} disabled={(busy || uploading>0)} onBusy={value=>setUploading(n=>n+(value?1:-1))}/>

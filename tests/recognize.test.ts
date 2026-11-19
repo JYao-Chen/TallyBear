@@ -38,3 +38,13 @@ test('empty recognition is an actionable failure and empty old checkpoints do no
   await assert.rejects(recognize(randomUUID(),{text:'看这张账单',images:['data:image/png;base64,'+readFileSync(new URL('./fixtures/itemized-receipt.png',import.meta.url)).toString('base64')],useHistory:false},{checkpoint:{get:async key=>key==='extracted'?{proposals:[],ignored:[],message:''}:key==='batch:0'?{entries:[]}:undefined,set:async()=>{}}}),/未识别到可入账记录/);assert.ok(calls>0);
  }finally{db.query=originalQuery;globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.ENCRYPTION_KEY;else process.env.ENCRYPTION_KEY=oldKey;}
 });
+
+test('识图分期参数随原消费草稿保留，未知费用不默认为零',async()=>{
+ const originalQuery=db.query,originalFetch=globalThis.fetch,oldKey=process.env.ENCRYPTION_KEY;process.env.ENCRYPTION_KEY=Buffer.alloc(32,1).toString('base64');
+ try{
+ (db as any).query=async(sql:string)=>({rows:sql.includes('ai_settings')?[{base_url:'https://fixture.invalid',vision_model:'vision',model:'text',encrypted_key:encrypt('test-key')}]:[]});
+ globalThis.fetch=async()=>new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({entries:[{kind:'expense',title:'分期购买',amount:35228,date:'2026-11-20',status:'paid',installment:{terms:6,firstDate:'2026-12-19'}}]})}}]}));
+ const image='data:image/png;base64,'+readFileSync(new URL('./fixtures/itemized-receipt.png',import.meta.url)).toString('base64');const result=await recognize(randomUUID(),{images:[image]});
+ assert.equal(result.entries.length,1);assert.equal(result.entries[0].installment?.terms,6);assert.equal(result.entries[0].installment?.firstDate,'2026-12-19');assert.equal(result.entries[0].installment?.fees,undefined);
+ }finally{db.query=originalQuery;globalThis.fetch=originalFetch;if(oldKey===undefined)delete process.env.ENCRYPTION_KEY;else process.env.ENCRYPTION_KEY=oldKey;}
+});

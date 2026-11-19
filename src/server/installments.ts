@@ -31,7 +31,7 @@ export async function changeInstallment(user:string,body:unknown, connection?:Po
    if((await c.query(`SELECT p.id FROM installment_plans p JOIN accounts a ON a.id=p.account_id WHERE p.id=$1 AND ${accountAccess('$2')}`,[b.requestId,user])).rowCount)return {ok:true,alreadyProcessed:true,id:b.requestId};
    let t:any;
    if(b.transactionId)t=(await c.query("SELECT *,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted FOR UPDATE",[b.transactionId,b.book])).rows[0];
-   else{const purchase=entry.parse({...b.purchase as object,id:randomUUID(),kind:'expense'});await insertEntry(c,b.book,user,purchase);t=(await c.query("SELECT *,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date FROM transactions WHERE id=$1",[purchase.id])).rows[0];}
+   else{const purchase=entry.parse({...b.purchase as object,id:randomUUID(),kind:'expense',installment:undefined});await insertEntry(c,b.book,user,purchase);t=(await c.query("SELECT *,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date FROM transactions WHERE id=$1",[purchase.id])).rows[0];}
    if(!t)throw new Failure('请选择已有消费，或填写分期购买信息');
    const a=(await c.query(`SELECT a.* FROM accounts a WHERE id=$1 AND ${accountAccess('$2')} FOR UPDATE`,[t.account_id,user])).rows[0];
    if(!a||a.archived||a.type!=='credit')throw new Failure('请选择自己或家庭可管理的信用卡／白条／花呗负债账户');
