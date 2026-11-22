@@ -2191,7 +2191,7 @@
   "管理费用项目": "Manage cost project",
   "管理周期计划": "Manage recurring plan",
   "重试": "Retry",
-  "正在读取账单…": "Loading entry\u2026",
+  "正在读取账单…": "Loading entry…",
   "预算明细": "Budget details",
   "修改预算": "Edit budget",
   "按当前账本、所选月份和预算分类统计，退款冲减消费。": "Uses the current ledger, selected month and budget category. Refunds reduce spending.",
@@ -2804,5 +2804,6 @@
   "已带入说明主题，请补充问题后发送。": "The help topic is ready. Add your question, then send.",
   "分类管理": "Categories",
   "AI 配置": "AI models",
-  "任务队列": "Task queue"
+  "任务队列": "Task queue",
+  "网络连接失败，请重试。": "Network connection failed. Please try again."
 }

@@ -127,11 +127,17 @@ const newId = () => {
 };
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 async function api(path: string, method = 'GET', body?: unknown) {
-  const r = await fetch('/api/' + path, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let r: Response;
+  try {
+    r = await fetch('/api/' + path, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // 浏览器只给出 “Failed to fetch”，换成用户能看懂的提示
+    throw new Error('网络连接失败，请重试。');
+  }
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || '请求失败');
   return data;
