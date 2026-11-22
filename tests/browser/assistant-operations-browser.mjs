@@ -21,7 +21,10 @@ try {
   );
   await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'测试账本','private',$2)", [book, uid]);
   await db.query("INSERT INTO members VALUES($1,$2,'owner')", [book, uid]);
-  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, uid]);
+  await db.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [token, uid],
+  );
   await db.query(
     "INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,'管理操作测试')",
     [conversation, book, uid],

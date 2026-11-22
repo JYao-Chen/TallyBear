@@ -19,7 +19,10 @@ await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$4,$2,$3)
   passwordHash(password),
   user,
 ]);
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '2 hours')", [token, user]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '2 hours')",
+  [token, user],
+);
 for (const [id, name] of [
   [source, '我的日常'],
   [target, '家庭生活'],

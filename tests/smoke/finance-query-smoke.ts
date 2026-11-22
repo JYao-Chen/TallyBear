@@ -182,7 +182,10 @@ try {
   if (process.env.TEST_BROWSER === '1') {
     const token = randomUUID(),
       conversation = randomUUID();
-    await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+    await db.query(
+      "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+      [token, user],
+    );
     await db.query(
       "INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,'查询验收')",
       [conversation, book, user],

@@ -17,7 +17,10 @@ try {
     "INSERT INTO accounts(id,name,type,ownership,owner_id) VALUES($1,'钱包','cash','personal',$2)",
     [wallet, user],
   );
-  await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+  await c.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [token, user],
+  );
   for (const [id, date] of [
     [old, '2026-10-01'],
     [changed, '2026-10-02'],

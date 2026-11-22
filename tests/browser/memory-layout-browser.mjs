@@ -19,7 +19,10 @@ await db.query("INSERT INTO users(id,username,name,password,admin) VALUES($1,$2,
 ]);
 await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'测试账本','private',$2)", [book, user]);
 await db.query("INSERT INTO members VALUES($1,$2,'owner')", [book, user]);
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, user],
+);
 for (let i = 0; i < 25; i++) {
   const id = randomUUID();
   ids.push(id);

@@ -1,7 +1,7 @@
 import { migrate, migrateWith } from './migrate.mjs';
 // Real app + disposable PostgreSQL. Never loads production configuration or calls AI.
 import assert from 'node:assert/strict';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile, cp } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -431,7 +431,11 @@ async function seed(db, lang) {
       JSON.stringify({ charts: [], tools: [], drafts: [], actions: [action], analysisBooks: [book] }),
     ],
   );
-  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '3 hours')", [token, user]);
+  // Sessions store only the SHA-256 digest of the cookie value (migration 0002).
+  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '3 hours')", [
+    createHash('sha256').update(token).digest('hex'),
+    user,
+  ]);
   if (process.env.FUNDS_AUDIT_ONLY || process.env.ANALYSIS_AUDIT_ONLY) {
     const other = randomUUID();
     await db.query("INSERT INTO accounts(id,name,type,opening,owner_id) VALUES($1,$2,'wechat',100000,$3)", [
@@ -500,12 +504,15 @@ try {
     '127.0.0.1::5432',
     '--tmpfs',
     '/var/lib/postgresql/data',
-    'postgres:16',
+    process.env.SCREENSHOT_POSTGRES_IMAGE || 'pgvector/pgvector:0.8.2-pg16',
   );
   const port = docker('port', container, '5432/tcp').split(':').at(-1);
   await waitFor(() => {
     try {
-      return docker('exec', container, 'pg_isready', '-U', 'postgres').includes('accepting');
+      // TCP only: during initdb the temporary server answers on the socket, then restarts.
+      return docker('exec', container, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres').includes(
+        'accepting',
+      );
     } catch {
       return false;
     }
@@ -625,8 +632,11 @@ try {
       const page = await context.newPage();
       page.on('pageerror', e => errors.push({ lang, device, error: e.message }));
       page.on('response', r => {
-        if (r.url().includes('/api/') && r.status() >= 400)
-          errors.push({ lang, device, status: r.status(), path: new URL(r.url()).pathname });
+        if (r.url().includes('/api/') && r.status() >= 400) {
+          const failure = { lang, device, status: r.status(), path: new URL(r.url()).pathname };
+          errors.push(failure);
+          console.warn('API failure', JSON.stringify(failure));
+        }
       });
       await page.goto(origin);
       await page.locator('#primary-navigation').waitFor({ state: 'attached' });
@@ -637,19 +647,27 @@ try {
         });
         await page.waitForTimeout(600);
       }
+      // Pages have URLs (src/lib/routes.ts); old labels are kept as names so the capture list reads the same.
+      const paths = {
+        我的账本: '/',
+        流水: '/entries',
+        收支分析: '/analysis',
+        每月预算: '/analysis/budget',
+        活动账: '/analysis/activities',
+        资金资产: '/wallets',
+        计划与分摊: '/wallets/plans',
+        家庭管理: '/family',
+        小熊对话: '/assistant',
+        个人资料: '/me',
+        账本设置: '/settings',
+        账本管理: '/settings/books',
+        使用说明: '/help',
+        记一笔: '/entry',
+      };
       async function navigate(name) {
-        if (device === 'desktop')
-          await page
-            .locator('#primary-navigation')
-            .getByRole('button', { name: t(name), exact: true })
-            .click();
-        else {
-          await page.getByRole('button', { name: t('更多功能'), exact: true }).click();
-          await page
-            .getByRole('dialog')
-            .getByRole('button', { name: t(name), exact: true })
-            .click();
-        }
+        assert.ok(paths[name], 'No URL for ' + name);
+        await page.goto(origin + paths[name]);
+        await page.locator('#primary-navigation').waitFor({ state: 'attached' });
         await settle();
         await page.evaluate(() => window.scrollTo(0, 0));
       }
@@ -1060,6 +1078,7 @@ try {
       }
       for (const [name, key] of [
         ['我的账本', 'overview'],
+        ['流水', 'entries'],
         ['收支分析', 'analysis'],
         ['资金资产', 'assets'],
         ['活动账', 'activities'],
@@ -1082,23 +1101,32 @@ try {
       await shot('plans');
       await navigate('个人资料');
       await shot('profile');
-      await page.getByRole('button', { name: t('记忆中心'), exact: true }).click();
-      await page.locator('.memory-row').first().waitFor();
+      await page.getByRole('button', { name: t('个人画像'), exact: true }).click();
+      await page.getByRole('heading', { name: t('个人画像'), exact: true }).waitFor();
+      // Profile sections: buttons on desktop, a select on phones.
+      const portraitSection = async (value, zh, english) => {
+        const nav = page.getByRole('navigation', { name: t('个人画像栏目') });
+        if (await nav.isVisible())
+          await nav.getByRole('button', { name: lang === 'en' ? english : zh, exact: true }).click();
+        else await page.locator('.portrait-mobile-sections select').selectOption(value, { force: true });
+      };
       await shot('memory');
-      await page.getByRole('button', { name: t('变更记录'), exact: true }).click();
-      await page.locator('.memory-history-row').first().waitFor();
-      await shot('memory-history');
-      await page.getByRole('button', { name: t('我的记忆'), exact: true }).click();
+      await portraitSection('products', '商品与服务', 'Products & services');
+      await page.locator('.memory-row').first().waitFor();
+      await shot('memory-products');
       await page
         .locator('.memory-row')
         .filter({ hasText: lang === 'en' ? 'Fresh milk 1L' : '鲜牛奶 1L' })
         .getByRole('button')
+        .first()
         .click();
       await page.locator('.memory-detail form').waitFor();
       await audit('memory-detail');
       for (const summary of await page.locator('.memory-detail summary').all()) await summary.click();
       await audit('memory-detail-expanded');
-      await page.getByRole('button', { name: t('学习与设置'), exact: true }).click();
+      await portraitSection('history', '学习记录', 'History');
+      await audit('memory-history');
+      await portraitSection('settings', '学习与隐私', 'Learning & privacy');
       await page.getByText(t('记忆模型配置与运行统计（管理员）'), { exact: true }).click();
       await audit('memory-settings');
       await navigate('记一笔');
@@ -1106,6 +1134,12 @@ try {
       await page.locator('.intake-review').scrollIntoViewIfNeeded();
       await page.evaluate(() => document.querySelector('.intake-review').scrollIntoView({ block: 'start' }));
       await shot('draft');
+      if (!(await page.locator('.line-items-editor').count()))
+        await page
+          .locator('.intake-review')
+          .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
+          .first()
+          .click();
       await page.locator('.line-items-editor').first().scrollIntoViewIfNeeded();
       await page.evaluate(() =>
         document.querySelector('.line-items-editor').scrollIntoView({ block: 'start' }),

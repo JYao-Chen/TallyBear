@@ -23,7 +23,10 @@ try {
   ]) {
     const token = randomUUID();
     tokens.push(token);
-    await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+    await db.query(
+      "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+      [token, user],
+    );
     const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
     await context.addCookies([{ name: 'bubu_session', value: token, domain: 'localhost', path: '/' }]);
     const page = await context.newPage();

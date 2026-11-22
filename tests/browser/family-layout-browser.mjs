@@ -31,7 +31,10 @@ for (const [id, owner, name] of [
     "INSERT INTO accounts(id,name,owner_id,ownership,opening) VALUES($1,$2,$3,'personal',100000)",
     [id, name, owner],
   );
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, user],
+);
 for (let i = 0; i < 13; i++)
   await db.query(
     "INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,target_id,kind,amount,date,note,status,external_id) VALUES($1,$2,$3,$4,$5,$6,'transfer',12000,'2026-09-26',$7,$8,$9)",

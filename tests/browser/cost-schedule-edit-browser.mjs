@@ -14,7 +14,10 @@ const s = (
 assert.ok(s);
 const token = randomUUID(),
   output = '/home/yao/artifacts/tallybear/cost-schedule-edit-20260927';
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, s.owner_id]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, s.owner_id],
+);
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.TEST_CHROMIUM_PATH }),
   errors = [];

@@ -15,7 +15,10 @@ try {
     user,
     'cross_' + randomBytes(5).toString('hex'),
   ]);
-  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+  await db.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [token, user],
+  );
   await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'跨图检查','private',$2)", [book, user]);
   await db.query("INSERT INTO members VALUES($1,$2,'owner')", [book, user]);
   await db.query("INSERT INTO accounts(id,owner_id,name) VALUES($1,$2,'微信')", [account, user]);

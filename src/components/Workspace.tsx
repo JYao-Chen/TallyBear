@@ -89,10 +89,8 @@ import { decodeBill, parseBill } from '@/lib/bill-import';
 import { useSavedDraft } from '@/hooks/useSavedDraft';
 import { SchedulesPanel, type Schedule } from './SchedulesPanel';
 
-import { DetailSortSelect } from './DetailSortSelect';
 import type { DetailSort } from '@/lib/detail-sort';
 import { TransactionList } from './TransactionList';
-import { ReportPeriodPicker } from './ReportPeriodPicker';
 import { monthRange, type LedgerReport, type LedgerRow as Row } from '@/lib/ledger-types';
 import { CategoryPanel, type Category } from './CategoryPanel';
 import { TemplatesPanel, type Template } from './TemplatesPanel';
@@ -284,7 +282,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
     [aiCharacters, setAICharacters] = useState(0),
     [aiRunning, setAIRunning] = useState(false);
   const aiAbort = useRef<AbortController | null>(null);
-  const [statisticsRange, setStatisticsRange] = useState(() => monthRange(today().slice(0, 7)));
+  const [statisticsRange] = useState(() => monthRange(today().slice(0, 7)));
   useEffect(() => {
     if (searchNavigation?.entity === 'cost_project') {
       setCostTarget(searchNavigation.id);
@@ -292,7 +290,8 @@ export default function Workspace({ children }: { children?: ReactNode }) {
       setSearchNavigation(null);
     }
   }, [searchNavigation]);
-  const [homeSort, setHomeSort] = useState<DetailSort>('date_desc');
+  // Home shows the latest entries; sorting and other periods live on /entries.
+  const homeSort: DetailSort = 'date_desc';
   const [periodReport, setPeriodReport] = useState<LedgerReport | null>(null);
   const [monthlyReport, setMonthlyReport] = useState<LedgerReport | null>(null),
     [revision, setRevision] = useState(0);
@@ -579,7 +578,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
         if (!controller.signal.aborted) setError(e.message);
       });
     return () => controller.abort();
-  }, [page, book, statisticsRange, homeSort, revision]);
+  }, [page, book, statisticsRange, revision]);
   const visibleReport = page === 'home' ? periodReport : monthlyReport;
   const spending = visibleReport?.categories || [];
   const chosenHomeActivity =
@@ -872,8 +871,11 @@ export default function Workspace({ children }: { children?: ReactNode }) {
           />
           <div className="workspace">
             <header>
-              <div>
-                <small>{tr(sections.find(x => x.key === sectionOf(page))?.label || '')}</small>
+              <div className={shellStyles.headerTitle}>
+                {(() => {
+                  const section = sections.find(x => x.key === sectionOf(page))?.label || '';
+                  return section && section !== pageTitle(page) ? <small>{tr(section)}</small> : null;
+                })()}
                 <strong>{tr(pageTitle(page))}</strong>
               </div>
               <div className="header-tools">
@@ -1191,15 +1193,11 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                   {page === 'home' && (
                     <section className="panel">
                       <div className="panel-title">
-                        <h2>{tr(homeSort === 'date_desc' ? '最近的记录' : '所选范围的记录')}</h2>
+                        <h2>{tr('最近的记录')}</h2>
                         <button className="text-button" onClick={() => switchPage('entries')}>
                           {tr('查看全部流水')}
                           <ChevronRight size={15} />
                         </button>
-                      </div>
-                      <div className="inline">
-                        <ReportPeriodPicker value={statisticsRange} onChange={setStatisticsRange} />
-                        <DetailSortSelect value={homeSort} onChange={setHomeSort} />
                       </div>
                       {list(8)}
                     </section>

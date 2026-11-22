@@ -53,7 +53,7 @@ migrations/                 编号迁移 0001_baseline.sql …
 | 阶段 0：冒烟脚本归类与 `test:smoke` | Codex `tb-smoke-tests` | 已合入 |
 | 阶段 1：任务事件 LISTEN/NOTIFY、会话摘要、IP 限流、密码长度、币种缓存（迁移 0002） | Codex `tb-stage1-backend` | 已合入；IP 改为信任 `X-Real-IP`（审核修正） |
 | 阶段 1：校准生效日、家庭缴款统一、家庭总览、金额区间（迁移 0003） | Codex `tb-stats-family` | 已合入 |
-| 阶段 1：助手风险分级、操作记录与撤销（迁移 0004） | Codex `tb-assistant-risk` | 第二轮 |
+| 阶段 1：助手风险分级、操作记录与撤销（迁移 0006） | Codex `tb-assistant-risk` | 第二轮 |
 | 阶段 1：错误码 | 并入阶段 2 的 http 包装（响应增加 `code`，文案不动） | 第二轮 |
 | 阶段 2：`server/http` 包装与路由表、拆除 `application-api.ts` | Codex `tb-api-split` | 第二轮 |
 | 阶段 2：统计领域统一（投影、赠与规则、钱包域、整数分） | Codex `tb-stats-domain` | 第二轮 |

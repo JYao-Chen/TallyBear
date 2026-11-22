@@ -24,7 +24,10 @@ await c.query("UPDATE members SET role='editor' WHERE book_id=$1 AND user_id=$2"
 await c.query("UPDATE transactions SET title='已有外套' WHERE id=$1", [f.privateExpense]);
 const tokens = [randomUUID(), randomUUID()];
 for (const [i, user] of [f.alice, f.bob].entries())
-  await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 day')", [tokens[i], user]);
+  await c.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 day')",
+    [tokens[i], user],
+  );
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();

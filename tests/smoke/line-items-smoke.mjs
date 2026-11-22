@@ -22,7 +22,10 @@ try {
     user,
     'items_' + randomBytes(5).toString('hex'),
   ]);
-  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+  await db.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [token, user],
+  );
   for (let i = 0; i < 2; i++)
     books.push((await req('books', 'POST', { name: '商品明细测试' + i, kind: 'private' })).id);
   const book = books[0],

@@ -25,7 +25,10 @@ await db.query(
   "INSERT INTO accounts(id,name,owner_id,ownership,opening) VALUES($1,'微信钱包',$2,'personal',100000)",
   [wallet, user],
 );
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, user],
+);
 for (let i = 0; i < 16; i++)
   await db.query(
     "INSERT INTO transactions(id,book_id,account_id,kind,amount,date,payee,category,created_by) VALUES($1,$2,$3,'expense',$4,current_date,$5,'餐饮',$6)",

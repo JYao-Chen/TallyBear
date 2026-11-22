@@ -311,10 +311,10 @@ const sub = await prepareChatAction(
   ctx,
   [],
 );
-await db.query("INSERT INTO sessions(id,user_id,expires_at) VALUES($1,$2,now()+interval '1 day')", [
-  'chat-ui-session',
-  user.id,
-]);
+await db.query(
+  "INSERT INTO sessions(id,user_id,expires_at) VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 day')",
+  ['chat-ui-session', user.id],
+);
 await db.query(
   "INSERT INTO finance_turns(id,conversation_id,question,answer,artifacts,status) VALUES($1,$2,'帮我记晚餐56元，再建立一个云盘年费订阅','晚餐和云盘订阅已整理好，请核对后分别确认。',$3,'complete')",
   [randomUUID(), conversation, { actions: [pending, sub], charts: [], drafts: [], tools: [] }],

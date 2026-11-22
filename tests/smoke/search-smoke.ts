@@ -24,10 +24,10 @@ try {
       'INSERT INTO users(id,username,name,password,admin) VALUES($1::uuid,$1::text,$1::text,$2,true)',
       [users[n], 'fixture'],
     );
-    await db.query("INSERT INTO sessions(id,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')", [
-      tokens.get(users[n]),
-      users[n],
-    ]);
+    await db.query(
+      "INSERT INTO sessions(id,user_id,expires_at) VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+      [tokens.get(users[n]), users[n]],
+    );
     await db.query('INSERT INTO books(id,name,kind,owner_id) VALUES($1,$2,$3,$4)', [
       books[n],
       n ? '家庭账' : '私人账',

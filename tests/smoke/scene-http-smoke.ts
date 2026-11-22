@@ -10,7 +10,10 @@ const row = (
 ).rows[0];
 assert.ok(row);
 const token = randomUUID();
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, row.created_by]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, row.created_by],
+);
 const origin = 'http://127.0.0.1:3018';
 const child = spawn(process.execPath, ['releases/scene-entry-20260914/server.js'], {
   env: { ...process.env, APP_ORIGIN: origin, PORT: '3018', HOSTNAME: '127.0.0.1' },

@@ -23,7 +23,10 @@ await c.query(
 );
 const tokens = [randomUUID(), randomUUID(), randomUUID()];
 for (const [i, user] of [f.alice, f.bob, f.outsider].entries())
-  await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [tokens[i], user]);
+  await c.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [tokens[i], user],
+  );
 const unrelated = randomUUID();
 await c.query(
   "INSERT INTO transactions(id,book_id,account_id,created_by,kind,amount,date,category,title) VALUES($1,$2,$3,$4,'expense',100,'2026-10-17','其他','未分享的私单')",

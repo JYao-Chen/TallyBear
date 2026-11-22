@@ -20,7 +20,10 @@ assert.ok(p);
 await db.query("UPDATE users SET name='小悠' WHERE id=$1", [p.owner_id]);
 await db.query("UPDATE cost_projects SET title='季度房租 · 两人分担' WHERE id=$1", [p.id]);
 const token = randomUUID();
-await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, p.owner_id]);
+await db.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, p.owner_id],
+);
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: process.env.TEST_CHROMIUM_PATH });
 const failures = [];

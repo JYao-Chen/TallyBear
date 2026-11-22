@@ -22,7 +22,10 @@ for (const [token, id] of [
   [aliceToken, f.alice],
   [bobToken, f.bob],
 ])
-  await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 day')", [token, id]);
+  await c.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 day')",
+    [token, id],
+  );
 for (const [kind, id, scope, body] of [
   ['movement', f.movement, '', '生活费已转，请查收。'],
   ['transaction', f.expense, '', '水电费按两人平分，可以吗？'],

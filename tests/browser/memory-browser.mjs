@@ -14,7 +14,10 @@ const u = (
 await c.query("INSERT INTO deployment_settings(id,currency) VALUES(1,'CNY') ON CONFLICT DO NOTHING");
 await c.query('UPDATE users SET admin=true WHERE id=$1', [u.id]);
 const token = randomUUID();
-await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, u.id]);
+await c.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, u.id],
+);
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];

@@ -45,7 +45,10 @@ await c.query(
   [book.id, user.id, { text: '', history: true, entries: [draft] }],
 );
 const token = randomUUID();
-await c.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user.id]);
+await c.query(
+  "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+  [token, user.id],
+);
 const browser = await chromium.launch({ headless: true }),
   page = await browser.newPage({ viewport: { width: 1280, height: 900 } }),
   errors = [];

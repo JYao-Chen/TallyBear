@@ -24,7 +24,10 @@ try {
     user,
     'chat_test_' + randomBytes(5).toString('hex'),
   ]);
-  await db.query("INSERT INTO sessions VALUES($1,$2,now()+interval '1 hour')", [token, user]);
+  await db.query(
+    "INSERT INTO sessions VALUES(encode(sha256(convert_to($1,'UTF8')),'hex'),$2,now()+interval '1 hour')",
+    [token, user],
+  );
   await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'AI检查账本','private',$2)", [
     book,
     user,
