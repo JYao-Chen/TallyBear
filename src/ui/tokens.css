@@ -27,8 +27,10 @@
   --danger: #a33b3b;
   --focus: #365f58;
 
-  --font-title: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
   --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  /* 中文衬线未随站点打包，各系统回落不一致；标题统一用正文字体加粗，只有品牌字样用衬线 */
+  --font-title: var(--font-body);
+  --font-brand: 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
   --font-number: Geist, 'Noto Sans SC', 'PingFang SC', sans-serif;
 
   --text-xs: 12px;
@@ -88,7 +90,7 @@ html[data-theme='minimal'] {
   --attention-soft: #fff6ec;
   --highlight: #9fb8e6;
   --focus: #4166ad;
-  --font-title: var(--font-body);
+  --font-brand: var(--font-body);
   --radius-card: 12px;
   --radius-sheet: 16px;
   --radius: 12px;

@@ -21,7 +21,7 @@
   text-decoration: none;
 }
 .brand strong {
-  font: 700 19px / 1.2 var(--font-title);
+  font: 700 19px / 1.2 var(--font-brand);
 }
 .brand small {
   display: block;
