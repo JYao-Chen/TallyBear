@@ -78,7 +78,7 @@ await changeInstallment(user, pay);
 p = (await listInstallments(user)).plans[0];
 assert.equal(p.remaining, 550000);
 assert.equal(p.payments.length, 1);
-let assets = await listAssets(user);
+const assets = await listAssets(user);
 assert.equal(assets.find(a => a.id === credit).balance, -550000);
 assert.equal(assets.find(a => a.id === bank).balance, 949000);
 assert.equal(

@@ -388,7 +388,7 @@ export async function costSchedules(
       const paymentBook = uuid.parse(body.bookId);
       await bookAccess(paymentBook, user);
       await lockBook(c, paymentBook);
-      let transactionId = body.transactionId ? uuid.parse(body.transactionId) : randomUUID();
+      const transactionId = body.transactionId ? uuid.parse(body.transactionId) : randomUUID();
       const plan = scheduledCostPlan(s.rule, s.next_date, transactionId),
         amount = plan.sources[0].amount;
       if (body.transactionId) {

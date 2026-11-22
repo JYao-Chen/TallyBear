@@ -134,7 +134,7 @@ assert.equal(await balance(), before);
 const direct = value(undefined, 500);
 await req(`books/${source}/transactions`, 'POST', { entries: [direct], targetBook: target });
 assert.ok((await rows(target)).some((r: any) => r.id === direct.id));
-let row = (await rows(target)).find((r: any) => r.id === direct.id);
+const row = (await rows(target)).find((r: any) => r.id === direct.id);
 await req(
   `books/${target}/transactions`,
   'PUT',

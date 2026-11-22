@@ -174,7 +174,7 @@ const installment = await prepareChatAction(
 assert.deepEqual(installment.missing, []);
 await persist();
 await confirm(installment);
-let plan = (await listInstallments(user.id)).plans[0];
+const plan = (await listInstallments(user.id)).plans[0];
 assert.equal(plan.remaining, 600000);
 const repayment = await prepareChatAction(
   {

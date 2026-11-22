@@ -83,7 +83,7 @@ try {
   const searchParams = new URLSearchParams({ entity: 'cost_project', id: project.id });
   assert.equal((await search(a, searchParams)).total, 1);
   assert.equal((await search(outsider, searchParams)).total, 0);
-  let other = await route(b, [project.id]);
+  const other = await route(b, [project.id]);
   assert.equal(other.plan, undefined);
   assert.deepEqual(other.offsets, []);
   assert.equal(other.personal[0].net, 140000);

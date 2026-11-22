@@ -18,7 +18,7 @@ export async function prepareReceiptImages(
 ) {
   const output: string[] = [],
     labels: string[] = [];
-  let bytes = 0;
+  const bytes = 0;
   for (let index = 0; index < images.length; index++) {
     signal?.throwIfAborted();
     try {

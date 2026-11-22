@@ -1,0 +1,2 @@
+# 只改格式的提交，git blame 时跳过：git config blame.ignoreRevsFile .git-blame-ignore-revs
+36e499ccfd963a27cef872b6bcca2a50e2b588d5

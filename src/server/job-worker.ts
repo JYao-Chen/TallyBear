@@ -36,8 +36,8 @@ export async function executeJob(job: any) {
       actions: job.payload.previousActions || [],
       images: job.payload.images || [],
     };
-  let pending: { event: string; data: any }[] = [],
-    saving = Promise.resolve(),
+  const pending: { event: string; data: any }[] = [];
+  let saving = Promise.resolve(),
     stage = '正在准备',
     cancelled = false,
     lastSnapshot = 0;

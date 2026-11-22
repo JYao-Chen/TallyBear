@@ -35,7 +35,7 @@ export type CategoryEvidence = {
 
 const paymentPlatforms = new Set(['微信', '微信支付', '支付宝', 'alipay', 'wechat', 'wechatpay']);
 export const normalizeMerchant = (value: string) =>
-  (value || '').toLowerCase().replace(/[\s·・,，.。()（）\[\]【】_-]/g, '');
+  (value || '').toLowerCase().replace(/[\s·・,，.。()（）[\]【】_-]/g, '');
 function merchants(value: { payee: string; scene: EntryScene }) {
   const values = [value.payee, value.scene?.merchant]
     .map(normalizeMerchant)

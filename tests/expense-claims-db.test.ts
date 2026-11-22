@@ -317,7 +317,7 @@ test(
             category: '购物',
           }),
         );
-        let original = (await c.query('SELECT version FROM transactions WHERE id=$1', [existing])).rows[0];
+        const original = (await c.query('SELECT version FROM transactions WHERE id=$1', [existing])).rows[0];
         const reused = await reuseInTransaction(
           c,
           f.privateBook,

@@ -95,7 +95,7 @@ export async function applicationApi(req: NextRequest, ctx: Ctx, actor?: User) {
     if (path[0] === 'receipts') return await receiptRoute(req, path, actor ?? (await user()));
     const photoRequest =
       path[0] === 'books' && path.length === 3 && ['assistant', 'chat', 'drafts'].includes(path[2]);
-    if (photoRequest && method !== 'GET') actor ?? (await user());
+    if (photoRequest && method !== 'GET' && !actor) await user();
     if (!photoRequest && Number(req.headers.get('content-length') || 0) > 35000000)
       throw new Failure('请求内容过大', 413);
     const body = method === 'GET' ? {} : await req.json();

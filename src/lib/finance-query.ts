@@ -118,13 +118,13 @@ export function chartDetailParams(
     p.set('groupField', chart.dimension);
     p.set('groupValue', point);
   } else {
-    let from = point.length === 7 ? point + '-01' : point,
-      to =
-        point.length === 7
-          ? new Date(Date.UTC(Number(point.slice(0, 4)), Number(point.slice(5, 7)), 0))
-              .toISOString()
-              .slice(0, 10)
-          : point;
+    const from = point.length === 7 ? point + '-01' : point;
+    let to =
+      point.length === 7
+        ? new Date(Date.UTC(Number(point.slice(0, 4)), Number(point.slice(5, 7)), 0))
+            .toISOString()
+            .slice(0, 10)
+        : point;
     if (chart.dimension?.startsWith('weekly_'))
       to = new Date(Date.parse(point) + 6 * 86400000).toISOString().slice(0, 10);
     p.set('from', from > chart.from ? from : chart.from);

@@ -248,7 +248,7 @@ try {
   assert.equal((parseAction(artifacts.actions![1]) as any).value.lineItems[0].category, '蔬菜');
   // Rename only matching current item categories, preserving the other classifications.
   await transaction(c => renameCategoryRecords(c, [book], '蔬菜', '买菜'));
-  let row = await transaction(c => transactionForAction(c, book, id));
+  const row = await transaction(c => transactionForAction(c, book, id));
   assert.equal(row.lineItems[0].category, '买菜');
   assert.equal(row.lineItems[2].category, '服饰');
   // A single edit switches back to whole-order classification without creating a second payment.

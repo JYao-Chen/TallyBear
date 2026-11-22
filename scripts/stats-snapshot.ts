@@ -1,4 +1,4 @@
-// Characterization snapshot of every statistics basis (see docs/refactor/STATS-AUDIT.md §1).
+// Characterization snapshot of every statistics basis (see docs/refactor/STATS-BASIS.md §1).
 // Run against a restored copy, never production:  DATABASE_URL=… npx tsx scripts/stats-snapshot.ts out.json [YYYY-MM …]
 // Output holds aggregates only (paged rows are dropped); compare two snapshots with scripts/stats-diff.mjs.
 import { writeFileSync } from 'node:fs';

@@ -13,6 +13,8 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
+      // Empty catch blocks deliberately ignore unparsable input, unavailable storage and readiness polling.
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'react-hooks/exhaustive-deps': 'warn',
       // Existing debt is reported, not blocking; stage 2 removes it domain by domain.
       '@typescript-eslint/no-explicit-any': 'warn',

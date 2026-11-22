@@ -72,7 +72,7 @@ try {
   assert.equal(a.data.scene.merchant, '保留商家');
   const result = await executeFinanceTool('execute_action', { actionId: a.id }, ctx, artifacts);
   assert.equal(result.status, 'confirmed');
-  let saved = (await db.query('SELECT * FROM transactions WHERE id=$1', [record])).rows[0];
+  const saved = (await db.query('SELECT * FROM transactions WHERE id=$1', [record])).rows[0];
   assert.equal(saved.scene.summary, '国科大10月补助');
   assert.equal(saved.scene.merchant, '保留商家');
   assert.equal(saved.product, '国科大10月补助');

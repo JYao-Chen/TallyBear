@@ -101,7 +101,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: '确认认领', exact: true }).click();
   await page.getByRole('button', { name: '调整归入账本', exact: true }).waitFor();
-  let claim = (
+  const claim = (
     await c.query("SELECT * FROM expense_claims WHERE source_id=$1 AND status='accepted'", [purchase])
   ).rows[0];
   assert.ok(claim);

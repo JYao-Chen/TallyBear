@@ -209,7 +209,7 @@ export async function exportCSV(
   locale: Language = 'zh-CN',
   personalUser?: string,
 ) {
-  let rows: any[] = [];
+  const rows: any[] = [];
   const pageParams = new URLSearchParams(params);
   pageParams.set('limit', '200');
   for (let offset = 0; ; offset += 200) {
