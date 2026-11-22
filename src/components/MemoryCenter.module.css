@@ -1,0 +1,75 @@
+.memoryCenter,
+.memoryWorkspace,
+.memoryWorkbench,
+.memoryCollection,
+.memoryDetail,
+.memorySettings {
+  min-width: 0;
+}
+.memoryHeading,
+.memoryActions,
+.memorySections,
+.memoryFilters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.memoryHeading {
+  justify-content: space-between;
+}
+.memoryFilters > * {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.memoryFilters,
+.memoryActions,
+.memorySections {
+  margin-block: var(--space-3);
+}
+.memorySections button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.memoryRow.memoryRow {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.memoryDetail.memoryDetail {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+}
+.memoryDetail details {
+  margin-block: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.memoryDetail summary {
+  min-height: var(--touch);
+  align-content: center;
+  cursor: pointer;
+}
+.check {
+  flex-direction: row;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.memoryPrivacy,
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+.notice {
+  color: var(--accent);
+}

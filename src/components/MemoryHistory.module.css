@@ -1,0 +1,72 @@
+.memoryHistory {
+  min-width: 0;
+}
+.memoryHistoryHeading,
+.memoryHistoryPagination,
+.memoryHistoryObject {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.memoryHistoryHeading {
+  position: static;
+  height: auto;
+  padding: 0;
+  background: transparent;
+}
+.memoryHistoryCount,
+.memoryEventLabel {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.memoryHistoryEmpty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--muted);
+}
+.memoryHistoryList {
+  list-style: none;
+  padding: 0;
+}
+.memoryHistoryColumns,
+.memoryHistoryRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 0.5fr) minmax(80px, 0.32fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.memoryHistoryObject {
+  justify-content: start;
+  flex-wrap: nowrap;
+  overflow-wrap: anywhere;
+}
+.memoryEventIcon {
+  color: var(--accent);
+}
+.memoryEventIcon[data-forgotten='true'] {
+  color: var(--danger);
+}
+.memoryEventAction {
+  text-align: end;
+}
+.notice {
+  color: var(--accent);
+}
+.error {
+  color: var(--danger);
+}
+@media (max-width: 640px) {
+  .memoryHistoryColumns {
+    display: none;
+  }
+  .memoryHistoryRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .memoryHistoryObject {
+    grid-column: 1/-1;
+  }
+}

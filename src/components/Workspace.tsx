@@ -34,6 +34,8 @@ import {
   Avatar,
   BookSwitcher,
   ProfilePage,
+  ModelSettingsPanel,
+  type ModelConfig,
   BooksPage,
   UsersPage,
   type ManagedUser,
@@ -82,8 +84,6 @@ import {
   Upload,
   ChevronRight,
   Sparkles,
-  ScanLine,
-  MessagesSquare,
   FolderHeart,
 } from 'lucide-react';
 import { decodeBill, parseBill } from '@/lib/bill-import';
@@ -104,6 +104,7 @@ import { Button, Segmented, Sheet, TextArea } from '@/ui';
 import { QuickEntry } from './QuickEntry';
 import { ActivitiesPage } from './ActivitiesPage';
 import { invalidateActivityOptions, type Activity } from './ActivitySelect';
+import settingsStyles from './ManagementPages.module.css';
 import detailStyles from './LedgerEntryDetail.module.css';
 import { appendDraftBatch } from '@/lib/draft-batch';
 import { askAssistant } from '@/lib/assistant-client';
@@ -149,89 +150,6 @@ function Bear({ name = 'together', size = 100 }: { name?: string; size?: number 
       <source media="(prefers-reduced-motion: reduce)" srcSet={`/characters/${name}.png`} />
       <img src={`/characters/${name}.gif`} width={size} height={size} alt="" />
     </picture>
-  );
-}
-type ModelConfig = { baseUrl: string; model: string; visionModel: string; key: string; hasKey: boolean };
-function ModelSettingsPanel({
-  scope,
-  config,
-  setConfig,
-  busy,
-  onSave,
-  onTest,
-}: {
-  scope: 'recognition' | 'assistant';
-  config: ModelConfig;
-  setConfig: React.Dispatch<React.SetStateAction<ModelConfig>>;
-  busy: boolean;
-  onSave: () => void;
-  onTest: () => void;
-}) {
-  const { t: tr } = useI18n();
-  const assistant = scope === 'assistant',
-    Icon = assistant ? MessagesSquare : ScanLine;
-  return (
-    <section className="panel model-settings">
-      <h2>
-        <Icon size={20} />
-        {tr(assistant ? 'AI 助手模型' : '账单识别模型')}
-      </h2>
-      <p className="muted">
-        {tr(
-          assistant
-            ? '用于小熊对话的问答、工具调用，以及对话内的图片识别与后续核对。'
-            : '用于“记一笔”中的 AI 文字／截图识别，不影响小熊对话。',
-        )}
-      </p>
-      <form
-        onSubmit={e => {
-          e.preventDefault();
-          onSave();
-        }}
-      >
-        <label>
-          {tr('兼容接口地址')}
-          <input
-            value={config.baseUrl}
-            onChange={e => setConfig(c => ({ ...c, baseUrl: e.target.value }))}
-            required
-          />
-        </label>
-        <label>
-          {tr('文字模型')}
-          <input
-            value={config.model}
-            onChange={e => setConfig(c => ({ ...c, model: e.target.value }))}
-            placeholder={tr('填写供应商模型名称')}
-            required
-          />
-        </label>
-        <label>
-          {tr('图片模型')}
-          <input
-            value={config.visionModel}
-            onChange={e => setConfig(c => ({ ...c, visionModel: e.target.value }))}
-            required
-          />
-        </label>
-        <label>
-          API Key
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder={config.hasKey ? tr('已保存，留空保持不变') : tr('尚未配置')}
-            value={config.key}
-            onChange={e => setConfig(c => ({ ...c, key: e.target.value }))}
-          />
-        </label>
-        <div className="inline">
-          <button disabled={busy}>{tr(assistant ? '保存助手模型' : '保存识别模型')}</button>
-          <button type="button" className="secondary" disabled={busy} onClick={onTest}>
-            {tr('测试已保存的连接')}
-          </button>
-        </div>
-      </form>
-    </section>
   );
 }
 export default function Workspace({ children }: { children?: ReactNode }) {
@@ -962,11 +880,11 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                         const [destination, mode] = target.split(':');
                         if (destination === 'entry' && mode) setEntryMode(mode);
                         if (target === 'profile:memory') setMemoryRequest({ id: '', key: Date.now() });
-                        switchPage(destination);
+                        router.push(pathForPage(destination), { scroll: false });
                       }}
                       onAsk={text => {
                         setChatPrefill({ id: newId(), text, source: 'help' });
-                        switchPage('chat');
+                        router.push(pathForPage('chat'), { scroll: false });
                       }}
                     />
                   )}
@@ -1003,7 +921,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                       }}
                       onSelect={id => {
                         setBook(id);
-                        switchPage('home');
+                        router.push(pathForPage('home'), { scroll: false });
                       }}
                     />
                   )}
@@ -1838,7 +1756,8 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                   {page === 'chat' && (
                     <FinanceChat
                       onNavigate={target => {
-                        if (target in pagePaths || target === 'records') switchPage(target);
+                        if (target in pagePaths || target === 'records')
+                          router.push(pathForPage(target), { scroll: false });
                       }}
                       books={books}
                       onChanged={async () => {
@@ -1856,7 +1775,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                     />
                   )}
                   {page === 'settings' && (
-                    <section className="panel settings-sections">
+                    <section className={settingsStyles.settingsSections}>
                       <SectionTabs
                         label={tr('账本设置')}
                         value={settingsTab}
@@ -1864,7 +1783,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                         items={[
                           {
                             key: 'categories',
-                            label: locale === 'en' ? 'Categories' : '分类管理',
+                            label: tr('分类管理'),
                             content: (
                               <CategoryPanel
                                 items={categoryItems}
@@ -1883,53 +1802,41 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                             ? [
                                 {
                                   key: 'models',
-                                  label: locale === 'en' ? 'AI models' : 'AI 配置',
+                                  label: tr('AI 配置'),
                                   content: (
-                                    <div className="settings-grid">
+                                    <div className={settingsStyles.settingsGrid}>
                                       <ModelSettingsPanel
                                         scope="recognition"
                                         config={config}
-                                        setConfig={setConfig}
-                                        busy={busy}
-                                        onSave={() =>
-                                          run(async () => {
-                                            await api('ai-settings', 'PUT', config);
-                                            setConfig(c => ({ ...c, key: '', hasKey: true }));
-                                            setNotice('账单识别模型配置已保存');
-                                          })
-                                        }
-                                        onTest={() =>
-                                          run(async () => {
-                                            await api('ai-settings', 'POST', { background: true });
-                                            setNotice('账单识别模型连接测试已提交，请在后台任务查看结果');
-                                          })
-                                        }
+                                        onSave={async value => {
+                                          await api('ai-settings', 'PUT', value);
+                                          setConfig({ ...value, key: '', hasKey: true });
+                                          setNotice('账单识别模型配置已保存');
+                                        }}
+                                        onTest={async () => {
+                                          await api('ai-settings', 'POST', { background: true });
+                                          setNotice('账单识别模型连接测试已提交，请在后台任务查看结果');
+                                        }}
                                       />
                                       <ModelSettingsPanel
                                         scope="assistant"
                                         config={assistantConfig}
-                                        setConfig={setAssistantConfig}
-                                        busy={busy}
-                                        onSave={() =>
-                                          run(async () => {
-                                            await api('assistant-ai-settings', 'PUT', assistantConfig);
-                                            setAssistantConfig(c => ({ ...c, key: '', hasKey: true }));
-                                            setNotice('AI 助手模型配置已保存');
-                                          })
-                                        }
-                                        onTest={() =>
-                                          run(async () => {
-                                            await api('assistant-ai-settings', 'POST', { background: true });
-                                            setNotice('AI 助手模型连接测试已提交，请在后台任务查看结果');
-                                          })
-                                        }
+                                        onSave={async value => {
+                                          await api('assistant-ai-settings', 'PUT', value);
+                                          setAssistantConfig({ ...value, key: '', hasKey: true });
+                                          setNotice('AI 助手模型配置已保存');
+                                        }}
+                                        onTest={async () => {
+                                          await api('assistant-ai-settings', 'POST', { background: true });
+                                          setNotice('AI 助手模型连接测试已提交，请在后台任务查看结果');
+                                        }}
                                       />
                                     </div>
                                   ),
                                 },
                                 {
                                   key: 'queue',
-                                  label: locale === 'en' ? 'Task queue' : '任务队列',
+                                  label: tr('任务队列'),
                                   content: <QueueSettings />,
                                 },
                               ]

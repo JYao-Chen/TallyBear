@@ -141,8 +141,8 @@ try {
   await page.getByRole('button', { name: '上一页记录', exact: true }).click();
   await page.getByText('1–20 / 25 条', { exact: true }).waitFor();
   await page.waitForFunction(() => document.querySelectorAll('.memory-history-row').length === 20);
-  page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '撤销变更', exact: true }).first().click();
+  await page.getByRole('dialog', { name: '确认' }).getByRole('button', { name: '确认', exact: true }).click();
   await page.getByText('已撤销，记忆已恢复到此次变更前。', { exact: true }).waitFor();
   await page.getByText('共 26 条记录', { exact: true }).waitFor();
   await page.locator('.memory-history-row').first().getByText('已撤销', { exact: true }).waitFor();

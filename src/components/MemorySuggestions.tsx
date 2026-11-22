@@ -1,4 +1,6 @@
 'use client';
+import styles from './MemorySuggestions.module.css';
+import { Button } from '@/ui';
 import { useI18n } from './LanguageProvider';
 import { useState } from 'react';
 import type { MemorySuggestion } from '@/lib/memory';
@@ -77,26 +79,26 @@ export function MemorySuggestions({
   const pages = Math.ceil(suggestions.length / 6),
     current = Math.min(page, pages);
   return (
-    <details className="context-details">
+    <details className={styles.contextDetails}>
       <summary>
         {tr('商品记忆 · ')}
         {suggestions.some(s => s.status === 'matched') ? tr('已匹配历史商品') : tr('有相似候选待核对')}
       </summary>
-      <p className="muted">
+      <p className={styles.muted}>
         {tr('只关联商品，不复用旧价格、日期、数量或订单号。关联依据不代表本次付款信息。')}
       </p>
       {suggestions.slice((current - 1) * 6, current * 6).map(s => (
-        <div className="memory-row" key={s.id + (s.itemId || '')}>
+        <div className={`memory-row ${styles.memoryRow}`} key={s.id + (s.itemId || '')}>
           <div>
             <strong>{s.title}</strong>
             <p>{tr(s.reason)}</p>
             {s.conflicts?.map(c => (
-              <p key={c} className="notice">
+              <p key={c} className={styles.notice}>
                 {tr(c)}
               </p>
             ))}
             {s.fieldChanges?.map(c => (
-              <div key={c.field} className="memory-field-change">
+              <div key={c.field} className={`memory-field-change ${styles.memoryFieldChange}`}>
                 <span>
                   {tr(memoryFieldLabels[c.field])}：{c.before || tr('未填写')} → {c.after} ·{' '}
                   {
@@ -108,9 +110,10 @@ export function MemorySuggestions({
                     }[c.state]
                   }
                 </span>
-                <div className="memory-actions">
+                <div className={styles.memoryActions}>
                   {c.state !== 'applied' && (
-                    <button
+                    <Button
+                      variant="primary"
                       type="button"
                       disabled={disabled || busy}
                       onClick={() =>
@@ -118,9 +121,10 @@ export function MemorySuggestions({
                       }
                     >
                       {tr('采用此字段')}
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    variant="primary"
                     type="button"
                     disabled={disabled || busy}
                     onClick={() =>
@@ -128,7 +132,7 @@ export function MemorySuggestions({
                     }
                   >
                     {c.state === 'applied' ? tr('撤回填充') : tr('保留本次')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -139,18 +143,12 @@ export function MemorySuggestions({
               <p>{sources[s.id].slice(0, 5).join('；') || tr('共享记忆不展示私人账单来源')}</p>
             )}
           </div>
-          <div className="memory-actions">
-            <button
-              type="button"
-              className="text-button"
-              disabled={disabled || busy}
-              onClick={() => evidence(s.id)}
-            >
+          <div className={styles.memoryActions}>
+            <Button variant="ghost" type="button" disabled={disabled || busy} onClick={() => evidence(s.id)}>
               {tr('查看依据')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="secondary"
               disabled={disabled || busy}
               onClick={() =>
                 change(
@@ -169,41 +167,46 @@ export function MemorySuggestions({
                 : s.status === 'matched'
                   ? tr('已选规则')
                   : tr('采用此规则')}
-            </button>
-            <button
-              type="button"
-              className="text-button"
-              disabled={disabled || busy}
-              onClick={() => reject(s)}
-            >
+            </Button>
+            <Button variant="ghost" type="button" disabled={disabled || busy} onClick={() => reject(s)}>
               {tr('不是同款')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               type="button"
-              className="text-button"
               disabled={disabled || busy}
               onClick={() => change(suggestions.filter(v => v.id !== s.id || v.itemId !== s.itemId))}
             >
               {tr('仅本次不使用')}
-            </button>
+            </Button>
           </div>
         </div>
       ))}
       {pages > 1 && (
-        <div className="memory-actions">
-          <button type="button" disabled={current === 1} onClick={() => setPage(current - 1)}>
+        <div className={styles.memoryActions}>
+          <Button
+            variant="primary"
+            type="button"
+            disabled={current === 1}
+            onClick={() => setPage(current - 1)}
+          >
             {tr('上一页')}
-          </button>
+          </Button>
           <span>
             {current} / {pages}
           </span>
-          <button type="button" disabled={current === pages} onClick={() => setPage(current + 1)}>
+          <Button
+            variant="primary"
+            type="button"
+            disabled={current === pages}
+            onClick={() => setPage(current + 1)}
+          >
             {tr('下一页')}
-          </button>
+          </Button>
         </div>
       )}
       {error && (
-        <p role="alert" className="error">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}

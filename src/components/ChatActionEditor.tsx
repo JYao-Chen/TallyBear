@@ -1,4 +1,6 @@
 'use client';
+import styles from './ChatActionEditor.module.css';
+import { TextArea, Input, Button } from '@/ui';
 import { EntryInstallmentFields } from './EntryInstallmentFields';
 import { normalizeTransactionTime } from '@/lib/entry-time';
 import { FamilyActionEditor } from './FamilyActionEditor';
@@ -81,7 +83,8 @@ function StandardActionEditor({
       : baseKeys;
   return (
     <form
-      className="chat-inline-editor"
+      className={styles.chatInlineEditor}
+      aria-label={t('更新卡片')}
       onSubmit={async e => {
         e.preventDefault();
         if (busy) return;
@@ -127,7 +130,7 @@ function StandardActionEditor({
         </label>
       )}
       {options && (
-        <div className="form-grid">
+        <div className={styles.formGrid}>
           {!['memory', 'budget', 'allocation'].includes(action.kind) && (
             <label>
               {t('资金钱包')}
@@ -186,7 +189,7 @@ function StandardActionEditor({
         </label>
       )}
       {['entry', 'transaction', 'template', 'schedule'].includes(action.kind) && (
-        <details className="entry-optional">
+        <details className={styles.entryOptional}>
           <summary>{t('消费场景')}</summary>
           <SceneFields
             value={data.scene}
@@ -196,7 +199,7 @@ function StandardActionEditor({
       )}
       {action.kind === 'installment' && (
         <>
-          <label className="check">
+          <label className={styles.check}>
             <input
               type="checkbox"
               checked={!!data.allocate}
@@ -204,26 +207,26 @@ function StandardActionEditor({
             />
             {t('本金费用分摊')}
           </label>
-          <p className="muted">
+          <p className={styles.muted}>
             {t(
               '还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。',
             )}
           </p>
         </>
       )}
-      <div className="form-grid">
+      <div className={styles.formGrid}>
         {keys.map(key => (
-          <label className={key === 'note' ? 'receipt-fact-wide' : undefined} key={key}>
+          <label className={key === 'note' ? styles.receiptFactWide : undefined} key={key}>
             {t(fields[key])}
             {key === 'note' ? (
-              <textarea
+              <TextArea
                 name={key}
                 rows={3}
                 value={data[key] ?? ''}
                 onChange={e => update(key, e.target.value)}
               />
             ) : (
-              <input
+              <Input
                 name={key}
                 type={
                   key === 'occurredAt'
@@ -285,15 +288,21 @@ function StandardActionEditor({
         />
       )}{' '}
       {error && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {error}
         </p>
       )}
-      <div className="inline">
-        <button disabled={busy || !options || options.bookId !== data.targetBook}>{t('更新卡片')}</button>
-        <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
+      <div className={styles.inline}>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={busy || !options || options.bookId !== data.targetBook}
+        >
+          {t('更新卡片')}
+        </Button>
+        <Button type="button" disabled={busy} onClick={onCancel}>
           {t('取消修改')}
-        </button>
+        </Button>
       </div>
     </form>
   );

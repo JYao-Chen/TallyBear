@@ -1,0 +1,140 @@
+.financeComposer.financeComposer {
+  width: 100%;
+  flex: none;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3) max(var(--space-2), var(--safe-bottom));
+  background: var(--surface);
+  border: 0;
+}
+.composerBox {
+  position: relative;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  padding: var(--space-2);
+  background: var(--surface);
+}
+.composerBox:focus-within {
+  border-color: var(--accent);
+}
+.composerBox[data-dragging='true'] {
+  outline: 2px dashed var(--accent);
+}
+.composerBox textarea {
+  display: block;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  width: 100%;
+}
+.composerTools,
+.composerToolsLeft,
+.chatReplyTarget {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.composerTools,
+.chatReplyTarget {
+  justify-content: space-between;
+}
+.composerIcon,
+.composerSend,
+.composerOptions summary {
+  display: inline-grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  cursor: pointer;
+}
+.composerIcon,
+.composerOptions summary {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+}
+.composerSend {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.composerOptions {
+  position: relative;
+}
+.composerOptions summary {
+  list-style: none;
+}
+.composerOptions summary i {
+  background: var(--accent);
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.composerOptions > div {
+  position: absolute;
+  bottom: 100%;
+  left: -44px;
+  z-index: 2;
+  width: min(270px, 75vw);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+}
+.composerBackground,
+.composerAttachmentStatus {
+  color: var(--accent);
+}
+.check {
+  flex-direction: row;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.composerPreviews {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+.composerPreview {
+  position: relative;
+  flex: 0 0 88px;
+  min-width: 0;
+}
+.composerPreview img {
+  width: 88px;
+  height: 60px;
+  object-fit: cover;
+}
+.composerPreview button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  min-width: var(--touch);
+  padding: 0;
+}
+.composerPreview span,
+.composerShortcut {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.composerShortcut {
+  text-align: right;
+}
+.composerSpinner {
+  color: var(--accent);
+}
+@media (max-width: 730px) {
+  .composerShortcut {
+    display: none;
+  }
+}

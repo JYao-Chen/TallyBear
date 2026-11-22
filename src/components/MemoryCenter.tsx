@@ -1,4 +1,7 @@
 'use client';
+import { Button, Input, ListRow, Sheet, TextArea } from '@/ui';
+import styles from './MemoryCenter.module.css';
+import { useConfirmation } from '@/ui/useConfirmation';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@/lib/deployment';
@@ -39,9 +42,8 @@ export function MemoryCenter({
   const { t: tr, locale } = useI18n();
   if (embedded) return <MemoryWorkspace admin={admin} initialId={initialId} />;
   return (
-    <button
+    <Button
       type="button"
-      className="secondary"
       onClick={() => {
         onOpen?.();
         window.dispatchEvent(new CustomEvent('tallybear:memory', { detail: initialId || '' }));
@@ -49,7 +51,7 @@ export function MemoryCenter({
     >
       <Brain size={18} />
       {tr('个人画像')}
-    </button>
+    </Button>
   );
 }
 export function MemoryWorkspace({
@@ -63,6 +65,7 @@ export function MemoryWorkspace({
   view?: string;
   initialKind?: string;
 }) {
+  const { confirmation, requestConfirmation } = useConfirmation();
   const { t: tr, locale } = useI18n();
   const [section, setSection] = useState('collection'),
     [loading, setLoading] = useState(true),
@@ -89,10 +92,6 @@ export function MemoryWorkspace({
     }
   }, [view, initialKind]);
   const selectionRequest = useRef(0);
-  useEffect(() => {
-    if (selected)
-      document.querySelector('.memory-detail')?.scrollIntoView({ block: 'start', behavior: 'instant' });
-  }, [selected]);
   const [replaceConflicts, setReplaceConflicts] = useState(false);
   const [ruleMatch, setRuleMatch] = useState(''),
     [ruleScope, setRuleScope] = useState('product'),
@@ -237,30 +236,32 @@ export function MemoryWorkspace({
         .catch(e => setError(e.message));
   }, [initialId]);
   return (
-    <div className="memory-center memory-workspace">
+    <div className={`memory-center ${styles.memoryCenter} ${styles.memoryWorkspace}`}>
+      {confirmation}
       {!view && (
-        <div className="memory-heading">
+        <div className={styles.memoryHeading}>
           <div>
             <h2>{tr('记忆中心')}</h2>
-            <p className="muted">{tr('整理你的商品、习惯与财务记忆。记忆只辅助填充，不会自行改动账单。')}</p>
+            <p className={styles.muted}>
+              {tr('整理你的商品、习惯与财务记忆。记忆只辅助填充，不会自行改动账单。')}
+            </p>
           </div>
-          <span className="memory-privacy">
+          <span className={styles.memoryPrivacy}>
             <LockKeyhole size={14} aria-hidden="true" />
             {tr('个人私有 · 分享需确认')}
           </span>
         </div>
       )}
       {!view && (
-        <nav className="memory-sections" aria-label={tr('记忆中心栏目')}>
+        <nav className={styles.memorySections} aria-label={tr('记忆中心栏目')}>
           {[
             { key: 'collection', label: tr('我的记忆'), icon: BookOpen },
             { key: 'pending', label: tr('待确认'), icon: Clock3 },
             { key: 'events', label: tr('变更记录'), icon: History },
             { key: 'settings', label: tr('学习与设置'), icon: Settings2 },
           ].map(({ key, label, icon: Icon }) => (
-            <button
+            <Button
               type="button"
-              className="secondary"
               aria-pressed={section === key}
               key={key}
               onClick={() => {
@@ -275,25 +276,25 @@ export function MemoryWorkspace({
             >
               <Icon size={17} aria-hidden="true" />
               {label}
-            </button>
+            </Button>
           ))}
         </nav>
       )}
-      {error && (
-        <p role="alert" className="error">
+      {error && !selected && (
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
       {message && (
-        <p role="status" className="notice">
+        <p role="status" className={styles.notice}>
           {message}
         </p>
       )}
       {section === 'settings' && (
-        <section className="memory-settings">
+        <section className={styles.memorySettings}>
           <h3>{tr('学习与数据管理')}</h3>
-          <p className="muted">{tr('保存账目不等待记忆整理。遗忘记忆不会删除原账单。')}</p>
-          <label className="check">
+          <p className={styles.muted}>{tr('保存账目不等待记忆整理。遗忘记忆不会删除原账单。')}</p>
+          <label className={styles.check}>
             <input
               type="checkbox"
               checked={enabled}
@@ -307,32 +308,25 @@ export function MemoryWorkspace({
             />
             {tr('启用个人记忆学习')}
           </label>
-          <div className="memory-actions">
-            <button
+          <div className={styles.memoryActions}>
+            <Button
+              variant="primary"
               type="button"
               disabled={busy}
               onClick={() => {
-                if (
-                  confirm(
-                    tr('将整理全部可访问的个人账单与财务对话，并向已配置的记忆模型发送必要内容。继续？'),
-                  )
-                )
-                  run({ operation: 'history' });
+                requestConfirmation(
+                  tr('将整理全部可访问的个人账单与财务对话，并向已配置的记忆模型发送必要内容。继续？'),
+                  () => run({ operation: 'history' }),
+                );
               }}
             >
               {tr('整理历史记忆')}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() => run({ operation: 'rebuild' })}
-            >
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => run({ operation: 'rebuild' })}>
               {tr('重建向量')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="secondary"
               onClick={async () => {
                 try {
                   const r = await api('', { operation: 'export' });
@@ -350,32 +344,33 @@ export function MemoryWorkspace({
               }}
             >
               {tr('导出我的记忆')}
-            </button>
+            </Button>
           </div>
           <details>
             <summary>{tr('遗忘后的重新学习')}</summary>
             <p>{tr('重新允许全部已排除来源参与历史整理。')}</p>
-            <button
+            <Button
+              variant="primary"
               type="button"
               disabled={busy}
               onClick={() => {
-                if (confirm(tr('清除来源排除标记并重新学习？'))) run({ operation: 'learn' });
+                requestConfirmation(tr('清除来源排除标记并重新学习？'), () => run({ operation: 'learn' }));
               }}
             >
               {tr('允许重新学习')}
-            </button>
+            </Button>
           </details>
           {admin && <MemoryModels />}
         </section>
       )}
       {section === 'events' && <MemoryHistory />}
       {(section === 'collection' || section === 'pending') && (
-        <div className={'memory-workbench' + (selected ? ' has-selection' : '')}>
-          <section className="memory-collection">
-            <div className="memory-filters">
+        <div className={styles.memoryWorkbench}>
+          <section className={`memory-collection ${styles.memoryCollection}`}>
+            <div className={styles.memoryFilters}>
               <label>
                 {tr('搜索记忆')}
-                <input
+                <Input
                   value={q}
                   onChange={e => {
                     setQ(e.target.value);
@@ -416,9 +411,8 @@ export function MemoryWorkspace({
                 </select>
               </label>
             </div>
-            <button
+            <Button
               type="button"
-              className="secondary"
               onClick={() => {
                 setReplaceConflicts(false);
                 setSelected({
@@ -448,421 +442,452 @@ export function MemoryWorkspace({
               }}
             >
               {tr('新增明确偏好')}
-            </button>
+            </Button>
             {loading && <p role="status">{tr('正在加载记忆…')}</p>}
             {!loading && !items.length && (
-              <p className="muted">{tr('暂无符合条件的记忆。可以先整理历史，或记下一条明确偏好。')}</p>
+              <p className={styles.muted}>{tr('暂无符合条件的记忆。可以先整理历史，或记下一条明确偏好。')}</p>
             )}
             {items.map(m => (
-              <article className={'memory-row' + (selected?.id === m.id ? ' is-selected' : '')} key={m.id}>
-                <div>
-                  <strong>{m.title}</strong>
-                  <p className="muted">
-                    {tr(kinds[m.kind])} · {m.family_id ? tr('家庭共享') : tr('个人')}
-                    {m.attributes.category ? ' · ' + m.attributes.category : ''}
-                  </p>
-                </div>
-                <button type="button" className="secondary" onClick={() => select(m)}>
-                  {tr('查看与管理')}
-                </button>
+              <article className={`memory-row ${styles.memoryRow}`} key={m.id}>
+                <ListRow
+                  title={m.title}
+                  meta={
+                    <>
+                      {tr(kinds[m.kind])} · {m.family_id ? tr('家庭共享') : tr('个人')}
+                      {m.attributes.category ? ' · ' + m.attributes.category : ''}
+                    </>
+                  }
+                  end={<>{tr('查看与管理')} ›</>}
+                  onClick={() => select(m)}
+                />
               </article>
             ))}
-            <div className="memory-actions">
-              <button type="button" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+            <div className={styles.memoryActions}>
+              <Button
+                variant="primary"
+                type="button"
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+              >
                 {tr('上一页')}
-              </button>
+              </Button>
               <span>
                 {page} / {Math.max(1, Math.ceil(total / 20))} {tr(' · 共 ')}
                 {total} {tr(' 条')}
               </span>
-              <button type="button" disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}>
+              <Button
+                variant="primary"
+                type="button"
+                disabled={page * 20 >= total}
+                onClick={() => setPage(p => p + 1)}
+              >
                 {tr('下一页')}
-              </button>
+              </Button>
             </div>
           </section>
-          {selected ? (
-            <section className="memory-detail" key={selected.id}>
-              <button type="button" className="text-button" onClick={() => setSelected(null)}>
-                {tr('← 返回记忆列表')}
-              </button>
-              <h3>{selected.id ? tr('编辑记忆') : tr('新增偏好')}</h3>
-              {selected.kind === 'product' && (
-                <details>
-                  <summary>{tr('自动提炼的商品属性与依据')}</summary>
-                  <p>
-                    {tr('规范名称：')}
-                    {selected.attributes.canonicalName || tr('未提炼')} {tr(' · 型号：')}
-                    {selected.attributes.model || tr('未识别')}
+          {selected && (
+            <Sheet
+              open
+              title={selected.id ? tr('编辑记忆') : tr('新增偏好')}
+              onClose={() => setSelected(null)}
+            >
+              <section className={`memory-detail ${styles.memoryDetail}`} key={selected.id}>
+                {error && (
+                  <p role="alert" className={styles.error}>
+                    {error}
                   </p>
-                  {Object.entries(selected.attributes.quotes || {}).map(([key, quote]) => (
-                    <p key={key}>
-                      {(
-                        {
-                          name: tr('名称'),
-                          brand: tr('品牌'),
-                          specification: tr('规格'),
-                          model: tr('型号'),
-                        } as Record<string, string>
-                      )[key] || key}
-                      {tr('依据：')}
-                      {quote}
-                    </p>
-                  ))}
-                </details>
-              )}
-              {selected.kind === 'preference' && (
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={replaceConflicts}
-                    onChange={e => setReplaceConflicts(e.target.checked)}
-                  />
-                  {tr('明确以此规则替代同一场景的旧分类规则')}
-                </label>
-              )}
-              <form
-                onSubmit={e => {
-                  e.preventDefault();
-                  run({
-                    operation: 'save',
-                    replaceConflicts,
-                    ...(selected.id ? { id: selected.id, version: selected.version } : {}),
-                    kind: selected.kind,
-                    title: editTitle,
-                    content: editContent,
-                    aliases: aliases
-                      .split('\n')
-                      .map(s => s.trim())
-                      .filter(Boolean),
-                    attributes: {
-                      ...selected.attributes,
-                      targetId: referenceId || undefined,
-                      targetType: referenceId ? referenceType : undefined,
-                      match: ruleMatch || undefined,
-                      scope: ruleScope,
-                      category: category || undefined,
-                      brand: brand || undefined,
-                      specification: specification || undefined,
-                    },
-                  });
-                }}
-              >
-                <h4>{tr('基本信息')}</h4>
-                <label>
-                  {tr('名称')}
-                  <input
-                    required
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    maxLength={160}
-                  />
-                </label>
-                <label>
-                  {tr('描述')}
-                  <textarea
-                    value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    maxLength={2000}
-                  />
-                </label>
-                <label>
-                  {tr('别名（每行一个）')}
-                  <textarea value={aliases} onChange={e => setAliases(e.target.value)} />
-                </label>
-                {selected.kind === 'preference' && (
-                  <>
-                    <label>
-                      {tr('适用范围')}
-                      <select value={ruleScope} onChange={e => setRuleScope(e.target.value)}>
-                        <option value="product">{tr('仅此商品')}</option>
-                        <option value="merchant">{tr('该商家的消费')}</option>
-                      </select>
-                    </label>
-                    <label>
-                      {tr('匹配的商品／商家名称')}
-                      <input value={ruleMatch} onChange={e => setRuleMatch(e.target.value)} />
-                    </label>
-                  </>
                 )}
+                <Button variant="ghost" type="button" onClick={() => setSelected(null)}>
+                  {tr('← 返回记忆列表')}
+                </Button>
+
                 {selected.kind === 'product' && (
-                  <>
-                    <h4>{tr('商品属性')}</h4>
-                    <label>
-                      {tr('品牌')}
-                      <input value={brand} onChange={e => setBrand(e.target.value)} />
-                    </label>
-                    <label>
-                      {tr('规格／套餐')}
-                      <input value={specification} onChange={e => setSpecification(e.target.value)} />
-                    </label>
-                  </>
+                  <details>
+                    <summary>{tr('自动提炼的商品属性与依据')}</summary>
+                    <p>
+                      {tr('规范名称：')}
+                      {selected.attributes.canonicalName || tr('未提炼')} {tr(' · 型号：')}
+                      {selected.attributes.model || tr('未识别')}
+                    </p>
+                    {Object.entries(selected.attributes.quotes || {}).map(([key, quote]) => (
+                      <p key={key}>
+                        {(
+                          {
+                            name: tr('名称'),
+                            brand: tr('品牌'),
+                            specification: tr('规格'),
+                            model: tr('型号'),
+                          } as Record<string, string>
+                        )[key] || key}
+                        {tr('依据：')}
+                        {quote}
+                      </p>
+                    ))}
+                  </details>
                 )}
-                <details>
-                  <summary>{tr('关联已有活动或计划')}</summary>
-                  <label>
-                    {tr('对象类型')}
-                    <select
-                      value={referenceType}
-                      onChange={e => {
-                        setReferenceType(e.target.value);
-                        setReferenceId('');
-                        setReferencePage(1);
-                      }}
-                    >
-                      <option value="activity">{tr('活动')}</option>
-                      <option value="schedule">{tr('周期计划')}</option>
-                      <option value="template">{tr('常用预设')}</option>
-                    </select>
-                  </label>
-                  <label>
-                    {tr('搜索对象')}
+                {selected.kind === 'preference' && (
+                  <label className={styles.check}>
                     <input
-                      value={referenceQuery}
-                      onChange={e => {
-                        setReferenceQuery(e.target.value);
-                        setReferencePage(1);
-                      }}
+                      type="checkbox"
+                      checked={replaceConflicts}
+                      onChange={e => setReplaceConflicts(e.target.checked)}
+                    />
+                    {tr('明确以此规则替代同一场景的旧分类规则')}
+                  </label>
+                )}
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    run({
+                      operation: 'save',
+                      replaceConflicts,
+                      ...(selected.id ? { id: selected.id, version: selected.version } : {}),
+                      kind: selected.kind,
+                      title: editTitle,
+                      content: editContent,
+                      aliases: aliases
+                        .split('\n')
+                        .map(s => s.trim())
+                        .filter(Boolean),
+                      attributes: {
+                        ...selected.attributes,
+                        targetId: referenceId || undefined,
+                        targetType: referenceId ? referenceType : undefined,
+                        match: ruleMatch || undefined,
+                        scope: ruleScope,
+                        category: category || undefined,
+                        brand: brand || undefined,
+                        specification: specification || undefined,
+                      },
+                    });
+                  }}
+                >
+                  <h4>{tr('基本信息')}</h4>
+                  <label>
+                    {tr('名称')}
+                    <Input
+                      required
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      maxLength={160}
                     />
                   </label>
                   <label>
-                    {tr('选择关联对象')}
-                    <select value={referenceId} onChange={e => setReferenceId(e.target.value)}>
-                      <option value="">{tr('不关联')}</option>
-                      {references.map(r => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
+                    {tr('描述')}
+                    <TextArea
+                      value={editContent}
+                      onChange={e => setEditContent(e.target.value)}
+                      maxLength={2000}
+                    />
                   </label>
-                  <div className="memory-actions">
-                    <button
-                      type="button"
-                      disabled={referencePage === 1}
-                      onClick={() => setReferencePage(p => p - 1)}
-                    >
-                      {tr('上一页对象')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={references.length < 20}
-                      onClick={() => setReferencePage(p => p + 1)}
-                    >
-                      {tr('下一页对象')}
-                    </button>
-                  </div>
-                </details>
-                <label>
-                  {tr('分类偏好')}
-                  <input value={category} onChange={e => setCategory(e.target.value)} />
-                </label>
-                <div className="memory-actions">
-                  <button disabled={busy}>{tr('保存')}</button>
-                  <button type="button" className="secondary" onClick={() => setSelected(null)}>
-                    {tr('关闭详情')}
-                  </button>
-                  {selected.id && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          run({
-                            operation: 'status',
-                            id: selected.id,
-                            version: selected.version,
-                            status: selected.status === 'active' ? 'disabled' : 'active',
-                          })
-                        }
-                      >
-                        {selected.status === 'active' ? tr('停用') : tr('确认启用')}
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          if (confirm(tr('遗忘此记忆并阻止从这些来源重新学习？原账单不受影响。')))
-                            run({ operation: 'forget', id: selected.id, version: selected.version });
-                        }}
-                      >
-                        {tr('遗忘')}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </form>
-              {detail && (
-                <details>
-                  <summary>{tr('来源依据与购买记录')}</summary>
-                  {detail.stats && (
-                    <p>
-                      {tr('共 ')}
-                      {detail.stats.purchases} {tr(' 次购买 · 已知小计 ')}
-                      {formatMoney(detail.stats.known_amount)} · {detail.stats.unknown_amounts}{' '}
-                      {tr(' 项金额未知（不含退款分摊）')}
-                    </p>
-                  )}
-                  {detail.sources.map((source: any) => {
-                    const item = source.item_id
-                      ? source.line_items?.find((i: any) => i.id === source.item_id)
-                      : null;
-                    const amount = source.item_id ? item?.amount : source.amount;
-                    return (
-                      <div className="memory-row" key={source.source_id + source.item_id}>
-                        <div>
-                          <strong>{source.title || source.source_type}</strong>
-                          <p>
-                            {source.date ? new Date(source.date).toLocaleDateString(locale) : ''} ·{' '}
-                            {source.item_id ? item?.name || tr('商品明细') : tr('整单')} ·{' '}
-                            {amount == null ? tr('金额未知') : formatMoney(Number(amount))}
-                          </p>
-                        </div>
-                        {selected.kind === 'product' && (
-                          <button
-                            type="button"
-                            className="secondary"
-                            disabled={busy}
-                            onClick={() => {
-                              const title = prompt(tr('拆分后的商品名称'), item?.name || selected.title);
-                              if (title)
-                                run({
-                                  operation: 'split',
-                                  id: selected.id,
-                                  version: selected.version,
-                                  sourceId: source.source_id,
-                                  itemId: source.item_id,
-                                  value: { kind: 'product', title, attributes: selected.attributes },
-                                });
-                            }}
-                          >
-                            {tr('拆为其他商品')}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div className="memory-actions">
-                    <button
-                      type="button"
-                      disabled={sourcePage === 1}
-                      onClick={async () => {
-                        try {
-                          const next = sourcePage - 1;
-                          setDetail(await api('?id=' + selected.id + '&page=' + next));
-                          setSourcePage(next);
-                        } catch (e) {
-                          setError((e as Error).message);
-                        }
-                      }}
-                    >
-                      {tr('上一页来源')}
-                    </button>
-                    <span>{sourcePage}</span>
-                    <button
-                      type="button"
-                      disabled={detail.sources.length < 20}
-                      onClick={async () => {
-                        try {
-                          const next = sourcePage + 1;
-                          setDetail(await api('?id=' + selected.id + '&page=' + next));
-                          setSourcePage(next);
-                        } catch (e) {
-                          setError((e as Error).message);
-                        }
-                      }}
-                    >
-                      {tr('下一页来源')}
-                    </button>
-                  </div>
-                </details>
-              )}
-              {selected.id && (
-                <details>
-                  <summary>{tr('合并与家庭分享')}</summary>
-                  {selected.kind === 'product' && (
+                  <label>
+                    {tr('别名（每行一个）')}
+                    <TextArea value={aliases} onChange={e => setAliases(e.target.value)} />
+                  </label>
+                  {selected.kind === 'preference' && (
                     <>
                       <label>
-                        {tr('搜索要合并到的商品')}
-                        <input value={targetQuery} onChange={e => setTargetQuery(e.target.value)} />
-                      </label>
-                      <label>
-                        {tr('选择目标商品')}
-                        <select value={target} onChange={e => setTarget(e.target.value)}>
-                          <option value="">{tr('请选择')}</option>
-                          {targets.map(m => (
-                            <option key={m.id} value={m.id}>
-                              {m.title}
-                            </option>
-                          ))}
+                        {tr('适用范围')}
+                        <select value={ruleScope} onChange={e => setRuleScope(e.target.value)}>
+                          <option value="product">{tr('仅此商品')}</option>
+                          <option value="merchant">{tr('该商家的消费')}</option>
                         </select>
                       </label>
-                      <button
-                        type="button"
-                        disabled={busy || !target}
-                        onClick={() => {
-                          if (confirm(tr('将此商品的来源合并到目标商品？')))
-                            run({
-                              operation: 'merge',
-                              id: selected.id,
-                              version: selected.version,
-                              targetId: target,
-                            });
-                        }}
-                      >
-                        {tr('合并商品')}
-                      </button>
+                      <label>
+                        {tr('匹配的商品／商家名称')}
+                        <Input value={ruleMatch} onChange={e => setRuleMatch(e.target.value)} />
+                      </label>
                     </>
                   )}
-                  <p className="muted">{tr('分享只发送下面确认的名称和描述，不复制私人来源。')}</p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const r = await fetch('/api/families');
-                        const data = await r.json();
-                        setFamilies(Array.isArray(data) ? data : data.families || []);
-                      } catch (e) {
-                        setError((e as Error).message);
-                      }
-                    }}
-                  >
-                    {tr('选择我的家庭')}
-                  </button>
-                  {families.map(f => (
-                    <button
+                  {selected.kind === 'product' && (
+                    <>
+                      <h4>{tr('商品属性')}</h4>
+                      <label>
+                        {tr('品牌')}
+                        <Input value={brand} onChange={e => setBrand(e.target.value)} />
+                      </label>
+                      <label>
+                        {tr('规格／套餐')}
+                        <Input value={specification} onChange={e => setSpecification(e.target.value)} />
+                      </label>
+                    </>
+                  )}
+                  <details>
+                    <summary>{tr('关联已有活动或计划')}</summary>
+                    <label>
+                      {tr('对象类型')}
+                      <select
+                        value={referenceType}
+                        onChange={e => {
+                          setReferenceType(e.target.value);
+                          setReferenceId('');
+                          setReferencePage(1);
+                        }}
+                      >
+                        <option value="activity">{tr('活动')}</option>
+                        <option value="schedule">{tr('周期计划')}</option>
+                        <option value="template">{tr('常用预设')}</option>
+                      </select>
+                    </label>
+                    <label>
+                      {tr('搜索对象')}
+                      <Input
+                        value={referenceQuery}
+                        onChange={e => {
+                          setReferenceQuery(e.target.value);
+                          setReferencePage(1);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {tr('选择关联对象')}
+                      <select value={referenceId} onChange={e => setReferenceId(e.target.value)}>
+                        <option value="">{tr('不关联')}</option>
+                        {references.map(r => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className={styles.memoryActions}>
+                      <Button
+                        variant="primary"
+                        type="button"
+                        disabled={referencePage === 1}
+                        onClick={() => setReferencePage(p => p - 1)}
+                      >
+                        {tr('上一页对象')}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        type="button"
+                        disabled={references.length < 20}
+                        onClick={() => setReferencePage(p => p + 1)}
+                      >
+                        {tr('下一页对象')}
+                      </Button>
+                    </div>
+                  </details>
+                  <label>
+                    {tr('分类偏好')}
+                    <Input value={category} onChange={e => setCategory(e.target.value)} />
+                  </label>
+                  <div className={styles.memoryActions}>
+                    <Button type="submit" variant="primary" disabled={busy}>
+                      {tr('保存')}
+                    </Button>
+                    <Button type="button" onClick={() => setSelected(null)}>
+                      {tr('关闭详情')}
+                    </Button>
+                    {selected.id && (
+                      <>
+                        <Button
+                          variant="primary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            run({
+                              operation: 'status',
+                              id: selected.id,
+                              version: selected.version,
+                              status: selected.status === 'active' ? 'disabled' : 'active',
+                            })
+                          }
+                        >
+                          {selected.status === 'active' ? tr('停用') : tr('确认启用')}
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            requestConfirmation(
+                              tr('遗忘此记忆并阻止从这些来源重新学习？原账单不受影响。'),
+                              () => run({ operation: 'forget', id: selected.id, version: selected.version }),
+                            );
+                          }}
+                        >
+                          {tr('遗忘')}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </form>
+                {detail && (
+                  <details>
+                    <summary>{tr('来源依据与购买记录')}</summary>
+                    {detail.stats && (
+                      <p>
+                        {tr('共 ')}
+                        {detail.stats.purchases} {tr(' 次购买 · 已知小计 ')}
+                        {formatMoney(detail.stats.known_amount)} · {detail.stats.unknown_amounts}{' '}
+                        {tr(' 项金额未知（不含退款分摊）')}
+                      </p>
+                    )}
+                    {detail.sources.map((source: any) => {
+                      const item = source.item_id
+                        ? source.line_items?.find((i: any) => i.id === source.item_id)
+                        : null;
+                      const amount = source.item_id ? item?.amount : source.amount;
+                      return (
+                        <div
+                          className={`memory-row ${styles.memoryRow}`}
+                          key={source.source_id + source.item_id}
+                        >
+                          <div>
+                            <strong>{source.title || source.source_type}</strong>
+                            <p>
+                              {source.date ? new Date(source.date).toLocaleDateString(locale) : ''} ·{' '}
+                              {source.item_id ? item?.name || tr('商品明细') : tr('整单')} ·{' '}
+                              {amount == null ? tr('金额未知') : formatMoney(Number(amount))}
+                            </p>
+                          </div>
+                          {selected.kind === 'product' && (
+                            <Button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => {
+                                const title = prompt(tr('拆分后的商品名称'), item?.name || selected.title);
+                                if (title)
+                                  run({
+                                    operation: 'split',
+                                    id: selected.id,
+                                    version: selected.version,
+                                    sourceId: source.source_id,
+                                    itemId: source.item_id,
+                                    value: { kind: 'product', title, attributes: selected.attributes },
+                                  });
+                              }}
+                            >
+                              {tr('拆为其他商品')}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className={styles.memoryActions}>
+                      <Button
+                        variant="primary"
+                        type="button"
+                        disabled={sourcePage === 1}
+                        onClick={async () => {
+                          try {
+                            const next = sourcePage - 1;
+                            setDetail(await api('?id=' + selected.id + '&page=' + next));
+                            setSourcePage(next);
+                          } catch (e) {
+                            setError((e as Error).message);
+                          }
+                        }}
+                      >
+                        {tr('上一页来源')}
+                      </Button>
+                      <span>{sourcePage}</span>
+                      <Button
+                        variant="primary"
+                        type="button"
+                        disabled={detail.sources.length < 20}
+                        onClick={async () => {
+                          try {
+                            const next = sourcePage + 1;
+                            setDetail(await api('?id=' + selected.id + '&page=' + next));
+                            setSourcePage(next);
+                          } catch (e) {
+                            setError((e as Error).message);
+                          }
+                        }}
+                      >
+                        {tr('下一页来源')}
+                      </Button>
+                    </div>
+                  </details>
+                )}
+                {selected.id && (
+                  <details>
+                    <summary>{tr('合并与家庭分享')}</summary>
+                    {selected.kind === 'product' && (
+                      <>
+                        <label>
+                          {tr('搜索要合并到的商品')}
+                          <Input value={targetQuery} onChange={e => setTargetQuery(e.target.value)} />
+                        </label>
+                        <label>
+                          {tr('选择目标商品')}
+                          <select value={target} onChange={e => setTarget(e.target.value)}>
+                            <option value="">{tr('请选择')}</option>
+                            {targets.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Button
+                          variant="primary"
+                          type="button"
+                          disabled={busy || !target}
+                          onClick={() => {
+                            requestConfirmation(tr('将此商品的来源合并到目标商品？'), () =>
+                              run({
+                                operation: 'merge',
+                                id: selected.id,
+                                version: selected.version,
+                                targetId: target,
+                              }),
+                            );
+                          }}
+                        >
+                          {tr('合并商品')}
+                        </Button>
+                      </>
+                    )}
+                    <p className={styles.muted}>{tr('分享只发送下面确认的名称和描述，不复制私人来源。')}</p>
+                    <Button
+                      variant="primary"
                       type="button"
-                      key={f.id}
-                      disabled={busy}
-                      onClick={() => {
-                        if (confirm(tr('共享当前名称与描述给家庭 {0}？', [f.name])))
-                          run({
-                            operation: 'share',
-                            id: selected.id,
-                            version: selected.version,
-                            familyId: f.id,
-                            shared: {
-                              kind: selected.kind,
-                              title: editTitle,
-                              content: editContent,
-                              aliases: [],
-                              attributes: {},
-                            },
-                          });
+                      onClick={async () => {
+                        try {
+                          const r = await fetch('/api/families');
+                          const data = await r.json();
+                          setFamilies(Array.isArray(data) ? data : data.families || []);
+                        } catch (e) {
+                          setError((e as Error).message);
+                        }
                       }}
                     >
-                      {f.name}
-                    </button>
-                  ))}
-                </details>
-              )}
-            </section>
-          ) : (
-            <section className="memory-detail memory-detail-empty">
-              <Brain size={32} />
-              <h3>{tr('选择一条记忆')}</h3>
-              <p className="muted">{tr('查看商品属性、来源依据与购买记录，或调整记账偏好。')}</p>
-            </section>
+                      {tr('选择我的家庭')}
+                    </Button>
+                    {families.map(f => (
+                      <Button
+                        variant="primary"
+                        type="button"
+                        key={f.id}
+                        disabled={busy}
+                        onClick={() => {
+                          requestConfirmation(tr('共享当前名称与描述给家庭 {0}？', [f.name]), () =>
+                            run({
+                              operation: 'share',
+                              id: selected.id,
+                              version: selected.version,
+                              familyId: f.id,
+                              shared: {
+                                kind: selected.kind,
+                                title: editTitle,
+                                content: editContent,
+                                aliases: [],
+                                attributes: {},
+                              },
+                            }),
+                          );
+                        }}
+                      >
+                        {f.name}
+                      </Button>
+                    ))}
+                  </details>
+                )}
+              </section>
+            </Sheet>
           )}
         </div>
       )}
@@ -886,9 +911,7 @@ function MemoryModels() {
     <details>
       <summary>{tr('记忆模型配置与运行统计（管理员）')}</summary>
       <p>
-        {locale === 'en'
-          ? 'Initial setup copies an existing Qwen connection. Each role then keeps its own configuration. After changing recognition credentials, use the button below to update this role.'
-          : '首次配置会复用现有通义连接，之后三个用途独立保存。更换记账密钥后，可用下方按钮同步当前用途。'}
+        {tr('首次配置会复用现有通义连接，之后三个用途独立保存。更换记账密钥后，可用下方按钮同步当前用途。')}
       </p>
       <label>
         {tr('用途')}
@@ -923,20 +946,20 @@ function MemoryModels() {
       >
         <label>
           {tr('API 地址')}
-          <input name="base_url" type="url" required defaultValue={cfg?.base_url} />
+          <Input name="base_url" type="url" required defaultValue={cfg?.base_url} />
         </label>
         <label>
           {tr('模型名称')}
-          <input name="model" required defaultValue={cfg?.model} />
+          <Input name="model" required defaultValue={cfg?.model} />
         </label>
         <label>
           {tr('API 密钥（留空保留）')}
-          <input name="key" type="password" autoComplete="new-password" />
+          <Input name="key" type="password" autoComplete="new-password" />
         </label>
         {role === 'embedding' && (
           <label>
             {tr('向量维度')}
-            <input
+            <Input
               name="dimensions"
               type="number"
               min={1}
@@ -945,9 +968,12 @@ function MemoryModels() {
             />
           </label>
         )}
-        <div className="memory-actions">
-          <button disabled={busy}>{tr('保存配置')}</button>
-          <button
+        <div className={styles.memoryActions}>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {tr('保存配置')}
+          </Button>
+          <Button
+            variant="primary"
             type="button"
             disabled={busy}
             onClick={async () => {
@@ -956,11 +982,7 @@ function MemoryModels() {
               try {
                 await api('?admin=models', { role, operation: 'reuse-key', source: 'recognition' });
                 await load();
-                setError(
-                  locale === 'en'
-                    ? 'Credentials copied from the recognition model.'
-                    : '已复用记账模型密钥，可测试连接并重试失败任务。',
-                );
+                setError(tr('已复用记账模型密钥，可测试连接并重试失败任务。'));
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -968,9 +990,10 @@ function MemoryModels() {
               }
             }}
           >
-            {locale === 'en' ? 'Use recognition credentials' : '复用记账模型密钥'}
-          </button>
-          <button
+            {tr('复用记账模型密钥')}
+          </Button>
+          <Button
+            variant="primary"
             type="button"
             disabled={busy}
             onClick={async () => {
@@ -987,7 +1010,7 @@ function MemoryModels() {
             }}
           >
             {tr('测试连接')}
-          </button>
+          </Button>
         </div>
       </form>
       {error && <p role="status">{error}</p>}

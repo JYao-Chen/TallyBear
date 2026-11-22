@@ -1,4 +1,6 @@
 'use client';
+import styles from './FinanceComposer.module.css';
+import { Button } from '@/ui';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
@@ -71,7 +73,7 @@ export function FinanceComposer({
       el.style.overflowY = natural > cap ? 'auto' : 'hidden';
       setLong(natural > 96);
       box.current
-        ?.closest<HTMLElement>('.finance-main')
+        ?.closest<HTMLElement>('[data-conversation]')
         ?.style.setProperty('--composer-height', `${box.current.parentElement?.offsetHeight || 120}px`);
     };
     resize();
@@ -104,25 +106,21 @@ export function FinanceComposer({
     }
   }
   return (
-    <div className={'finance-composer' + (expanded ? ' is-expanded' : '')}>
+    <div className={styles.financeComposer} role="group" aria-label={tr('给财务助手发送消息')}>
       {reply && (
-        <div className="chat-reply-target">
+        <div className={styles.chatReplyTarget}>
           <span>
             {tr('正在修改')} · {reply}
           </span>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={tr('取消指定修改')}
-            onClick={onCancelReply}
-          >
+          <Button variant="ghost" type="button" aria-label={tr('取消指定修改')} onClick={onCancelReply}>
             <X size={15} />
-          </button>
+          </Button>
         </div>
       )}
       <div
         ref={box}
-        className={'composer-box' + (drag ? ' is-dragging' : '')}
+        className={styles.composerBox}
+        data-dragging={drag}
         onDragOver={e => {
           if (e.dataTransfer.types.includes('Files')) {
             e.preventDefault();
@@ -140,11 +138,12 @@ export function FinanceComposer({
       >
         {images.length > 0 && (
           <>
-            <div className="composer-previews">
+            <div className={styles.composerPreviews}>
               {images.map((f, i) => (
-                <div className="composer-preview" key={f.data}>
+                <div className={styles.composerPreview} key={f.data}>
                   <img src={f.data} alt={f.name} />
-                  <button
+                  <Button
+                    variant="primary"
                     type="button"
                     disabled={busy}
                     title={tr('移除图片')}
@@ -152,12 +151,12 @@ export function FinanceComposer({
                     onClick={() => onImages(v => v.filter((_, n) => n !== i))}
                   >
                     <X size={13} />
-                  </button>
+                  </Button>
                   <span title={f.name}>{f.name}</span>
                 </div>
               ))}
             </div>
-            <small className="composer-attachment-status" role="status">
+            <small className={styles.composerAttachmentStatus} role="status">
               {tr('已添加 {0} 张图片，发送时会一并提交').replace('{0}', String(images.length))}
             </small>
           </>
@@ -185,8 +184,8 @@ export function FinanceComposer({
             }
           }}
         />
-        <div className="composer-tools">
-          <div className="composer-tools-left">
+        <div className={styles.composerTools}>
+          <div className={styles.composerToolsLeft}>
             <input
               hidden
               ref={file}
@@ -199,23 +198,27 @@ export function FinanceComposer({
                 add(files);
               }}
             />
-            <button
-              className="composer-icon"
+            <Button
+              className={styles.composerIcon}
               type="button"
               disabled={busy || uploading}
               aria-label={tr('添加账单图片')}
               title={tr('添加账单图片')}
               onClick={() => file.current?.click()}
             >
-              {uploading ? <LoaderCircle className="composer-spinner" size={19} /> : <Paperclip size={19} />}
-            </button>
-            <details className="composer-options">
+              {uploading ? (
+                <LoaderCircle className={styles.composerSpinner} size={19} />
+              ) : (
+                <Paperclip size={19} />
+              )}
+            </Button>
+            <details className={styles.composerOptions}>
               <summary title={tr('对话偏好')} aria-label={tr('对话偏好')}>
                 <SlidersHorizontal size={18} />
                 {useHistory && <i />}
               </summary>
               <div>
-                <label className="check">
+                <label className={styles.check}>
                   <input type="checkbox" checked={useHistory} onChange={e => onHistory(e.target.checked)} />
                   {tr('使用我的记账偏好')}
                 </label>
@@ -225,8 +228,8 @@ export function FinanceComposer({
             </details>
             {scopeControl}
             {(long || expanded) && (
-              <button
-                className="composer-icon"
+              <Button
+                className={styles.composerIcon}
                 type="button"
                 aria-label={tr(expanded ? '收起输入框' : '展开输入框')}
                 title={tr(expanded ? '收起输入框' : '展开输入框')}
@@ -236,35 +239,35 @@ export function FinanceComposer({
                 }}
               >
                 {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-              </button>
+              </Button>
             )}
             {uploading && <small role="status">{tr('正在上传图片…')}</small>}
           </div>
           {busy ? (
-            <button
+            <Button
               type="button"
-              className="composer-background"
+              className={styles.composerBackground}
               onClick={onBackground}
               title={tr('后台继续')}
             >
               <ArrowRight size={17} />
               <span>{tr('后台继续')}</span>
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
-              className="composer-send"
+              className={styles.composerSend}
               aria-label={tr('发送')}
               title={tr('发送')}
               disabled={uploading || (!text.trim() && !images.length)}
               onClick={onSend}
             >
               <ArrowUp size={21} />
-            </button>
+            </Button>
           )}
         </div>
       </div>
-      <small className="composer-shortcut">{tr('Enter 发送 · Shift + Enter 换行')}</small>
+      <small className={styles.composerShortcut}>{tr('Enter 发送 · Shift + Enter 换行')}</small>
     </div>
   );
 }

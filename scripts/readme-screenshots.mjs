@@ -760,6 +760,7 @@ try {
         个人资料: '/me',
         账本设置: '/settings',
         账本管理: '/settings/books',
+        用户管理: '/settings/users',
         使用说明: '/help',
         记一笔: '/entry',
       };
@@ -798,6 +799,15 @@ try {
         captures.push({ file: filename, language: lang, device, width, height, feature: key });
         console.log(filename);
       }
+      async function portraitSection(zh, english) {
+        const label = lang === 'en' ? english : zh;
+        const nav = page.getByRole('navigation', { name: t('个人画像栏目') });
+        if (await nav.isVisible()) await nav.getByRole('button', { name: label, exact: true }).click();
+        else {
+          await page.getByRole('button', { name: new RegExp('^' + t('画像栏目')) }).click();
+          await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click();
+        }
+      }
       if (process.env.CARD_AUDIT_ONLY) {
         await navigate('小熊对话');
         await page.getByRole('button', { name: t('打开对话历史和报告'), exact: true }).click();
@@ -805,8 +815,9 @@ try {
           .getByText(lang === 'en' ? 'Demo: server allocation' : '演示：服务器分摊', { exact: true })
           .click();
         await settle();
-        const card = page.locator('.chat-action-card');
+        const card = page.getByRole('region', { name: t('费用分摊'), exact: true });
         assert.equal(await card.count(), 1);
+        await card.getByText(t('查看卡片详情'), { exact: true }).click();
         assert.equal(await card.locator('details').getAttribute('open'), '');
         assert.match(await card.innerText(), /17\.55/);
         assert.equal(
@@ -832,9 +843,10 @@ try {
           .getByText(lang === 'en' ? 'Demo: server allocation' : '演示：服务器分摊', { exact: true })
           .click();
         await settle();
-        assert.equal(await page.locator('.chat-action-card').count(), 1);
-        await page.locator('.chat-action-card').scrollIntoViewIfNeeded();
-        assert.match(await page.locator('.chat-action-card').innerText(), /17\.55/);
+        assert.equal(await card.count(), 1);
+        await card.scrollIntoViewIfNeeded();
+        await card.getByText(t('查看卡片详情'), { exact: true }).click();
+        assert.match(await card.innerText(), /17\.55/);
         await shot('card-reopened');
         await context.close();
         continue;
@@ -975,15 +987,15 @@ try {
             exact: true,
           })
           .click();
-        await page.locator('.chat-action-card').waitFor();
+        await page.getByRole('region', { name: t('记录账单'), exact: true }).waitFor();
         await page
-          .locator('.chat-action-card')
+          .getByRole('region', { name: t('记录账单'), exact: true })
           .getByRole('button', { name: t('继续修改'), exact: true })
           .click();
-        await page.locator('.chat-inline-editor').waitFor();
+        await page.getByRole('form', { name: t('更新卡片') }).waitFor();
         await shot('assistant-book-editor');
         await page
-          .locator('.chat-inline-editor')
+          .getByRole('form', { name: t('更新卡片') })
           .getByRole('button', { name: new RegExp('^' + t('记入账本')) })
           .click();
         await shot('assistant-book-choices');
@@ -992,30 +1004,35 @@ try {
           .getByRole('button', { name: lang === 'en' ? 'Personal journal' : '我的小账本', exact: false })
           .click();
         await page
-          .locator('.chat-inline-editor')
+          .getByRole('form', { name: t('更新卡片') })
           .getByRole('button', { name: t('更新卡片'), exact: true })
           .click();
-        await page.locator('.chat-inline-editor').waitFor({ state: 'hidden' });
+        await page.getByRole('form', { name: t('更新卡片') }).waitFor({ state: 'hidden' });
         await settle();
-        await page.locator('.chat-action-card').evaluate(el => el.scrollIntoView({ block: 'start' }));
+        await page
+          .getByRole('region', { name: t('记录账单'), exact: true })
+          .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('assistant-book-updated');
         await navigate('个人资料');
         await page.getByRole('button', { name: t('个人画像'), exact: true }).click();
-        await page
-          .getByRole('button', { name: lang === 'en' ? 'Habits & rules' : '场景与规则', exact: true })
-          .click();
+        await portraitSection('场景与规则', 'Habits & rules');
         await settle();
         await page
           .getByRole('button', { name: lang === 'en' ? 'Add rule' : '新增规则', exact: true })
           .click();
-        await page.locator('.portrait-rule-editor').waitFor();
         await page
-          .locator('.portrait-rule-editor fieldset')
+          .getByRole('dialog', { name: lang === 'en' ? 'Set my preference' : '明确我的偏好' })
+          .waitFor();
+        await page
+          .getByRole('dialog')
+          .locator('fieldset')
           .last()
           .locator('select')
           .first()
           .selectOption('bookId');
-        await page.locator('.portrait-rule-editor').scrollIntoViewIfNeeded();
+        await page
+          .getByRole('dialog', { name: lang === 'en' ? 'Set my preference' : '明确我的偏好' })
+          .scrollIntoViewIfNeeded();
         await shot('profile-book-rule');
         await context.close();
         continue;
@@ -1157,7 +1174,7 @@ try {
         await shot('import');
         await navigate('小熊对话');
         await page
-          .locator('.finance-composer textarea')
+          .getByRole('textbox', { name: t('给财务助手发送消息') })
           .fill(
             lang === 'en'
               ? 'Please reconcile my September payment statements with my recorded transactions. Check references, neighboring order and repeat purchases before suggesting missing entries.'
@@ -1171,32 +1188,49 @@ try {
         await navigate('使用说明');
         await shot('help');
         assert.equal(
-          await page.locator('.help-chapter-header').evaluate(el => getComputedStyle(el).display),
+          await page
+            .getByRole('article')
+            .locator('header')
+            .evaluate(el => getComputedStyle(el).display),
           'block',
         );
         assert.ok(
           await page
-            .locator('.help-chapter-header')
+            .getByRole('article')
+            .locator('header')
             .evaluate(el => el.getBoundingClientRect().height >= el.scrollHeight - 2),
           'Chapter header must contain its text',
         );
-        const input = page.locator('.help-search input');
+        const input = page.getByRole('searchbox', {
+          name: lang === 'en' ? 'Search the manual' : t('搜索使用说明'),
+        });
         await input.fill(lang === 'en' ? 'refund' : '退款');
-        await page.locator('.help-result').first().waitFor();
+        await page
+          .getByRole('button', { name: new RegExp(t('阅读本章')) })
+          .first()
+          .waitFor();
         await settle();
-        assert.ok(await page.locator('.help-result mark').count());
+        assert.ok(
+          await page
+            .getByRole('button', { name: new RegExp(t('阅读本章')) })
+            .locator('mark')
+            .count(),
+        );
         await shot('help-search');
-        await page.locator('.help-result').first().click();
-        await page.locator('.help-content article').waitFor();
-        assert.ok(await page.locator('.help-content mark').count());
-        await page.locator('.help-section').first().scrollIntoViewIfNeeded();
+        await page
+          .getByRole('button', { name: new RegExp(t('阅读本章')) })
+          .first()
+          .click();
+        await page.getByRole('article').waitFor();
+        assert.ok(await page.getByRole('article').locator('mark').count());
+        await page.getByRole('article').locator('section').first().scrollIntoViewIfNeeded();
         await shot('help-steps');
-        await page.locator('.help-figure').first().scrollIntoViewIfNeeded();
+        await page.getByRole('figure').first().scrollIntoViewIfNeeded();
         await page.waitForFunction(() =>
-          [...document.querySelectorAll('.help-figure img')].every(i => i.complete && i.naturalWidth > 0),
+          [...document.querySelectorAll('article figure img')].every(i => i.complete && i.naturalWidth > 0),
         );
         await shot('help-article');
-        const firstFigure = page.locator('.help-figure').first();
+        const firstFigure = page.getByRole('figure').first();
         await firstFigure
           .getByRole('button', {
             name:
@@ -1210,52 +1244,68 @@ try {
             device === 'mobile' ? '-desktop-' : '-mobile-',
           ),
         );
-        await page.locator('.help-feature-link').first().click();
+        await page
+          .getByRole('button', {
+            name: lang === 'en' ? 'Open Manual entry, then Refund' : '打开手动记账，选择退款',
+            exact: true,
+          })
+          .click();
         await page.getByRole('form', { name: t('手动记账') }).waitFor();
         assert.equal(
           await page.getByRole('button', { name: t('手动填写'), exact: true }).getAttribute('aria-pressed'),
           'true',
         );
         await navigate('使用说明');
-        await page.locator('.help-ask').click();
-        await page.locator('.finance-composer textarea').waitFor();
+        await page
+          .getByRole('article')
+          .locator('header')
+          .getByRole('button', { name: t('询问助手') })
+          .click();
+        await page.getByRole('textbox', { name: t('给财务助手发送消息') }).waitFor();
         assert.match(
-          await page.locator('.finance-composer textarea').inputValue(),
+          await page.getByRole('textbox', { name: t('给财务助手发送消息') }).inputValue(),
           lang === 'en' ? /help chapter/ : /使用说明/,
         );
         assert.ok(
-          !(await page.locator('.finance-main').innerText()).includes(
+          !(await page.getByRole('main').innerText()).includes(
             t('请上传需要核对的支付账单截图，然后发送消息。'),
           ),
         );
         await navigate('使用说明');
-        if (device === 'mobile') await page.locator('.help-mobile-chapters select').selectOption('memory');
-        else
-          await page
-            .locator('.help-topics button')
-            .filter({ hasText: lang === 'en' ? 'Personal memory' : '个人记忆' })
-            .click();
-        await page.locator('.help-feature-link').first().click();
-        await page.locator('.memory-row').first().waitFor();
+        await page
+          .getByRole('navigation', { name: lang === 'en' ? 'Manual chapters' : '说明章节' })
+          .getByRole('button')
+          .filter({ hasText: lang === 'en' ? 'Personal profile and corrections' : '个人画像与学习纠正' })
+          .click();
+        await page
+          .getByRole('button', {
+            name: lang === 'en' ? 'Open Personal profile' : '打开个人画像',
+            exact: true,
+          })
+          .click();
+        await page.getByRole('heading', { name: t('个人画像'), exact: true }).waitFor();
         await navigate('使用说明');
-        if (device === 'mobile') await page.locator('.help-mobile-chapters select').selectOption('wallets');
-        else
-          await page
-            .locator('.help-topics button')
-            .filter({ hasText: lang === 'en' ? 'Wallets, repayments' : '钱包、还款' })
-            .click();
-        await page.locator('.help-section-toc a').nth(1).click();
+        await page
+          .getByRole('navigation', { name: lang === 'en' ? 'Manual chapters' : '说明章节' })
+          .getByRole('button')
+          .filter({ hasText: lang === 'en' ? 'Wallets, repayments' : '钱包、还款' })
+          .click();
+        await page
+          .getByRole('navigation', { name: t('本章内容') })
+          .getByRole('link')
+          .nth(1)
+          .click();
         await shot('help-wallets');
         assert.equal(
           await page
-            .locator('.help-example')
+            .getByRole('complementary', { name: t('示例') })
             .first()
             .evaluate(el => getComputedStyle(el).position),
           'static',
         );
         assert.ok(
           await page
-            .locator('.help-example')
+            .getByRole('complementary', { name: t('示例') })
             .first()
             .evaluate(el => el.clientWidth > el.parentElement.clientWidth * 0.9),
           'Example should fill the reading column',
@@ -1271,6 +1321,7 @@ try {
         ['活动账', 'activities'],
         ['每月预算', 'budgets'],
         ['账本管理', 'books'],
+        ['用户管理', 'users'],
         ['家庭管理', 'family'],
         ['账本设置', 'categories'],
         ['使用说明', 'help'],
@@ -1321,6 +1372,49 @@ try {
             .getByRole('dialog', { name: t('保存账本权限') })
             .getByRole('button', { name: t('取消'), exact: true })
             .click();
+        }
+        if (key === 'categories') {
+          await page
+            .getByRole('button', { name: new RegExp('^' + t('删除分类 {0}').replace('{0}', '')) })
+            .first()
+            .click();
+          await page
+            .getByRole('dialog', { name: t('删除分类') })
+            .getByRole('button', { name: t('取消'), exact: true })
+            .click();
+
+          await page.getByRole('tab', { name: t('AI 配置') }).click();
+          await page.getByRole('button', { name: new RegExp(t('账单识别模型')) }).click();
+          await shot('settings-model');
+          await page
+            .getByRole('dialog')
+            .getByRole('button', { name: t('关闭'), exact: true })
+            .click();
+          await page.getByRole('tab', { name: t('任务队列') }).click();
+          await page
+            .getByRole('tabpanel')
+            .getByRole('button', { name: new RegExp(t('同时处理的任务数')) })
+            .click();
+          await page
+            .getByRole('dialog')
+            .getByRole('spinbutton', { name: t('同时处理的任务数') })
+            .waitFor();
+          await shot('settings-queue');
+          await page
+            .getByRole('dialog')
+            .getByRole('button', { name: t('关闭'), exact: true })
+            .click();
+        }
+        if (key === 'users') {
+          await page.getByRole('button', { name: /sam.demo/ }).click();
+          const userEditor = page.getByRole('dialog', { name: t('管理用户') });
+          await userEditor.getByLabel(t('重设密码（留空保持原密码）')).fill('test-password');
+          await userEditor.getByRole('button', { name: t('保存用户') }).click();
+          await page
+            .getByRole('dialog', { name: t('确认'), exact: true })
+            .getByRole('button', { name: t('取消') })
+            .click();
+          await userEditor.getByRole('button', { name: t('关闭弹窗') }).click();
         }
         if (key === 'entries') {
           const records = page.getByRole('region', { name: t('收支明细') });
@@ -1537,17 +1631,36 @@ try {
       await shot('cost-plans');
       await navigate('个人资料');
       await shot('profile');
+      await page.getByRole('button', { name: new RegExp(t('我在账本里的样子')) }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('textbox', { name: t('显示名称') })
+        .waitFor();
+      await shot('profile-edit');
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: t('关闭'), exact: true })
+        .click();
+      await page.getByRole('button', { name: t('外观主题'), exact: true }).click();
+      const themeOptions = page.getByRole('group', { name: t('外观主题') });
+      await themeOptions.getByRole('button', { name: t('极简清爽') }).click();
+      await page.waitForFunction(() => document.documentElement.dataset.theme === 'minimal');
+      await shot('profile-theme');
+      await themeOptions.getByRole('button', { name: t('小熊陪伴') }).click();
+      await page.waitForFunction(() => document.documentElement.dataset.theme === 'bear');
+      await page
+        .getByRole('button', { name: new RegExp('^' + t('后台任务')) })
+        .first()
+        .click();
+      await shot('jobs');
+      await page
+        .getByRole('dialog', { name: t('后台任务') })
+        .getByRole('button', { name: t('关闭弹窗') })
+        .click();
       await page.getByRole('button', { name: t('个人画像'), exact: true }).click();
       await page.getByRole('heading', { name: t('个人画像'), exact: true }).waitFor();
-      // Profile sections: buttons on desktop, a select on phones.
-      const portraitSection = async (value, zh, english) => {
-        const nav = page.getByRole('navigation', { name: t('个人画像栏目') });
-        if (await nav.isVisible())
-          await nav.getByRole('button', { name: lang === 'en' ? english : zh, exact: true }).click();
-        else await page.locator('.portrait-mobile-sections select').selectOption(value, { force: true });
-      };
       await shot('memory');
-      await portraitSection('products', '商品与服务', 'Products & services');
+      await portraitSection('商品与服务', 'Products & services');
       await page.locator('.memory-row').first().waitFor();
       await shot('memory-products');
       await page
@@ -1557,12 +1670,16 @@ try {
         .first()
         .click();
       await page.locator('.memory-detail form').waitFor();
-      await audit('memory-detail');
+      await shot('memory-detail');
       for (const summary of await page.locator('.memory-detail summary').all()) await summary.click();
       await audit('memory-detail-expanded');
-      await portraitSection('history', '学习记录', 'History');
+      await page
+        .getByRole('dialog', { name: t('编辑记忆') })
+        .getByRole('button', { name: t('← 返回记忆列表') })
+        .click();
+      await portraitSection('学习记录', 'History');
       await audit('memory-history');
-      await portraitSection('settings', '学习与隐私', 'Learning & privacy');
+      await portraitSection('学习与隐私', 'Learning & privacy');
       await page.getByText(t('记忆模型配置与运行统计（管理员）'), { exact: true }).click();
       await audit('memory-settings');
       await navigate('记一笔');
@@ -1647,9 +1764,23 @@ try {
           exact: true,
         })
         .click();
-      await page.locator('.chat-action-card').waitFor();
+      await page.getByRole('region', { name: t('记录账单'), exact: true }).waitFor();
       await settle();
-      await page.locator('.finance-messages').evaluate(el => el.scrollTo(0, 0));
+      await page.getByRole('region', { name: t('财务对话') }).evaluate(el => el.scrollTo(0, 0));
+      if (device === 'mobile') {
+        assert.ok(
+          await page
+            .getByRole('button', { name: t('切换账本') })
+            .evaluate(el => el.getBoundingClientRect().height <= 64),
+          'Mobile book switcher must fit the header',
+        );
+        assert.ok(
+          await page
+            .getByRole('textbox', { name: t('给财务助手发送消息') })
+            .evaluate(el => el.getBoundingClientRect().bottom <= innerHeight),
+          'Composer must stay in the viewport',
+        );
+      }
       await shot('assistant');
       await navigate('我的账本');
       await page.getByRole('button', { name: t('搜索整个账本系统'), exact: true }).click();

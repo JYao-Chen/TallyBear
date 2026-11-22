@@ -1,10 +1,12 @@
 'use client';
+import { useConfirmation } from '@/ui/useConfirmation';
+import styles from './ChatActionCards.module.css';
 import { PreferenceSuggestions } from './PreferenceSuggestions';
 import { changeMemorySelection, resolveMemoryField } from '@/lib/memory-fields';
 import { MemorySuggestions } from './MemorySuggestions';
 import { ChatActionEditor } from './ChatActionEditor';
 import { LineItemsView } from './LineItems';
-import { Button, Money, Chip } from '@/ui';
+import { Button, Money, Chip, Card } from '@/ui';
 import { useState } from 'react';
 import {
   Check,
@@ -56,6 +58,7 @@ export function ChatActionCards({
   onRevise: (a: ChatAction) => void;
 }) {
   const { t: tr } = useI18n();
+  const { requestConfirmation, confirmation } = useConfirmation();
   const [editing, setEditing] = useState('');
   const [saving, setSaving] = useState(''),
     [errors, setErrors] = useState<Record<string, string>>({}),
@@ -73,7 +76,8 @@ export function ChatActionCards({
     }
   }
   return (
-    <div className="chat-action-list">
+    <div className={styles.chatActionList}>
+      {confirmation}
       {actions.map(a => {
         const { actionLogId, canUndo } = a;
         const Icon = icons[a.kind];
@@ -82,20 +86,21 @@ export function ChatActionCards({
         const main =
           a.kind === 'management' ? tr(a.title) : a.data.title || a.data.name || tr(actionNames[a.kind]);
         return (
-          <section
-            className={'chat-action-card ' + (!pending ? 'is-resolved' : '')}
+          <Card
+            className={styles.chatActionCard}
+            data-resolved={!pending}
             key={a.id}
             aria-label={tr(actionNames[a.kind])}
           >
-            <div className="receipt-card-heading">
-              <span className="chat-action-icon">
+            <div className={styles.receiptCardHeading}>
+              <span className={styles.chatActionIcon}>
                 <Icon size={21} />
               </span>
               <div>
                 <small>{tr(actionNames[a.kind])}</small>
                 <h3>{main}</h3>
               </div>
-              <span className={'receipt-state state-' + a.status}>
+              <span className={styles.receiptState} data-status={a.status}>
                 {tr(
                   a.status === 'confirmed'
                     ? deleting
@@ -114,19 +119,23 @@ export function ChatActionCards({
               </span>
             </div>
             {editing !== a.id && typeof a.data.amount === 'number' && (
-              <div className="receipt-card-amount">
+              <div className={styles.receiptCardAmount}>
                 <span>{tr('金额')}</span>
-                <Money value={a.data.amount} size="large" />
+                <Money
+                  tone={a.data.kind === 'expense' || a.data.kind === 'income' ? a.data.kind : 'plain'}
+                  value={a.data.amount}
+                  size="large"
+                />
               </div>
             )}
             {pending && a.missing.length > 0 && (
-              <section className="receipt-notice receipt-notice-missing">
+              <section className={`${styles.receiptNotice} ${styles.receiptNoticeMissing}`}>
                 <strong>{tr('请补充信息')}</strong>
                 <p>{a.missing.map(m => tr(m)).join('、')}</p>
               </section>
             )}
             {pending && a.warnings.filter(w => !a.data.processingHints?.includes(w)).length > 0 && (
-              <section className="receipt-notice receipt-notice-warning">
+              <section className={`${styles.receiptNotice} ${styles.receiptNoticeWarning}`}>
                 <strong>{tr('保存前请核对')}</strong>
                 <ul>
                   {a.warnings
@@ -138,15 +147,15 @@ export function ChatActionCards({
               </section>
             )}
             {editing !== a.id && (
-              <details className="receipt-card-content">
+              <details className={styles.receiptCardContent}>
                 <summary>{tr('查看卡片详情')}</summary>
-                <dl className="receipt-facts">
+                <dl className={styles.receiptFacts}>
                   {a.summary
                     .filter(s => !(typeof a.data.amount === 'number' && s.label === '金额'))
                     .map((s, i) => (
                       <div
                         className={
-                          ['备注', '核验说明', '商品摘要'].includes(s.label) ? 'receipt-fact-wide' : ''
+                          ['备注', '核验说明', '商品摘要'].includes(s.label) ? styles.receiptFactWide : ''
                         }
                         key={i}
                       >
@@ -194,7 +203,7 @@ export function ChatActionCards({
                   />
                 )}
                 {pending && Array.isArray(a.data.processingHints) && a.data.processingHints.length > 0 && (
-                  <section className="receipt-notice receipt-notice-info">
+                  <section className={`${styles.receiptNotice} ${styles.receiptNoticeInfo}`}>
                     <strong>{tr('识别与处理说明')}</strong>
                     <ul>
                       {a.data.processingHints.map((w: string, i: number) => (
@@ -210,7 +219,7 @@ export function ChatActionCards({
               a.kind === 'entry' &&
               (a.warnings.some(w => /重复|退款|duplicate|refund/i.test(w)) ||
                 /重复|退款|duplicate|refund/i.test(errors[a.id] || '')) && (
-                <label className="check">
+                <label className={styles.check}>
                   <input
                     type="checkbox"
                     checked={!!ack[a.id]}
@@ -220,7 +229,7 @@ export function ChatActionCards({
                 </label>
               )}
             {errors[a.id] && (
-              <p className="error" role="alert">
+              <p className={styles.error} role="alert">
                 {tr(errors[a.id])}
               </p>
             )}
@@ -248,12 +257,32 @@ export function ChatActionCards({
               ))}
             {pending
               ? editing !== a.id && (
-                  <div className="receipt-card-actions">
-                    <div className="receipt-primary-actions">
-                      <button
-                        className={deleting ? 'receipt-danger' : ''}
+                  <div className={styles.receiptCardActions}>
+                    <div className={styles.receiptPrimaryActions}>
+                      <Button
+                        variant={deleting ? 'danger' : 'primary'}
                         disabled={disabled || !confirmable || !!saving || !!editing || !!a.missing.length}
-                        onClick={() => execute(a)}
+                        onClick={() => {
+                          if (
+                            deleting ||
+                            a.kind === 'management' ||
+                            (a.kind === 'memory' && ['share', 'forget'].includes(a.data.operation))
+                          )
+                            requestConfirmation(
+                              <>
+                                {tr(a.title)}
+                                <ul>
+                                  {a.summary.map((item, i) => (
+                                    <li key={i}>
+                                      {tr(item.label)} · {item.value}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>,
+                              () => execute(a),
+                            );
+                          else void execute(a);
+                        }}
                       >
                         <Check size={17} />
                         {tr(
@@ -267,37 +296,35 @@ export function ChatActionCards({
                                   ? '确认修改'
                                   : '确认保存',
                         )}
-                      </button>
+                      </Button>
                       {!deleting && a.kind !== 'management' && (
-                        <button
-                          className="secondary"
-                          disabled={disabled || !!saving || !!editing}
-                          onClick={() => setEditing(a.id)}
-                        >
+                        <Button disabled={disabled || !!saving || !!editing} onClick={() => setEditing(a.id)}>
                           {tr(a.missing.length ? '补充信息' : '继续修改')}
-                        </button>
+                        </Button>
                       )}
                     </div>
-                    <div className="receipt-secondary-actions">
-                      <button
-                        className="text-button"
+                    <div className={styles.receiptSecondaryActions}>
+                      <Button
+                        variant="ghost"
                         disabled={disabled || !!saving || !!editing}
                         onClick={() => onRevise(a)}
                       >
                         {tr('通过对话修改')}
-                      </button>
-                      <button
-                        className="text-button"
+                      </Button>
+                      <Button
+                        variant="ghost"
                         disabled={disabled || !!saving || !!editing}
                         onClick={() => execute(a, true)}
                       >
                         {tr('取消这张卡片')}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )
-              : a.confirmedAt && <small className="muted">{new Date(a.confirmedAt).toLocaleString()}</small>}
-          </section>
+              : a.confirmedAt && (
+                  <small className={styles.muted}>{new Date(a.confirmedAt).toLocaleString()}</small>
+                )}
+          </Card>
         );
       })}
     </div>

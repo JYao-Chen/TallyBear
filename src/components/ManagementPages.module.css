@@ -1,0 +1,140 @@
+.settingsSections,
+.settingsGrid,
+.bookManagementGrid,
+.bookSwitchList {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.profileTabs,
+.sheetActions,
+.panelTitle,
+.memberRow,
+.avatarEdit,
+.bookSwitchTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.profileTabs {
+  margin-block: var(--space-4);
+}
+.profileTabs button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.panelTitle,
+.memberRow {
+  justify-content: space-between;
+}
+.panelTitle h2 {
+  margin: 0;
+}
+.settingsSection,
+.memberRow {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-4);
+}
+.profileAvatar {
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  flex: none;
+  background: var(--surface-sunk);
+}
+.profileAvatar img {
+  object-fit: cover;
+}
+.avatarUpload {
+  cursor: pointer;
+  margin: 0;
+}
+.bookSwitchTrigger span,
+.bookSwitchList button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bookSwitchTrigger small,
+.bookSwitchList small {
+  display: block;
+}
+.settingsForm,
+.avatarEdit,
+.search,
+.sheetActions {
+  margin-block: var(--space-3);
+}
+.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.error {
+  color: var(--danger);
+}
+.notice {
+  color: var(--accent);
+}
+.avatarUpload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-3);
+  color: var(--ink);
+}
+.avatarUpload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.avatarUpload:focus-within {
+  outline: 2px solid var(--focus);
+}
+.bookSwitchTrigger.bookSwitchTrigger {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  justify-content: start;
+  text-align: start;
+  padding-inline: var(--space-2);
+  gap: var(--space-2);
+}
+.bookSwitchTrigger > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.bookSwitchTrigger strong,
+.bookSwitchTrigger small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 730px) {
+  .bookSwitchTrigger {
+    grid-column: 1/3;
+    grid-row: 1;
+  }
+}
+
+.themePicker button {
+  min-height: var(--touch);
+}
+
+.muted {
+  color: var(--muted);
+}

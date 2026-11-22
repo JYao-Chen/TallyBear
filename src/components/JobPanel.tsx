@@ -1,11 +1,12 @@
 'use client';
+import { Button, Card, ListRow, Input, Sheet } from '@/ui';
+import styles from './JobPanel.module.css';
 import { PagedList } from './PagedList';
 
 import { getLocale } from '@/lib/i18n';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import { ListTodo, LoaderCircle, CheckCircle2, XCircle } from 'lucide-react';
-import { Sheet } from './Sheet';
 import { FinanceNarrative } from './FinanceNarrative';
 import type { Draft } from './DraftReview';
 type Job = {
@@ -71,38 +72,32 @@ export function JobPanel({
   const count = jobs.filter(j => ['queued', 'running'].includes(j.status)).length;
   return (
     <>
-      <button
-        className="secondary task-trigger"
-        aria-label={tr('后台任务{0}', [
-          count
-            ? locale === 'en'
-              ? `, ${count} processing`
-              : tr('，{0}个处理中', [count])
-            : tr('暂无进行中的任务'),
-        ])}
+      <Button
+        className={styles.taskTrigger}
+        aria-label={tr('后台任务{0}', [count ? tr('，{0}个处理中', [count]) : tr('暂无进行中的任务')])}
         onClick={() => {
           setOpen(true);
           refresh().catch(e => setError(e.message));
         }}
       >
         <ListTodo size={18} />
-        <span className="task-label">{tr('后台任务')}</span>
-        {count > 0 && <span className="task-count">{count}</span>}
-      </button>
+        <span className={styles.taskLabel}>{tr('后台任务')}</span>
+        {count > 0 && <span className={styles.taskCount}>{count}</span>}
+      </Button>
       {open && (
-        <Sheet title={tr('后台任务')} onClose={() => setOpen(false)}>
-          <p className="muted">{tr('关闭网页后继续处理，结果保存在这里。')}</p>
-          {error && <p className="error">{tr(error)}</p>}
-          <div className="job-list">
+        <Sheet open closeLabel={tr('关闭弹窗')} title={tr('后台任务')} onClose={() => setOpen(false)}>
+          <p className={styles.muted}>{tr('关闭网页后继续处理，结果保存在这里。')}</p>
+          {error && <p className={styles.error}>{tr(error)}</p>}
+          <div className={styles.jobList}>
             {!jobs.length && <p>{tr('暂无任务')}</p>}
             {
               <PagedList items={jobs}>
                 {j => (
-                  <article className="job-card" key={j.id}>
-                    <div className="panel-title">
+                  <Card as="article" className={styles.jobCard} key={j.id}>
+                    <div className={styles.panelTitle}>
                       <strong>
                         {j.status === 'running' ? (
-                          <LoaderCircle className="spinning" size={17} />
+                          <LoaderCircle className={styles.spinning} size={17} />
                         ) : j.status === 'complete' ? (
                           <CheckCircle2 size={17} />
                         ) : j.status === 'error' ? (
@@ -136,13 +131,15 @@ export function JobPanel({
                       </small>
                     </div>
                     <p>{tr(j.stage)}</p>
+                    {j.status === 'running' && (
+                      <progress className={styles.progress} aria-label={tr(j.stage)} />
+                    )}
                     <small>
                       {j.book_name || tr('系统设置')} · {new Date(j.created_at).toLocaleString(getLocale())}
                     </small>
-                    <div className="inline">
+                    <div className={styles.inline}>
                       {['error', 'cancelled'].includes(j.status) && (
-                        <button
-                          className="secondary"
+                        <Button
                           onClick={() =>
                             request('jobs/' + j.id, { operation: 'retry' })
                               .then(refresh)
@@ -150,11 +147,11 @@ export function JobPanel({
                           }
                         >
                           {j.kind === 'chat' ? tr('重新生成回答') : tr('从已完成进度重试')}
-                        </button>
+                        </Button>
                       )}
                       {['queued', 'running'].includes(j.status) ? (
-                        <button
-                          className="text-button"
+                        <Button
+                          variant="ghost"
                           onClick={() =>
                             request('jobs/' + j.id, { operation: 'cancel' })
                               .then(refresh)
@@ -162,17 +159,17 @@ export function JobPanel({
                           }
                         >
                           {tr('取消任务')}
-                        </button>
+                        </Button>
                       ) : (
-                        <button
-                          className="text-button"
+                        <Button
+                          variant="ghost"
                           onClick={() => openResult(j.id).catch(e => setError(e.message))}
                         >
                           {tr('查看结果')}
-                        </button>
+                        </Button>
                       )}
                     </div>
-                  </article>
+                  </Card>
                 )}
               </PagedList>
             }
@@ -180,9 +177,9 @@ export function JobPanel({
         </Sheet>
       )}
       {selected && (
-        <Sheet title={tr('任务结果')} onClose={() => setSelected(null)}>
-          {error && <p className="error">{tr(error)}</p>}
-          {selected.error && <p className="error">{tr(selected.error)}</p>}
+        <Sheet open closeLabel={tr('关闭弹窗')} title={tr('任务结果')} onClose={() => setSelected(null)}>
+          {error && <p className={styles.error}>{tr(error)}</p>}
+          {selected.error && <p className={styles.error}>{tr(selected.error)}</p>}
           {selected.kind === 'chat' && selected.result && (
             <FinanceNarrative text={selected.result.text} artifacts={selected.result.artifacts} />
           )}
@@ -191,12 +188,11 @@ export function JobPanel({
             !selected.result?.entries?.length &&
             !selected.result?.ignored?.length && (
               <>
-                <p className="notice">
-                  {locale === 'en'
-                    ? 'No editable drafts were generated. The original images are retained; you can retry recognition.'
-                    : '这次没有生成可编辑草稿。原图仍保留，可以重新识别；也可以重新上传清晰账单。'}
+                <p className={styles.notice}>
+                  {tr('这次没有生成可编辑草稿。原图仍保留，可以重新识别；也可以重新上传清晰账单。')}
                 </p>
-                <button
+                <Button
+                  variant="primary"
                   onClick={() =>
                     request('jobs/' + selected.id, { operation: 'retry' })
                       .then(() => {
@@ -206,8 +202,8 @@ export function JobPanel({
                       .catch(e => setError(e.message))
                   }
                 >
-                  {locale === 'en' ? 'Recognize again' : '重新识别图片'}
-                </button>
+                  {tr('重新识别图片')}
+                </Button>
               </>
             )}
           <p>
@@ -220,7 +216,8 @@ export function JobPanel({
                 {tr('共')}
                 {(selected.result.entries || selected.result.artifacts.drafts).length} {tr('笔待确认草稿')}
               </p>
-              <button
+              <Button
+                variant="primary"
                 onClick={() => {
                   try {
                     onDrafts(selected.result.entries || selected.result.artifacts.drafts, selected.book_id);
@@ -232,7 +229,7 @@ export function JobPanel({
                 }}
               >
                 {tr('打开草稿核对')}
-              </button>
+              </Button>
             </>
           )}
         </Sheet>
@@ -243,6 +240,8 @@ export function JobPanel({
 export function QueueSettings() {
   const { t: tr, locale } = useI18n();
   const [n, setN] = useState(2),
+    [open, setOpen] = useState(false),
+    [busy, setBusy] = useState(false),
     [message, setMessage] = useState('');
   useEffect(() => {
     request('queue-settings')
@@ -250,35 +249,57 @@ export function QueueSettings() {
       .catch(e => setMessage(e.message));
   }, []);
   return (
-    <section className="panel">
-      <h2>{tr('后台任务')}</h2>
-      <form
-        onSubmit={async e => {
-          e.preventDefault();
-          const r = await fetch('/api/queue-settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ concurrency: n }),
-          });
-          const d = await r.json();
-          setMessage(r.ok ? '并发数量已更新' : d.error);
+    <Card>
+      <ListRow
+        title={tr('后台任务')}
+        meta={tr('同时处理的任务数')}
+        end={<>{n} ›</>}
+        onClick={() => {
+          setMessage('');
+          setOpen(true);
+        }}
+      />
+      <Sheet
+        open={open}
+        title={tr('后台任务')}
+        onClose={() => {
+          if (!busy) setOpen(false);
         }}
       >
-        <label>
-          {tr('同时处理的任务数')}
-          <input
-            type="number"
-            min={1}
-            max={8}
-            step={1}
-            value={n}
-            onChange={e => setN(Number(e.target.value))}
-          />
-        </label>
-        <></>
-        <button>{tr('保存并发设置')}</button>
-        {message && <p role="status">{tr(message)}</p>}
-      </form>
-    </section>
+        <form
+          onSubmit={async e => {
+            e.preventDefault();
+            const concurrency = Number(new FormData(e.currentTarget).get('concurrency'));
+            setBusy(true);
+            try {
+              const r = await fetch('/api/queue-settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ concurrency }),
+              });
+              const d = await r.json();
+              if (!r.ok) throw new Error(d.error);
+              setN(concurrency);
+              setMessage('并发数量已更新');
+              setOpen(false);
+            } catch (e) {
+              setMessage((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label>
+            {tr('同时处理的任务数')}
+            <Input type="number" min={1} max={8} step={1} name="concurrency" defaultValue={n} required />
+          </label>
+          <Button type="submit" variant="primary" disabled={busy}>
+            {tr('保存并发设置')}
+          </Button>
+          {message && <p role="status">{tr(message)}</p>}
+        </form>
+      </Sheet>
+      {!open && message && <p role="status">{tr(message)}</p>}
+    </Card>
   );
 }

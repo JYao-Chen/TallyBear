@@ -12,16 +12,20 @@ const result = await build({
     loader: 'tsx',
   },
   bundle: true,
+  outfile: 'profile.js',
   write: false,
   format: 'iife',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
 });
-const css = (await readFile('src/app/globals.css', 'utf8')).replace(
-  "@import './personal-profile.css';",
-  await readFile('src/app/personal-profile.css', 'utf8'),
-);
+const css =
+  (await readFile('src/app/globals.css', 'utf8')).replace(
+    "@import './personal-profile.css';",
+    await readFile('src/app/personal-profile.css', 'utf8'),
+  ) +
+  (await readFile('src/ui/tokens.css', 'utf8')) +
+  result.outputFiles.find(f => f.path.endsWith('.css')).text;
 const browser = await chromium.launch({ headless: true, executablePath: process.env.TEST_CHROMIUM_PATH });
 try {
   for (const locale of ['zh-CN', 'en'])
@@ -180,13 +184,31 @@ try {
         await route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
       });
       await page.goto('http://profile.test/');
-      await page.addScriptTag({ content: result.outputFiles[0].text });
+      await page.addScriptTag({ content: result.outputFiles.find(f => f.path.endsWith('.js')).text });
       await page
         .getByRole('button', { name: t('查看依据', 'View evidence'), exact: false })
         .first()
         .waitFor();
+      const insights = page.getByRole('button', { name: new RegExp(t('查看依据', 'View evidence')) });
+      const loading = page.getByText(t('正在读取有效记录…', 'Reading current records…'), { exact: true });
+      const companion = page
+        .getByRole('region', { name: t('画像概况', 'Profile at a glance') })
+        .locator('picture img');
+      async function navigateSection(zh, english) {
+        const label = t(zh, english);
+        if (width <= 730) {
+          await page
+            .getByRole('button', { name: new RegExp('^' + t('画像栏目', 'Profile section')) })
+            .click();
+          await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click();
+        } else
+          await page
+            .getByRole('navigation', { name: t('个人画像栏目', 'Personal profile sections') })
+            .getByRole('button', { name: label, exact: true })
+            .click();
+      }
       const capture = async name => {
-        await page.locator('.portrait-loading').waitFor({ state: 'hidden' });
+        await loading.waitFor({ state: 'hidden' });
         await page.evaluate(() => scrollTo(0, 0));
         await page.mouse.move(0, 0);
         assert.equal(
@@ -197,32 +219,45 @@ try {
         await page.screenshot({ path: `${out}/${locale}-${width}-${name}.png`, fullPage: true });
       };
       await page.getByRole('button', { name: t('暂停表情动画', 'Pause companion animation') }).click();
-      assert.match(await page.locator('.portrait-companion img').getAttribute('src'), /\.png$/);
+      assert.match(await companion.getAttribute('src'), /\.png$/);
       await page.getByRole('button', { name: t('播放表情动画', 'Play companion animation') }).click();
-      assert.match(await page.locator('.portrait-companion img').getAttribute('src'), /\.gif$/);
+      assert.match(await companion.getAttribute('src'), /\.gif$/);
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      await page.waitForFunction(() =>
-        document.querySelector('.portrait-companion img')?.currentSrc.endsWith('.png'),
+      await page.waitForFunction(() => document.querySelector('picture img')?.currentSrc.endsWith('.png'));
+      assert.equal(await page.locator('section[data-wide]').count(), 4);
+      await page.locator('button[data-state=changed]').click();
+      await loading.waitFor({ state: 'hidden' });
+      await page.waitForFunction(
+        n => document.querySelectorAll('section[data-wide] button[aria-pressed]').length === n,
+        1,
       );
-      assert.equal(await page.locator('.portrait-scene-group').count(), 4);
-      await page.locator('.portrait-state-shortcut.changed').click();
-      await page.locator('.portrait-loading').waitFor({ state: 'hidden' });
-      await page.waitForFunction(() => document.querySelectorAll('.portrait-insight').length === 1);
       assert.equal(await page.getByLabel(t('习惯状态', 'Habit status')).inputValue(), 'changed');
-      await page.locator('.portrait-state-shortcut.changed').click();
-      await page.waitForFunction(() => document.querySelectorAll('.portrait-insight').length === 6);
+      await page.locator('button[data-state=changed]').click();
+      await page.waitForFunction(
+        n => document.querySelectorAll('section[data-wide] button[aria-pressed]').length === n,
+        6,
+      );
       await page.getByLabel(t('搜索画像', 'Search profile')).fill('no-match');
-      await page.locator('.portrait-empty').waitFor();
+      await page
+        .getByRole('heading', { name: t('暂时没有符合条件的习惯', 'No matching habits yet') })
+        .waitFor();
       await page.getByLabel(t('搜索画像', 'Search profile')).fill('');
-      await page.waitForFunction(() => document.querySelectorAll('.portrait-insight').length === 6);
+      await page.waitForFunction(
+        n => document.querySelectorAll('section[data-wide] button[aria-pressed]').length === n,
+        6,
+      );
       await page.waitForFunction(() =>
-        [...document.querySelectorAll('.portrait-companion img,.portrait-insight img')].every(
+        [...document.querySelectorAll('picture img,section[data-wide] button img')].every(
           i => i.complete && i.naturalWidth > 0,
         ),
       );
       await capture('overview');
-      await page.locator('.portrait-insight').first().click();
-      await page.locator('.portrait-sources li').first().waitFor();
+      await insights.first().click();
+      await page
+        .getByRole('list', { name: t('相关记录', 'Supporting records') })
+        .getByRole('listitem')
+        .first()
+        .waitFor();
       await page.getByRole('button', { name: t('纠正这个偏好', 'Correct this preference') }).click();
       await capture('rule');
       await page.getByRole('button', { name: t('保存规则', 'Save rule'), exact: true }).click();
@@ -231,11 +266,12 @@ try {
         .filter({ hasText: t('已保存', 'Saved') })
         .waitFor();
       assert.equal(requests.at(-1).operation, 'save_rule');
-      await page.getByRole('button', { name: t('场景与规则', 'Habits & rules'), exact: true }).click();
-      await page.locator('.portrait-rules article').waitFor();
+      await navigateSection('场景与规则', 'Habits & rules');
+      await page.getByRole('article').waitFor();
       await page.getByRole('button', { name: t('编辑', 'Edit'), exact: true }).click();
       await page
-        .locator('.portrait-rule-editor fieldset')
+        .getByRole('dialog')
+        .locator('fieldset')
         .last()
         .locator('select')
         .last()
@@ -246,7 +282,7 @@ try {
         .filter({ hasText: t('已保存', 'Saved') })
         .waitFor();
       assert.equal(requests.at(-1).rule.value, '');
-      await page.locator('.portrait-rules article').waitFor();
+      await page.getByRole('article').waitFor();
       await page.getByRole('button', { name: t('编辑', 'Edit'), exact: true }).click();
       await page.getByRole('button', { name: t('保存规则', 'Save rule'), exact: true }).click();
       await page
@@ -254,15 +290,15 @@ try {
         .filter({ hasText: t('已保存', 'Saved') })
         .waitFor();
       assert.equal(requests.at(-1).rule.value, '');
-      await page.getByRole('button', { name: t('商品与服务', 'Products & services'), exact: true }).click();
+      await navigateSection('商品与服务', 'Products & services');
       await page.locator('.memory-row').first().waitFor();
       await capture('products');
-      await page.getByRole('button', { name: t('学习与隐私', 'Learning & privacy'), exact: true }).click();
+      await navigateSection('学习与隐私', 'Learning & privacy');
       await page.getByRole('checkbox', { name: t('开启位置辅助', 'Enable location assistance') }).waitFor();
       await capture('privacy');
       await page.getByRole('checkbox', { name: t('启用学习', 'Enable learning'), exact: true }).click();
       await page.waitForFunction(() => {
-        const el = document.querySelector('.portrait-setting input');
+        const el = document.querySelector('input[type=checkbox]');
         return el && !el.checked;
       });
       await page

@@ -1,0 +1,543 @@
+.personalPortrait {
+  min-width: 0;
+  max-width: 1240px;
+  margin: auto;
+}
+.personalPortrait h3,
+.personalPortrait h4 {
+  margin: 0 0 10px;
+}
+.personalPortrait p {
+  margin: 0;
+  color: var(--muted);
+}
+.portraitHeading {
+  height: auto;
+  min-height: 140px;
+  padding: 28px 0 30px;
+  border: 0;
+  align-items: flex-start;
+  gap: 24px;
+}
+.portraitHeading h2 {
+  font-size: 30px;
+  margin: 9px 0 12px;
+}
+.portraitHeading p {
+  max-width: 660px;
+  font-size: var(--text-md);
+}
+.portraitPrivate {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  padding-top: 12px;
+}
+.portraitTabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  gap: 4px 18px;
+  margin-bottom: 28px;
+}
+.portraitTabs button {
+  border-radius: 0;
+  border-bottom: 3px solid transparent;
+  padding: 14px 2px 13px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  min-height: 48px;
+}
+.portraitTabs button:hover {
+  color: var(--accent);
+  background: transparent;
+}
+.portraitTabs button[aria-current] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+}
+.portraitSectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.portraitSectionHeading p {
+  font-size: var(--text-xs);
+  max-width: 740px;
+}
+.portraitSectionHeading > button {
+  flex-shrink: 0;
+}
+.portraitFilters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.portraitSearch {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  margin: 0;
+}
+.portraitSearch input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: none;
+}
+.portraitFilters > select {
+  flex: 0 0 170px;
+  background: var(--surface);
+}
+.portraitState {
+  font-size: var(--text-xs);
+  display: inline-block;
+  padding: 3px 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 4px;
+}
+.portraitState[data-state='changed'],
+.portraitState[data-state='tentative'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.portraitState[data-state='rejected'],
+.portraitState[data-state='disabled'],
+.portraitState[data-state='stale'] {
+  background: var(--paper);
+  color: var(--muted);
+}
+.portraitPagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding: 15px 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.portraitPagination nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.portraitEmpty {
+  text-align: center;
+  padding: 40px 22px;
+  color: var(--muted);
+}
+.portraitEmpty svg {
+  margin-bottom: 16px;
+}
+.portraitEmpty p {
+  max-width: 520px;
+  margin: auto;
+  font-size: var(--text-sm);
+}
+.portraitLoading {
+  padding: 36px 0;
+}
+.portraitRules > article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.portraitRules h4 {
+  margin: 10px 0 6px;
+  overflow-wrap: anywhere;
+}
+.portraitRules p {
+  font-size: var(--text-xs);
+}
+.portraitRowActions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.portraitRowActions button {
+  font-size: var(--text-xs);
+}
+.portraitDetail {
+  margin: 26px 0;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  scroll-margin-top: 20px;
+}
+.portraitDetail header {
+  height: auto;
+  padding: 0 0 20px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.portraitDetail header h3 {
+  margin-top: 10px;
+}
+.portraitDetail header p {
+  font-size: var(--text-xs);
+}
+.portraitDetail header > button {
+  flex-shrink: 0;
+}
+.portraitAlternatives {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.portraitAlternatives > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.portraitAlternatives strong {
+  margin-right: auto;
+}
+.portraitAlternatives span {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.portraitDetail > .portraitRowActions {
+  padding-bottom: 24px;
+}
+.portraitSources {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.portraitSources li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--text-xs);
+}
+.portraitSources strong {
+  display: block;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.portraitSources small {
+  display: block;
+  margin-top: 4px;
+}
+.portraitSources li > span:last-child {
+  color: var(--accent);
+  text-align: right;
+}
+.portraitRuleEditor fieldset {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0 10px;
+  margin: 0 0 20px;
+  min-width: 0;
+}
+.portraitRuleEditor legend {
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+.portraitRuleEditor label {
+  margin: 12px 0;
+}
+.portraitFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.portraitRuleCondition {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.portraitRuleCondition label {
+  flex: 1;
+  min-width: 0;
+}
+.portraitRuleCondition button {
+  margin-top: 20px;
+}
+.portraitLibrary {
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+}
+.portraitLibrary > .muted {
+  font-size: var(--text-sm);
+  margin-bottom: 22px;
+}
+.portraitEventList {
+  padding: 0;
+  list-style: none;
+  margin: 20px 0;
+}
+.portraitEventList li {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+}
+.portraitEventList li > svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.portraitEventList li > div {
+  flex: 1;
+}
+.portraitEventList strong {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.portraitEventList time {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  margin-top: 5px;
+}
+.portraitSetting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.portraitSetting strong {
+  font-size: var(--text-md);
+}
+.portraitSetting p {
+  max-width: 680px;
+  font-size: var(--text-xs);
+  margin-top: 7px;
+}
+.portraitSetting > input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.portraitPrivacySettings > h4 {
+  margin-top: 30px;
+}
+.portraitPrivacySettings > .muted {
+  font-size: var(--text-xs);
+}
+.portraitPlaces {
+  padding: 0;
+  list-style: none;
+}
+.portraitPlaces li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.portraitPlaces span {
+  flex: 1;
+}
+.portraitPlaces small {
+  display: block;
+  font-size: var(--text-xs);
+  margin-top: 4px;
+}
+.portraitAreaForm {
+  max-width: 680px;
+  padding: 18px 0;
+}
+.portraitAreaForm label {
+  margin-bottom: 12px;
+}
+.portraitDataActions {
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 25px;
+}
+.portraitDataActions p {
+  font-size: var(--text-xs);
+}
+.portraitDataActions > div {
+  min-width: 0;
+}
+.portraitPrivate svg,
+.portraitTabs svg,
+.portraitRowActions svg {
+  flex-shrink: 0;
+}
+@media (max-width: 1000px) {
+  .portraitTabs {
+    gap: 0 15px;
+  }
+  .portraitDataActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+@media (max-width: 600px) {
+  .portraitHeading {
+    padding: 18px 0 22px;
+    display: block;
+    min-height: 0;
+  }
+  .portraitHeading h2 {
+    font-size: 25px;
+  }
+  .portraitHeading p {
+    font-size: var(--text-sm);
+  }
+  .portraitPrivate {
+    font-size: var(--text-xs);
+    padding-top: 15px;
+  }
+  .portraitTabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    margin-bottom: 22px;
+  }
+  .portraitTabs button {
+    justify-content: flex-start;
+    padding: 12px 6px;
+    font-size: var(--text-xs);
+    min-width: 0;
+  }
+  .portraitSectionHeading {
+    display: block;
+    margin-bottom: 15px;
+  }
+  .portraitSectionHeading > button {
+    margin-top: 8px;
+  }
+  .portraitSectionHeading h3 {
+    font-size: 18px;
+  }
+  .portraitFilters {
+    gap: 10px;
+    flex-direction: column;
+  }
+  .portraitFilters > select {
+    flex: auto;
+    width: 100%;
+  }
+  .portraitRules > article {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .portraitDetail {
+    padding: 18px;
+    margin: 20px 0;
+  }
+  .portraitAlternatives > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .portraitAlternatives button {
+    padding-left: 0;
+  }
+  .portraitFormGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .portraitSources li {
+    align-items: flex-start;
+  }
+  .portraitDetail .portraitPagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .portraitDetail .portraitPagination nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .portraitPagination button {
+    font-size: var(--text-xs);
+    padding: 10px;
+  }
+  .portraitSetting {
+    gap: 20px;
+    padding: 20px 0;
+  }
+  .portraitSetting p {
+    font-size: var(--text-xs);
+  }
+  .portraitLibrary {
+    padding: 22px 0;
+  }
+  .portraitDataActions .portraitRowActions {
+    gap: 8px;
+  }
+  .portraitDetail header > div {
+    min-width: 0;
+  }
+  .portraitDetail h3 {
+    overflow-wrap: anywhere;
+  }
+  .portraitEventList button {
+    padding: 10px;
+    font-size: var(--text-xs);
+  }
+}
+/* Overview: one companion moment, followed by a paginated atlas of real contexts. */
+.portraitMobileSections {
+  display: none;
+}
+.personalPortrait button,
+.portraitRuleEditor button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.error,
+.danger {
+  color: var(--danger);
+}
+.notice {
+  color: var(--accent);
+}
+@media (max-width: 730px) {
+  .portraitMobileSections {
+    display: flex;
+  }
+  .portraitTabs {
+    display: none;
+  }
+}

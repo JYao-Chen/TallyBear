@@ -1,4 +1,6 @@
 'use client';
+import styles from './ProfileOverview.module.css';
+import { Button } from '@/ui';
 import { useEffect, useState, type CSSProperties } from 'react';
 import {
   ArrowRight,
@@ -111,9 +113,9 @@ export function ProfileOverviewSummary({
     ],
   ] as const;
   return (
-    <section className="portrait-overview-intro" aria-label={t('画像概况', 'Profile at a glance')}>
-      <div className="portrait-companion-story">
-        <div className="portrait-companion" aria-hidden="true">
+    <section className={styles.portraitOverviewIntro} aria-label={t('画像概况', 'Profile at a glance')}>
+      <div className={styles.portraitCompanionStory}>
+        <div className={styles.portraitCompanion} aria-hidden="true">
           {theme === 'minimal' ? (
             <Compass size={66} strokeWidth={1.2} />
           ) : (
@@ -131,7 +133,7 @@ export function ProfileOverviewSummary({
             </picture>
           )}
         </div>
-        <div className="portrait-story-copy">
+        <div className={styles.portraitStoryCopy}>
           <h3>
             {summary.transactions
               ? t('你的习惯，有迹可循', 'Your habits, with a little context')
@@ -143,7 +145,7 @@ export function ProfileOverviewSummary({
               'Discover familiar wallets and the choices you make in different situations.',
             )}
           </p>
-          <div className="portrait-activity-caption">
+          <div className={styles.portraitActivityCaption}>
             <BookOpen size={14} />
             <span>
               {summary.transactions.toLocaleString(locale)} {t('笔有效记录', 'valid records')}
@@ -156,9 +158,9 @@ export function ProfileOverviewSummary({
           </div>
         </div>
         {theme !== 'minimal' && (
-          <button
+          <Button
             type="button"
-            className="portrait-motion-toggle"
+            className={styles.portraitMotionToggle}
             aria-label={
               playing
                 ? t('暂停表情动画', 'Pause companion animation')
@@ -167,14 +169,15 @@ export function ProfileOverviewSummary({
             onClick={() => setPlaying(v => !v)}
           >
             {playing ? <Pause size={14} /> : <Play size={14} />}
-          </button>
+          </Button>
         )}
       </div>
-      <div className="portrait-state-shortcuts">
+      <div className={styles.portraitStateShortcuts}>
         {states.map(([key, Icon, title, description, count]) => (
-          <button
+          <Button
             type="button"
-            className={'portrait-state-shortcut ' + key}
+            className={styles.portraitStateShortcut}
+            data-state={key}
             key={key}
             aria-pressed={status === key}
             onClick={() => onStatus(status === key ? '' : key)}
@@ -186,7 +189,7 @@ export function ProfileOverviewSummary({
             </span>
             <b>{count}</b>
             <ArrowRight size={15} />
-          </button>
+          </Button>
         ))}
       </div>
     </section>
@@ -215,23 +218,24 @@ export function ProfileInsightBoard({
     groups.set(key, [...(groups.get(key) || []), item]);
   }
   return (
-    <div className="portrait-scene-atlas">
+    <div className={styles.portraitSceneAtlas}>
       {[...groups].map(([scene, insights]) => {
         const SceneIcon = sceneIcons[scene] || Compass;
         return (
           <section
             key={scene}
             style={{ '--scene-rows': Math.ceil(insights.length / 2) } as CSSProperties}
-            className={'portrait-scene-group' + (insights.length > 1 ? ' is-wide' : '')}
+            className={styles.portraitSceneGroup}
+            data-wide={insights.length > 1}
           >
-            <div className="portrait-scene-heading">
+            <div className={styles.portraitSceneHeading}>
               <SceneIcon size={21} />
               <h4>{scene === 'general' ? t('日常与其他场景', 'Everyday & other contexts') : label(scene)}</h4>
               <span>
                 {insights.length} {t('项 · 本页', 'on this page')}
               </span>
             </div>
-            <div className="portrait-scene-cards">
+            <div className={styles.portraitSceneCards}>
               {insights.map(i => {
                 const best = i.choices[0],
                   Icon = fieldIcons[i.field] || Tag;
@@ -245,17 +249,15 @@ export function ProfileInsightBoard({
                   if (place) context.push(place.name);
                 }
                 return (
-                  <button
+                  <Button
                     type="button"
                     aria-pressed={selected === i.key}
-                    className={
-                      'portrait-insight portrait-visual-insight' + (selected === i.key ? ' is-selected' : '')
-                    }
+                    className={`${styles.portraitInsight} ${styles.portraitVisualInsight}`}
                     key={i.key}
                     onClick={() => onSelect(i)}
                   >
-                    <span className="portrait-insight-top">
-                      <span className={'portrait-state ' + i.status}>
+                    <span className={styles.portraitInsightTop}>
+                      <span className={styles.portraitState} data-state={i.status}>
                         {i.status === 'stable' ? (
                           <CheckCheck size={12} />
                         ) : i.status === 'changed' ? (
@@ -269,8 +271,8 @@ export function ProfileInsightBoard({
                         {i.count} {t('笔依据', 'records')}
                       </span>
                     </span>
-                    <span className="portrait-preference-value">
-                      <span className="portrait-preference-icon" aria-hidden="true">
+                    <span className={styles.portraitPreferenceValue}>
+                      <span className={styles.portraitPreferenceIcon} aria-hidden="true">
                         {i.field === 'accountId' ? (
                           <AccountIcon name={label(best.value, i.field)} size={30} />
                         ) : (
@@ -282,7 +284,7 @@ export function ProfileInsightBoard({
                         <strong>{label(best.value, i.field)}</strong>
                       </span>
                     </span>
-                    <span className="portrait-context-chips">
+                    <span className={styles.portraitContextChips}>
                       <span>
                         {i.condition.kind === 'income' ? t('收入', 'Income') : t('支出', 'Expense')}
                       </span>
@@ -293,23 +295,23 @@ export function ProfileInsightBoard({
                       )}
                     </span>
                     {i.status === 'changed' && i.previousValue && i.previousValue !== best.value && (
-                      <span className="portrait-change-path">
+                      <span className={styles.portraitChangePath}>
                         <span>{label(i.previousValue, i.field)}</span>
                         <ArrowRight size={14} />
                         <strong>{label(best.value, i.field)}</strong>
                       </span>
                     )}
-                    <span className="portrait-evidence-summary">
+                    <span className={styles.portraitEvidenceSummary}>
                       <span>
                         {t('加权支持', 'Weighted support')} <b>{Math.round(best.share * 100)}%</b>
                       </span>
-                      <span className="portrait-weight">
+                      <span className={styles.portraitWeight}>
                         <span
                           style={{ width: Math.max(0, Math.min(100, Math.round(best.share * 100))) + '%' }}
                         />
                       </span>
                     </span>
-                    <span className="portrait-insight-bottom">
+                    <span className={styles.portraitInsightBottom}>
                       <span>
                         {t('查看依据', 'View evidence')} <ArrowRight size={15} />
                       </span>
@@ -319,7 +321,7 @@ export function ProfileInsightBoard({
                           : t('可纠正', 'You can correct this')}
                       </span>
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>

@@ -1,4 +1,6 @@
 'use client';
+import { Button, ChipButton, Input } from '@/ui';
+import styles from './HelpPage.module.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
@@ -24,6 +26,7 @@ export function HelpHighlight({ text, query }: { text: string; query: string }) 
 }
 type Result = HelpArticle & { snippet: string; match: string };
 function HelpFigure({ image, caption, en }: { image: string; caption: string; en: boolean }) {
+  const { t: tr } = useI18n();
   const [device, setDevice] = useState<'desktop' | 'mobile' | null>(null);
   useEffect(() => {
     setDevice(window.matchMedia('(max-width:600px)').matches ? 'mobile' : 'desktop');
@@ -31,27 +34,33 @@ function HelpFigure({ image, caption, en }: { image: string; caption: string; en
   const selected = device || 'desktop',
     src = `/help/v2/${en ? 'en' : 'zh'}-${selected}-${image}.webp`;
   return (
-    <figure className={`help-figure help-figure-${selected}`}>
-      <div className="help-figure-toolbar">
-        <div role="group" aria-label={en ? 'Screenshot view' : '截图视图'}>
+    <figure className={styles.helpFigure} data-device={selected}>
+      <div className={styles.helpFigureToolbar}>
+        <div role="group" aria-label={tr('截图视图')}>
           {(['desktop', 'mobile'] as const).map(d => (
-            <button key={d} type="button" aria-pressed={selected === d} onClick={() => setDevice(d)}>
+            <Button
+              variant="primary"
+              key={d}
+              type="button"
+              aria-pressed={selected === d}
+              onClick={() => setDevice(d)}
+            >
               {d === 'desktop' ? <Monitor size={14} /> : <Smartphone size={14} />}
-              <span>{d === 'desktop' ? (en ? 'Desktop' : '电脑') : en ? 'Mobile' : '手机'}</span>
-            </button>
+              <span>{d === 'desktop' ? tr('电脑') : tr('手机')}</span>
+            </Button>
           ))}
         </div>
         <a href={src} target="_blank" rel="noreferrer">
-          {en ? 'Full screenshot' : '完整截图'}
+          {tr('完整截图')}
           <ExternalLink size={14} />
         </a>
       </div>
       <a
-        className="help-image-link"
+        className={styles.helpImageLink}
         href={src}
         target="_blank"
         rel="noreferrer"
-        aria-label={en ? 'Open full screenshot' : '查看完整截图'}
+        aria-label={tr('查看完整截图')}
       >
         <img loading="lazy" src={src} alt={caption} />
       </a>
@@ -68,7 +77,7 @@ export function HelpPage({
   onAsk?: (question: string) => void;
   canAsk?: boolean;
 }) {
-  const { locale } = useI18n();
+  const { locale, t: tr } = useI18n();
   const en = locale === 'en';
   const articles = useMemo(() => helpArticles(locale), [locale]);
   const [query, setQuery] = useState(''),
@@ -140,36 +149,28 @@ export function HelpPage({
   const highlight = (text: string) => <HelpHighlight text={text} query={query} />;
   const feature = (action: { target: HelpTarget; label: string } | undefined) =>
     action && onNavigate ? (
-      <button type="button" className="help-feature-link" onClick={() => onNavigate(action.target)}>
+      <Button type="button" className={styles.helpFeatureLink} onClick={() => onNavigate(action.target)}>
         {action.label}
         <ArrowRight size={15} />
-      </button>
+      </Button>
     ) : null;
   const ask = () =>
-    onAsk?.(
-      en
-        ? `Please consult the help chapter “${article.title}” and help me with its workflow. My question is: `
-        : `请查阅使用说明中“${article.title}”这一章，帮我解答操作问题。我的问题是：`,
-    );
+    onAsk?.(tr('请查阅使用说明中“{0}”这一章，帮我解答操作问题。我的问题是：', [article.title]));
   return (
-    <div className="help-page">
-      <div className="page-heading">
+    <div className={styles.helpPage}>
+      <div className={styles.pageHeading}>
         <div>
-          <h1>{en ? 'Help manual' : '使用说明'}</h1>
-          <p>
-            {en
-              ? 'Learn TallyBear, from your first entry to shared finances.'
-              : '从第一笔记录开始，了解 TallyBear 的日常记账与家庭协作。'}
-          </p>
+          <h1>{tr('使用说明')}</h1>
+          <p>{tr('从第一笔记录开始，了解 TallyBear 的日常记账与家庭协作。')}</p>
         </div>
       </div>
-      <label className="help-search">
+      <label className={styles.helpSearch}>
         <Search size={18} />
-        <input
+        <Input
           type="search"
           maxLength={300}
-          aria-label={en ? 'Search the manual' : '搜索使用说明'}
-          placeholder={en ? 'Ask a question: how do I record a refund?' : '输入关键词或问题：退款怎么记？'}
+          aria-label={en ? 'Search the manual' : tr('搜索使用说明')}
+          placeholder={tr('输入关键词或问题：退款怎么记？')}
           value={query}
           onChange={e => {
             setQuery(e.target.value);
@@ -177,37 +178,30 @@ export function HelpPage({
           }}
         />
       </label>
-      <label className="help-mobile-chapters">
-        {en ? 'Contents · choose a chapter' : '目录 · 选择章节'}
-        <select
-          value={section}
-          onChange={e => {
-            setQuery('');
-            open(e.target.value);
-          }}
-        >
+      <nav className={styles.helpMobileChapters} aria-label={tr('说明章节')}>
+        {articles.map(a => (
+          <ChipButton
+            key={a.id}
+            selected={reading && section === a.id}
+            onClick={() => {
+              setQuery('');
+              open(a.id);
+            }}
+          >
+            {a.title}
+          </ChipButton>
+        ))}
+      </nav>
+      <div className={styles.helpLayout}>
+        <nav className={styles.helpTopics} aria-label={tr('说明章节')}>
           {groups.map(g => (
-            <optgroup key={g} label={g}>
-              {articles
-                .filter(a => a.group === g)
-                .map(a => (
-                  <option key={a.id} value={a.id}>
-                    {String(articles.indexOf(a) + 1).padStart(2, '0')} · {a.title}
-                  </option>
-                ))}
-            </optgroup>
-          ))}
-        </select>
-      </label>
-      <div className="help-layout">
-        <nav className="help-topics" aria-label={en ? 'Manual chapters' : '说明章节'}>
-          {groups.map(g => (
-            <div className="help-topic-group" key={g}>
+            <div className={styles.helpTopicGroup} key={g}>
               <p>{g}</p>
               {articles
                 .filter(a => a.group === g)
                 .map(a => (
-                  <button
+                  <Button
+                    variant="primary"
                     type="button"
                     key={a.id}
                     aria-current={reading && section === a.id ? 'page' : undefined}
@@ -219,103 +213,74 @@ export function HelpPage({
                   >
                     <span>{String(articles.indexOf(a) + 1).padStart(2, '0')}</span>
                     {a.title}
-                  </button>
+                  </Button>
                 ))}
             </div>
           ))}
         </nav>
-        <div className="help-content" ref={content}>
+        <div className={styles.helpContent} ref={content} role="region" aria-label={tr('使用说明')}>
           {!reading && query.trim() ? (
             <>
-              <div className="help-result-status" role="status">
+              <div className={styles.helpResultStatus} role="status">
                 {busy
-                  ? en
-                    ? 'Searching…'
-                    : '正在搜索…'
-                  : en
-                    ? `${results.length} chapters · ${mode === 'hybrid' ? 'Keyword + semantic search' : 'Keyword search'}`
-                    : `${results.length} 个章节 · ${mode === 'hybrid' ? '关键词 + 语义检索' : '关键词检索'}`}
-                {error && (
-                  <p>
-                    {en
-                      ? 'Search service unavailable. Showing local keyword matches.'
-                      : '检索服务暂不可用，已展示本地关键词结果。'}
-                  </p>
-                )}
+                  ? tr('正在搜索…')
+                  : tr('{0} 个章节 · {1}', [
+                      results.length,
+                      mode === 'hybrid' ? tr('关键词 + 语义检索') : tr('关键词检索'),
+                    ])}
+                {error && <p>{tr('检索服务暂不可用，已展示本地关键词结果。')}</p>}
               </div>
               {results.slice((page - 1) * 6, page * 6).map(a => (
-                <button type="button" className="help-result" key={a.id} onClick={() => open(a.id)}>
+                <Button type="button" className={styles.helpResult} key={a.id} onClick={() => open(a.id)}>
                   <strong>{highlight(a.title)}</strong>
                   <span>{highlight(a.snippet)}</span>
                   <small>
-                    {a.match === 'semantic'
-                      ? en
-                        ? 'Related by meaning'
-                        : '语义相关'
-                      : en
-                        ? 'Matching text'
-                        : '文字匹配'}{' '}
-                    · {en ? 'Read chapter' : '阅读本章'} <ArrowRight size={14} />
+                    {a.match === 'semantic' ? tr('语义相关') : tr('文字匹配')} · {tr('阅读本章')}{' '}
+                    <ArrowRight size={14} />
                   </small>
-                </button>
+                </Button>
               ))}
-              {!busy && !results.length && (
-                <p>
-                  {en
-                    ? 'No matching chapter. Try a shorter phrase or browse the topics.'
-                    : '未找到相关章节，请缩短问题或从目录浏览。'}
-                </p>
-              )}
+              {!busy && !results.length && <p>{tr('未找到相关章节，请缩短问题或从目录浏览。')}</p>}
               {results.length > 6 && (
-                <div className="help-pagination">
-                  <button className="secondary" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                    {en ? 'Previous' : '上一页'}
-                  </button>
+                <div className={styles.helpPagination}>
+                  <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                    {tr('上一页')}
+                  </Button>
                   <span>
                     {page} / {Math.ceil(results.length / 6)}
                   </span>
-                  <button
-                    className="secondary"
-                    disabled={page * 6 >= results.length}
-                    onClick={() => setPage(p => p + 1)}
-                  >
-                    {en ? 'Next' : '下一页'}
-                  </button>
+                  <Button disabled={page * 6 >= results.length} onClick={() => setPage(p => p + 1)}>
+                    {tr('下一页')}
+                  </Button>
                 </div>
               )}
             </>
           ) : (
-            <article key={article.id}>
+            <article key={article.id} aria-label={article.title}>
               {query && (
-                <button className="text-button" onClick={() => setReading(false)}>
+                <Button variant="ghost" onClick={() => setReading(false)}>
                   <ArrowLeft size={16} />
-                  {en ? 'Back to results' : '返回搜索结果'}
-                </button>
+                  {tr('返回搜索结果')}
+                </Button>
               )}
-              <header className="help-chapter-header">
+              <header className={styles.helpChapterHeader}>
                 <h2>{highlight(article.title)}</h2>
-                <p className="help-chapter-position">
+                <p className={styles.helpChapterPosition}>
                   {article.group} · {index + 1} / {articles.length}
                 </p>
-                <p className="help-lead">{highlight(article.intro)}</p>
+                <p className={styles.helpLead}>{highlight(article.intro)}</p>
                 {onAsk && (
                   <>
-                    <button type="button" className="help-ask secondary" disabled={!canAsk} onClick={ask}>
+                    <Button type="button" className={styles.helpAsk} disabled={!canAsk} onClick={ask}>
                       <MessageCircle size={17} />
-                      {en ? 'Ask the assistant' : '询问助手'}
-                    </button>
-                    {!canAsk && (
-                      <small>
-                        {en
-                          ? 'Create or select a book to use the assistant.'
-                          : '创建或选择账本后即可向助手提问。'}
-                      </small>
-                    )}
+                      {tr('询问助手')}
+                    </Button>
+                    {!canAsk && <small>{tr('创建或选择账本后即可向助手提问。')}</small>}
                   </>
                 )}
               </header>
-              <nav className="help-section-toc" aria-label={en ? 'On this page' : '本章内容'}>
-                <strong>{en ? 'On this page' : '本章内容'}</strong>
+              <nav className={styles.helpSectionToc} aria-label={tr('本章内容')}>
+                <strong>{tr('本章内容')}</strong>
                 {article.sections.map(s => (
                   <a href={`#guide-${article.id}-${s.id}`} key={s.id}>
                     {s.title}
@@ -323,13 +288,13 @@ export function HelpPage({
                 ))}
               </nav>
               {article.sections.map(s => (
-                <section className="help-section" id={`guide-${article.id}-${s.id}`} key={s.id}>
+                <section className={styles.helpSection} id={`guide-${article.id}-${s.id}`} key={s.id}>
                   <h3>{highlight(s.title)}</h3>
                   {s.paragraphs.map((p, i) => (
                     <p key={i}>{highlight(p)}</p>
                   ))}
                   {!!s.steps.length && (
-                    <ol className="help-steps">
+                    <ol className={styles.helpSteps}>
                       {s.steps.map((step, i) => (
                         <li key={i}>
                           <div>
@@ -342,19 +307,19 @@ export function HelpPage({
                     </ol>
                   )}
                   {s.example && (
-                    <aside className="help-callout help-example">
-                      <strong>{en ? 'Example' : '示例'}</strong>
+                    <aside aria-label={tr('示例')} className={styles.helpCallout}>
+                      <strong>{tr('示例')}</strong>
                       <p>{highlight(s.example)}</p>
                     </aside>
                   )}
                   {s.note && (
-                    <aside className="help-callout help-note">
-                      <strong>{en ? 'Keep in mind' : '注意事项'}</strong>
+                    <aside className={`${styles.helpCallout} ${styles.helpNote}`}>
+                      <strong>{tr('注意事项')}</strong>
                       <p>{highlight(s.note)}</p>
                     </aside>
                   )}
                   {!!s.questions.length && (
-                    <dl className="help-faq">
+                    <dl className={styles.helpFaq}>
                       {s.questions.map((q, i) => (
                         <div key={i}>
                           <dt>{highlight(q.q)}</dt>
@@ -370,24 +335,19 @@ export function HelpPage({
                 </section>
               ))}
               {onAsk && (
-                <div className="help-support">
+                <div className={styles.helpSupport}>
                   <div>
-                    <strong>{en ? 'Need help with this chapter?' : '这一步还有疑问？'}</strong>
-                    <p>
-                      {en
-                        ? 'Bring this topic to the assistant and describe where you are stuck.'
-                        : '把本章主题带给助手，再描述你遇到的问题。'}
-                    </p>
+                    <strong>{tr('这一步还有疑问？')}</strong>
+                    <p>{tr('把本章主题带给助手，再描述你遇到的问题。')}</p>
                   </div>
-                  <button type="button" className="secondary" disabled={!canAsk} onClick={ask}>
+                  <Button type="button" disabled={!canAsk} onClick={ask}>
                     <MessageCircle size={17} />
-                    {en ? 'Ask the assistant' : '询问助手'}
-                  </button>
+                    {tr('询问助手')}
+                  </Button>
                 </div>
               )}
-              <div className="help-pagination">
-                <button
-                  className="secondary"
+              <div className={styles.helpPagination}>
+                <Button
                   disabled={!index}
                   onClick={() => {
                     setQuery('');
@@ -395,13 +355,12 @@ export function HelpPage({
                     content.current?.scrollIntoView({ block: 'start' });
                   }}
                 >
-                  {en ? 'Previous chapter' : '上一章'}
-                </button>
+                  {tr('上一章')}
+                </Button>
                 <span>
                   {index + 1} / {articles.length}
                 </span>
-                <button
-                  className="secondary"
+                <Button
                   disabled={index === articles.length - 1}
                   onClick={() => {
                     setQuery('');
@@ -409,8 +368,8 @@ export function HelpPage({
                     content.current?.scrollIntoView({ block: 'start' });
                   }}
                 >
-                  {en ? 'Next chapter' : '下一章'}
-                </button>
+                  {tr('下一章')}
+                </Button>
               </div>
             </article>
           )}

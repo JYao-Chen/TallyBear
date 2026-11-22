@@ -1,4 +1,7 @@
 'use client';
+import { Button, Card, Field, Input, ListRow, Segmented, Sheet, TextArea } from '@/ui';
+import styles from './ManagementPages.module.css';
+import { useConfirmation } from '@/ui/useConfirmation';
 import { PersonalProfile } from './PersonalProfile';
 import { PagedList } from './PagedList';
 
@@ -9,9 +12,8 @@ import { compressAvatar } from '@/lib/avatar-image';
 import { useTheme } from './ThemeProvider';
 import { themes, type Theme } from '@/lib/themes';
 import { useEffect, useState } from 'react';
-import { ChevronDown, Check, LockKeyhole, Users, Settings2 } from 'lucide-react';
+import { ChevronDown, Check, Settings2, MessagesSquare, ScanLine, UserRound } from 'lucide-react';
 import { SymbolIcon, StickerPicker } from './VisualSelect';
-import { Sheet } from './Sheet';
 export type ManagedUser = {
   id: string;
   name: string;
@@ -43,11 +45,13 @@ async function api(path: string, method = 'GET', body?: unknown) {
 export function Avatar({ value, size = 40 }: { value?: string; size?: number }) {
   const { t: tr, locale } = useI18n();
   return (
-    <span className="profile-avatar" style={{ width: size, height: size }}>
+    <span className={styles.profileAvatar} style={{ width: size, height: size }}>
       {value?.startsWith('data:image/') ? (
         <img src={value} width={size} height={size} alt="" />
+      ) : !value || value === '🧸' ? (
+        <UserRound size={Math.round(size * 0.62)} aria-hidden />
       ) : (
-        <SymbolIcon icon={value || '🧸'} size={size} fallback="user" />
+        <SymbolIcon icon={value} size={size} fallback="user" />
       )}
     </span>
   );
@@ -69,8 +73,8 @@ export function BookSwitcher({
   const selected = books.find(b => b.id === current);
   return (
     <>
-      <button
-        className="book-switch-trigger"
+      <Button
+        className={styles.bookSwitchTrigger}
         aria-label={tr('切换账本')}
         aria-expanded={open}
         onClick={() => setOpen(true)}
@@ -81,22 +85,21 @@ export function BookSwitcher({
           <small>{selected?.kind === 'private' ? tr('私人空间') : tr('共享账本')}</small>
         </span>
         <ChevronDown size={16} />
-      </button>
+      </Button>
       {open && (
-        <Sheet variant="picker" title={tr('切换账本')} onClose={() => setOpen(false)}>
-          <input
-            className="search"
+        <Sheet open closeLabel={tr('关闭弹窗')} title={tr('切换账本')} onClose={() => setOpen(false)}>
+          <Input
+            className={styles.search}
             placeholder={tr('搜索账本')}
             aria-label={tr('搜索账本')}
             value={q}
             onChange={e => setQ(e.target.value)}
           />
-          <div className="book-switch-list">
+          <div className={styles.bookSwitchList}>
             {
               <PagedList items={books.filter(b => b.name.includes(q))} resetKey={q}>
                 {b => (
-                  <button
-                    className="secondary"
+                  <Button
                     key={b.id}
                     onClick={() => {
                       onSelect(b.id);
@@ -112,13 +115,13 @@ export function BookSwitcher({
                       </small>
                     </span>
                     {b.id === current && <Check size={18} />}
-                  </button>
+                  </Button>
                 )}
               </PagedList>
             }
           </div>
-          <button
-            className="text-button"
+          <Button
+            variant="ghost"
             onClick={() => {
               setOpen(false);
               onManage();
@@ -126,7 +129,7 @@ export function BookSwitcher({
           >
             <Settings2 size={18} />
             {tr('管理所有账本')}
-          </button>
+          </Button>
         </Sheet>
       )}
     </>
@@ -147,10 +150,10 @@ export function AvatarField({
     [processing, setProcessing] = useState(false);
   return (
     <>
-      <div className="avatar-edit">
+      <div className={styles.avatarEdit}>
         <Avatar value={value} size={76} />
         <div>
-          <label className="avatar-upload">
+          <label className={styles.avatarUpload}>
             {processing ? tr('正在压缩图片…') : tr('上传头像')}
             <input
               type="file"
@@ -174,19 +177,14 @@ export function AvatarField({
               }}
             />
           </label>
-          <button
-            type="button"
-            className="text-button"
-            disabled={processing}
-            onClick={() => setGallery(v => !v)}
-          >
+          <Button variant="ghost" type="button" disabled={processing} onClick={() => setGallery(v => !v)}>
             {gallery ? tr('收起表情库') : tr('从表情库选择')}
-          </button>
+          </Button>
         </div>
       </div>
       {processing && <p role="status">{tr('正在优化头像，请稍候…')}</p>}
       {error && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {tr(error)}
         </p>
       )}
@@ -211,6 +209,7 @@ export function ProfilePage({
     if (memoryRequest) setTab('memory');
   }, [memoryRequest]);
   const [uploading, setUploading] = useState(false);
+  const [editing, setEditing] = useState<'profile' | 'password' | null>(null);
   const { theme, setTheme } = useTheme();
   const [avatar, setAvatar] = useState(user.avatar || '🧸'),
     [busy, setBusy] = useState(false),
@@ -220,6 +219,7 @@ export function ProfilePage({
     setMessage('');
     try {
       await fn();
+      setEditing(null);
       setMessage('已保存');
     } catch (e) {
       setMessage((e as Error).message);
@@ -230,21 +230,15 @@ export function ProfilePage({
   return (
     <>
       <h1>{tr('个人资料')}</h1>
-      <nav className="profile-tabs" aria-label={tr('个人资料栏目')}>
+      <nav className={styles.profileTabs} aria-label={tr('个人资料栏目')}>
         {[
           ['account', '账号资料'],
           ['theme', '外观主题'],
           ['memory', '个人画像'],
         ].map(([key, label]) => (
-          <button
-            type="button"
-            className="secondary"
-            key={key}
-            aria-pressed={tab === key}
-            onClick={() => setTab(key)}
-          >
+          <Button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
             {tr(label)}
-          </button>
+          </Button>
         ))}
       </nav>
       {tab === 'memory' && (
@@ -254,99 +248,139 @@ export function ProfilePage({
           key={memoryRequest?.key || 'memory'}
         />
       )}{' '}
-      {tab === 'account' && <></>}
       {tab === 'theme' && (
-        <section className="panel">
+        <Card>
           <h2>{tr('外观主题')}</h2>
-          <div className="theme-options">
-            {(Object.keys(themes) as Theme[]).map(key => (
-              <button
-                key={key}
-                type="button"
-                className={'theme-option theme-preview-' + key}
-                aria-pressed={theme === key}
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    await api('me', 'PATCH', { theme: key });
-                    setTheme(key);
-                    await onSaved();
-                  })
+          <Segmented
+            className={styles.themePicker}
+            label={tr('外观主题')}
+            value={theme}
+            options={(Object.keys(themes) as Theme[]).map(value => ({
+              value,
+              label: tr(themes[value].label),
+              disabled: busy,
+            }))}
+            onChange={key =>
+              run(async () => {
+                setTheme(key);
+                try {
+                  await api('me', 'PATCH', { theme: key });
+                } catch (error) {
+                  setTheme(theme);
+                  throw error;
                 }
-              >
-                <span className="theme-swatches">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <strong>{tr(themes[key].label)}</strong>
-                <small>{key === 'bear' ? tr('暖色 · 小熊插图') : tr('冷白 · 简洁图标')}</small>
-                {theme === key && <Check size={18} />}
-              </button>
-            ))}
-          </div>
-        </section>
+                await onSaved();
+              })
+            }
+          />
+          <p>{theme === 'bear' ? tr('暖色 · 小熊插图') : tr('冷白 · 简洁图标')}</p>
+        </Card>
       )}
       {tab === 'account' && (
-        <div className="settings-grid">
-          <section className="panel">
-            <h2>{tr('我在账本里的样子')}</h2>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                if (uploading) return;
-                const f = new FormData(e.currentTarget);
-                run(async () => {
-                  await api('me', 'PUT', { name: f.get('name'), avatar });
-                  await onSaved();
-                });
+        <div className={styles.settingsGrid}>
+          <Card>
+            <ListRow
+              title={tr('我在账本里的样子')}
+              end={<>{user.name} ›</>}
+              onClick={() => {
+                setMessage('');
+                setAvatar(user.avatar);
+                setEditing('profile');
+              }}
+            />
+            <Sheet
+              open={editing === 'profile'}
+              title={tr('我在账本里的样子')}
+              onClose={() => {
+                if (!busy && !uploading) setEditing(null);
               }}
             >
-              <AvatarField value={avatar} onChange={setAvatar} onProcessing={setUploading} />
-              <label>
-                {tr('登录账号')}
-                <input value={user.username} readOnly />
-              </label>
-              <label>
-                {tr('显示名称')}
-                <input name="name" maxLength={80} defaultValue={user.name} required />
-              </label>
-              <button disabled={busy || uploading}>{tr('保存个人资料')}</button>
-            </form>
-          </section>
-          <section className="panel">
-            <h2>{tr('登录与密码')}</h2>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                run(async () => {
-                  await api('password', 'PUT', Object.fromEntries(f));
-                });
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (uploading) return;
+                  const f = new FormData(e.currentTarget);
+                  run(async () => {
+                    await api('me', 'PUT', { name: f.get('name'), avatar });
+                    await onSaved();
+                  });
+                }}
+              >
+                <AvatarField value={avatar} onChange={setAvatar} onProcessing={setUploading} />
+                <Field label={tr('登录账号')}>
+                  {control => <Input {...control} value={user.username} readOnly />}
+                </Field>
+                <Field label={tr('显示名称')}>
+                  {control => (
+                    <Input {...control} name="name" maxLength={80} defaultValue={user.name} required />
+                  )}
+                </Field>
+                <Button type="submit" variant="primary" disabled={busy || uploading}>
+                  {tr('保存个人资料')}
+                </Button>
+              </form>
+              {message && <p role="status">{tr(message)}</p>}
+            </Sheet>
+          </Card>
+          <Card>
+            <ListRow
+              title={tr('登录与密码')}
+              end={<>{tr('修改密码')} ›</>}
+              onClick={() => {
+                setMessage('');
+                setAvatar(user.avatar);
+                setEditing('password');
+              }}
+            />
+            <Sheet
+              open={editing === 'password'}
+              title={tr('登录与密码')}
+              onClose={() => {
+                if (!busy && !uploading) setEditing(null);
               }}
             >
-              <label>
-                {tr('当前密码')}
-                <input name="oldPassword" type="password" autoComplete="current-password" required />
-              </label>
-              <label>
-                {tr('新密码')}
-                <input
-                  name="newPassword"
-                  type="password"
-                  minLength={8}
-                  placeholder={tr('密码至少 8 位')}
-                  autoComplete="new-password"
-                  required
-                />
-              </label>
-              <button disabled={busy}>{tr('修改密码')}</button>
-            </form>
-          </section>
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  const f = new FormData(e.currentTarget);
+                  run(async () => {
+                    await api('password', 'PUT', Object.fromEntries(f));
+                  });
+                }}
+              >
+                <Field label={tr('当前密码')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="oldPassword"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                    />
+                  )}
+                </Field>
+                <label>
+                  {tr('新密码')}
+                  <Input
+                    name="newPassword"
+                    type="password"
+                    minLength={8}
+                    placeholder={tr('密码至少 8 位')}
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+                <Button type="submit" variant="primary" disabled={busy}>
+                  {tr('修改密码')}
+                </Button>
+              </form>
+              {message && <p role="status">{tr(message)}</p>}
+            </Sheet>
+          </Card>
         </div>
       )}
-      {message && (
-        <p className="notice" role="status">
+      {message && !editing && (
+        <p className={styles.notice} role="status">
           {tr(message)}
         </p>
       )}
@@ -355,6 +389,7 @@ export function ProfilePage({
 }
 export function UsersPage() {
   const { t: tr, locale } = useI18n();
+  const { confirmation, requestConfirmation } = useConfirmation();
   const [uploading, setUploading] = useState(false);
   const [users, setUsers] = useState<ManagedUser[]>([]),
     [selected, setSelected] = useState<ManagedUser | null>(null),
@@ -370,13 +405,14 @@ export function UsersPage() {
   }, []);
   return (
     <>
+      {confirmation}
       <h1>{tr('用户管理')}</h1>
-      <></>
-      {error && <p className="error">{tr(error)}</p>}
-      <section className="panel">
-        <div className="panel-title">
+      {error && <p className={styles.error}>{tr(error)}</p>}
+      <Card>
+        <div className={styles.panelTitle}>
           <h2>{tr('独立用户账号')}</h2>
-          <button
+          <Button
+            variant="primary"
             onClick={() => {
               setSelected(null);
               setOpen(true);
@@ -384,36 +420,36 @@ export function UsersPage() {
             }}
           >
             {tr('创建账号')}
-          </button>
+          </Button>
         </div>
         {
           <PagedList items={users}>
             {u => (
-              <button
-                className="user-management-row secondary"
+              <ListRow
                 key={u.id}
                 onClick={() => {
                   setSelected(u);
                   setAvatar(u.avatar);
                   setOpen(true);
                 }}
-              >
-                <Avatar value={u.avatar} />
-                <span>
-                  <strong>{u.name}</strong>
-                  <small>
+                leading={<Avatar value={u.avatar} />}
+                title={u.name}
+                meta={
+                  <>
                     @{u.username} · {u.admin ? tr('系统管理员') : tr('普通用户')}
                     {u.disabled ? tr(' · 已停用') : ''}
-                  </small>
-                </span>
-                <Settings2 size={18} />
-              </button>
+                  </>
+                }
+                end="›"
+              />
             )}
           </PagedList>
         }
-      </section>
+      </Card>
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={selected ? tr('管理用户') : tr('创建用户')}
           onClose={() => {
             if (!busy) setOpen(false);
@@ -423,32 +459,49 @@ export function UsersPage() {
             onSubmit={async e => {
               e.preventDefault();
               if (uploading) return;
-              setBusy(true);
-              setError('');
               const f = new FormData(e.currentTarget);
-              try {
-                if (selected)
-                  await api('users', 'PATCH', {
-                    id: selected.id,
-                    name: f.get('name'),
-                    avatar,
-                    disabled: f.get('disabled') === 'on',
-                    ...(f.get('password') ? { password: f.get('password') } : {}),
-                  });
-                else await api('users', 'POST', { ...Object.fromEntries(f), avatar });
-                await load();
-                setOpen(false);
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setBusy(false);
-              }
+              const save = async () => {
+                setBusy(true);
+                setError('');
+
+                try {
+                  if (selected)
+                    await api('users', 'PATCH', {
+                      id: selected.id,
+                      name: f.get('name'),
+                      avatar,
+                      disabled: f.get('disabled') === 'on',
+                      ...(f.get('password') ? { password: f.get('password') } : {}),
+                    });
+                  else await api('users', 'POST', { ...Object.fromEntries(f), avatar });
+                  await load();
+                  setOpen(false);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              };
+              const disabled = f.get('disabled') === 'on';
+              if (selected && (f.get('password') || disabled !== !!selected.disabled)) {
+                const changes = [
+                  f.get('password') && tr('重设密码'),
+                  disabled !== !!selected.disabled &&
+                    (disabled ? tr('停用账号，并退出其所有设备') : tr('启用账号')),
+                ].filter(Boolean);
+                requestConfirmation(
+                  <>
+                    {selected.name} · {changes.join(' · ')}
+                  </>,
+                  save,
+                );
+              } else await save();
             }}
           >
             <AvatarField value={avatar} onChange={setAvatar} onProcessing={setUploading} />
             <label>
               {tr('登录账号')}
-              <input
+              <Input
                 name="username"
                 defaultValue={selected?.username}
                 readOnly={!!selected}
@@ -456,13 +509,14 @@ export function UsersPage() {
                 maxLength={80}
               />
             </label>
-            <label>
-              {tr('显示名称')}
-              <input name="name" defaultValue={selected?.name} required maxLength={80} />
-            </label>
+            <Field label={tr('显示名称')}>
+              {control => (
+                <Input {...control} name="name" defaultValue={selected?.name} required maxLength={80} />
+              )}
+            </Field>
             <label>
               {selected ? tr('重设密码（留空保持原密码）') : tr('初始密码')}
-              <input
+              <Input
                 name="password"
                 type="password"
                 minLength={8}
@@ -472,13 +526,15 @@ export function UsersPage() {
               />
             </label>
             {selected && (
-              <label className="check">
+              <label className={styles.check}>
                 <input type="checkbox" name="disabled" defaultChecked={selected.disabled} />
                 {tr('停用账号，并退出其所有设备')}
               </label>
             )}
-            {error && <p className="error">{tr(error)}</p>}
-            <button disabled={busy || uploading}>{tr('保存用户')}</button>
+            {error && <p className={styles.error}>{tr(error)}</p>}
+            <Button type="submit" variant="primary" disabled={busy || uploading}>
+              {tr('保存用户')}
+            </Button>
           </form>
         </Sheet>
       )}
@@ -495,6 +551,7 @@ export function BooksPage({
   onSelect: (id: string) => void;
 }) {
   const { t: tr, locale } = useI18n();
+  const { confirmation, requestConfirmation } = useConfirmation();
   const [selected, setSelected] = useState<ManagedBook | null>(null),
     [open, setOpen] = useState(false),
     [icon, setIcon] = useState('📒'),
@@ -530,43 +587,48 @@ export function BooksPage({
   }
   return (
     <>
-      <div className="panel-title">
+      {confirmation}
+      <div className={styles.panelTitle}>
         <h1>{tr('账本管理')}</h1>
-        <button onClick={() => manage(null)}>{tr('新建账本')}</button>
+        <Button variant="primary" onClick={() => manage(null)}>
+          {tr('新建账本')}
+        </Button>
       </div>
-      <></>
-      <div className="book-management-grid">
+      <div className={styles.bookManagementGrid}>
         {
           <PagedList items={books}>
             {b => (
-              <section className="panel" key={b.id}>
-                <SymbolIcon icon={b.icon || '📒'} size={58} />
-                <h2>{b.name}</h2>
-                <p className="muted">{b.description || tr('还没有填写账本用途')}</p>
-                <small>
-                  {b.kind === 'private' ? <LockKeyhole size={14} /> : <Users size={14} />}{' '}
-                  {b.kind === 'private' ? tr('私人账本') : tr('共享账本')}
-                  {b.family_name ? ' · ' + b.family_name : ''}
-                </small>
-                <div className="sheet-actions">
-                  <button className="secondary" onClick={() => manage(b)}>
-                    {tr('资料与成员')}
-                  </button>
-                  <button onClick={() => onSelect(b.id)}>{tr('打开账本')}</button>
+              <Card key={b.id}>
+                <ListRow
+                  leading={<SymbolIcon icon={b.icon || '📒'} size={40} />}
+                  title={b.name}
+                  meta={[b.family_name, b.description || tr('还没有填写账本用途')]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  end={<>{b.kind === 'private' ? tr('私人账本') : tr('共享账本')} ›</>}
+                  onClick={() => manage(b)}
+                />
+                <div className={styles.sheetActions}>
+                  <Button onClick={() => manage(b)}>{tr('资料与成员')}</Button>
+                  <Button variant="primary" onClick={() => onSelect(b.id)}>
+                    {tr('打开账本')}
+                  </Button>
                 </div>
-              </section>
+              </Card>
             )}
           </PagedList>
         }
       </div>
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={selected ? tr('账本资料与成员') : tr('准备一本新账本')}
           onClose={() => {
             if (!busy) setOpen(false);
           }}
         >
-          {error && <p className="error">{tr(error)}</p>}
+          {error && <p className={styles.error}>{tr(error)}</p>}
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -582,21 +644,22 @@ export function BooksPage({
             <fieldset disabled={(!!selected && selected.role !== 'owner') || busy}>
               {selected && (
                 <>
-                  <button type="button" className="secondary" onClick={() => setGallery(v => !v)}>
+                  <Button type="button" onClick={() => setGallery(v => !v)}>
                     <SymbolIcon icon={icon} />
                     {tr('更换账本图标')}
-                  </button>
+                  </Button>
                   {gallery && <StickerPicker value={icon} onChange={setIcon} />}
                 </>
               )}
-              <label>
-                {tr('账本名称')}
-                <input name="name" defaultValue={selected?.name} required maxLength={80} />
-              </label>
+              <Field label={tr('账本名称')}>
+                {control => (
+                  <Input {...control} name="name" defaultValue={selected?.name} required maxLength={80} />
+                )}
+              </Field>
               {selected && (
                 <label>
                   {tr('用途说明')}
-                  <textarea name="description" defaultValue={selected.description} maxLength={500} />
+                  <TextArea name="description" defaultValue={selected.description} maxLength={500} />
                 </label>
               )}
               <label>
@@ -606,33 +669,42 @@ export function BooksPage({
                   <option value="shared">{tr('共享：授权成员可见')}</option>
                 </FormSelect>
               </label>
-              <button>{tr('保存账本')}</button>
+              <Button type="submit" variant="primary">
+                {tr('保存账本')}
+              </Button>
             </fieldset>
           </form>
           {selected && (
-            <section className="settings-section">
+            <section className={styles.settingsSection}>
               <h3>{tr('账本成员')}</h3>
               {
                 <PagedList items={members}>
                   {m => (
-                    <div className="member-row" key={m.id}>
+                    <div className={styles.memberRow} key={m.id}>
                       <span>
                         {m.name} ·{' '}
                         {m.role === 'owner' ? tr('所有者') : m.role === 'viewer' ? tr('只读') : tr('可记账')}
                       </span>
                       {selected.role === 'owner' && m.role !== 'owner' && (
-                        <button
-                          className="text-button"
+                        <Button
+                          variant="ghost"
                           disabled={busy}
                           onClick={() =>
-                            run(async () => {
-                              await api(`books/${selected.id}/members`, 'DELETE', { id: m.id });
-                              setMembers(await api(`books/${selected.id}/members`));
-                            })
+                            requestConfirmation(
+                              <>
+                                {' '}
+                                {tr('移除')} · {m.name}
+                              </>,
+                              () =>
+                                run(async () => {
+                                  await api(`books/${selected.id}/members`, 'DELETE', { id: m.id });
+                                  setMembers(await api(`books/${selected.id}/members`));
+                                }),
+                            )
                           }
                         >
                           {tr('移除')}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -640,20 +712,26 @@ export function BooksPage({
               }
               {selected.role === 'owner' && selected.kind === 'shared' && (
                 <form
-                  className="settings-form"
+                  className={styles.settingsForm}
                   onSubmit={e => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
-                    run(async () => {
-                      await api(`books/${selected.id}/members`, 'POST', Object.fromEntries(f));
-                      setMembers(await api(`books/${selected.id}/members`));
-                    });
+                    requestConfirmation(
+                      <>
+                        {tr('授权 / 更新权限')} · {String(f.get('username'))} ·{' '}
+                        {f.get('role') === 'editor' ? tr('可记账') : tr('只读')}
+                      </>,
+                      () =>
+                        run(async () => {
+                          await api(`books/${selected.id}/members`, 'POST', Object.fromEntries(f));
+                          setMembers(await api(`books/${selected.id}/members`));
+                        }),
+                    );
                   }}
                 >
-                  <label>
-                    {tr('成员账号')}
-                    <input name="username" required />
-                  </label>
+                  <Field label={tr('成员账号')}>
+                    {control => <Input {...control} name="username" required />}
+                  </Field>
                   <label>
                     {tr('权限')}
                     <FormSelect name="role">
@@ -661,7 +739,9 @@ export function BooksPage({
                       <option value="viewer">{tr('只读')}</option>
                     </FormSelect>
                   </label>
-                  <button disabled={busy}>{tr('授权 / 更新权限')}</button>
+                  <Button type="submit" variant="primary" disabled={busy}>
+                    {tr('授权 / 更新权限')}
+                  </Button>
                 </form>
               )}
             </section>
@@ -669,5 +749,143 @@ export function BooksPage({
         </Sheet>
       )}
     </>
+  );
+}
+
+export type ModelConfig = {
+  baseUrl: string;
+  model: string;
+  visionModel: string;
+  key: string;
+  hasKey: boolean;
+};
+
+export function ModelSettingsPanel({
+  scope,
+  config,
+  onSave,
+  onTest,
+}: {
+  scope: 'recognition' | 'assistant';
+  config: ModelConfig;
+  onSave: (value: ModelConfig) => Promise<void>;
+  onTest: () => Promise<void>;
+}) {
+  const { t: tr } = useI18n();
+  const [draft, setDraft] = useState<ModelConfig | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [tested, setTested] = useState(false);
+  const assistant = scope === 'assistant',
+    Icon = assistant ? MessagesSquare : ScanLine;
+  const title = tr(assistant ? 'AI 助手模型' : '账单识别模型');
+  async function submit(action: () => Promise<void>, closeOnSuccess: boolean) {
+    setBusy(true);
+    setTested(false);
+    setError('');
+    try {
+      await action();
+      if (closeOnSuccess) setDraft(null);
+      else setTested(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card>
+      <ListRow
+        leading={<Icon size={20} />}
+        title={title}
+        end={<>{config.model || tr('尚未配置')} ›</>}
+        onClick={() => {
+          setError('');
+          setTested(false);
+          setDraft({ ...config });
+        }}
+      />
+      {draft && (
+        <Sheet
+          open
+          title={title}
+          onClose={() => {
+            if (!busy) setDraft(null);
+          }}
+        >
+          {tested && (
+            <p role="status" className={styles.notice}>
+              {tr(
+                assistant
+                  ? 'AI 助手模型连接测试已提交，请在后台任务查看结果'
+                  : '账单识别模型连接测试已提交，请在后台任务查看结果',
+              )}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className={styles.error}>
+              {tr(error)}
+            </p>
+          )}
+          <p className={styles.muted}>
+            {tr(
+              assistant
+                ? '用于小熊对话的问答、工具调用，以及对话内的图片识别与后续核对。'
+                : '用于“记一笔”中的 AI 文字／截图识别，不影响小熊对话。',
+            )}
+          </p>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              void submit(() => onSave(draft), true);
+            }}
+          >
+            <label>
+              {tr('兼容接口地址')}
+              <Input
+                value={draft.baseUrl}
+                onChange={e => setDraft({ ...draft, baseUrl: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              {tr('文字模型')}
+              <Input
+                value={draft.model}
+                onChange={e => setDraft({ ...draft, model: e.target.value })}
+                placeholder={tr('填写供应商模型名称')}
+                required
+              />
+            </label>
+            <label>
+              {tr('图片模型')}
+              <Input
+                value={draft.visionModel}
+                onChange={e => setDraft({ ...draft, visionModel: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              API Key
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder={config.hasKey ? tr('已保存，留空保持不变') : tr('尚未配置')}
+                value={draft.key}
+                onChange={e => setDraft({ ...draft, key: e.target.value })}
+              />
+            </label>
+            <div className={styles.sheetActions}>
+              <Button type="submit" variant="primary" disabled={busy}>
+                {tr(assistant ? '保存助手模型' : '保存识别模型')}
+              </Button>
+              <Button disabled={busy} onClick={() => submit(onTest, false)}>
+                {tr('测试已保存的连接')}
+              </Button>
+            </div>
+          </form>
+        </Sheet>
+      )}
+    </Card>
   );
 }

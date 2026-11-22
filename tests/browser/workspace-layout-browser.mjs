@@ -111,19 +111,25 @@ try {
       }
       if (key === 'chat') {
         assert.equal(
-          await page.locator('.finance-composer').getByText('个人记忆', { exact: true }).count(),
+          await page
+            .getByRole('group', { name: '给财务助手发送消息' })
+            .getByText('个人记忆', { exact: true })
+            .count(),
           0,
         );
-        const box = await page.locator('.finance-composer').boundingBox();
+        const box = await page.getByRole('group', { name: '给财务助手发送消息' }).boundingBox();
         assert.ok(box.y + box.height <= 900, 'composer off screen');
         await page
-          .locator('.finance-composer textarea')
+          .getByRole('textbox', { name: '给财务助手发送消息' })
           .fill('请核对这次旅行的交通、住宿和餐饮支出，并保留我上传的账单。');
         await shot('chat-input-' + width);
       }
       if (key === 'help') {
         await page.getByRole('searchbox', { name: '搜索使用说明' }).fill('退款');
-        await page.locator('.help-content').getByText('退款增加到账账户余额', { exact: false }).waitFor();
+        await page
+          .getByRole('region', { name: '使用说明' })
+          .getByText('退款增加到账账户余额', { exact: false })
+          .waitFor();
         await shot('help-search-' + width);
       }
     }

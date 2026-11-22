@@ -1,0 +1,168 @@
+.financeWorkspace,
+.financeMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.financeWorkspace {
+  overflow: hidden;
+  background: var(--surface);
+}
+.financeMain {
+  position: relative;
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+.financeToolbar,
+.financeToolbarActions,
+.panelTitle,
+.tabs,
+.financeHistoryRow,
+.answerActions,
+.assistantLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.financeToolbar,
+.panelTitle {
+  justify-content: space-between;
+}
+.financeToolbar {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  gap: var(--space-1);
+}
+.financeConversationTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.financeToolbarActions button {
+  padding-inline: var(--space-2);
+}
+.financeLibrary,
+.financeHistory {
+  display: grid;
+  gap: var(--space-2);
+}
+.financeHistoryRow button:first-child {
+  display: grid;
+  flex: 1;
+  justify-content: start;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.financeHistoryRow button[aria-pressed='true'],
+.tabs button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.financeMain .financeMessages {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  width: 100%;
+  height: auto;
+}
+.financeTurn {
+  margin-bottom: var(--space-8);
+  overflow-wrap: anywhere;
+}
+.financeQuestion {
+  width: fit-content;
+  max-width: 85%;
+  margin-left: auto;
+  padding: var(--space-3) var(--space-4);
+  white-space: pre-wrap;
+  background: var(--accent-soft);
+  border-radius: var(--radius-card) var(--radius-card) var(--space-1) var(--radius-card);
+}
+.financeAnswer {
+  margin-top: var(--space-5);
+  line-height: 1.75;
+}
+.financeAnswer > img {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+.financeQuestionAttachments,
+.financeWelcomeCaption,
+.muted,
+.historyDelete {
+  color: var(--muted);
+}
+.financeQuestionAttachments {
+  display: block;
+}
+.financeEmpty {
+  text-align: center;
+  padding: var(--space-6);
+}
+.financeEmpty h2 {
+  display: block;
+  font-family: var(--font-title);
+}
+.financeSuggestions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.financeSuggestions button {
+  text-align: start;
+  justify-content: start;
+}
+.toolTraces,
+.contextDetails,
+.draftChatCard {
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+}
+.answerActions,
+.assistantLinks {
+  margin-block: var(--space-3);
+}
+.button {
+  padding: var(--space-3);
+  color: var(--accent);
+}
+.reportBody {
+  overflow-wrap: anywhere;
+}
+.financeProgress,
+.notice {
+  color: var(--accent);
+}
+.error {
+  color: var(--danger);
+}
+.financeJump {
+  position: absolute;
+  right: var(--space-3);
+  bottom: calc(var(--composer-height, 120px) + var(--space-2));
+  z-index: 1;
+}
+@media (max-width: 730px) {
+  .financeToolbar .financeLibraryToggle {
+    font-size: 0;
+    width: var(--touch);
+    padding: 0;
+    gap: 0;
+  }
+  .financeEmpty {
+    padding: var(--space-3);
+  }
+}
+.financeMain button,
+.financeLibrary button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

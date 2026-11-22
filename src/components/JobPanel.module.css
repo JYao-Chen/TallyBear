@@ -1,0 +1,62 @@
+.taskTrigger {
+  position: relative;
+  gap: var(--space-1);
+}
+.taskCount {
+  padding-inline: var(--space-1);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+.jobList {
+  display: grid;
+  gap: var(--space-3);
+}
+.jobCard {
+  overflow-wrap: anywhere;
+}
+.panelTitle,
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.panelTitle {
+  justify-content: space-between;
+}
+.progress {
+  accent-color: var(--accent);
+  width: 100%;
+  height: var(--space-2);
+}
+.spinning,
+.notice {
+  color: var(--accent);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+@media (max-width: 730px) {
+  .taskLabel {
+    display: none;
+  }
+  .taskTrigger {
+    width: var(--touch);
+    padding: 0;
+  }
+  .taskCount {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+}
+@media (max-width: 730px) {
+  .taskTrigger {
+    grid-column: 4;
+    grid-row: 1;
+  }
+}

@@ -1,10 +1,12 @@
 'use client';
+import { Button, Card, ConfirmDialog, Input, Sheet } from '@/ui';
+import styles from './CategoryPanel.module.css';
+import { useConfirmation } from '@/ui/useConfirmation';
 import { PagedList } from './PagedList';
 
 import { useI18n } from './LanguageProvider';
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Trash2, GripVertical } from 'lucide-react';
-import { Sheet } from './Sheet';
 import { SymbolIcon, StickerPicker } from './VisualSelect';
 export type Category = { name: string; icon: string; archived: boolean };
 export function CategoryPanel({
@@ -17,6 +19,7 @@ export function CategoryPanel({
   onSave: (value: unknown) => Promise<void>;
 }) {
   const { t: tr } = useI18n();
+  const { confirmation, requestConfirmation } = useConfirmation();
   const [editing, setEditing] = useState<Category | null>(null),
     [open, setOpen] = useState(false),
     [all, setAll] = useState(false),
@@ -60,27 +63,29 @@ export function CategoryPanel({
   }
   const visible = (order || items).filter(c => (order || all || !c.archived) && c.name.includes(query));
   return (
-    <section className="panel">
-      <div className="panel-title category-toolbar">
+    <Card>
+      {confirmation}
+      <div className={styles.categoryToolbar}>
         <h2>{tr('我的分类小伙伴')}</h2>
         {canWrite && (
-          <div className="inline">
+          <div className={styles.inline}>
             {order ? (
               <>
-                <button className="secondary" disabled={busy} onClick={() => setOrder(null)}>
+                <Button disabled={busy} onClick={() => setOrder(null)}>
                   {tr('取消排序')}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
                   disabled={busy}
                   onClick={() => save({ operation: 'reorder', names: order.map(c => c.name) })}
                 >
                   {tr('保存顺序')}
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
-                  className="text-button"
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setOrder([...items]);
                     setQuery('');
@@ -89,39 +94,39 @@ export function CategoryPanel({
                 >
                   <GripVertical size={18} />
                   {tr('调整顺序')}
-                </button>
-                <button className="text-button" onClick={() => edit(null)}>
+                </Button>
+                <Button variant="ghost" onClick={() => edit(null)}>
                   {tr('＋ 添加分类')}
-                </button>
+                </Button>
               </>
             )}
           </div>
         )}
       </div>
-      <p className="muted">
+      <p className={styles.muted}>
         {tr(
           '同一家庭的成员可复用彼此创建的分类。你的排序、停用和个人设置适用于自己的所有账本，不会修改他人的设置。',
         )}
       </p>
       {error && !open && !deleting && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {tr(error)}
         </p>
       )}
       {!order && (
-        <input
+        <Input
           aria-label={tr('搜索分类')}
           placeholder={tr('搜索分类名称…')}
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
       )}
-      <div className="category-manager">
+      <div className={styles.categoryManager}>
         {
           <PagedList items={visible} pageSize={12} resetKey={query + String(all) + String(!!order)}>
             {(c, index) => (
               <div
-                className="category-card"
+                className={styles.categoryCard}
                 key={c.name}
                 draggable={!!order && !busy}
                 onDragStart={() => setDragged(c.name)}
@@ -135,38 +140,41 @@ export function CategoryPanel({
                 }}
                 onDragEnd={() => setDragged(null)}
               >
-                <button
-                  className="secondary category-edit"
+                <Button
+                  className={styles.categoryEdit}
                   disabled={!canWrite || !!order || busy}
                   onClick={() => edit(c)}
                 >
                   <SymbolIcon icon={c.icon} size={52} />
                   <strong>{c.name}</strong>
                   <small>{c.archived ? tr('已停用') : order ? tr('拖动排序') : tr('点击编辑')}</small>
-                </button>
+                </Button>
                 {canWrite && (
-                  <div className="category-card-actions">
+                  <div className={styles.categoryCardActions}>
                     {order ? (
                       <>
-                        <button
+                        <Button
+                          variant="primary"
                           type="button"
                           disabled={busy || index === 0}
                           aria-label={tr('前移 {0}', [c.name])}
                           onClick={() => move(c.name, visible[index - 1].name)}
                         >
                           <ArrowLeft size={16} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="primary"
                           type="button"
                           disabled={busy || index === visible.length - 1}
                           aria-label={tr('后移 {0}', [c.name])}
                           onClick={() => move(c.name, visible[index + 1].name)}
                         >
                           <ArrowRight size={16} />
-                        </button>
+                        </Button>
                       </>
                     ) : (
-                      <button
+                      <Button
+                        variant="primary"
                         type="button"
                         aria-label={tr('删除分类 {0}', [c.name])}
                         onClick={() => {
@@ -176,7 +184,7 @@ export function CategoryPanel({
                       >
                         <Trash2 size={16} />
                         {tr('删除')}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
@@ -186,35 +194,33 @@ export function CategoryPanel({
         }
       </div>
       {!order && (
-        <button className="text-button" onClick={() => setAll(v => !v)}>
+        <Button variant="ghost" onClick={() => setAll(v => !v)}>
           {all ? tr('隐藏停用分类') : tr('显示停用分类')}
-        </button>
+        </Button>
       )}
       {deleting && (
-        <Sheet
+        <ConfirmDialog
+          open
           title={tr('删除分类')}
-          onClose={() => {
+          busy={busy}
+          confirmLabel={tr('确认删除')}
+          onCancel={() => {
             if (!busy) setDeleting(null);
           }}
+          onConfirm={() => save({ ...deleting, operation: 'delete' })}
         >
           <p>{tr('删除「{0}」？已有账目保留原分类，今后记账不再显示此选项。', [deleting.name])}</p>
           {error && (
-            <p className="error" role="alert">
+            <p className={styles.error} role="alert">
               {tr(error)}
             </p>
           )}
-          <div className="sheet-actions">
-            <button className="secondary" disabled={busy} onClick={() => setDeleting(null)}>
-              {tr('取消')}
-            </button>
-            <button disabled={busy} onClick={() => save({ ...deleting, operation: 'delete' })}>
-              {tr('确认删除')}
-            </button>
-          </div>
-        </Sheet>
+        </ConfirmDialog>
       )}
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={editing ? tr('修改分类') : tr('添加分类')}
           onClose={() => {
             if (!busy) setOpen(false);
@@ -235,7 +241,7 @@ export function CategoryPanel({
             <fieldset disabled={busy}>
               <label>
                 {tr('分类名称')}
-                <input
+                <Input
                   name="name"
                   defaultValue={editing?.name}
                   maxLength={60}
@@ -245,26 +251,36 @@ export function CategoryPanel({
               </label>
               <StickerPicker value={icon} onChange={setIcon} />
               {error && (
-                <p className="error" role="alert">
+                <p className={styles.error} role="alert">
                   {tr(error)}
                 </p>
               )}
-              <div className="sheet-actions">
+              <div className={styles.sheetActions}>
                 {editing && (
-                  <button
+                  <Button
                     type="button"
-                    className="secondary"
-                    onClick={() => save({ ...editing, archived: !editing.archived })}
+                    onClick={() =>
+                      editing.archived
+                        ? save({ ...editing, archived: false })
+                        : requestConfirmation(
+                            <>
+                              {tr('停用分类')} · {editing.name}
+                            </>,
+                            () => save({ ...editing, archived: true }),
+                          )
+                    }
                   >
                     {editing.archived ? tr('恢复分类') : tr('停用分类')}
-                  </button>
+                  </Button>
                 )}
-                <button>{tr('保存分类')}</button>
+                <Button type="submit" variant="primary">
+                  {tr('保存分类')}
+                </Button>
               </div>
             </fieldset>
           </form>
         </Sheet>
       )}
-    </section>
+    </Card>
   );
 }

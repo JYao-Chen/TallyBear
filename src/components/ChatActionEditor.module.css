@@ -1,0 +1,34 @@
+.chatInlineEditor {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.formGrid {
+  display: grid;
+  gap: var(--space-2) var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+.receiptFactWide {
+  grid-column: 1/-1;
+}
+.entryOptional {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-2);
+}
+.check,
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.check input {
+  width: auto;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}

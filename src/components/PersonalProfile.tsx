@@ -1,4 +1,7 @@
 'use client';
+import styles from './PersonalProfile.module.css';
+import { Sheet, Button, Input } from '@/ui';
+import { useConfirmation } from '@/ui/useConfirmation';
 import { FormSelect } from './FormSelect';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -35,6 +38,7 @@ type Resources = {
 };
 const emptyResources: Resources = { books: [], wallets: [], categories: [], places: [] };
 export function PersonalProfile({ admin = false, initialId }: { admin?: boolean; initialId?: string }) {
+  const { confirmation, requestConfirmation } = useConfirmation();
   const { locale } = useI18n(),
     en = locale === 'en',
     t = (zh: string, english: string) => (en ? english : zh);
@@ -162,7 +166,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
     };
   }, [selected, sourcePage, revision]);
   useEffect(() => {
-    if (selected || editor) detailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (selected && !editor) detailRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selected, editor]);
   async function run(body: unknown) {
     setBusy(true);
@@ -182,30 +186,30 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
   }
   function paginate(total: number, size = 12) {
     return (
-      <footer className="portrait-pagination">
+      <footer className={styles.portraitPagination}>
         <span>{total ? t('共 ' + total + ' 条', total + ' results') : t('暂无记录', 'No results')}</span>
         <nav aria-label={t('画像分页', 'Profile pages')}>
-          <button
+          <Button
+            variant="ghost"
             type="button"
-            className="icon-button"
             disabled={loading || page === 1}
             aria-label={t('上一页', 'Previous page')}
             onClick={() => setPage(n => n - 1)}
           >
             <ChevronLeft size={18} />
-          </button>
+          </Button>
           <span>
             {page} / {Math.max(1, Math.ceil(total / size))}
           </span>
-          <button
+          <Button
+            variant="ghost"
             type="button"
-            className="icon-button"
             disabled={loading || page * size >= total}
             aria-label={t('下一页', 'Next page')}
             onClick={() => setPage(n => n + 1)}
           >
             <ChevronRight size={18} />
-          </button>
+          </Button>
         </nav>
       </footer>
     );
@@ -216,8 +220,9 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
     setEditor(null);
   };
   return (
-    <div className="personal-portrait">
-      <header className="portrait-heading">
+    <div className={styles.personalPortrait}>
+      {confirmation}
+      <header className={styles.portraitHeading}>
         <div>
           <h2>{t('个人画像', 'Personal profile')}</h2>
           <p>
@@ -227,12 +232,12 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
             )}
           </p>
         </div>
-        <span className="portrait-private">
+        <span className={styles.portraitPrivate}>
           <LockKeyhole size={15} />
           {t('仅自己可见', 'Only you can see this')}
         </span>
       </header>
-      <label className="portrait-mobile-sections">
+      <label className={styles.portraitMobileSections}>
         {t('画像栏目', 'Profile section')}
         <FormSelect aria-label={t('画像栏目', 'Profile section')} value={section} onChange={switchSection}>
           {tabs.map(([key, zh, english]) => (
@@ -242,9 +247,10 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
           ))}
         </FormSelect>
       </label>
-      <nav className="portrait-tabs" aria-label={t('个人画像栏目', 'Personal profile sections')}>
+      <nav className={styles.portraitTabs} aria-label={t('个人画像栏目', 'Personal profile sections')}>
         {tabs.map(([key, zh, english, Icon]) => (
-          <button
+          <Button
+            variant="primary"
             type="button"
             key={key}
             aria-current={section === key ? 'page' : undefined}
@@ -252,24 +258,24 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
           >
             <Icon size={17} />
             <span>{t(zh, english)}</span>
-          </button>
+          </Button>
         ))}
       </nav>
       {error && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {error}
-          <button type="button" className="text-button" onClick={() => setRevision(n => n + 1)}>
+          <Button variant="ghost" type="button" onClick={() => setRevision(n => n + 1)}>
             {t('重新加载', 'Reload')}
-          </button>
+          </Button>
         </p>
       )}
       {notice && (
-        <p className="notice" role="status">
+        <p className={styles.notice} role="status">
           {notice}
         </p>
       )}
       {loading || loadedSection !== section ? (
-        <p className="portrait-loading" role="status">
+        <p className={styles.portraitLoading} role="status">
           {t('正在读取有效记录…', 'Reading current records…')}
         </p>
       ) : (
@@ -288,14 +294,14 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                   />
                 )}
                 {data.settings?.enabled === false && (
-                  <p className="notice">
+                  <p className={styles.notice}>
                     {t(
                       '学习已暂停；现有画像可查看，但不会用于自动填充。',
                       'Learning is paused. Existing insights remain visible but do not fill entries.',
                     )}
                   </p>
                 )}
-                <div className="portrait-section-heading">
+                <div className={styles.portraitSectionHeading}>
                   <div>
                     <h3>
                       {section === 'review'
@@ -310,16 +316,16 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     </p>
                   </div>
                   {section === 'overview' && (
-                    <button type="button" className="text-button" onClick={() => switchSection('habits')}>
+                    <Button variant="ghost" type="button" onClick={() => switchSection('habits')}>
                       {t('管理明确规则', 'Manage explicit rules')}
                       <ArrowRight size={16} />
-                    </button>
+                    </Button>
                   )}
                 </div>
-                <div className="portrait-filters">
-                  <label className="portrait-search">
+                <div className={styles.portraitFilters}>
+                  <label className={styles.portraitSearch}>
                     <Search size={17} />
-                    <input
+                    <Input
                       aria-label={t('搜索画像', 'Search profile')}
                       placeholder={t('搜索场景、商家、钱包…', 'Search context, merchant, wallet…')}
                       value={query}
@@ -356,7 +362,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                   places={resources.places}
                 />
                 {!data.items.length && (
-                  <div className="portrait-empty">
+                  <div className={styles.portraitEmpty}>
                     <Compass size={28} />
                     <h3>{t('暂时没有符合条件的习惯', 'No matching habits yet')}</h3>
                     <p>
@@ -372,7 +378,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
             )}
             {section === 'habits' && (
               <section>
-                <div className="portrait-section-heading">
+                <div className={styles.portraitSectionHeading}>
                   <div>
                     <h3>{t('由你确定的规则', 'Rules you control')}</h3>
                     <p>
@@ -382,7 +388,8 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                       )}
                     </p>
                   </div>
-                  <button
+                  <Button
+                    variant="primary"
                     type="button"
                     onClick={() => {
                       setSelected(null);
@@ -396,52 +403,47 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                   >
                     <Plus size={16} />
                     {t('新增规则', 'Add rule')}
-                  </button>
+                  </Button>
                 </div>
-                <div className="portrait-rules">
+                <div className={styles.portraitRules}>
                   {data.items.map((r: ProfileRule) => (
                     <article key={r.id}>
                       <div>
-                        <span className={'portrait-state ' + r.state}>{label(r.state)}</span>
+                        <span className={styles.portraitState} data-state={r.state}>
+                          {label(r.state)}
+                        </span>
                         <h4>
                           {field(r.field)} ·{' '}
                           {r.value ? label(r.value, r.field) : t('不自动建议', 'Do not suggest')}
                         </h4>
                         <p>{describe(r.condition)}</p>
                       </div>
-                      <div className="portrait-row-actions">
-                        <button
-                          type="button"
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() => setEditor(r)}
-                        >
+                      <div className={styles.portraitRowActions}>
+                        <Button type="button" disabled={busy} onClick={() => setEditor(r)}>
                           {t('编辑', 'Edit')}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
                           type="button"
-                          className="text-button"
                           disabled={busy}
                           onClick={() => {
-                            if (
-                              confirm(
-                                t(
-                                  '删除这条规则？之后可在学习记录中撤销。',
-                                  'Delete this rule? You can undo this from History.',
-                                ),
-                              )
-                            )
-                              run({ operation: 'delete_rule', id: r.id, version: r.version });
+                            requestConfirmation(
+                              t(
+                                '删除这条规则？之后可在学习记录中撤销。',
+                                'Delete this rule? You can undo this from History.',
+                              ),
+                              () => run({ operation: 'delete_rule', id: r.id, version: r.version }),
+                            );
                           }}
                         >
                           {t('删除', 'Delete')}
-                        </button>
+                        </Button>
                       </div>
                     </article>
                   ))}
                 </div>
                 {!data.items.length && (
-                  <p className="portrait-empty">
+                  <p className={styles.portraitEmpty}>
                     {t(
                       '还没有明确规则。可以自己添加，或从画像中的习惯确认。',
                       'No explicit rules yet. Add one or confirm a habit from your profile.',
@@ -452,7 +454,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
               </section>
             )}
             {selected && (
-              <section className="portrait-detail" ref={detailRef}>
+              <section className={styles.portraitDetail} ref={detailRef}>
                 <header>
                   <div>
                     <h3>
@@ -460,16 +462,16 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     </h3>
                     <p>{describe(selected.condition)}</p>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
-                    className="icon-button"
                     aria-label={t('关闭依据', 'Close evidence')}
                     onClick={() => setSelected(null)}
                   >
                     <X size={18} />
-                  </button>
+                  </Button>
                 </header>
-                <div className="portrait-alternatives">
+                <div className={styles.portraitAlternatives}>
                   {(detail?.insight.choices || selected.choices).map(
                     (c: ProfileInsight['choices'][number]) => (
                       <div key={c.value}>
@@ -481,9 +483,9 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                         <span>
                           {Math.round(c.share * 100)}% {t('加权支持', 'weighted support')}
                         </span>
-                        <button
+                        <Button
+                          variant="ghost"
                           type="button"
-                          className="text-button"
                           onClick={() =>
                             setEditor({
                               condition: selected.condition,
@@ -494,15 +496,14 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                           }
                         >
                           {t('确认为规则', 'Make this a rule')}
-                        </button>
+                        </Button>
                       </div>
                     ),
                   )}
                 </div>
-                <div className="portrait-row-actions">
-                  <button
+                <div className={styles.portraitRowActions}>
+                  <Button
                     type="button"
-                    className="secondary"
                     onClick={() =>
                       setEditor({
                         condition: selected.condition,
@@ -513,10 +514,10 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     }
                   >
                     {t('纠正这个偏好', 'Correct this preference')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
-                    className="text-button"
                     disabled={busy}
                     onClick={() =>
                       run({
@@ -531,10 +532,10 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     }
                   >
                     {t('不再建议这个选项', 'Exclude this option')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
-                    className="text-button"
                     disabled={busy}
                     onClick={() =>
                       run({
@@ -549,14 +550,14 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     }
                   >
                     {t('此场景不自动填充', 'Do not fill in this context')}
-                  </button>
+                  </Button>
                 </div>
                 <h4>{t('相关记录', 'Supporting records')}</h4>
                 {!detail ? (
                   <p role="status">{t('正在读取依据…', 'Loading evidence…')}</p>
                 ) : (
                   <>
-                    <ul className="portrait-sources">
+                    <ul className={styles.portraitSources} aria-label={t('相关记录', 'Supporting records')}>
                       {detail.sources.map((s: any, index: number) => (
                         <li key={s.id + index}>
                           <span>
@@ -567,28 +568,26 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                         </li>
                       ))}
                     </ul>
-                    <div className="portrait-pagination">
+                    <div className={styles.portraitPagination}>
                       <span>
                         {detail.total} {t('条依据', 'sources')}
                       </span>
                       <nav>
-                        <button
+                        <Button
                           type="button"
-                          className="secondary"
                           disabled={sourcePage === 1}
                           onClick={() => setSourcePage(n => n - 1)}
                         >
                           {t('上一页依据', 'Previous sources')}
-                        </button>
+                        </Button>
                         <span>{sourcePage}</span>
-                        <button
+                        <Button
                           type="button"
-                          className="secondary"
                           disabled={sourcePage * 20 >= detail.total}
                           onClick={() => setSourcePage(n => n + 1)}
                         >
                           {t('下一页依据', 'Next sources')}
-                        </button>
+                        </Button>
                       </nav>
                     </div>
                   </>
@@ -596,21 +595,32 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
               </section>
             )}
             {editor && (
-              <section className="portrait-detail" ref={detailRef}>
+              <Sheet
+                open
+                wide
+                title={t('明确我的偏好', 'Set my preference')}
+                closeLabel={t('关闭编辑', 'Close editor')}
+                onClose={() => setEditor(null)}
+              >
+                {error && (
+                  <p role="alert" className={styles.error}>
+                    {error}
+                  </p>
+                )}
                 <RuleEditor
                   key={JSON.stringify(editor)}
+                  onClose={() => setEditor(null)}
                   value={editor}
                   resources={resources}
                   busy={busy}
-                  onClose={() => setEditor(null)}
                   onSave={async (rule, replaceConflicts) => {
                     if (await run({ operation: 'save_rule', rule, replaceConflicts })) setEditor(null);
                   }}
                 />
-              </section>
+              </Sheet>
             )}
             {(section === 'products' || section === 'arrangements' || section === 'review') && (
-              <section className="portrait-library">
+              <section className={styles.portraitLibrary}>
                 <h3>
                   {section === 'products'
                     ? t('熟悉的商品与服务', 'Familiar products & services')
@@ -618,7 +628,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                       ? t('订阅、活动与待办', 'Subscriptions, activities & to-dos')
                       : t('待核对的记忆', 'Memories awaiting review')}
                 </h3>
-                <p className="muted">
+                <p className={styles.muted}>
                   {section === 'arrangements'
                     ? t(
                         '这些是已有计划的关联线索，不会自动建立计划或产生账单。',
@@ -641,9 +651,9 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
             )}
             {section === 'history' && (
               <>
-                <section className="portrait-library">
+                <section className={styles.portraitLibrary}>
                   <h3>{t('场景规则与隐私变更', 'Rule & privacy history')}</h3>
-                  <ol className="portrait-event-list">
+                  <ol className={styles.portraitEventList}>
                     {data.items.map((e: any) => (
                       <li key={e.id}>
                         <History size={17} />
@@ -665,19 +675,20 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                           <time>{new Date(e.created_at).toLocaleString(locale)}</time>
                         </div>
                         {e.canUndo && (
-                          <button
+                          <Button
                             type="button"
-                            className="secondary"
                             disabled={busy}
                             onClick={() => run({ operation: 'undo', id: e.id })}
                           >
                             {t('撤销', 'Undo')}
-                          </button>
+                          </Button>
                         )}
                       </li>
                     ))}
                   </ol>
-                  {!data.items.length && <p className="muted">{t('还没有变更。', 'No changes yet.')}</p>}
+                  {!data.items.length && (
+                    <p className={styles.muted}>{t('还没有变更。', 'No changes yet.')}</p>
+                  )}
                   {paginate(data.total, 20)}
                 </section>
                 <MemoryHistory />
@@ -686,7 +697,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
             {section === 'settings' && (
               <>
                 <ProfilePrivacy key={revision} data={data} busy={busy} onSave={run} />
-                <section className="portrait-library">
+                <section className={styles.portraitLibrary}>
                   <h3>{t('历史整理与商品记忆', 'History & product memories')}</h3>
                   <MemoryWorkspace admin={admin} view="settings" />
                 </section>
@@ -700,16 +711,16 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
 }
 
 function RuleEditor({
+  onClose,
   value,
   resources,
   busy,
-  onClose,
   onSave,
 }: {
   value: ProfileRule;
+  onClose: () => void;
   resources: Resources;
   busy: boolean;
-  onClose: () => void;
   onSave: (value: ProfileRule, replace: boolean) => Promise<void>;
 }) {
   const { locale } = useI18n(),
@@ -741,30 +752,19 @@ function RuleEditor({
         ))}
       </select>
     ) : (
-      <input required maxLength={80} value={value} onChange={e => onChange(e.target.value)} />
+      <Input required maxLength={80} value={value} onChange={e => onChange(e.target.value)} />
     );
   }
   const condition = (extra: Partial<ProfileCondition>) =>
     setRule({ ...rule, condition: { ...rule.condition, ...extra } });
   return (
     <form
-      className="portrait-rule-editor"
+      className={styles.portraitRuleEditor}
       onSubmit={e => {
         e.preventDefault();
         void onSave({ ...rule, value: rule.state === 'disabled' ? '' : rule.value }, replace);
       }}
     >
-      <header>
-        <h3>{t('明确我的偏好', 'Set my preference')}</h3>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={t('关闭编辑', 'Close editor')}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-      </header>
       <fieldset>
         <legend>{t('当这些条件同时满足', 'When all these conditions match')}</legend>
         <label>
@@ -778,16 +778,16 @@ function RuleEditor({
           </select>
         </label>
         {Object.entries(rule.condition.fields).map(([f, v]) => (
-          <div className="portrait-rule-condition" key={f}>
+          <div className={styles.portraitRuleCondition} key={f}>
             <label>
               {fieldName(f as PreferenceField)}
               {input(f as PreferenceField, v, newValue =>
                 condition({ fields: { ...rule.condition.fields, [f]: newValue } }),
               )}
             </label>
-            <button
+            <Button
+              variant="ghost"
               type="button"
-              className="icon-button"
               aria-label={t('移除条件', 'Remove condition') + ' ' + fieldName(f as PreferenceField)}
               onClick={() => {
                 const next = { ...rule.condition.fields };
@@ -796,7 +796,7 @@ function RuleEditor({
               }}
             >
               <X size={16} />
-            </button>
+            </Button>
           </div>
         ))}
         <label>
@@ -815,7 +815,7 @@ function RuleEditor({
               ))}
           </select>
         </label>
-        <div className="portrait-form-grid">
+        <div className={styles.portraitFormGrid}>
           <label>
             {t('日期类型', 'Day type')}
             <select
@@ -862,7 +862,7 @@ function RuleEditor({
       </fieldset>
       <fieldset>
         <legend>{t('我希望这样填写', 'Then suggest')}</legend>
-        <div className="portrait-form-grid">
+        <div className={styles.portraitFormGrid}>
           <label>
             {t('建议字段', 'Field')}
             <select
@@ -905,15 +905,17 @@ function RuleEditor({
           </label>
         </div>
       </fieldset>
-      <label className="check">
+      <label className={styles.check}>
         <input type="checkbox" checked={replace} onChange={e => setReplace(e.target.checked)} />
         {t('如有同场景冲突，明确替换旧规则', 'Replace conflicting explicit rules for the same context')}
       </label>
-      <div className="portrait-row-actions">
-        <button disabled={busy}>{t('保存规则', 'Save rule')}</button>
-        <button type="button" className="secondary" onClick={onClose}>
+      <div className={styles.portraitRowActions}>
+        <Button type="submit" variant="primary" disabled={busy}>
+          {t('保存规则', 'Save rule')}
+        </Button>
+        <Button type="button" onClick={onClose}>
           {t('取消', 'Cancel')}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -928,6 +930,7 @@ function ProfilePrivacy({
   busy: boolean;
   onSave: (body: unknown) => Promise<any>;
 }) {
+  const { confirmation, requestConfirmation } = useConfirmation();
   const { locale } = useI18n(),
     en = locale === 'en',
     t = (zh: string, english: string) => (en ? english : zh);
@@ -944,9 +947,10 @@ function ProfilePrivacy({
       ...extra,
     });
   return (
-    <section className="portrait-privacy-settings">
+    <section className={styles.portraitPrivacySettings}>
+      {confirmation}
       <h3>{t('学习由你控制', 'Learning, on your terms')}</h3>
-      <div className="portrait-setting">
+      <div className={styles.portraitSetting}>
         <div>
           <strong>{t('从已确认账目中学习', 'Learn from confirmed entries')}</strong>
           <p>
@@ -964,7 +968,7 @@ function ProfilePrivacy({
           onChange={e => settings({ enabled: e.target.checked })}
         />
       </div>
-      <div className="portrait-setting">
+      <div className={styles.portraitSetting}>
         <div>
           <strong>{t('按需位置辅助', 'On-demand location assistance')}</strong>
           <p>
@@ -987,7 +991,7 @@ function ProfilePrivacy({
           }
         />
       </div>
-      <div className="portrait-setting">
+      <div className={styles.portraitSetting}>
         <div>
           <strong>{t('学习已确认的消费区域', 'Learn confirmed purchase areas')}</strong>
           <p>
@@ -1006,13 +1010,13 @@ function ProfilePrivacy({
         />
       </div>
       <h4>{t('常用区域', 'Saved areas')}</h4>
-      <p className="muted">
+      <p className={styles.muted}>
         {t(
           '名称由你填写，例如“公司附近”。至少约 1.5 公里的范围，不猜测家庭或工作地址。',
           'Name an area yourself, such as “Near the office”. Areas cover at least about 1.5 km; home and work addresses are never inferred.',
         )}
       </p>
-      <ul className="portrait-places">
+      <ul className={styles.portraitPlaces}>
         {data.places.map((p: any) => (
           <li key={p.id}>
             <MapPin size={16} />
@@ -1024,29 +1028,27 @@ function ProfilePrivacy({
                   : t('已保存粗粒度位置', 'Coarse location saved')}
               </small>
             </span>
-            <button
+            <Button
+              variant="ghost"
               type="button"
-              className="text-button"
               disabled={busy}
               onClick={() => {
-                if (
-                  confirm(
-                    t(
-                      '删除区域及相关场景规则？原账单不受影响。',
-                      'Delete this area and its context rules? Transactions are unchanged.',
-                    ),
-                  )
-                )
-                  onSave({ operation: 'delete_place', id: p.id });
+                requestConfirmation(
+                  t(
+                    '删除区域及相关场景规则？原账单不受影响。',
+                    'Delete this area and its context rules? Transactions are unchanged.',
+                  ),
+                  () => onSave({ operation: 'delete_place', id: p.id }),
+                );
               }}
             >
               {t('删除', 'Delete')}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
       <form
-        className="portrait-area-form"
+        className={styles.portraitAreaForm}
         onSubmit={async e => {
           e.preventDefault();
           if (
@@ -1069,7 +1071,7 @@ function ProfilePrivacy({
       >
         <label>
           {t('区域名称', 'Area name')}
-          <input
+          <Input
             required
             maxLength={80}
             value={name}
@@ -1077,10 +1079,9 @@ function ProfilePrivacy({
             placeholder={t('例如：公司附近', 'For example: Near the office')}
           />
         </label>
-        <div className="portrait-row-actions">
-          <button
+        <div className={styles.portraitRowActions}>
+          <Button
             type="button"
-            className="secondary"
             disabled={busy || locating || !data.locationEnabled}
             onClick={async () => {
               setLocating(true);
@@ -1107,16 +1108,18 @@ function ProfilePrivacy({
               : location
                 ? t('区域位置已获取', 'Area located')
                 : t('使用当前位置', 'Use current location')}
-          </button>
-          <button disabled={busy || locating}>{t('添加区域', 'Add area')}</button>
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy || locating}>
+            {t('添加区域', 'Add area')}
+          </Button>
         </div>
       </form>
       {error && (
-        <p role="status" className="muted">
+        <p role="status" className={styles.muted}>
           {error}
         </p>
       )}
-      <div className="portrait-data-actions">
+      <div className={styles.portraitDataActions}>
         <div>
           <h4>{t('带走或清除数据', 'Export or clear data')}</h4>
           <p>
@@ -1126,10 +1129,9 @@ function ProfilePrivacy({
             )}
           </p>
         </div>
-        <div className="portrait-row-actions">
-          <button
+        <div className={styles.portraitRowActions}>
+          <Button
             type="button"
-            className="secondary"
             disabled={busy}
             onClick={async () => {
               const result = await onSave({ operation: 'export' });
@@ -1137,25 +1139,24 @@ function ProfilePrivacy({
             }}
           >
             {t('导出画像', 'Export profile')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
-            className="text-button danger"
+            className={styles.danger}
             disabled={busy}
             onClick={() => {
-              if (
-                confirm(
-                  t(
-                    '清除全部区域、消费地点关联和位置规则？此操作不可撤销。',
-                    'Clear all areas, purchase-area links and location rules? This cannot be undone.',
-                  ),
-                )
-              )
-                onSave({ operation: 'forget_locations' });
+              requestConfirmation(
+                t(
+                  '清除全部区域、消费地点关联和位置规则？此操作不可撤销。',
+                  'Clear all areas, purchase-area links and location rules? This cannot be undone.',
+                ),
+                () => onSave({ operation: 'forget_locations' }),
+              );
             }}
           >
             {t('清除地点信息', 'Clear location information')}
-          </button>
+          </Button>
         </div>
       </div>
     </section>

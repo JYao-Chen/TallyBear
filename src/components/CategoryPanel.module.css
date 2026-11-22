@@ -1,0 +1,61 @@
+.categoryToolbar,
+.inline,
+.sheetActions,
+.categoryCardActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.categoryToolbar {
+  justify-content: space-between;
+}
+.categoryToolbar h2 {
+  margin: 0;
+}
+.categoryManager {
+  margin-block: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
+  gap: var(--space-3);
+}
+.categoryManager nav {
+  grid-column: 1/-1;
+}
+.categoryCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface);
+}
+.categoryCard .categoryEdit {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  padding: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.categoryCardActions {
+  justify-content: center;
+  border-top: 1px solid var(--line);
+  gap: 0;
+}
+.categoryCardActions button {
+  min-width: var(--touch);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}

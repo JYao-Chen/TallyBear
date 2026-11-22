@@ -1,4 +1,7 @@
 'use client';
+import styles from './MemoryHistory.module.css';
+import { Button } from '@/ui';
+import { useConfirmation } from '@/ui/useConfirmation';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import {
@@ -42,6 +45,7 @@ const kinds: Record<string, string> = {
 };
 export function MemoryHistory() {
   const { t: tr, locale } = useI18n();
+  const { confirmation, requestConfirmation } = useConfirmation();
   const [page, setPage] = useState(1),
     [revision, setRevision] = useState(0),
     [data, setData] = useState<{ items: MemoryEvent[]; total: number }>({ items: [], total: 0 }),
@@ -73,7 +77,6 @@ export function MemoryHistory() {
     };
   }, [page, revision]);
   async function undo(event: MemoryEvent) {
-    if (!confirm(tr('撤销这次变更？将恢复这条记忆之前的内容，原账单不受影响。'))) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -94,68 +97,71 @@ export function MemoryHistory() {
     }
   }
   return (
-    <section className="memory-history" aria-labelledby="memory-history-title" aria-busy={loading}>
-      <header className="memory-history-heading">
+    <section
+      className={`memory-history ${styles.memoryHistory}`}
+      aria-labelledby="memory-history-title"
+      aria-busy={loading}
+    >
+      {confirmation}
+      <header className={styles.memoryHistoryHeading}>
         <div>
           <h3 id="memory-history-title">{tr('变更记录')}</h3>
           <p>{tr('追踪记忆的调整，不影响原始账单。')}</p>
         </div>
-        <span className="memory-history-count">
+        <span className={styles.memoryHistoryCount}>
           {tr('共 ')}
           {data.total} {tr(' 条记录')}
         </span>
       </header>
       {error && (
-        <div className="error" role="alert">
+        <div className={styles.error} role="alert">
           {error}
-          <button
+          <Button
+            variant="ghost"
             type="button"
-            className="text-button"
             disabled={loading || busy}
             onClick={() => setRevision(v => v + 1)}
           >
             {tr('刷新记录')}
-          </button>
+          </Button>
         </div>
       )}
       {message && (
-        <p role="status" className="notice">
+        <p role="status" className={styles.notice}>
           {message}
         </p>
       )}
       {loading ? (
-        <div className="memory-history-empty" role="status">
+        <div className={styles.memoryHistoryEmpty} role="status">
           <History size={28} aria-hidden="true" />
           <p>{tr('正在加载变更记录…')}</p>
         </div>
       ) : !data.items.length ? (
-        <div className="memory-history-empty">
+        <div className={styles.memoryHistoryEmpty}>
           <History size={32} aria-hidden="true" />
           <h4>{tr('还没有变更记录')}</h4>
           <p>{tr('编辑、停用或共享记忆后，可在这里查看记录。')}</p>
         </div>
       ) : (
         <>
-          <div className="memory-history-columns" aria-hidden="true">
+          <div className={styles.memoryHistoryColumns} aria-hidden="true">
             <span>{tr('操作与记忆')}</span>
             <span>{tr('变更时间')}</span>
             <span>{tr('操作状态')}</span>
           </div>
-          <ol className="memory-history-list">
+          <ol className={styles.memoryHistoryList}>
             {data.items.map(event => {
               const op = operations[event.operation] || { label: event.operation, icon: History };
               const Icon = op.icon;
               const date = new Date(event.created_at);
               return (
-                <li key={event.id} className="memory-history-row">
-                  <div className="memory-history-object">
-                    <span
-                      className={'memory-event-icon' + (event.operation === 'forget' ? ' is-forgotten' : '')}
-                    >
+                <li key={event.id} className={`memory-history-row ${styles.memoryHistoryRow}`}>
+                  <div className={styles.memoryHistoryObject}>
+                    <span className={styles.memoryEventIcon} data-forgotten={event.operation === 'forget'}>
                       <Icon size={18} aria-hidden="true" />
                     </span>
                     <div>
-                      <span className="memory-event-label">
+                      <span className={styles.memoryEventLabel}>
                         {tr(op.label)}
                         {event.kind && <span> · {tr(kinds[event.kind] || event.kind)}</span>}
                       </span>
@@ -169,17 +175,21 @@ export function MemoryHistory() {
                     </span>
                     <small>{date.toLocaleTimeString(locale, { hour12: false })}</small>
                   </time>
-                  <div className="memory-event-action">
+                  <div className={styles.memoryEventAction}>
                     {event.can_undo ? (
-                      <button
+                      <Button
                         type="button"
-                        className="secondary"
                         disabled={busy || loading}
-                        onClick={() => undo(event)}
+                        onClick={() =>
+                          requestConfirmation(
+                            tr('撤销这次变更？将恢复这条记忆之前的内容，原账单不受影响。'),
+                            () => undo(event),
+                          )
+                        }
                       >
                         <Undo2 size={15} aria-hidden="true" />
                         {tr('撤销变更')}
-                      </button>
+                      </Button>
                     ) : (
                       <span>
                         {event.operation === 'forget'
@@ -198,34 +208,32 @@ export function MemoryHistory() {
           </ol>
         </>
       )}
-      <footer className="memory-history-pagination">
+      <footer className={styles.memoryHistoryPagination}>
         <span>
           {data.total
             ? tr('{0}–{1} / {2} 条', [(page - 1) * 20 + 1, Math.min(page * 20, data.total), data.total])
             : tr('0 条记录')}
         </span>
         <nav aria-label={tr('变更记录分页')}>
-          <button
+          <Button
             type="button"
-            className="secondary"
             aria-label={tr('上一页记录')}
             disabled={loading || busy || page === 1}
             onClick={() => setPage(p => p - 1)}
           >
             <ChevronLeft size={18} />
-          </button>
+          </Button>
           <span>
             {page} / {Math.max(1, Math.ceil(data.total / 20))}
           </span>
-          <button
+          <Button
             type="button"
-            className="secondary"
             aria-label={tr('下一页记录')}
             disabled={loading || busy || page * 20 >= data.total}
             onClick={() => setPage(p => p + 1)}
           >
             <ChevronRight size={18} />
-          </button>
+          </Button>
         </nav>
       </footer>
     </section>

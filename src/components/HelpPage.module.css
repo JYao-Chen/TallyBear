@@ -1,0 +1,207 @@
+.helpPage {
+  min-width: 0;
+  color: var(--ink);
+}
+.pageHeading p,
+.helpChapterPosition,
+.helpResultStatus {
+  color: var(--muted);
+}
+.helpSearch {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  max-width: 680px;
+  gap: var(--space-2);
+}
+.helpSearch input {
+  flex: 1;
+  min-width: 0;
+}
+.helpLayout {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 680px);
+  gap: clamp(16px, 3vw, 48px);
+  align-items: start;
+}
+.helpTopics {
+  position: sticky;
+  top: var(--space-3);
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+.helpTopicGroup p {
+  font-weight: 600;
+  margin: var(--space-3) 0 var(--space-1);
+}
+.helpTopicGroup button {
+  width: 100%;
+  justify-content: start;
+  text-align: start;
+  min-height: var(--touch);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.helpTopicGroup button[aria-current='page'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.helpContent.helpContent {
+  min-width: 0;
+  max-width: 680px;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.helpContent .helpChapterHeader {
+  display: block;
+  position: static;
+  height: auto;
+  padding: 0;
+  border: 0;
+}
+.helpLead {
+  font-size: var(--text-lg);
+}
+.helpSectionToc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  border-block: 1px solid var(--line);
+  padding-block: var(--space-3);
+}
+.helpSectionToc a,
+.helpFigure a {
+  color: var(--accent);
+  align-content: center;
+  min-height: var(--touch);
+}
+.helpSection {
+  padding-block: var(--space-4);
+  scroll-margin-top: var(--space-6);
+}
+.helpSteps {
+  padding-inline-start: var(--space-6);
+}
+.helpSteps h4,
+.helpFaq dt {
+  font-weight: 600;
+}
+.helpSection .helpCallout {
+  position: static;
+  inset: auto;
+  width: 100%;
+  height: auto;
+  display: block;
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.helpSection .helpNote {
+  background: var(--attention-soft);
+}
+.helpCallout p {
+  margin: var(--space-1) 0 0;
+}
+.helpFaq dd {
+  margin: var(--space-1) 0 var(--space-3);
+}
+.helpMobileChapters {
+  display: none;
+}
+.helpResult.helpResult {
+  width: 100%;
+  display: grid;
+  text-align: left;
+  justify-content: stretch;
+  margin-block: var(--space-2);
+}
+.helpPagination,
+.helpSupport,
+.helpFigureToolbar,
+.helpFigureToolbar > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+.helpFigure {
+  margin: var(--space-4) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+.helpFigure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.helpFigure[data-device='mobile'] img {
+  max-width: 320px;
+  margin: auto;
+}
+.helpFigure figcaption {
+  color: var(--muted);
+  padding-top: var(--space-2);
+}
+.helpImageLink {
+  display: block;
+}
+.helpFeatureLink,
+.helpAsk {
+  color: var(--accent);
+}
+@media (max-width: 730px) {
+  .helpLayout {
+    display: block;
+  }
+  .helpTopics {
+    display: none;
+  }
+  .helpMobileChapters {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--space-2);
+    padding-block: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .helpMobileChapters button {
+    flex: none;
+    min-height: var(--touch);
+  }
+}
+.helpPage button:not(:where(.helpMobileChapters button)) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.helpResult > * {
+  min-width: 0;
+}
+.helpContent {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: clamp(var(--space-4), 3vw, var(--space-8));
+}
+.helpTopicGroup button > span {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.helpFigureToolbar button[aria-pressed='false'] {
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--line);
+}
+.helpContent mark {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+.helpFigureToolbar button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}

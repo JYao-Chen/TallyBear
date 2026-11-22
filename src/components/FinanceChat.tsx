@@ -1,8 +1,9 @@
 'use client';
+import { Button, Chip, ConfirmDialog, Input, ListRow, Sheet, TextArea } from '@/ui';
+import styles from './FinanceChat.module.css';
 import { chatVisibleText } from '@/lib/chat-visible-text';
 import { ProfileLocation } from './ProfileLocation';
 import type { ProfileContext } from '@/lib/personal-profile';
-import { Button, ListRow, Chip, ConfirmDialog } from '@/ui';
 import { PagedList } from './PagedList';
 
 import { placeChatCards } from '@/lib/chat-card-placement';
@@ -19,7 +20,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, FileText, MessagesSquare, Download, Trash2, Pencil, History, Images } from 'lucide-react';
 import { readEvents } from '@/lib/events';
 import { FinanceNarrative } from './FinanceNarrative';
-import { Sheet } from './Sheet';
 import type { AgentArtifact } from '@/server/finance-agent';
 import type { Draft } from './DraftReview';
 type Turn = {
@@ -275,9 +275,7 @@ export function FinanceChat({
     setText(tr(initialPrompt.text));
     setNotice(
       initialPrompt.source === 'help'
-        ? locale === 'en'
-          ? 'The help topic is ready. Add your question, then send.'
-          : '已带入说明主题，请补充问题后发送。'
+        ? tr('已带入说明主题，请补充问题后发送。')
         : tr('请上传需要核对的支付账单截图，然后发送消息。'),
     );
     onPromptOpened?.();
@@ -464,11 +462,11 @@ export function FinanceChat({
           /[&<>"']/g,
           c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
         );
-    const html = `<!doctype html><html lang="${locale}"><meta charset="utf-8"><title>${escape(report.title)}</title><style>body{font:16px/1.8 system-ui;max-width:1000px;margin:40px auto;padding:24px;color:#35453d}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}figure{margin:24px 0}small{display:block;color:#777}svg{max-width:100%}pre{white-space:pre-wrap}@media print{details{display:block}}</style><h1>${escape(report.title)}</h1><p>${locale === 'en' ? 'Saved at: ' : '保存时间：'}${escape(report.created_at)} ${locale === 'en' ? '· Data is a snapshot' : '· 数据为保存时快照'}</p>${bodyRef.current?.querySelector('.report-body')?.innerHTML || ''}</html>`;
+    const html = `<!doctype html><html lang="${locale}"><meta charset="utf-8"><title>${escape(report.title)}</title><style>body{font:16px/1.8 system-ui;max-width:1000px;margin:40px auto;padding:24px;color:CanvasText}table{border-collapse:collapse;width:100%}td,th{border:1px solid GrayText;padding:8px}figure{margin:24px 0}small{display:block;color:GrayText}svg{max-width:100%}pre{white-space:pre-wrap}@media print{details{display:block}}</style><h1>${escape(report.title)}</h1><p>${tr('保存时间：')}${escape(report.created_at)} ${tr('· 数据为保存时快照')}</p>${bodyRef.current?.querySelector('[data-report-body]')?.innerHTML || ''}</html>`;
     const md =
       chatVisibleText(report.content) +
       '\n\n' +
-      (locale === 'en' ? 'Chart data snapshot:' : '图表数据快照：') +
+      tr('图表数据快照：') +
       '\n```json\n' +
       JSON.stringify(report.artifacts.charts, null, 2) +
       '\n```';
@@ -486,11 +484,11 @@ export function FinanceChat({
   const cardsByTurn = placeChatCards(turns),
     latestTurn = turns.at(-1);
   const library = (
-    <div className="finance-library">
-      <div className="panel-title">
+    <div className={styles.financeLibrary}>
+      <div className={styles.panelTitle}>
         <h2>{tr(themes[theme].assistant)}</h2>
-        <button
-          className="icon-button"
+        <Button
+          variant="ghost"
           title={tr('新对话')}
           aria-label={tr('新对话')}
           disabled={busy}
@@ -504,11 +502,11 @@ export function FinanceChat({
           }}
         >
           <Plus size={20} />
-        </button>
+        </Button>
       </div>
-      <div className="tabs">
-        <button
-          className={tab === 'chat' ? 'active' : ''}
+      <div className={styles.tabs}>
+        <Button
+          aria-pressed={tab === 'chat'}
           disabled={busy}
           onClick={() => {
             setTab('chat');
@@ -517,20 +515,16 @@ export function FinanceChat({
         >
           <MessagesSquare size={16} />
           {tr('对话')}
-        </button>
-        <button
-          className={tab === 'reports' ? 'active' : ''}
-          disabled={busy}
-          onClick={() => setTab('reports')}
-        >
+        </Button>
+        <Button aria-pressed={tab === 'reports'} disabled={busy} onClick={() => setTab('reports')}>
           <FileText size={16} />
           {tr('报告')}
-        </button>
+        </Button>
         <Button size="sm" aria-pressed={tab === 'actions'} onClick={() => setTab('actions')}>
           {tr('助手操作记录')}
         </Button>
       </div>
-      <div className="finance-history">
+      <div className={styles.financeHistory}>
         {tab === 'actions' ? (
           history.length ? (
             history.map(row => (
@@ -560,9 +554,9 @@ export function FinanceChat({
         ) : (
           <PagedList<(typeof list)[number] | Report> items={tab === 'chat' ? list : reports} resetKey={tab}>
             {item => (
-              <div className="finance-history-row" key={item.id}>
-                <button
-                  className={(tab === 'chat' ? item.id === id : item.id === report?.id) ? 'selected' : ''}
+              <div className={styles.financeHistoryRow} key={item.id}>
+                <Button
+                  aria-pressed={tab === 'chat' ? item.id === id : item.id === report?.id}
                   disabled={busy}
                   onClick={() => {
                     if (tab === 'chat') load(item.id);
@@ -576,9 +570,9 @@ export function FinanceChat({
                       getLocale(),
                     )}
                   </small>
-                </button>
-                <button
-                  className="history-delete"
+                </Button>
+                <Button
+                  className={styles.historyDelete}
                   disabled={busy}
                   title={tr(tab === 'chat' ? '删除对话' : '删除报告')}
                   aria-label={tr('删除') + ' ' + item.title}
@@ -592,7 +586,7 @@ export function FinanceChat({
                   }
                 >
                   <Trash2 size={17} />
-                </button>
+                </Button>
               </div>
             )}
           </PagedList>
@@ -601,7 +595,7 @@ export function FinanceChat({
     </div>
   );
   return (
-    <section className="finance-workspace">
+    <section className={styles.financeWorkspace}>
       <ConfirmDialog
         open={!!undoId}
         title={tr('撤销助手操作')}
@@ -615,26 +609,31 @@ export function FinanceChat({
         {tr('确认撤销这次账目变更？')}
       </ConfirmDialog>
       {libraryOpen && (
-        <Sheet title={tr('对话与报告')} onClose={() => setLibraryOpen(false)}>
+        <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
+          title={tr('对话与报告')}
+          onClose={() => setLibraryOpen(false)}
+        >
           {library}
         </Sheet>
       )}
-      <div className="finance-main">
-        <div className="finance-toolbar">
-          <button
-            className="secondary finance-library-toggle"
+      <div className={styles.financeMain} data-conversation>
+        <div className={styles.financeToolbar}>
+          <Button
+            className={styles.financeLibraryToggle}
             onClick={() => setLibraryOpen(true)}
             aria-label={tr('打开对话历史和报告')}
           >
             <History size={18} />
             {tr('历史 / 报告')}
-          </button>
-          <span className="finance-conversation-title">
+          </Button>
+          <span className={styles.financeConversationTitle}>
             {report ? report.title : list.find(c => c.id === id)?.title || tr(themes[theme].assistant)}
           </span>
-          <div className="finance-toolbar-actions">
-            <button
-              className="icon-button"
+          <div className={styles.financeToolbarActions}>
+            <Button
+              variant="ghost"
               disabled={busy}
               aria-label={tr('新对话')}
               title={tr('新对话')}
@@ -648,19 +647,19 @@ export function FinanceChat({
               }}
             >
               <Plus size={19} />
-            </button>
+            </Button>
             {id && !report && (
               <>
-                <button
-                  className="icon-button"
+                <Button
+                  variant="ghost"
                   disabled={busy}
                   title={tr('重命名对话')}
                   onClick={() => setRename(true)}
                 >
                   <Pencil size={16} />
-                </button>
-                <button
-                  className="icon-button"
+                </Button>
+                <Button
+                  variant="ghost"
                   disabled={busy}
                   title={tr('删除对话')}
                   onClick={() =>
@@ -668,23 +667,23 @@ export function FinanceChat({
                   }
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </>
             )}
             {report && (
               <>
-                <button className="text-button" onClick={() => setEdit(true)}>
+                <Button variant="ghost" onClick={() => setEdit(true)}>
                   {tr('编辑')}
-                </button>
-                <button className="text-button" onClick={() => download('html')}>
+                </Button>
+                <Button variant="ghost" onClick={() => download('html')}>
                   <Download size={15} />
                   {tr('图文HTML')}
-                </button>
-                <button className="text-button" onClick={() => download('md')}>
+                </Button>
+                <Button variant="ghost" onClick={() => download('md')}>
                   Markdown
-                </button>
-                <button
-                  className="icon-button"
+                </Button>
+                <Button
+                  variant="ghost"
                   title={tr('删除报告')}
                   onClick={() =>
                     setDeleteTarget({
@@ -696,19 +695,21 @@ export function FinanceChat({
                   }
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </>
             )}
           </div>
         </div>
         {error && (
-          <p className="error" role="alert">
+          <p className={styles.error} role="alert">
             {tr(error)}
           </p>
         )}
-        {notice && <p className="notice">{tr(notice)}</p>}
+        {notice && <p className={styles.notice}>{tr(notice)}</p>}
         <div
-          className="finance-messages"
+          className={styles.financeMessages}
+          role="region"
+          aria-label={tr('财务对话')}
           ref={bodyRef}
           onScroll={e => {
             const el = e.currentTarget;
@@ -719,21 +720,21 @@ export function FinanceChat({
           {report ? (
             <>
               <h1>{report.title}</h1>
-              <details className="context-details">
+              <details className={styles.contextDetails}>
                 <summary>{tr('报告信息')}</summary>
-                <p className="muted">
+                <p className={styles.muted}>
                   {tr('保存于')}
                   {new Date(report.created_at).toLocaleString(getLocale())} {tr('· 参考月份')}
                   {report.artifacts.month || tr('见正文')} {tr('· 模型')}
                   {report.model} {tr('· 数据为当时快照')}
                 </p>
               </details>
-              <div className="report-body">
+              <div data-report-body className={styles.reportBody}>
                 <FinanceNarrative book={book} text={report.content} artifacts={report.artifacts} />
               </div>
             </>
           ) : tab === 'reports' ? (
-            <div className="finance-empty">
+            <div className={styles.financeEmpty}>
               <FileText size={36} />
               <h2>{tr('把有用的分析，留成报告')}</h2>
               <p>{tr('选择一份报告，或将对话回答保存为报告。')}</p>
@@ -741,19 +742,18 @@ export function FinanceChat({
           ) : (
             <>
               {!turns.length && (
-                <div className="finance-empty">
+                <div className={styles.financeEmpty}>
                   <img src={themes[theme].icon} width={58} height={58} alt="" />
                   <h2>{tr('想记什么，聊聊就好')}</h2>
-                  <p className="finance-welcome-caption">{tr('记账、整理订阅，或看看最近的开销。')}</p>
-                  <div className="finance-suggestions">
+                  <p className={styles.financeWelcomeCaption}>{tr('记账、整理订阅，或看看最近的开销。')}</p>
+                  <div className={styles.financeSuggestions}>
                     {[
                       '帮我记一笔，缺少的信息请问我',
                       '帮我设置一个周期订阅',
                       '把通勤消费保存为常用一笔',
                       '分析这个月的财务状况，生成图文报告',
                     ].map(q => (
-                      <button
-                        className="secondary"
+                      <Button
                         key={q}
                         disabled={busy}
                         onClick={() => {
@@ -762,30 +762,31 @@ export function FinanceChat({
                         }}
                       >
                         {tr(q)}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
               )}
-              {turns.map(t => (
-                <article className="finance-turn" key={t.id}>
-                  <div className="finance-question">
+              {turns.map((t, index) => (
+                <article className={styles.financeTurn} key={t.id}>
+                  <div className={styles.financeQuestion}>
                     {!!t.artifacts.analysisBooks?.length && (
-                      <small className="finance-question-attachments">
+                      <small className={styles.financeQuestionAttachments}>
                         {tr('查询范围')}：{t.artifacts.analysisBooks.map(b => b.name).join('、')}
                       </small>
                     )}
                     <span>{t.question}</span>
                     {!!t.artifacts.images?.length && (
-                      <small className="finance-question-attachments">
+                      <small className={styles.financeQuestionAttachments}>
                         <Images size={15} />
                         {tr('已附 {0} 张图片').replace('{0}', String(t.artifacts.images.length))}
                       </small>
                     )}
                   </div>
-                  <div className="finance-answer">
+                  <div className={styles.financeAnswer}>
+                    {index === 0 && <img src={themes[theme].icon} width={32} height={32} alt="" />}
                     {t.artifacts.tools?.length > 0 && (
-                      <details className="tool-traces">
+                      <details className={styles.toolTraces}>
                         <summary>
                           {tr('已执行')}
                           {t.artifacts.tools.length} {tr('次工具查询')}
@@ -795,32 +796,35 @@ export function FinanceChat({
                             <strong>{tool.label}</strong>
                             <small>{toolScope(tool.args)}</small>
                             {(tool.result as any)?.error && (
-                              <p className="error">{(tool.result as any).error}</p>
+                              <p className={styles.error}>{(tool.result as any).error}</p>
                             )}
                           </div>
                         ))}
                       </details>
                     )}
                     <FinanceNarrative book={book} text={t.answer} artifacts={t.artifacts} />
-                    {t.error && <p className="error">{t.error}</p>}
+                    {t.error && <p className={styles.error}>{t.error}</p>}
                     {!t.artifacts.actions?.length && t.artifacts.drafts?.length > 0 && (
-                      <div className="draft-chat-card">
+                      <div className={styles.draftChatCard}>
                         <strong>
                           {tr('整理出')}
                           {t.artifacts.drafts.length} {tr('笔待确认草稿')}
                         </strong>
                         <></>
-                        <button disabled={busy || !canWrite} onClick={() => onDrafts(t.artifacts.drafts)}>
+                        <Button
+                          variant="primary"
+                          disabled={busy || !canWrite}
+                          onClick={() => onDrafts(t.artifacts.drafts)}
+                        >
                           {tr('送到记账草稿核对')}
-                        </button>
+                        </Button>
                       </div>
                     )}
                     {!!t.artifacts.links?.length && (
-                      <div className="assistant-links">
+                      <div className={styles.assistantLinks}>
                         {t.artifacts.links.map((link, i) =>
                           link.page ? (
-                            <button
-                              className="secondary"
+                            <Button
                               key={i}
                               onClick={() => {
                                 if (link.helpId) sessionStorage.setItem('help-article', link.helpId);
@@ -828,9 +832,9 @@ export function FinanceChat({
                               }}
                             >
                               {tr('打开')} · {tr(link.title)}
-                            </button>
+                            </Button>
                           ) : link.downloadUrl?.startsWith('/api/books/') ? (
-                            <a className="button secondary" key={i} href={link.downloadUrl} download>
+                            <a className={styles.button} key={i} href={link.downloadUrl} download>
                               {tr(link.title)}
                             </a>
                           ) : null,
@@ -884,20 +888,20 @@ export function FinanceChat({
                       />
                     )}
                     {t.status === 'complete' && (
-                      <div className="answer-actions">
+                      <div className={styles.answerActions}>
                         <small>{t.model}</small>
-                        <button className="text-button" onClick={() => saveReport(t)}>
+                        <Button variant="ghost" onClick={() => saveReport(t)}>
                           <FileText size={15} />
                           {tr('保存为报告')}
-                        </button>
-                        <button
-                          className="text-button"
+                        </Button>
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             setText('请基于最新账目重新生成：' + t.question);
                           }}
                         >
                           {tr('重新分析')}
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -907,7 +911,7 @@ export function FinanceChat({
                 <p role="status">{tr('这段对话正在后台处理，完成后自动显示。')}</p>
               )}
               {busy && (
-                <p className="finance-progress" role="status">
+                <p className={styles.financeProgress} role="status">
                   {status || tr('正在连接助手…')}
                 </p>
               )}
@@ -915,8 +919,8 @@ export function FinanceChat({
           )}
         </div>
         {showLatest && (
-          <button
-            className="finance-jump"
+          <Button
+            className={styles.financeJump}
             onClick={() => {
               bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
               nearBottom.current = true;
@@ -924,7 +928,7 @@ export function FinanceChat({
             }}
           >
             {tr('回到最新消息')} ↓
-          </button>
+          </Button>
         )}
         {tab === 'chat' && !report && (
           <FinanceComposer
@@ -957,7 +961,9 @@ export function FinanceChat({
       </div>
       {(edit || rename) && (
         <Sheet
-          variant={edit ? 'wide' : 'detail'}
+          open
+          closeLabel={tr('关闭弹窗')}
+          wide={edit}
           title={edit ? tr('编辑报告') : tr('重命名对话')}
           onClose={() => {
             setEdit(false);
@@ -994,7 +1000,7 @@ export function FinanceChat({
           >
             <label>
               {tr('标题')}
-              <input
+              <Input
                 name="title"
                 defaultValue={edit ? report?.title : list.find(c => c.id === id)?.title}
                 required
@@ -1004,46 +1010,49 @@ export function FinanceChat({
             {edit && (
               <label>
                 {tr('正文（保留图表标记即可继续显示图表）')}
-                <textarea name="content" rows={16} defaultValue={report?.content} />
+                <TextArea name="content" rows={16} defaultValue={report?.content} />
               </label>
             )}
-            <button>{tr('保存')}</button>
+            <Button type="submit" variant="primary">
+              {tr('保存')}
+            </Button>
           </form>
         </Sheet>
       )}
       {deleteTarget && (
-        <Sheet title={tr('确认删除')} onClose={() => setDeleteTarget(null)}>
+        <ConfirmDialog
+          open
+          title={tr('确认删除')}
+          confirmLabel={tr('确认删除')}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            try {
+              await api(
+                book,
+                deleteTarget.kind === 'report'
+                  ? { operation: 'delete_report', id: deleteTarget.id, version: deleteTarget.version }
+                  : { operation: 'delete', id: deleteTarget.id },
+              );
+              if (deleteTarget.kind === 'report') {
+                if (report?.id === deleteTarget.id) setReport(null);
+              } else if (id === deleteTarget.id) {
+                setId('');
+                setTurns([]);
+                setReplyAction(null);
+              }
+              setDeleteTarget(null);
+              await refresh();
+            } catch (e) {
+              setError((e as Error).message);
+            }
+          }}
+        >
           <p>
             {tr('删除')}
             {deleteTarget.kind === 'report' ? tr('这份报告') : tr('这段对话')}：{deleteTarget.title}
             {tr('？不会删除账本交易或其他已保存报告。')}
           </p>
-          <button
-            onClick={async () => {
-              try {
-                await api(
-                  book,
-                  deleteTarget.kind === 'report'
-                    ? { operation: 'delete_report', id: deleteTarget.id, version: deleteTarget.version }
-                    : { operation: 'delete', id: deleteTarget.id },
-                );
-                if (deleteTarget.kind === 'report') {
-                  if (report?.id === deleteTarget.id) setReport(null);
-                } else if (id === deleteTarget.id) {
-                  setId('');
-                  setTurns([]);
-                  setReplyAction(null);
-                }
-                setDeleteTarget(null);
-                await refresh();
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            {tr('确认删除')}
-          </button>
-        </Sheet>
+        </ConfirmDialog>
       )}
     </section>
   );
