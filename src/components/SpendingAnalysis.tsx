@@ -1,9 +1,9 @@
 'use client';
 import './spending-analysis.css';
 import s from './SpendingAnalysis.module.css';
-import { Button, Chip, IconButton, Money, Segmented, Sheet, Stat } from '@/ui';
+import { Button, IconButton, Money, Segmented, Sheet, Stat } from '@/ui';
 import { useEffect, useState } from 'react';
-import { BookOpen, UserRound, Wallet, ScanLine, ChevronDown, Check, Info } from 'lucide-react';
+import { BookOpen, ChevronDown, Info } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
 import { RecordsPanel, type AnalysisResult } from './RecordsPanel';
 import { WalletFundsPanel } from './WalletFundsPanel';
@@ -145,20 +145,12 @@ export function SpendingAnalysis(props: Props) {
                 </label>
               ))}
             </fieldset>
-            <Button variant="ghost" onClick={props.onReconcile}>
-              {t('智能核对账单')}
-            </Button>
           </>
         }
         onPlans={props.onPlans}
       />
     );
   }
-  const fullMonth = monthRange(range.from.slice(0, 7));
-  const periodLabel =
-    range.from === fullMonth.from && range.to === fullMonth.to
-      ? range.from.slice(0, 7)
-      : `${range.from} — ${range.to}`;
   const totals = (
     <div className={s.analysisSummary} aria-busy={loading} aria-label={tr('筛选结果汇总')}>
       {(
@@ -174,77 +166,31 @@ export function SpendingAnalysis(props: Props) {
       ))}
     </div>
   );
+  const modeControls = (
+    <Segmented<Mode>
+      className={s.modes}
+      value={mode}
+      label={tr(locale === 'en' ? 'Accounting view' : '统计口径')}
+      onChange={changeMode}
+      options={[
+        { value: 'book', label: tr('账本收支') },
+        { value: 'personal_expense', label: tr('我的费用') },
+        { value: 'funds', label: tr('钱包资金流') },
+      ]}
+    />
+  );
   return (
     <div className={s.spendingAnalysis}>
       <div className={s.period}>
-        <Chip tone="accent">{periodLabel}</Chip>
-        <div className={s.basisControls}>
-          <Segmented
-            value={basis}
-            label={tr('统计时间口径')}
-            options={[
-              { value: 'period_expense', label: tr('按归属期'), disabled: mode === 'funds' },
-              { value: 'cashflow', label: tr('按付款日'), disabled: mode === 'personal_expense' },
-            ]}
-            onChange={next => {
-              if (next !== basis) {
-                setBookBasis(next);
-                setLoading(true);
-                setResult(null);
-              }
-            }}
-          />
-          <IconButton label={tr('统计口径说明')} onClick={() => setExplaining(true)}>
-            <Info size={18} />
-          </IconButton>
-        </div>
-      </div>
-      <Sheet open={explaining} title={tr('统计口径说明')} onClose={() => setExplaining(false)}>
-        <h3>{tr('按归属期')}</h3>
-        <p>{tr('一次付清的长期费用，按实际使用期间分摊。比如年费，本月只计本月的份额。')}</p>
-        <h3>{tr('按付款日')}</h3>
-        <p>{tr('按实际交易日期统计。比如年费，在付款当天计入全额。')}</p>
-        <p>{description}</p>
-      </Sheet>
-      {mode !== 'funds' && props.initialView !== 'entries' && totals}
-      <div
-        className={s.analysisModes}
-        role="group"
-        aria-label={tr(locale === 'en' ? 'Accounting view' : '统计口径')}
-      >
-        {(
-          [
-            {
-              key: 'book',
-              Icon: BookOpen,
-              title: tr('账本收支'),
-              sub: tr('记录归属'),
-            },
-            {
-              key: 'personal_expense',
-              Icon: UserRound,
-              title: tr('我的费用'),
-              sub: tr('本人承担 · 跨账本'),
-            },
-            {
-              key: 'funds',
-              Icon: Wallet,
-              title: tr('钱包资金流'),
-              sub: tr('实际进出'),
-            },
-          ] as const
-        ).map(({ key, Icon, title, sub }) => (
-          <Button type="button" key={key} aria-pressed={mode === key} onClick={() => changeMode(key)}>
-            <Icon size={21} />
-            <span>
-              <strong>{title}</strong>
-              <small>{sub}</small>
-            </span>
-            {mode === key && <Check size={16} className={s.analysisModeCheck} />}
-          </Button>
-        ))}
-      </div>
-      <div className={s.analysisControls}>
+        <ReportPeriodPicker
+          value={range}
+          onChange={value => {
+            if (value.from === range.from && value.to === range.to) return;
+            setRange(value);
+            setResult(null);
+            setLoading(true);
+          }}
+        />
         {mode === 'funds' ? (
           <label>
             {tr(locale === 'en' ? 'Wallet owner' : '钱包归属')}
@@ -273,33 +219,57 @@ export function SpendingAnalysis(props: Props) {
             </Button>
           </div>
         )}
-        <Button type="button" variant="ghost" onClick={props.onReconcile}>
-          <ScanLine size={17} />
-          {tr('智能核对账单')}
-        </Button>
+
+        <div className={s.basisControls}>
+          <Segmented
+            value={basis}
+            label={tr('统计时间口径')}
+            options={[
+              { value: 'period_expense', label: tr('按归属期'), disabled: mode === 'funds' },
+              { value: 'cashflow', label: tr('按付款日'), disabled: mode === 'personal_expense' },
+            ]}
+            onChange={next => {
+              if (next !== basis) {
+                setBookBasis(next);
+                setLoading(true);
+                setResult(null);
+              }
+            }}
+          />
+          <IconButton label={tr('统计口径说明')} onClick={() => setExplaining(true)}>
+            <Info size={18} />
+          </IconButton>
+        </div>
       </div>
-      <ReportPeriodPicker
-        value={range}
-        onChange={value => {
-          if (value.from === range.from && value.to === range.to) return;
-          setRange(value);
-          setResult(null);
-          setLoading(true);
-        }}
-      />
+      <Sheet open={explaining} title={tr('统计口径说明')} onClose={() => setExplaining(false)}>
+        <h3>{tr('按归属期')}</h3>
+        <p>{tr('一次付清的长期费用，按实际使用期间分摊。比如年费，本月只计本月的份额。')}</p>
+        <h3>{tr('按付款日')}</h3>
+        <p>{tr('按实际交易日期统计。比如年费，在付款当天计入全额。')}</p>
+        <p>{description}</p>
+        <p className={s.analysisSummaryNote}>
+          {basis === 'cashflow'
+            ? tr('净支出 = 付款日的消费 − 退款；转账不计消费。')
+            : tr('净支出 = 消费与当期分摊 − 退款；转账不计消费。筛选同时作用于汇总、图表、明细和导出。')}
+        </p>
+      </Sheet>
       {mode === 'funds' ? (
-        <WalletFundsPanel
-          key={owner}
-          owner={owner}
-          from={range.from}
-          to={range.to}
-          revision={props.revision}
-          onChanged={props.onChanged}
-        />
+        <>
+          {modeControls}
+          <WalletFundsPanel
+            key={owner}
+            owner={owner}
+            from={range.from}
+            to={range.to}
+            revision={props.revision}
+            onChanged={props.onChanged}
+          />
+        </>
       ) : (
         <>
           <RecordsPanel
             initialView={props.initialView}
+            scopeControls={modeControls}
             summary={
               <>
                 {!!r?.excludedCosts?.length && (
@@ -311,19 +281,12 @@ export function SpendingAnalysis(props: Props) {
                     </Button>
                   </aside>
                 )}
-                {props.initialView === 'entries' && totals}
+                {totals}
                 {mode === 'personal_expense' && !loading && r?.familyContribution !== undefined && (
                   <p>
                     {tr('另有家庭缴款')} {money(r.familyContribution)}
                   </p>
                 )}
-                <p className={s.analysisSummaryNote}>
-                  {basis === 'cashflow'
-                    ? tr('净支出 = 付款日的消费 − 退款；转账不计消费。')
-                    : tr(
-                        '净支出 = 消费与当期分摊 − 退款；转账不计消费。筛选同时作用于汇总、图表、明细和导出。',
-                      )}
-                </p>
               </>
             }
             overview={

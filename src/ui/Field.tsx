@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import {
   useId,
   type ComponentPropsWithRef,
@@ -45,5 +46,10 @@ export function TextArea({ className, ...rest }: TextareaHTMLAttributes<HTMLText
   return <textarea className={[s.control, className].filter(Boolean).join(' ')} {...rest} />;
 }
 export function Select({ className, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={[s.control, className].filter(Boolean).join(' ')} {...rest} />;
+  return (
+    <span className={[s.selectWrap, className].filter(Boolean).join(' ')}>
+      <select className={s.control} {...rest} />
+      <ChevronDown size={18} aria-hidden="true" />
+    </span>
+  );
 }

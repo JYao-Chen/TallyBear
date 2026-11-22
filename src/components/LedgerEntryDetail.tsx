@@ -1,5 +1,6 @@
 'use client';
 import { categoryAmounts, hasItemCategories } from '@/lib/item-categories';
+import { Trash2, Copy } from 'lucide-react';
 import { SectionTabs } from './SectionTabs';
 import { Button, ConfirmDialog, ListRow, Money, Sheet } from '@/ui';
 import s from './LedgerEntryDetail.module.css';
@@ -63,10 +64,12 @@ export function LedgerEntryDetail({
       <div className={s.actions}>
         <OrganizeEntries book={book} ids={[row.id]} books={books} onSaved={onOrganized} />
         <Button variant="danger" disabled={busy} onClick={() => setDeleting(true)}>
+          <Trash2 size={16} />
           {tr('删除记录')}
         </Button>
         {onCopy && (
           <Button disabled={busy} onClick={onCopy}>
+            <Copy size={16} />
             {tr('复制为新记录')}
           </Button>
         )}

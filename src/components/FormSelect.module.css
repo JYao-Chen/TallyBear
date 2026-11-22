@@ -1,0 +1,12 @@
+.select {
+  composes: select from './VisualSelect.module.css';
+}
+.trigger {
+  composes: trigger from './VisualSelect.module.css';
+  font: 400 var(--text-input)/1.4 var(--font-body);
+}
+.select .trigger:hover,
+.select .trigger:active {
+  background: var(--surface);
+  border-color: var(--accent);
+}

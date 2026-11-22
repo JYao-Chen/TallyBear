@@ -3,50 +3,11 @@
   min-width: 0;
   gap: var(--space-4);
 }
-.period,
-.analysisControls {
+.period {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-.period > span {
-  margin-inline-end: auto;
-}
-.analysisModes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-1);
-  padding: var(--space-1);
-  background: var(--surface-sunk);
-  border-radius: var(--radius-card);
-}
-.analysisModes button {
-  border: 1px solid transparent;
-  display: flex;
-  min-width: 0;
-  justify-content: flex-start;
-  white-space: normal;
-  text-align: start;
-  background: transparent;
-}
-.analysisModes button[aria-pressed='true'] {
-  background: var(--surface);
-  color: var(--accent);
-  border-color: var(--line-strong);
-}
-.analysisModes small,
-.analysisBookOptions small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 400;
-}
-.analysisModeCheck {
-  margin-inline-start: auto;
-}
-.analysisControls {
-  justify-content: space-between;
 }
 .analysisBookChoice,
 .analysisBookOptions {
@@ -102,17 +63,6 @@
   background: var(--attention-soft);
 }
 @media (max-width: 640px) {
-  .analysisModes button {
-    flex-direction: column;
-    text-align: center;
-    padding: var(--space-2);
-  }
-  .analysisModeCheck {
-    display: none;
-  }
-  .analysisModes button strong {
-    font-size: var(--text-sm);
-  }
   .analysisSummary {
     padding: var(--space-3);
   }
@@ -137,4 +87,32 @@
 }
 .analysisSummary span span {
   white-space: normal;
+}
+
+.period {
+  justify-content: space-between;
+}
+.analysisBookChoice {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.analysisBookChoice button {
+  min-width: 0;
+  white-space: normal;
+}
+.modes {
+  min-width: 0;
+}
+.modes button {
+  min-height: var(--touch);
+  white-space: normal;
+}
+@media (max-width: 640px) {
+  .modes {
+    flex: 1 1 0;
+  }
+  .modes button {
+    padding-inline: var(--space-1);
+  }
 }

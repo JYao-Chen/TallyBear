@@ -789,7 +789,8 @@ try {
         await sharp(
           await page.screenshot({
             animations: 'disabled',
-            fullPage: key === 'profile-book-rule' || key.startsWith('analysis-'),
+            fullPage:
+              key === 'profile-book-rule' || (key.startsWith('analysis-') && key !== 'analysis-filters'),
           }),
         )
           .webp({ quality: 90 })
@@ -886,11 +887,14 @@ try {
           ),
         );
         await page.getByRole('tab', { name: t('明细'), exact: true }).click();
+        await page.getByRole('button', { name: t('筛选'), exact: true }).click();
         await page.getByRole('combobox', { name: t('收支类型') }).selectOption('expense', { force: true });
         await page.getByRole('textbox', { name: t('搜索流水') }).fill(lang === 'en' ? 'server' : '服务器');
+        await page
+          .getByRole('dialog', { name: t('筛选') })
+          .getByRole('button', { name: t('完成选择') })
+          .click();
         await settle();
-        await page.getByRole('region', { name: t('分析图表') }).waitFor();
-        await page.getByRole('tab', { name: lang === 'en' ? 'Entries' : '明细', exact: true }).click();
         assert.equal(
           await page
             .getByRole('tabpanel')
@@ -1332,7 +1336,11 @@ try {
           await records.getByRole('button', { name: t('上月'), exact: true }).click();
           await changedRange;
           await records.getByRole('button', { name: t('本月'), exact: true }).click();
-          await records.getByRole('button', { name: t('批量整理'), exact: true }).click();
+          await records.getByRole('button', { name: t('更多'), exact: true }).click();
+          const more = page.getByRole('dialog', { name: t('更多') });
+          await more.getByRole('button', { name: t('智能核对账单') }).waitFor();
+          await shot('entries-more');
+          await more.getByRole('button', { name: t('批量整理'), exact: true }).click();
           await records.getByRole('checkbox', { name: t('选择本页'), exact: true }).check();
           const bar = records.getByRole('button', { name: t('退出多选'), exact: true });
           assert.ok(await bar.evaluate(el => el.getBoundingClientRect().bottom <= innerHeight));
@@ -1378,10 +1386,29 @@ try {
           await detail.getByRole('button', { name: t('关闭弹窗') }).click();
         }
         if (key === 'analysis') {
-          await page
-            .getByRole('region', { name: t('分析图表') })
-            .evaluate(el => el.scrollIntoView({ block: 'start' }));
+          await page.getByRole('button', { name: t('筛选'), exact: true }).click();
+          const filters = page.getByRole('dialog', { name: t('筛选') });
+          await filters.getByRole('combobox', { name: t('收支类型') }).selectOption('expense');
+          await shot('analysis-filters');
+          await filters.getByRole('button', { name: t('完成选择') }).click();
+          await page.getByRole('button', { name: t('移除筛选：{0}').replace('{0}', t('消费支出')) }).click();
+          await settle();
+          const charts = page.getByRole('region', { name: t('分析图表') });
+          await charts.evaluate(el => el.scrollIntoView({ block: 'start' }));
           await shot('charts');
+          const daily = charts.getByRole('figure', {
+            name: lang === 'en' ? 'Daily net expenses' : '每日净支出',
+          });
+          const byDate = daily.getByRole('button', { name: t('按日期') });
+          await byDate.click();
+          const dates = await daily
+            .getByRole('group', { name: t('图例') })
+            .getByRole('button')
+            .allTextContents();
+          assert.ok(dates.length > 0);
+          assert.deepEqual(dates, [...dates].sort());
+          await byDate.evaluate(el => el.scrollIntoView({ block: 'center' }));
+          await shot('chart-dates');
           const result = page.waitForResponse(
             r => r.url().includes('/report?') && new URL(r.url()).searchParams.get('basis') === 'cashflow',
           );
@@ -1458,6 +1485,10 @@ try {
         if (key === 'activities') {
           await page.getByRole('button', { name: /周末山海之旅|Coast & hills weekend/ }).click();
           await shot('activity-detail');
+          await page
+            .getByRole('heading', { name: t('按分类'), exact: true })
+            .evaluate(el => el.scrollIntoView({ block: 'start' }));
+          await shot('activity-breakdowns');
           await page.getByRole('button', { name: t('归档此活动') }).click();
           await page
             .getByRole('dialog')

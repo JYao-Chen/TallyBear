@@ -16,7 +16,7 @@ test('custom selector preserves native form value and does not submit on open', 
   assert.match(html, /<option value="shared" selected=""/);
   assert.match(html, /<button[^>]*type="button"/);
   assert.match(html, /aria-haspopup="dialog"/);
-  assert.match(html, /class="select-form-value"/);
+  assert.match(html, /<select[^>]*hidden=""/);
 });
 test('controlled selection wins over defaults; required and disabled reach form control', () => {
   const html = renderToStaticMarkup(

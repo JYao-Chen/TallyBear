@@ -7,7 +7,7 @@ import type { ManagedBook } from './ManagementPages';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 import type { ReportRange } from '@/lib/report-period';
 import { useI18n } from './LanguageProvider';
-import { Button, ChipButton, EmptyState, Input, Money, Select, Sheet, Stat } from '@/ui';
+import { Button, IconButton, ChipButton, EmptyState, Input, Money, Select, Sheet, Stat } from '@/ui';
 import { amountToCents } from '@/server/model';
 import s from './RecordsPanel.module.css';
 
@@ -15,7 +15,7 @@ import { AttentionRecords } from './AttentionRecords';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { CategoryFilterSelect, VisualSelect } from './VisualSelect';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { SlidersHorizontal, Ellipsis, Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransactionList } from './TransactionList';
 import { monthRange, type LedgerReport, type LedgerRow } from '@/lib/ledger-types';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
@@ -48,12 +48,14 @@ export function RecordsPanel({
   onBooksChange,
   scopeControls,
   onPlans,
+  onReconcile,
   initialView = 'overview',
 }: {
   currentBook?: string;
   onPeriodChange?: (range: ReportRange) => void;
   onBooksChange?: (ids: string[]) => void;
   scopeControls?: ReactNode;
+  onReconcile?: () => void;
   onPlans?: () => void;
   initialView?: 'overview' | 'entries';
   summary?: ReactNode;
@@ -100,6 +102,7 @@ export function RecordsPanel({
     [error, setError] = useState(''),
     [exporting, setExporting] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [more, setMore] = useState(false);
   const [amounts, setAmounts] = useState({ min: '', max: '' });
   const [draftAmounts, setDraftAmounts] = useState(amounts);
   const [amountError, setAmountError] = useState('');
@@ -289,64 +292,52 @@ export function RecordsPanel({
   );
   const list = (
     <>
-      {scope === 'book' && (!bookIds || bookIds.length === 1) && (
-        <AttentionRecords
-          book={book}
-          revision={revision}
-          onSelect={onSelect}
-          onRestored={() => setRestored(n => n + 1)}
-        />
-      )}
-      {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
-        <div className={selecting ? s.bulk : s.actions}>
+      {selecting && scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
+        <div className={s.bulk}>
           <Button
             variant="ghost"
             onClick={() => {
-              setSelecting(v => !v);
+              setSelecting(false);
               setSelection(new Set());
             }}
           >
-            {tr(selecting ? '退出多选' : '批量整理')}
+            {tr('退出多选')}
           </Button>
-          {selecting && (
-            <>
-              <label className={s.check}>
-                <input
-                  type="checkbox"
-                  disabled={loading || !report?.rows.some(r => !r.family_movement_id && !r.cost_row_key)}
-                  checked={
-                    !!report?.rows.some(r => !r.family_movement_id && !r.cost_row_key) &&
-                    report.rows
-                      .filter(r => !r.family_movement_id && !r.cost_row_key)
-                      .every(r => selection.has(r.id))
-                  }
-                  onChange={e =>
-                    setSelection(
-                      new Set(
-                        e.target.checked
-                          ? report?.rows.filter(r => !r.family_movement_id && !r.cost_row_key).map(r => r.id)
-                          : [],
-                      ),
-                    )
-                  }
-                />
-                {tr('选择本页')}
-              </label>
-              <span>{tr('已选 {0} 笔', [selection.size])}</span>
-              <OrganizeEntries
-                book={book}
-                ids={[...selection]}
-                books={books}
-                disabled={loading}
-                onSaved={() => {
-                  setSelection(new Set());
-                  setSelecting(false);
-                  setRestored(v => v + 1);
-                  onChanged();
-                }}
-              />
-            </>
-          )}
+          <label className={s.check}>
+            <input
+              type="checkbox"
+              disabled={loading || !report?.rows.some(r => !r.family_movement_id && !r.cost_row_key)}
+              checked={
+                !!report?.rows.some(r => !r.family_movement_id && !r.cost_row_key) &&
+                report.rows
+                  .filter(r => !r.family_movement_id && !r.cost_row_key)
+                  .every(r => selection.has(r.id))
+              }
+              onChange={e =>
+                setSelection(
+                  new Set(
+                    e.target.checked
+                      ? report?.rows.filter(r => !r.family_movement_id && !r.cost_row_key).map(r => r.id)
+                      : [],
+                  ),
+                )
+              }
+            />
+            {tr('选择本页')}
+          </label>
+          <span>{tr('已选 {0} 笔', [selection.size])}</span>
+          <OrganizeEntries
+            book={book}
+            ids={[...selection]}
+            books={books}
+            disabled={loading}
+            onSaved={() => {
+              setSelection(new Set());
+              setSelecting(false);
+              setRestored(v => v + 1);
+              onChanged();
+            }}
+          />
         </div>
       )}
       {loading ? (
@@ -436,19 +427,24 @@ export function RecordsPanel({
         () => setAmounts(v => ({ ...v, [k]: '' })),
       ]);
   if (q) chips.push(['query', q, () => setQ('')]);
+  const searchField = (
+    <label className={s.search}>
+      <Search size={18} />
+      <Input
+        placeholder={tr('商家、商品、备注、订单号')}
+        aria-label={tr('搜索流水')}
+        value={q}
+        onChange={e => setQ(e.target.value)}
+      />
+    </label>
+  );
   return (
-    <section id="analysis-records" aria-label={tr('收支明细')} className={s.panel} ref={top}>
-      <div className={s.heading}>
-        <h2>{tr(overview ? '筛选与结果' : '收支明细')}</h2>
-        <Button
-          variant="ghost"
-          disabled={exporting || loading || q !== search || !report?.totals.count}
-          onClick={download}
-        >
-          <Download size={17} />
-          {tr(exporting ? '导出中…' : '导出全部结果')}
-        </Button>
-      </div>
+    <section
+      id="analysis-records"
+      aria-label={tr('收支明细')}
+      className={overview ? s.analysisPanel : s.panel}
+      ref={top}
+    >
       {showScope && (
         <div className={s.actions} role="group" aria-label={tr('统计范围')}>
           <Button
@@ -499,28 +495,77 @@ export function RecordsPanel({
             }}
           />
         )}
-        <label className={s.search}>
-          <Search size={18} />
-          <Input
-            placeholder={tr('商家、商品、备注、订单号')}
-            aria-label={tr('搜索流水')}
-            value={q}
-            onChange={e => setQ(e.target.value)}
-          />
-        </label>
-        {entries && (
+        {!overview && searchField}
+        {overview && scopeControls}
+        {(entries || overview) && (
           <Button
+            className={s.filtersButton}
+            aria-label={tr('筛选')}
             onClick={() => {
               setDraftAmounts(amounts);
               setAmountError('');
               setFiltersOpen(true);
             }}
           >
-            {tr('筛选')}
+            <SlidersHorizontal size={17} />
+            <span>{tr('筛选')}</span>
           </Button>
         )}
+        {(!overview || view === 'entries') && (
+          <IconButton
+            className={s.more}
+            label={tr('更多')}
+            aria-haspopup="dialog"
+            onClick={() => setMore(true)}
+          >
+            <Ellipsis size={20} />
+          </IconButton>
+        )}
       </div>
-      {entries ? (
+      <Sheet open={more} title={tr('更多')} onClose={() => setMore(false)}>
+        <div className={s.menu}>
+          {scope === 'book' && (!bookIds || bookIds.length === 1) && (
+            <AttentionRecords
+              book={book}
+              revision={revision}
+              onSelect={onSelect}
+              onRestored={() => setRestored(n => n + 1)}
+            />
+          )}
+          {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
+            <Button
+              onClick={() => {
+                setSelecting(true);
+                setMore(false);
+              }}
+            >
+              {tr('批量整理')}
+            </Button>
+          )}
+          {entries && onReconcile && (
+            <Button
+              onClick={() => {
+                setMore(false);
+                onReconcile();
+              }}
+            >
+              {tr('智能核对账单')}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            disabled={exporting || loading || q !== search || !report?.totals.count}
+            onClick={() => {
+              setMore(false);
+              void download();
+            }}
+          >
+            <Download size={17} />
+            {tr(exporting ? '导出中…' : '导出全部结果')}
+          </Button>
+        </div>
+      </Sheet>
+      {entries || overview ? (
         <>
           <Sheet
             open={filtersOpen}
@@ -537,8 +582,10 @@ export function RecordsPanel({
                       const min = draftAmounts.min ? amountToCents(draftAmounts.min) : 0;
                       if (draftAmounts.max && amountToCents(draftAmounts.max) < min)
                         throw new Error('最高金额不能低于最低金额');
-                      setAmounts(draftAmounts);
-                      setOffset(0);
+                      if (amounts.min !== draftAmounts.min || amounts.max !== draftAmounts.max) {
+                        setAmounts(draftAmounts);
+                        setOffset(0);
+                      }
                       setFiltersOpen(false);
                     } catch (err) {
                       setAmountError((err as Error).message);
@@ -551,7 +598,7 @@ export function RecordsPanel({
             }
           >
             <div className={s.fields}>
-              {scopeControls}
+              {overview ? searchField : scopeControls}
               {onBooksChange && bookIds && (
                 <fieldset>
                   <legend>{tr('统计账本')}</legend>
@@ -577,16 +624,17 @@ export function RecordsPanel({
                 </fieldset>
               )}
               {filterFields}
-              {(['min', 'max'] as const).map(k => (
-                <label key={k}>
-                  {tr(k === 'min' ? '最低金额（元）' : '最高金额（元）')}
-                  <Input
-                    inputMode="decimal"
-                    value={draftAmounts[k]}
-                    onChange={e => setDraftAmounts(v => ({ ...v, [k]: e.target.value }))}
-                  />
-                </label>
-              ))}
+              {entries &&
+                (['min', 'max'] as const).map(k => (
+                  <label key={k}>
+                    {tr(k === 'min' ? '最低金额（元）' : '最高金额（元）')}
+                    <Input
+                      inputMode="decimal"
+                      value={draftAmounts[k]}
+                      onChange={e => setDraftAmounts(v => ({ ...v, [k]: e.target.value }))}
+                    />
+                  </label>
+                ))}
               {amountError && (
                 <p role="alert" className={s.error}>
                   {tr(amountError)}

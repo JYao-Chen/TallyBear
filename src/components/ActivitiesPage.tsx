@@ -563,11 +563,12 @@ export function ActivitiesPage({
       )}
       {activity && (
         <>
-          <Button variant="ghost" onClick={() => setSelected('')}>
-            {tr('返回活动列表')}
-          </Button>
           <Card className={s.activityOverview}>
             <div className={s.panelTitle}>
+              <Button variant="secondary" onClick={() => setSelected('')}>
+                <ChevronLeft size={18} />
+                {tr('返回活动列表')}
+              </Button>
               <div>
                 <h2>{activity.name}</h2>
                 <p className={s.muted}>

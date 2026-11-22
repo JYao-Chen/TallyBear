@@ -9,7 +9,20 @@ assert.ok(out);
 await mkdir(out, { recursive: true });
 const result = await build({
   stdin: {
-    contents: `import {createRoot} from 'react-dom/client';import Workspace from './src/components/Workspace';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';createRoot(document.getElementById('root')).render(<LanguageProvider initial="zh-CN"><ThemeProvider initial="bear"><Workspace/></ThemeProvider></LanguageProvider>);`,
+    contents: `
+      import {createRoot} from 'react-dom/client';
+      import {AppRouterContext} from 'next/dist/shared/lib/app-router-context.shared-runtime';
+      import {PathnameContext} from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+      import Workspace from './src/components/Workspace';
+      import {LanguageProvider} from './src/components/LanguageProvider';
+      import {ThemeProvider} from './src/components/ThemeProvider';
+      createRoot(document.getElementById('root')).render(
+        <AppRouterContext.Provider value={{push: path => location.assign(path)}}>
+          <PathnameContext.Provider value={location.pathname}>
+            <LanguageProvider initial="zh-CN"><ThemeProvider initial="bear"><Workspace/></ThemeProvider></LanguageProvider>
+          </PathnameContext.Provider>
+        </AppRouterContext.Provider>
+      );`,
     resolveDir: process.cwd(),
     loader: 'tsx',
   },
@@ -18,7 +31,7 @@ const result = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env.NODE_ENV': '"development"', 'process.env': '{}' },
   logLevel: 'silent',
 });
 const js = result.outputFiles.find(f => f.path.endsWith('.js')).contents;
@@ -208,29 +221,38 @@ try {
     for (const foreign of [false, true]) {
       cross = foreign;
       await page.setViewportSize({ width, height: 1000 });
-      await page.goto(`http://127.0.0.1:${server.address().port}/`);
-      const nav = page.locator(width < 600 ? '.mobile-nav' : '#primary-navigation');
-      await nav.getByRole('button', { name: '收支分析', exact: true }).click();
+      await page.goto(`http://127.0.0.1:${server.address().port}/analysis`);
       await page.getByRole('tab', { name: '明细', exact: true }).click();
       await page
         .locator('#analysis-records')
         .getByRole('button', { name: /^查看.*详情$/ })
         .first()
         .waitFor();
+      const openFilters = () => page.getByRole('button', { name: '筛选', exact: true }).click();
+      const filters = page.getByRole('dialog', { name: '筛选', exact: true });
+      const closeFilters = () => filters.getByRole('button', { name: '完成选择', exact: true }).click();
+      const openMore = () =>
+        page
+          .getByRole('region', { name: '收支明细' })
+          .getByRole('button', { name: '更多', exact: true })
+          .click();
+      await openFilters();
       await page.getByRole('button', { name: '记账分类：全部分类', exact: true }).click();
       await page.getByRole('button', { name: '餐饮', exact: true }).click();
       await page.getByRole('button', { name: '奶茶', exact: true }).click();
-      await page.getByRole('button', { name: '完成选择', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: '记账分类', exact: true })
+        .getByRole('button', { name: '完成选择', exact: true })
+        .click();
       await page
         .locator('#analysis-records')
         .getByRole('combobox', { name: '收支类型' })
         .selectOption('expense');
-      await page
-        .locator('#analysis-records')
-        .getByRole('combobox', { name: '明细排序' })
-        .selectOption('amount_desc');
+
       const search = page.getByRole('textbox', { name: '搜索流水', exact: true });
       await search.fill('Filter test');
+      await closeFilters();
+      await page.getByRole('combobox', { name: '明细排序' }).selectOption('amount_desc');
       await page.waitForTimeout(350);
       await page.locator('#analysis-records').getByRole('button', { name: '下一页', exact: true }).click();
       await page
@@ -250,12 +272,15 @@ try {
         .click();
       await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).waitFor();
       await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
+      const reportCount = requests.filter(path => path.includes('/report?')).length;
+      await openFilters();
       assert.ok(
         await page.getByRole('button', { name: '记账分类：餐饮、奶茶', exact: true }).isVisible(),
         `Category lost ${width} cross=${foreign}`,
       );
       assert.equal(await search.inputValue(), 'Filter test');
       assert.equal(await page.getByRole('combobox', { name: '收支类型' }).inputValue(), 'expense');
+      await closeFilters();
       assert.equal(await page.getByRole('combobox', { name: '明细排序' }).inputValue(), 'amount_desc');
       assert.equal(
         await page
@@ -265,10 +290,13 @@ try {
           .innerText(),
         pagination,
       );
+      assert.equal(requests.filter(path => path.includes('/report?')).length, reportCount);
       await page.screenshot({ path: resolve(out, `analysis-${width}-cross-${foreign}.png`), fullPage: true });
       const exported = page.waitForRequest(r => r.url().includes('/export?'));
+      await openMore();
       await page.getByRole('button', { name: '导出全部结果', exact: true }).click();
       assert.deepEqual(new URL((await exported).url()).searchParams.getAll('category'), ['餐饮', '奶茶']);
+      await openFilters();
       await page.getByRole('button', { name: '记账分类：餐饮、奶茶', exact: true }).click();
       assert.equal(
         await page.getByRole('button', { name: '餐饮', exact: true }).getAttribute('aria-pressed'),
@@ -279,7 +307,11 @@ try {
         'true',
       );
       await page.screenshot({ path: resolve(out, `category-picker-${width}.png`) });
-      await page.getByRole('button', { name: '完成选择', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: '记账分类', exact: true })
+        .getByRole('button', { name: '完成选择', exact: true })
+        .click();
+      await closeFilters();
       // A chart drilldown remains open below the canonical entry detail.
       await page.getByRole('tab', { name: '概览', exact: true }).click();
       await page
@@ -290,24 +322,44 @@ try {
         .first()
         .click();
       await page.getByRole('dialog').last().getByRole('button').filter({ hasText: row.title }).click();
-      await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
+      await page
+        .getByRole('dialog', { name: '这笔小记录' })
+        .getByRole('button', { name: '修改记录', exact: true })
+        .waitFor();
       await page.keyboard.press('Escape');
       assert.equal(await page.getByRole('dialog').count(), 1);
       await page.getByRole('dialog').last().getByRole('button', { name: '关闭弹窗', exact: true }).click();
+      await openFilters();
       assert.ok(await page.getByRole('button', { name: '记账分类：餐饮、奶茶', exact: true }).isVisible());
       assert.equal(await search.inputValue(), 'Filter test');
+      await closeFilters();
       // Verification list filters survive opening and closing an entry.
       await page.getByRole('tab', { name: '明细', exact: true }).click();
+      await openMore();
       await page.getByRole('button', { name: '待核验记录', exact: true }).click();
-      await page.getByRole('dialog').getByRole('button', { name: '打开核验', exact: true }).click();
-      await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
+      await page
+        .getByRole('dialog', { name: '待核验记录' })
+        .getByRole('button', { name: '打开核验', exact: true })
+        .click();
+      await page
+        .getByRole('dialog', { name: '这笔小记录' })
+        .getByRole('button', { name: '修改记录', exact: true })
+        .waitFor();
       await page.keyboard.press('Escape');
-      assert.equal(await page.getByRole('dialog').count(), 1);
+      assert.equal(await page.getByRole('dialog').count(), 2);
       assert.ok(
-        await page.getByRole('dialog').getByRole('button', { name: '打开核验', exact: true }).isVisible(),
+        await page
+          .getByRole('dialog', { name: '待核验记录' })
+          .getByRole('button', { name: '打开核验', exact: true })
+          .isVisible(),
       );
-      await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: '待核验记录' })
+        .getByRole('button', { name: '关闭弹窗', exact: true })
+        .click();
 
+      await page.getByRole('dialog', { name: '更多' }).getByRole('button', { name: '关闭' }).click();
+      await openFilters();
       await page.getByRole('button', { name: '记账分类：餐饮、奶茶', exact: true }).click();
       await page.getByRole('button', { name: '奶茶', exact: true }).click();
       assert.equal(
@@ -315,7 +367,10 @@ try {
         'false',
       );
       await page.getByRole('button', { name: '全部分类', exact: true }).click();
-      await page.getByRole('button', { name: '完成选择', exact: true }).click();
+      await page
+        .getByRole('dialog', { name: '记账分类', exact: true })
+        .getByRole('button', { name: '完成选择', exact: true })
+        .click();
       assert.ok(await page.getByRole('button', { name: '记账分类：全部分类', exact: true }).isVisible());
     }
   const chartRequest = requests.filter(r => r.includes('/chart-details?')).at(-1);
@@ -324,26 +379,29 @@ try {
   for (const width of [1440, 390]) {
     cross = true;
     await page.setViewportSize({ width, height: 1000 });
-    await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    if (width < 600) {
-      await page.locator('.mobile-nav').getByRole('button', { name: '更多功能', exact: true }).click();
-      await page.getByRole('dialog').getByRole('button', { name: '每月预算', exact: true }).click();
-    } else
-      await page
-        .locator('#primary-navigation')
-        .getByRole('button', { name: '每月预算', exact: true })
-        .click();
+    await page.goto(`http://127.0.0.1:${server.address().port}/analysis/budget`);
     await page
       .getByRole('button')
       .filter({ has: page.getByRole('progressbar') })
       .first()
       .click();
     await page.getByRole('dialog').getByRole('button', { name: '下一页', exact: true }).click();
-    await page.getByRole('dialog').locator('.transaction-row').first().waitFor();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^查看.*详情$/ })
+      .first()
+      .waitFor();
     const pageRange = page.getByRole('dialog').getByText(/^\d+–\d+ \/ \d+$/);
     const before = await pageRange.innerText();
-    await page.getByRole('dialog').locator('.transaction-row').first().click();
-    await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^查看.*详情$/ })
+      .first()
+      .click();
+    await page
+      .getByRole('dialog', { name: '这笔小记录' })
+      .getByRole('button', { name: '修改记录', exact: true })
+      .waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(), 1);
     assert.equal(await pageRange.innerText(), before);
@@ -365,7 +423,10 @@ try {
     .locator('..')
     .innerText();
   await page.getByRole('button', { name: '打开这笔记录', exact: true }).click();
-  await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
+  await page
+    .getByRole('dialog', { name: '这笔小记录' })
+    .getByRole('button', { name: '修改记录', exact: true })
+    .waitFor();
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('dialog').count(), 1);
   assert.equal(await globalQuery.inputValue(), 'Filter test');
@@ -379,9 +440,8 @@ try {
   );
   await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
   // Wallet flow keeps its local flow filter, query and page after detail closes.
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  await page.locator('.mobile-nav').getByRole('button', { name: '收支分析', exact: true }).click();
-  await page.getByRole('button', { name: /钱包资金流 实际进出/ }).click();
+  await page.goto(`http://127.0.0.1:${server.address().port}/analysis`);
+  await page.getByRole('button', { name: '钱包资金流' }).click();
   await page.getByRole('searchbox', { name: '搜索资金明细', exact: true }).fill('Filter test');
   await page.getByRole('combobox', { name: '资金流动类型', exact: true }).selectOption('out');
   await page.locator('.funds-list button').first().waitFor();
@@ -399,8 +459,7 @@ try {
   // Keeping the current book must not grant its write permission to a foreign read-only book.
   books[1].role = 'viewer';
   cross = true;
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  await page.locator('.mobile-nav').getByRole('button', { name: '收支分析', exact: true }).click();
+  await page.goto(`http://127.0.0.1:${server.address().port}/analysis`);
   await page.getByRole('tab', { name: '明细', exact: true }).click();
   await page
     .locator('#analysis-records')

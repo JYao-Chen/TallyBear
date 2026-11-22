@@ -1,6 +1,6 @@
 'use client';
 import s from './BudgetPanel.module.css';
-import { Button, Card, ConfirmDialog, EmptyState, Input, Money, Sheet } from '@/ui';
+import { Button, Card, ConfirmDialog, EmptyState, Input, Money, Stat, Sheet } from '@/ui';
 import { PagedList } from './PagedList';
 import { formatMoney } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
@@ -162,6 +162,10 @@ export function BudgetPanel({
     0,
     1 + (Date.parse(range.to) - Date.parse(today > range.from ? today : range.from)) / 86400000,
   );
+  const total = budgets.reduce((sum, b) => sum + b.amount, 0);
+  const used = budgets.reduce((sum, b) => sum + (spending.find(s => s.name === b.category)?.value ?? 0), 0);
+  const progressColor = (spent: number, amount: number) =>
+    spent > amount ? 'var(--expense)' : spent * 5 > amount * 4 ? 'var(--attention)' : 'var(--accent)';
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError('');
@@ -202,6 +206,26 @@ export function BudgetPanel({
           </Button>
         )}
       </div>
+      {budgets.length > 0 && (
+        <div className={s.summary}>
+          <Stat label={tr('总预算')}>
+            <Money value={total} />
+          </Stat>
+          <Stat label={tr('已用')}>
+            <Money value={used} />
+          </Stat>
+          <Stat label={tr('预算剩余')}>
+            <Money value={total - used} />
+          </Stat>
+          <Stat label={tr('整体进度')}>{total ? Math.round((100 * used) / total) + '%' : '—'}</Stat>
+          <progress
+            aria-label={tr('整体进度')}
+            max={total || 1}
+            value={Math.max(0, Math.min(used, total))}
+            style={{ accentColor: progressColor(used, total) }}
+          />
+        </div>
+      )}
       <PagedList container={rows => <div className={s.cards}>{rows}</div>} items={budgets} resetKey={month}>
         {b => {
           const spent = spending.find(s => s.name === b.category)?.value || 0;
@@ -216,12 +240,7 @@ export function BudgetPanel({
               <progress
                 aria-label={b.category}
                 style={{
-                  accentColor:
-                    spent > b.amount
-                      ? 'var(--expense)'
-                      : spent * 5 > b.amount * 4
-                        ? 'var(--attention)'
-                        : 'var(--accent)',
+                  accentColor: progressColor(spent, b.amount),
                 }}
                 max={b.amount || 1}
                 value={Math.max(0, Math.min(spent, b.amount || 1))}

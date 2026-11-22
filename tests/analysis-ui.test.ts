@@ -50,3 +50,31 @@ test('a daily income series uses the income label when its dimension supplies th
   assert.match(html, /CNY · 收入/);
   assert.doesNotMatch(html, /净支出/);
 });
+
+test('date charts choose the default from density and rank only nonzero legend rows', () => {
+  const render = (values: number[]) =>
+    renderToStaticMarkup(
+      createElement(FinanceChart, {
+        chart: {
+          id: 'daily',
+          title: 'Daily trend',
+          type: 'line',
+          dimension: 'daily_income',
+          from: '2028-02-01',
+          to: '2028-02-29',
+          unit: 'CNY',
+          data: values.map((value, i) => ({ name: 'day-' + String(i + 1).padStart(2, '0'), value })),
+        },
+      }),
+    );
+  const sparse = render([0, 0, 0, 4, 0, 0, 0]);
+  assert.match(sparse, /aria-label="条形图"[^>]*aria-pressed="true"/);
+  assert.doesNotMatch(sparse, />day-01</);
+  assert.match(sparse, />day-04</);
+  const dense = render(Array.from({ length: 12 }, (_, i) => i + 1));
+  assert.match(dense, /aria-label="折线图"[^>]*aria-pressed="true"/);
+  assert.deepEqual(
+    [...dense.matchAll(/>(day-\d+)</g)].map(m => m[1]),
+    Array.from({ length: 10 }, (_, i) => 'day-' + String(12 - i).padStart(2, '0')),
+  );
+});

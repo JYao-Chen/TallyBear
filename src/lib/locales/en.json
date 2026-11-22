@@ -2758,5 +2758,13 @@
   "删除这笔流水": "Delete this entry",
   "修改期初余额": "Change opening balance",
   "涉及钱包的余额会重新计算，不会撤销银行或支付平台的真实交易。": "Wallet balances will be recalculated. This does not reverse any bank or payment transaction.",
-  "它在 {0} 个账本中的关联记录将一起移入回收站。": "Linked records in {0} books will move to the recycle bin together."
+  "它在 {0} 个账本中的关联记录将一起移入回收站。": "Linked records in {0} books will move to the recycle bin together.",
+  "最新": "Newest",
+  "最早": "Oldest",
+  "金额高": "Highest",
+  "金额低": "Lowest",
+  "总预算": "Total budget",
+  "已用": "Used",
+  "整体进度": "Overall progress",
+  "按日期": "By date"
 }

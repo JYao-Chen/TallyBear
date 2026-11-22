@@ -7,7 +7,7 @@
 }
 .panelTitle h2 {
   margin: 0;
-  font: 700 var(--text-lg)/1.45 var(--font-title);
+  font: 600 var(--text-lg)/1.4 var(--font-body);
 }
 .muted {
   color: var(--muted);
@@ -74,4 +74,23 @@
 .sheetActions {
   padding-bottom: var(--safe-bottom);
   margin-block: var(--space-4);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  text-align: end;
+  padding-block: var(--space-3);
+}
+.summary progress {
+  grid-column: 1/-1;
+  width: 100%;
+  height: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

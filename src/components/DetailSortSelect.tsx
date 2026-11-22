@@ -20,16 +20,10 @@ export function DetailSortSelect({
       value={value}
       onChange={e => onChange(detailSort(e.target.value))}
     >
-      <option value="date_desc">{t('时间 · 从新到旧')}</option>
-      <option value="date_asc">{t('时间 · 从旧到新')}</option>
-      <option value="amount_desc">
-        {valueLabel || t('金额')}
-        {t(' · 从高到低')}
-      </option>
-      <option value="amount_asc">
-        {valueLabel || t('金额')}
-        {t(' · 从低到高')}
-      </option>
+      <option value="date_desc">{t('最新')}</option>
+      <option value="date_asc">{t('最早')}</option>
+      <option value="amount_desc">{valueLabel ? valueLabel + t(' · 从高到低') : t('金额高')}</option>
+      <option value="amount_asc">{valueLabel ? valueLabel + t(' · 从低到高') : t('金额低')}</option>
     </Select>
   );
 }

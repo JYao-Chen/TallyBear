@@ -31,6 +31,8 @@
   width: var(--touch);
   padding: 0;
 }
+.chart > button[aria-pressed='true'],
+.chart > button:hover,
 .chartViewToggle button[aria-pressed='true'] {
   background: var(--accent-soft);
   color: var(--accent);

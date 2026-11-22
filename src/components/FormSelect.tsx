@@ -1,4 +1,5 @@
 'use client';
+import s from './FormSelect.module.css';
 import { useI18n } from './LanguageProvider';
 import { Children, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, RotateCcw } from 'lucide-react';
@@ -108,11 +109,10 @@ export function FormSelect({
     setOpen(false);
   }
   return (
-    <div className="form-select">
+    <div className={s.select}>
       <select
         hidden
         ref={select}
-        className="select-form-value"
         name={name}
         value={selected}
         required={required}
@@ -131,9 +131,11 @@ export function FormSelect({
       <button
         ref={trigger}
         type="button"
-        className="visual-trigger"
+        className={s.trigger}
         disabled={disabled}
-        aria-label={tr(title) + ': ' + (options.find(o => o.value === selected)?.label || tr('请选择'))}
+        aria-label={
+          tr(ariaLabel || title) + ': ' + (options.find(o => o.value === selected)?.label || tr('请选择'))
+        }
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
@@ -146,7 +148,7 @@ export function FormSelect({
       </button>
       {open && (
         <ChoicePicker
-          title={tr(title)}
+          title={tr(ariaLabel || title)}
           options={options}
           value={selected}
           onSelect={choose}

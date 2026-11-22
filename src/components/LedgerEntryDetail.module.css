@@ -50,3 +50,21 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+@media (max-width: 640px) {
+  .actions {
+    width: 100%;
+  }
+  .actions > button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: var(--touch);
+    white-space: normal;
+    flex-direction: column;
+    font-size: var(--text-sm);
+    padding: var(--space-1);
+  }
+  .actions > button:last-child {
+    flex: 1 1 100%;
+  }
+}

@@ -131,6 +131,10 @@ textarea.control {
   font: 500 var(--text-sm) var(--font-body);
   cursor: pointer;
 }
+.segment:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .segment[aria-pressed='true'],
 .segment[aria-selected='true'] {
   background: var(--surface);
@@ -433,4 +437,22 @@ a.listRow:hover {
   .segment {
     transition: none;
   }
+}
+
+.selectWrap {
+  position: relative;
+  display: inline-grid;
+  min-width: 0;
+}
+.selectWrap select {
+  appearance: none;
+  padding-inline-end: calc(var(--space-6) + var(--space-3));
+}
+.selectWrap > svg {
+  position: absolute;
+  inset-inline-end: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--ink);
 }

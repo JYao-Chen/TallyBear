@@ -40,7 +40,7 @@ export function FinanceChart({
   const openEntry = useEntryDetail();
   const [sort, setSort] = useState<DetailSort>('date_desc');
   const { t, locale } = useI18n();
-  const [type, setType] = useState(chart.type),
+  const [type, setType] = useState<ChartArtifact['type']>(),
     [point, setPoint] = useState<{ name: string; value: number } | null>(null),
     [result, setResult] = useState<any>(null),
     [error, setError] = useState(''),
@@ -130,7 +130,19 @@ export function FinanceChart({
   const total = chart.data.reduce((n, d) => n + d.value, 0),
     negative = chart.data.some(d => d.value < 0),
     noPie = negative || quantity || chart.metric === 'unit_price';
-  const actualType = type === 'pie' && noPie ? 'bar' : type;
+  const dates = chart.dimension
+    ? /^(daily|weekly|monthly)_/.test(chart.dimension)
+    : chart.data.length > 0 && chart.data.every(d => /^\d{4}-\d{2}-\d{2}$/.test(d.name));
+  const [byDate, setByDate] = useState(false);
+  const rows = chart.data.map((point, index) => ({ ...point, index })).filter(d => d.value !== 0);
+  const defaultType = dates
+    ? chart.data.length >= 7 && rows.length * 2 >= chart.data.length
+      ? 'line'
+      : 'bar'
+    : chart.type;
+  const preferred = type ?? defaultType;
+  rows.sort((a, b) => (dates && byDate ? a.name.localeCompare(b.name) : b.value - a.value));
+  const actualType = preferred === 'pie' && noPie ? 'bar' : preferred;
   const tip = (
     <Tooltip
       contentStyle={{
@@ -267,10 +279,15 @@ export function FinanceChart({
               )}
             </ResponsiveContainer>
           </div>
+          {dates && rows.length > 0 && (
+            <Button aria-pressed={byDate} onClick={() => setByDate(v => !v)}>
+              {t('按日期')}
+            </Button>
+          )}
           <div role="group" aria-label={t('图例')} className={s.chartDataLegend}>
-            {chart.data.map((d, i) => (
+            {(dates && !byDate ? rows.slice(0, 10) : rows).map(d => (
               <Button type="button" key={d.name} disabled={!canDrill} onClick={() => select(d)}>
-                <i style={{ background: color(i) }} />
+                <i style={{ background: color(d.index) }} />
                 <span>{d.name || t('未填写')}</span>
                 <strong>{format(d.value)}</strong>
                 {actualType === 'pie' && total > 0 && <small>{((d.value / total) * 100).toFixed(1)}%</small>}

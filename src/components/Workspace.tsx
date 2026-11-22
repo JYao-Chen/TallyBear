@@ -62,6 +62,7 @@ import { Greeting } from '@/features/home/Greeting';
 import { CaptureCard } from '@/features/home/CaptureCard';
 import { MonthCard } from '@/features/home/MonthCard';
 import homeStyles from '@/features/home/home.module.css';
+import pageStyles from './Workspace.module.css';
 import shellStyles from '@/features/shell/shell.module.css';
 import {
   ArrowLeftRight,
@@ -1056,7 +1057,10 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                         )}{' '}
                         {page === 'entry' && <Bear name="overalls" size={52} />}{' '}
                         {canWrite && page !== 'entry' && (
-                          <button onClick={() => switchPage('entry')}>
+                          <button
+                            className={pageStyles.headerEntry}
+                            onClick={() => router.push(pathForPage('entry'), { scroll: false })}
+                          >
                             <Plus size={17} />
                             {tr('记一笔')}
                           </button>
