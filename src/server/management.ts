@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { db, transaction, lockBook } from './db';
-import { Failure, type User, passwordHash } from './auth';
+import { Failure, type User, newPassword, passwordHash } from './auth';
 import stickers from '@/lib/stickers.json';
 const name = z.string().trim().min(1).max(80);
 export const avatar = z
@@ -28,7 +28,7 @@ export async function manageUser(u: User, body: unknown) {
       name,
       avatar,
       disabled: z.boolean(),
-      password: z.string().min(1).max(200).optional(),
+      password: newPassword.optional(),
     })
     .parse(body);
   if (b.id === u.id && b.disabled) throw new Failure('不能停用自己的账号');

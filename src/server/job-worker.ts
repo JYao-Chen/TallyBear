@@ -13,6 +13,13 @@ import { chatVisibleText, hasChatResult } from '@/lib/chat-visible-text';
 import { runFinanceAgent } from './finance-agent';
 import { withModelScope } from './ai';
 
+export async function cleanupExpiredSessions() {
+  await transaction(async c => {
+    await c.query('DELETE FROM sessions WHERE expires_at<now()');
+    await c.query("DELETE FROM login_attempts WHERE window_start<now()-interval '1 day'");
+  });
+}
+
 export async function executeJob(job: any) {
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15 * 60 * 1000)]);
@@ -81,6 +88,7 @@ export async function executeJob(job: any) {
               e.event,
               JSON.stringify(e.data),
             ]);
+          await c.query("SELECT pg_notify('ai_job_events', $1)", [job.id]);
           await c.query('UPDATE ai_jobs SET stage=$1 WHERE id=$2', [stage, job.id]);
           if (job.kind === 'chat' && Date.now() - lastSnapshot >= 750) {
             lastSnapshot = Date.now();
@@ -247,6 +255,7 @@ export async function startWorker() {
       "UPDATE ai_jobs SET status=CASE WHEN kind IN ('assistant','memory') THEN 'queued' ELSE 'error' END,stage='后台服务中断，已保留进度',error='后台服务中断，可重试',finished_at=CASE WHEN kind IN ('assistant','memory') THEN NULL ELSE now() END WHERE status='running'",
     );
   });
+  let nextSessionCleanup = 0;
   let nextReceiptCleanup = 0;
   let stopping = false;
   const active = new Set<Promise<void>>();
@@ -259,6 +268,14 @@ export async function startWorker() {
   console.log('AI queue worker ready');
   try {
     while (!stopping) {
+      if (Date.now() >= nextSessionCleanup) {
+        try {
+          await cleanupExpiredSessions();
+        } catch (e) {
+          console.error('Session cleanup failed:', e instanceof Error ? e.message : 'unknown');
+        }
+        nextSessionCleanup = Date.now() + 3600000;
+      }
       await dispatchMemory();
       if (Date.now() >= nextReceiptCleanup) {
         try {

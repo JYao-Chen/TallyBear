@@ -1,6 +1,13 @@
 import { db } from './db';
 import { deployment } from '@/lib/deployment';
-export async function checkDeploymentCurrency() {
+let checked: ReturnType<typeof verifyCurrency> | undefined;
+export function checkDeploymentCurrency() {
+  return (checked ??= verifyCurrency().catch(error => {
+    checked = undefined;
+    throw error;
+  }));
+}
+async function verifyCurrency() {
   const config = deployment();
   const row = (await db.query('SELECT currency FROM deployment_settings WHERE id=1')).rows[0];
   if (!row || row.currency !== config.currency)

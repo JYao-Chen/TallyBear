@@ -1,3 +1,4 @@
+import { jobNotifications } from './job-events';
 import { authorizeImages } from './receipts';
 import { randomUUID } from 'node:crypto';
 import { db } from './db';
@@ -37,6 +38,14 @@ export async function ownedJob(id: string, u: User) {
 export function watchJob(id: string, signal: AbortSignal) {
   const encoder = new TextEncoder();
   let closed = false;
+  let wake = () => {};
+  const unsubscribe = jobNotifications.subscribe(id.toLowerCase(), () => wake());
+  const disconnect = () => {
+    unsubscribe();
+    signal.removeEventListener('abort', disconnect);
+    wake();
+  };
+  signal.addEventListener('abort', disconnect);
   return new Response(
     new ReadableStream<Uint8Array>({
       async start(stream) {
@@ -49,6 +58,9 @@ export function watchJob(id: string, signal: AbortSignal) {
           send('task', { id });
           send('status', '已加入后台队列');
           while (!closed && !signal.aborted) {
+            const notified = new Promise<void>(resolve => {
+              wake = resolve;
+            });
             const rows = (
               await db.query(
                 'SELECT seq,event,data FROM ai_job_events WHERE job_id=$1 AND seq>$2 ORDER BY seq',
@@ -71,11 +83,16 @@ export function watchJob(id: string, signal: AbortSignal) {
               else send('error', j.error || '任务已取消');
               break;
             }
-            await new Promise(r => setTimeout(r, 50));
+            if (!closed && !signal.aborted) {
+              const timer = setTimeout(wake, 2000);
+              await notified;
+              clearTimeout(timer);
+            }
           }
         } catch {
           send('error', '进度连接中断，请到后台任务查看结果');
         } finally {
+          disconnect();
           if (!closed) {
             closed = true;
             stream.close();
@@ -83,6 +100,7 @@ export function watchJob(id: string, signal: AbortSignal) {
         }
       },
       cancel() {
+        disconnect();
         closed = true;
       },
     }),

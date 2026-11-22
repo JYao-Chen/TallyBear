@@ -55,7 +55,17 @@ import { randomUUID } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { db, transaction } from '@/server/db';
-import { user, member, session, passwordHash, verifyPassword, Failure } from '@/server/auth';
+import {
+  user,
+  member,
+  session,
+  sessionDigest,
+  authenticate,
+  newPassword,
+  passwordHash,
+  verifyPassword,
+  Failure,
+} from '@/server/auth';
 import { entry } from '@/server/model';
 import { schedules } from '@/server/schedules';
 import { attachWalletBalances } from './wallet-history';
@@ -106,16 +116,7 @@ export async function applicationApi(req: NextRequest, ctx: Ctx, actor?: User) {
     }
     if (path[0] === 'login' && method === 'POST') {
       const input = z.object({ username: name, password: z.string().min(1).max(200) }).parse(body);
-      const rate = await db.query(
-        "INSERT INTO login_attempts(username,count) VALUES($1,1) ON CONFLICT(username) DO UPDATE SET count=CASE WHEN login_attempts.window_start<now()-interval '15 minutes' THEN 1 ELSE login_attempts.count+1 END,window_start=CASE WHEN login_attempts.window_start<now()-interval '15 minutes' THEN now() ELSE login_attempts.window_start END RETURNING count",
-        [input.username],
-      );
-      if (rate.rows[0].count > 15) throw new Failure('登录尝试过多，请15分钟后再试', 429);
-      const { rows } = await db.query('SELECT * FROM users WHERE username=$1', [input.username]);
-      if (!rows[0] || rows[0].disabled || !verifyPassword(input.password, rows[0].password))
-        throw new Failure('账号或密码不正确', 401);
-      await db.query('DELETE FROM login_attempts WHERE username=$1', [input.username]);
-      await session(rows[0].id);
+      await session(await authenticate(input.username, input.password, req.headers));
       return NextResponse.json({ ok: true });
     }
     const u = actor ?? (await user());
@@ -243,18 +244,18 @@ export async function applicationApi(req: NextRequest, ctx: Ctx, actor?: User) {
     }
     if (path[0] === 'logout' && method === 'POST') {
       const jar = await cookies();
-      await db.query('DELETE FROM sessions WHERE id=$1', [jar.get('bubu_session')?.value]);
+      await db.query('DELETE FROM sessions WHERE id=$1', [sessionDigest(jar.get('bubu_session')?.value)]);
       jar.delete('bubu_session');
       return NextResponse.json({ ok: true });
     }
     if (path[0] === 'password' && method === 'PUT') {
-      const b = z.object({ oldPassword: z.string(), newPassword: z.string().min(1).max(200) }).parse(body);
+      const b = z.object({ oldPassword: z.string(), newPassword }).parse(body);
       const row = (await db.query('SELECT password FROM users WHERE id=$1', [u.id])).rows[0];
       if (!verifyPassword(b.oldPassword, row.password)) throw new Failure('当前密码不正确', 403);
       const token = (await cookies()).get('bubu_session')?.value;
       await transaction(async c => {
         await c.query('UPDATE users SET password=$1 WHERE id=$2', [passwordHash(b.newPassword), u.id]);
-        await c.query('DELETE FROM sessions WHERE user_id=$1 AND id<>$2', [u.id, token]);
+        await c.query('DELETE FROM sessions WHERE user_id=$1 AND id<>$2', [u.id, sessionDigest(token)]);
       });
       return NextResponse.json({ ok: true });
     }
@@ -271,7 +272,7 @@ export async function applicationApi(req: NextRequest, ctx: Ctx, actor?: User) {
           .object({
             username: name,
             name,
-            password: z.string().min(1).max(200),
+            password: newPassword,
             avatar: avatar.default('🧸'),
           })
           .parse(body);

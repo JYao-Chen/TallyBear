@@ -334,7 +334,8 @@ export function ProfilePage({
                 <input
                   name="newPassword"
                   type="password"
-                  minLength={1}
+                  minLength={8}
+                  placeholder={tr('密码至少 8 位')}
                   autoComplete="new-password"
                   required
                 />
@@ -464,7 +465,8 @@ export function UsersPage() {
               <input
                 name="password"
                 type="password"
-                minLength={1}
+                minLength={8}
+                placeholder={tr('密码至少 8 位')}
                 autoComplete="new-password"
                 required={!selected}
               />
