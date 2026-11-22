@@ -118,4 +118,4 @@ Existing database roles/names and browser storage keys may retain legacy interna
 
 The ownership migration in `scripts/schema.sql` removes account/book coupling. Back up the database before upgrading. Personal balances are private; family members manage family assets. Existing explicitly linked wallets consolidate into one asset. Unlinked accounts with matching names remain separate. Books classify transactions; moving or reusing an entry preserves its payment account. Old releases require their matching pre-migration database.
 
-Use `scripts/asset-ownership-smoke.ts` against an isolated database initialized with the current schema to check ownership, permissions, reuse, moves, reports and balance reconciliation.
+Use `tests/smoke/asset-ownership-smoke.ts` against an isolated database initialized with the current schema to check ownership, permissions, reuse, moves, reports and balance reconciliation.

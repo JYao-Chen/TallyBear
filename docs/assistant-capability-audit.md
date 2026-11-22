@@ -24,6 +24,6 @@
 
 ## 验证
 
-`tests/chat-context.test.ts` 覆盖范围恢复、撤权、历史金额及真实记录 ID；`tests/finance-agent.test.ts` 覆盖工具循环与确认边界；`scripts/chat-search-smoke.ts` 仅允许隔离测试库，覆盖单本未命中、跨本恢复、ID 与金额查询及无权账本排除。
+`tests/chat-context.test.ts` 覆盖范围恢复、撤权、历史金额及真实记录 ID；`tests/finance-agent.test.ts` 覆盖工具循环与确认边界；`tests/smoke/chat-search-smoke.ts` 仅允许隔离测试库，覆盖单本未命中、跨本恢复、ID 与金额查询及无权账本排除。
 
-`tests/assistant-operations.test.ts` 检查目录权限、固定参数、只读边界和金额展示。`scripts/assistant-operations-smoke.ts` 在隔离数据库实际验证确认、取消、重复确认、回滚、过期版本、钱包校正/归档/恢复、活动生命周期、家庭邀请、分类和成员权限。`scripts/assistant-operations-browser.mjs` 验证 1440/390/360px 无横向溢出、点击确认只创建一个钱包及专用页面跳转。未逐项使用真实模型验收所有自然语言表达，不把业务链路测试等同于模型准确率保证。
+`tests/assistant-operations.test.ts` 检查目录权限、固定参数、只读边界和金额展示。`tests/smoke/assistant-operations-smoke.ts` 在隔离数据库实际验证确认、取消、重复确认、回滚、过期版本、钱包校正/归档/恢复、活动生命周期、家庭邀请、分类和成员权限。`tests/browser/assistant-operations-browser.mjs` 验证 1440/390/360px 无横向溢出、点击确认只创建一个钱包及专用页面跳转。未逐项使用真实模型验收所有自然语言表达，不把业务链路测试等同于模型准确率保证。

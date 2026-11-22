@@ -20,8 +20,11 @@ Before submitting:
 npm run typecheck
 npm test
 TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:smoke
 npm run build
 ```
+
+The smoke runner recreates the specified database before each database smoke and reports each opt-in skip. See the [smoke inventory](tests/smoke/README.md) and [browser prerequisites](tests/browser/README.md).
 
 Add focused tests for affected behavior. For UI changes, include desktop and mobile screenshots using synthetic data. Update English and Chinese README content together when behavior changes, and update `docs/user-guide.md`, deployment notes or `OPERATIONS.md` when the user workflow, schema or release procedure changes. Translation keys live in `src/lib/locales/en.json`.
 

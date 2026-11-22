@@ -192,8 +192,11 @@ npm test
 npm run typecheck
 # Database tests recreate a local *_test database:
 TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:smoke
 npm run build
 ```
+
+The smoke runner recreates the specified database before each database smoke and reports each opt-in skip. See the [smoke inventory](tests/smoke/README.md) and [browser prerequisites](tests/browser/README.md).
 
 Schema changes go in a new numbered file under `migrations/`; `npm run db:migrate` applies pending ones. Never edit a migration that has been released.
 

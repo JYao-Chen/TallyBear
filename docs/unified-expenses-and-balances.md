@@ -39,7 +39,7 @@ Only wallets owned by the requesting user or available through their family memb
 
 ## Verification and handoff evidence
 
-The existing verification entry points are `scripts/unified-report-smoke.ts` and `scripts/unified-report-browser.mjs`. The smoke script exercises report and balance behavior; the browser script exercises the rendered flow. This documentation-only handoff does not claim a new run of either script.
+The existing verification entry points are `tests/smoke/unified-report-smoke.ts` and `tests/browser/unified-report-browser.mjs`. The smoke script exercises report and balance behavior; the browser script exercises the rendered flow. This documentation-only handoff does not claim a new run of either script.
 
 The supplied finish-review screenshots are stored at `/home/yao/artifacts/tallybear/unified-report-20260927/`:
 

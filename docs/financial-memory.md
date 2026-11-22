@@ -76,24 +76,24 @@ pgvector 必须安装在与当前 PostgreSQL **相同主版本**的运行环境�
 ```sh
 npm run typecheck
 npm test
-# DATABASE_URL 必须以 _memory_test 结尾
-npx tsx scripts/memory-smoke.ts
+# 冒烟使用 SMOKE_DATABASE_URL 指向已迁移的本机 *_test 库；浏览器脚本仍使用 DATABASE_URL 和原有库名限制
+npx tsx tests/smoke/memory-smoke.ts
 # 另需测试专用 ENCRYPTION_KEY；模拟模型服务，不调用真实厂商
-npx tsx scripts/memory-model-smoke.ts
+npx tsx tests/smoke/memory-model-smoke.ts
 # 需先启动测试服务器，设置 PLAYWRIGHT_MODULE、TEST_ORIGIN、TEST_ARTIFACT_DIR
-node scripts/memory-browser.mjs
+node tests/browser/memory-browser.mjs
 # 使用真实 DashScope API，合成数据，不读取生产账单；需测试 ENCRYPTION_KEY 与 TEST_ARTIFACT_DIR
-npx tsx scripts/memory-live-five.ts
+npx tsx tests/smoke/memory-live-five.ts
 # 需 LIVE_REPORT 指向上述 live-five.json，沿用浏览器环境变量
-node scripts/memory-fields-browser.mjs
+node tests/browser/memory-fields-browser.mjs
 # 验证页内管理、变更记录分页、撤销刷新和手机布局
-node scripts/memory-layout-browser.mjs
+node tests/browser/memory-layout-browser.mjs
 npm run build
 ```
 
 已在 PostgreSQL 16.14、pgvector 0.8.2 的隔离数据库检查来源学习、权限隔离、拒绝关联、遗忘、账务不变、共享退出、合并／拆分保持、助手准备不写入、索引切换与降级。备份恢复至第二个隔离数据库后，交易金额／数量、记忆／来源／向量数量及扩展版本一致。浏览器覆盖记忆中心保存与 360／390／1280px 无横向溢出，不代表所有复杂草稿界面已完整回归。
 
-用户已将真实模型验收从 100 案例改为 5 案例。`scripts/memory-live-five.ts` 固定覆盖：苹果云空间与 iCloud 同义召回、GPT Pro 不关联 Plus、同款新价格且字段撤回、多商品明细分别关联、偏好冲突与明确替代。种子账单通过真实后台属性提炼与向量生成，再走生产同一检索／判别函数。5/5 通过；第一次运行发现重复规格导致误拒绝，修复后保持相同案例重跑通过。样本是合成账目，使用真实 `qwen3.8-flash` 和 `text-embedding-v4` API，不是模拟模型，也不是生产数据上的总体准确率结论。
+用户已将真实模型验收从 100 案例改为 5 案例。`tests/smoke/memory-live-five.ts` 固定覆盖：苹果云空间与 iCloud 同义召回、GPT Pro 不关联 Plus、同款新价格且字段撤回、多商品明细分别关联、偏好冲突与明确替代。种子账单通过真实后台属性提炼与向量生成，再走生产同一检索／判别函数。5/5 通过；第一次运行发现重复规格导致误拒绝，修复后保持相同案例重跑通过。样本是合成账目，使用真实 `qwen3.8-flash` 和 `text-embedding-v4` API，不是模拟模型，也不是生产数据上的总体准确率结论。
 
 ## 历史初始化与运行
 

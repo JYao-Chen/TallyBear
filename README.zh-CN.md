@@ -186,8 +186,11 @@ npm test
 npm run typecheck
 # 数据库测试会重建本机 *_test 库：
 TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:smoke
 npm run build
 ```
+
+冒烟入口在每个数据库脚本前重建指定测试库，串行执行并打印每个跳过原因。详见[冒烟清单](tests/smoke/README.md)和[浏览器运行条件](tests/browser/README.md)。
 
 表结构变更写成 `migrations/` 下新的编号文件，`npm run db:migrate` 执行未应用的迁移。已发布的迁移不再修改。
 

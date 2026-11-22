@@ -11,4 +11,4 @@ No database schema change is required. The feature does not infer which bank car
 Verification:
 
 - `MOVEMENT_TEST_DATABASE_URL=postgres://.../movement_test node --import tsx --test tests/movement-source-db.test.ts` uses a disposable local database and rolls back synthetic records. It covers pending/confirmed balances, recipient credit, wallet history, preserved record fields/annotations/settlement links, sender-only access, active wallet access, stale-source conflicts and cancelled/same-wallet rejection.
-- `scripts/movement-source-browser.mjs` uses the real component with synthetic API responses at desktop and mobile widths. It checks selection, the correction payload, confirmation, refresh/close callbacks, conflict feedback and visibility for sender/recipient/cancelled/pending states.
+- `tests/browser/movement-source-browser.mjs` uses the real component with synthetic API responses at desktop and mobile widths. It checks selection, the correction payload, confirmation, refresh/close callbacks, conflict feedback and visibility for sender/recipient/cancelled/pending states.

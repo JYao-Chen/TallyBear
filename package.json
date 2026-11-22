@@ -9,6 +9,7 @@
     "start": "next start -p 3016",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "test:smoke": "node scripts/test-smoke.mjs",
     "test:db": "node scripts/test-db.mjs",
     "db:init": "node scripts/init.mjs",
     "db:migrate": "node scripts/migrate.mjs",

@@ -564,11 +564,11 @@ try {
       await migrate(c);
       await c.end();
       console.log(
-        execFileSync(resolve(root, 'node_modules/.bin/tsx'), ['scripts/unified-report-smoke.ts'], {
+        execFileSync(resolve(root, 'node_modules/.bin/tsx'), ['tests/smoke/unified-report-smoke.ts'], {
           cwd: root,
           env: {
             ...process.env,
-            DATABASE_URL: costURL,
+            SMOKE_DATABASE_URL: costURL,
             APP_LANGUAGE: lang,
             APP_CURRENCY: lang === 'en' ? 'USD' : 'CNY',
           },

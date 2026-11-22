@@ -31,10 +31,10 @@
 ## 验证范围
 
 - `tests/personal-profile.test.ts` 与偏好单测覆盖多场景、去重、衰减、变化和冲突。
-- `scripts/profile-smoke.ts` 在隔离数据库验证规则持久化、权限、坐标过滤、关闭学习、清除位置和账务不变。
-- `scripts/preference-smoke.ts` 验证识图及助手建议、付款证据、遗忘、权限撤回和模型失败回退。
-- `scripts/profile-browser.mjs` 使用真实页面组件与模拟接口，覆盖中英文 390／1440px 截图、规则保存和停用、商品页面及学习开关。
-- `scripts/profile-location-browser.mjs` 验证显式定位点击、拒绝权限后的手动选择、粗粒度处理和消费区域确认。
+- `tests/smoke/profile-smoke.ts` 在隔离数据库验证规则持久化、权限、坐标过滤、关闭学习、清除位置和账务不变。
+- `tests/smoke/preference-smoke.ts` 验证识图及助手建议、付款证据、遗忘、权限撤回和模型失败回退。
+- `tests/browser/profile-browser.mjs` 使用真实页面组件与模拟接口，覆盖中英文 390／1440px 截图、规则保存和停用、商品页面及学习开关。
+- `tests/browser/profile-location-browser.mjs` 验证显式定位点击、拒绝权限后的手动选择、粗粒度处理和消费区域确认。
 
 截图存于 `/home/yao/artifacts/tallybear/profile-20261001`。浏览器测试不是生产全应用验收；定位回调为模拟，未在真实手机 GPS 上验证。本轮未调用真实模型评估偏好准确率。
 

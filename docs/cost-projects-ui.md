@@ -45,4 +45,4 @@ Browser verification used synthetic data at 1440 × 1000 and 390 × 844: sending
 
 归属确认的成员金额采用对齐列表；编辑表单桌面双列、手机单列，统一字段间距、分区标题、提示和操作区。费用项目列表、月度承担及成员结算共用同一套局部样式，不影响其他功能页面或账务规则。
 
-验证入口：`scripts/cost-schedules-browser.mjs` 覆盖周期列表、编辑、接受归属、付款与历史；`scripts/cost-settlement-browser.mjs` 覆盖成员转款、收款及无钱包状态。均在隔离测试数据库验证电脑与手机布局、横向溢出及实际按钮交互。
+验证入口：`tests/browser/cost-schedules-browser.mjs` 覆盖周期列表、编辑、接受归属、付款与历史；`tests/browser/cost-settlement-browser.mjs` 覆盖成员转款、收款及无钱包状态。均在隔离测试数据库验证电脑与手机布局、横向溢出及实际按钮交互。

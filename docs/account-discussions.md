@@ -48,7 +48,7 @@ DATABASE_URL=postgres://USER:PASSWORD@127.0.0.1:PORT/discussions_test \
 DISCUSSION_TEST_ORIGIN=http://127.0.0.1:3126 \
 TEST_ARTIFACT_DIR=/absolute/path/to/screenshots \
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs \
-  node --import tsx scripts/discussions-browser.ts
+  node --import tsx tests/browser/discussions-browser.ts
 ```
 
 Browser checks cover home messages, quoted transfer replies, private-note preservation, shared-book viewer replies, source navigation, projects, separate plan/cycle discussions and desktop/mobile layouts. Test accounts use non-login passwords; sessions are created only in the disposable database.

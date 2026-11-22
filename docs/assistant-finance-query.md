@@ -28,4 +28,4 @@ All financial tool totals and item row monetary fields use integer minor units o
 
 ## Verification
 
-Unit tests cover retained filters, exact group drilldown, interval clipping, weekly grouping and date/amount validation. `scripts/finance-query-smoke.ts` requires the isolated `tallybear_query_test` database and exercises five groups: filtered chart consistency/deduplication, weighted prices/unknowns, merchandise-only subtotals, personal scope/income and pagination/reference handling. It creates synthetic records only and must not be run against production.
+Unit tests cover retained filters, exact group drilldown, interval clipping, weekly grouping and date/amount validation. `tests/smoke/finance-query-smoke.ts` requires a migrated local `*_test` database via `SMOKE_DATABASE_URL` and exercises five groups: filtered chart consistency/deduplication, weighted prices/unknowns, merchandise-only subtotals, personal scope/income and pagination/reference handling. It creates synthetic records only and must not be run against production.

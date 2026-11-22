@@ -47,14 +47,14 @@ Example: a plan beginning 2026-10-15 with three-month cycles and monthly shares 
 ## Verification
 
 - `npx tsx --test tests/cost-attribution.test.ts`: amount conservation, individual shares, expected offsets, daily and custom ranges, large integers and partial-range consistency.
-- `DATABASE_URL=<isolated *_cost_test database> npx tsx scripts/cost-projects-smoke.ts`: real PostgreSQL integration including private ledgers, consent, over-allocation rejection, partial salary linking, member privacy, source changes and wallet invariance.
-- `scripts/cost-projects-browser.mjs`: isolated local app, desktop 1440×1000 and mobile 390×844, project details, editor and populated analysis views; no horizontal overflow and no app errors in the captured run.
+- `SMOKE_DATABASE_URL=<isolated local *_test database> npx tsx tests/smoke/cost-projects-smoke.ts`: real PostgreSQL integration including private ledgers, consent, over-allocation rejection, partial salary linking, member privacy, source changes and wallet invariance.
+- `tests/browser/cost-projects-browser.mjs`: isolated local app, desktop 1440×1000 and mobile 390×844, project details, editor and populated analysis views; no horizontal overflow and no app errors in the captured run.
 - TypeScript, the existing unit suite and production compilation were exercised. UI review disposition was `ship` for this narrow extension; physical-device behavior and live AI behavior are not claimed by that review.
-- `tests/cost-schedule.test.ts` and `scripts/cost-schedules-smoke.ts` cover calendar attribution, month-end anchors, advance-only-on-confirmation, consent, distinct private ledgers, duplicate/concurrent requests, existing payment reuse, pause, future dates and revoked family access. `scripts/cost-schedules-browser.mjs` captures desktop/mobile plan, editor, acceptance, payment and history views against the isolated database.
+- `tests/cost-schedule.test.ts` and `tests/smoke/cost-schedules-smoke.ts` cover calendar attribution, month-end anchors, advance-only-on-confirmation, consent, distinct private ledgers, duplicate/concurrent requests, existing payment reuse, pause, future dates and revoked family access. `tests/browser/cost-schedules-browser.mjs` captures desktop/mobile plan, editor, acceptance, payment and history views against the isolated database.
 
 See `cost-projects-ui.md` for the observed interface structure and `expense-attribution-design.zh-CN.md` for the broader design.
 
-`scripts/cost-settlement-smoke.ts` verifies duplicate requests, receipt permissions, wallet ownership, cancellation, confirmation through the existing family workflow, and unchanged 2,900/1,400 cost shares after a 4,300 payment. `scripts/cost-settlement-browser.mjs` exercises sender and recipient forms at desktop and mobile sizes against synthetic data.
+`tests/smoke/cost-settlement-smoke.ts` verifies duplicate requests, receipt permissions, wallet ownership, cancellation, confirmation through the existing family workflow, and unchanged 2,900/1,400 cost shares after a 4,300 payment. `tests/browser/cost-settlement-browser.mjs` exercises sender and recipient forms at desktop and mobile sizes against synthetic data.
 
 ### Early received member shares in analysis
 
