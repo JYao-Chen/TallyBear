@@ -1,0 +1,12 @@
+node_modules
+.next
+public
+migrations
+scripts/legacy-schema
+package-lock.json
+*.md
+*.json
+*.css
+*.sql
+*.yaml
+.impeccable

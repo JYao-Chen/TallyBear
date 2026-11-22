@@ -13,7 +13,10 @@
     "db:init": "node scripts/init.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "worker": "tsx scripts/worker.ts",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@langchain/core": "^1.2.11",
@@ -31,14 +34,20 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^22.10.2",
     "@types/papaparse": "^5.3.16",
     "@types/pg": "^8.15.5",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
     "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.10.1",
     "tsx": "^4.20.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.73.0"
   },
   "license": "MIT",
   "description": "AI-powered personal and family finance: receipts, reconciliation and conversational insights."
