@@ -309,7 +309,7 @@ export function LineItemsEditor({
             ]}
           />
         </label>
-        <label className={styles.name}>
+        <label className={lineItemKind(i) === 'item' ? styles.name : `${styles.name} ${styles.nameWide}`}>
           {lineItemKind(i) === 'discount'
             ? tr('优惠 / 抹零名称')
             : i.kind === 'fee'
@@ -416,7 +416,7 @@ export function LineItemsEditor({
             onClick={() => setRemoving(i)}
           >
             <Trash2 size={16} aria-hidden="true" />
-            {tr('删除明细')}
+            <span className={styles.deleteText}>{tr('删除明细')}</span>
           </Button>
         </div>
       </div>

@@ -30,6 +30,17 @@
 .region {
   border-top: 1px solid var(--line);
   padding-block: var(--space-3);
+  container-type: inline-size;
+}
+.region > h4 {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+}
+.region > h4 .muted {
+  display: inline;
 }
 .settlement > div,
 .summaryRow,
@@ -86,6 +97,8 @@
   grid-template-columns: repeat(auto-fit, minmax(min(125px, 100%), 1fr));
   padding: var(--space-3);
   background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+  margin-bottom: var(--space-2);
 }
 .edit label,
 .edit input,
@@ -147,4 +160,30 @@
 .itemHead:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* 宽容器：一件商品一行，类型 | 名称 | 数量 | 单价 | 小计 | 删除 */
+@container (min-width: 640px) {
+  .edit {
+    grid-template-columns: minmax(8rem, 10rem) minmax(10rem, 1fr) repeat(3, minmax(5.5rem, 7rem)) auto;
+    align-items: end;
+  }
+  .edit > .name {
+    grid-column: auto;
+  }
+  .edit > .nameWide {
+    grid-column: span 3;
+  }
+  .edit > .actions {
+    grid-column: -2;
+    grid-row: 1;
+  }
+  .deleteText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
