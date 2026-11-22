@@ -51,6 +51,7 @@ export type LedgerRow = {
   version: number;
 };
 export type LedgerReport = {
+  familyContribution?: number;
   excludedCosts?: string[];
   basis?: string;
   rows: LedgerRow[];

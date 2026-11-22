@@ -14,6 +14,7 @@ export type FundEvent = {
   targetName: string;
   note: string;
   origin: 'transaction' | 'family' | 'adjustment';
+  contribution?: boolean;
   bookId?: string;
   reference?: string;
   costTitle?: string;
@@ -79,6 +80,7 @@ export function summarizeWalletFunds(
     refund: 0,
     transferIn: 0,
     transferOut: 0,
+    contribution: 0,
     internalTransfer: 0,
     adjustment: 0,
     inflow: 0,
@@ -141,7 +143,8 @@ export function summarizeWalletFunds(
     if (e.kind === 'transfer') {
       if (internal) summary.internalTransfer += e.amount;
       summary.transferIn += inflow;
-      summary.transferOut += outflow;
+      if (e.contribution && !internal) summary.contribution += outflow;
+      else summary.transferOut += outflow;
     } else if (e.kind === 'adjustment') {
       summary.adjustment += balanceDelta;
       summary.cashAdjustment += delta;

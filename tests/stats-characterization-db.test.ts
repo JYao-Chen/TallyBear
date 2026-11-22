@@ -15,7 +15,8 @@ test(
     assert.ok(url.pathname.endsWith('_test'));
     process.env.DATABASE_URL = url.toString();
     const { db, withConnection } = await import('../src/server/db');
-    const { report, personalExpenseReport, personalWalletReport } = await import('../src/server/reports');
+    const { familyOverview, report, personalExpenseReport, personalWalletReport } =
+      await import('../src/server/reports');
     const { accountReport } = await import('../src/server/accounts');
     const { activityReport } = await import('../src/server/activities');
     const c = await db.connect();
@@ -58,16 +59,28 @@ test(
             ].map(k => [k, r.funds.summary[k]]),
           ),
         });
+        const personal = await personalExpenseReport(f.me, q());
+        const family = await familyOverview(f.me, q({ familyId: f.family }));
+        const myAssets = await accountReport(f.me, new URLSearchParams({ ...month, owner: 'personal' }));
         const actual = {
           A_myBook: totals(await report([f.myBook], q(), f.me)),
           A_myBook_cashflow: totals(await report([f.myBook], q({ basis: 'cashflow' }), f.me)),
           A_shared: totals(await report([f.shared], q(), f.me)),
           A_allMyBooks: totals(await report([f.myBook, f.shared], q(), f.me)),
-          B_myExpense: totals(await personalExpenseReport(f.me, q())),
+          B_myExpense: { ...totals(personal), familyContribution: personal.familyContribution },
           B_partnerExpense: totals(await personalExpenseReport(f.partner, q())),
           C_myWallets: totals(await personalWalletReport(f.me, q())),
-          D_myAssets: assets(await accountReport(f.me, new URLSearchParams({ ...month, owner: 'personal' }))),
+          D_myAssets: {
+            ...assets(myAssets),
+            funds: { ...assets(myAssets).funds, contribution: myAssets.funds.summary.contribution },
+          },
           D_family: assets(await accountReport(f.me, new URLSearchParams({ ...month, owner: f.family }))),
+          G_familyOverview: {
+            contributions: Object.fromEntries(family.contributions.map(c => [c.name, c.amount])),
+            commonExpense: family.commonExpense,
+            categories: family.categories,
+            closingBalance: family.closingBalance,
+          },
           F_activity: totals(await activityReport(f.me, f.activity, new URLSearchParams())),
         };
         if (process.env.PRINT_STATS) writeFileSync(process.env.PRINT_STATS, JSON.stringify(actual, null, 1));
@@ -108,6 +121,7 @@ const EXPECTED = {
   // B: my shared-book dinner counts fully as mine (no claim, P2-9).
   // P1-1: the 400 family-wallet bill belongs to nobody — neither B_myExpense nor B_partnerExpense has 居住.
   B_myExpense: {
+    familyContribution: 100000, // P1-1: separate from expenses.
     income: 800000,
     expense: 120000,
     refund: 5000,
@@ -135,7 +149,8 @@ const EXPECTED = {
       expense: 205000,
       refund: 0,
       transferIn: 0,
-      transferOut: 125000,
+      transferOut: 25000,
+      contribution: 100000, // P1-1: only the credit repayment remains in transfers out.
       internalTransfer: 25000,
       repayment: 25000,
       adjustment: 3000,
@@ -165,6 +180,13 @@ const EXPECTED = {
       outflow: 40000,
       balanceChange: 160000,
     },
+  },
+  // P1-1: both contribution forms fund the same common bill.
+  G_familyOverview: {
+    contributions: { 我: 100000, 伴侣: 100000 },
+    commonExpense: 40000,
+    categories: [{ name: '居住', amount: 40000 }],
+    closingBalance: 160000,
   },
   // F: whole purchase, no period spreading; the unlinked refund is not part of the activity (P2-6).
   F_activity: { income: 0, expense: 30000, refund: 0, categories: { 购物: 30000 } },

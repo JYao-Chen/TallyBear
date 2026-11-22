@@ -234,6 +234,11 @@ export function SpendingAnalysis(props: Props) {
                     </div>
                   ))}
                 </div>
+                {mode === 'personal_expense' && !loading && r?.familyContribution !== undefined && (
+                  <p>
+                    {text('另有家庭缴款', 'Additional family contributions')} {money(r.familyContribution)}
+                  </p>
+                )}
                 <p className="analysis-summary-note">
                   {text(
                     '净支出 = 消费与当期分摊 − 退款；转账不计消费。筛选同时作用于汇总、图表、明细和导出。',

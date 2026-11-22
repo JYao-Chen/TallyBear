@@ -262,7 +262,8 @@ export function WalletFundsPanel({
             </p>
             <p>
               {text('流出', 'Out')} = {text('消费支付', 'purchases')} {money(s.expense)} +{' '}
-              {text('转出', 'transfers out')} {money(s.transferOut)}
+              {text('转出', 'transfers out')} {money(s.transferOut)} +<br />
+              {text('家庭缴款', 'Family contributions')} {money(s.contribution)}
             </p>
           </div>
           <div className="funds-balance">
@@ -298,6 +299,7 @@ export function WalletFundsPanel({
                 data: [
                   { name: text('消费支付', 'Purchases'), value: s.expense / 100 },
                   { name: text('转账转出', 'Transfers out'), value: s.transferOut / 100 },
+                  { name: text('家庭缴款', 'Family contributions'), value: s.contribution / 100 },
                 ].filter(d => d.value > 0),
               }}
             />

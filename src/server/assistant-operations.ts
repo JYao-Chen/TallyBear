@@ -335,8 +335,8 @@ export const assistantOperations: Record<string, Operation> = {
     '校正钱包余额',
     'PATCH',
     'assets',
-    'id version balance expectedBalance note',
-    'balance为用户确认的实际余额，整数分；不是消费',
+    'id version balance expectedBalance note effectiveDate',
+    'balance为用户确认的实际余额，整数分。effectiveDate为可选生效日期，默认上海今天，不得晚于今天',
     { operation: 'reconcile' },
   ),
   wallet_merge: operation(

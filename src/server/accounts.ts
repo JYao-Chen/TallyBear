@@ -1,3 +1,4 @@
+import { recordingDate, validEntryDate } from '@/lib/entry-time';
 import { categoryAmounts } from '@/lib/item-categories';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -16,6 +17,11 @@ export const accountMetadata = {
     .regex(/^([0-9]{4})?$/, '尾号填写4位数字或留空')
     .optional(),
 };
+const effectiveDate = z
+  .string()
+  .refine(validEntryDate, '生效日期无效')
+  .refine(v => v <= recordingDate(), '生效日期不能晚于今天')
+  .default(recordingDate);
 const amount = z.number().int().min(-100000000000).max(100000000000);
 export const accountAccess = (userParam: string) =>
   `(a.owner_id=${userParam} OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=${userParam}))`;
@@ -106,7 +112,15 @@ export async function changeAccount(user: string, body: unknown) {
         archived: z.boolean(),
       }),
       z.object({
+        operation: z.literal('edit-adjustment'),
+        id: z.string().uuid(),
+        adjustmentId: z.string().uuid(),
+        version: z.number().int(),
+        effectiveDate,
+      }),
+      z.object({
         operation: z.literal('reconcile'),
+        effectiveDate,
         id: z.string().uuid(),
         version: z.number().int(),
         balance: amount,
@@ -155,6 +169,14 @@ export async function changeAccount(user: string, body: unknown) {
       );
     if (b.operation === 'archive')
       await c.query('UPDATE accounts SET archived=$1,version=version+1 WHERE id=$2', [b.archived, b.id]);
+    if (b.operation === 'edit-adjustment') {
+      const result = await c.query(
+        'UPDATE account_adjustments SET effective_date=$1 WHERE id=$2 AND account_id=$3',
+        [b.effectiveDate, b.adjustmentId, b.id],
+      );
+      if (!result.rowCount) throw new Failure('校准记录不存在', 404);
+      await c.query('UPDATE accounts SET version=version+1 WHERE id=$1', [b.id]);
+    }
     let difference = 0;
     if (b.operation === 'reconcile') {
       if (a.balance !== b.expectedBalance)
@@ -162,8 +184,8 @@ export async function changeAccount(user: string, body: unknown) {
       difference = b.balance - a.balance;
       if (difference) {
         await c.query(
-          'INSERT INTO account_adjustments(id,account_id,amount,note,created_by) VALUES($1,$2,$3,$4,$5)',
-          [randomUUID(), b.id, difference, b.note, user],
+          'INSERT INTO account_adjustments(id,account_id,amount,note,created_by,effective_date) VALUES($1,$2,$3,$4,$5,$6)',
+          [randomUUID(), b.id, difference, b.note, user, b.effectiveDate],
         );
         await c.query('UPDATE accounts SET version=version+1 WHERE id=$1', [b.id]);
       }
@@ -179,7 +201,7 @@ export async function accountHistory(user: string, id: string) {
       throw new Failure('没有此资产的管理权限', 403);
     return (
       await c.query(
-        'SELECT j.id,j.amount::float8 AS amount,j.note,j.created_at,u.name AS creator FROM account_adjustments j JOIN users u ON u.id=j.created_by WHERE j.account_id=$1 ORDER BY j.created_at DESC LIMIT 100',
+        'SELECT j.id,j.amount::float8 AS amount,j.note,j.created_at,j.effective_date::text,u.name AS creator FROM account_adjustments j JOIN users u ON u.id=j.created_by WHERE j.account_id=$1 ORDER BY j.effective_date DESC,j.created_at DESC LIMIT 100',
         [id],
       )
     ).rows;

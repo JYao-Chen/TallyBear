@@ -69,7 +69,13 @@ import {
 import { entry } from '@/server/model';
 import { schedules } from '@/server/schedules';
 import { attachWalletBalances } from './wallet-history';
-import { report, personalWalletReport, personalExpenseReport, exportCSV } from '@/server/reports';
+import {
+  familyOverview,
+  report,
+  personalWalletReport,
+  personalExpenseReport,
+  exportCSV,
+} from '@/server/reports';
 import { listCategories, changeCategory, checkCategory, checkItemCategories } from '@/server/categories';
 import { templates } from '@/server/templates';
 import { getDraft, saveDraft } from '@/server/drafts';
@@ -157,6 +163,8 @@ export async function applicationApi(req: NextRequest, ctx: Ctx, actor?: User) {
       return NextResponse.json(await familyInbox(u.id, req.nextUrl.searchParams));
     if (path[0] === 'book-movements' && method === 'GET')
       return NextResponse.json(await bookMovements(u.id, path[1], req.nextUrl.searchParams));
+    if (path[0] === 'family-finance' && path[1] === 'overview' && method === 'GET')
+      return NextResponse.json(await familyOverview(u.id, req.nextUrl.searchParams));
     if (path[0] === 'family-finance')
       return NextResponse.json(await familyFinance(u.id, path[1], method, body));
     if (path[0] === 'cost-projects')

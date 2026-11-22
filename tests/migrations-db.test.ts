@@ -11,7 +11,7 @@ const LEGACY = ['schema', 'memory-schema', 'profile-schema', 'discussions-schema
 async function shape(c: pg.Client) {
   const columns = (
     await c.query(
-      `SELECT table_name,column_name,data_type,udt_name,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' AND table_name<>'schema_migrations' ORDER BY 1,2`,
+      `SELECT table_name,column_name,data_type,udt_name,is_nullable,column_default FROM information_schema.columns JOIN information_schema.tables USING(table_schema,table_name) WHERE table_type='BASE TABLE' AND table_schema='public' AND table_name<>'schema_migrations' ORDER BY 1,2`,
     )
   ).rows;
   const indexes = (
@@ -66,7 +66,17 @@ test(
 
       for (const name of LEGACY)
         await legacy.query(await readFile('scripts/legacy-schema/' + name + '.sql', 'utf8'));
+      await legacy.query(`WITH u AS (
+        INSERT INTO users(id,username,name,password) VALUES(gen_random_uuid(),'test','测试','unused') RETURNING id
+      ), a AS (
+        INSERT INTO accounts(id,name,owner_id) SELECT gen_random_uuid(),'测试钱包',id FROM u RETURNING id,owner_id
+      ) INSERT INTO account_adjustments(id,account_id,created_by,amount,note,created_at)
+        SELECT gen_random_uuid(),id,owner_id,1,'回填','2026-11-24T16:01:00Z' FROM a`);
       await migrate(legacy);
+      assert.equal(
+        (await legacy.query('SELECT effective_date::text FROM account_adjustments')).rows[0].effective_date,
+        '2026-11-25',
+      );
       assert.equal(
         (await legacy.query("SELECT mode FROM schema_migrations WHERE version='0001'")).rows[0].mode,
         'legacy',

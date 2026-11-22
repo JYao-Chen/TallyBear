@@ -8,6 +8,9 @@ import { VisualSelect } from './VisualSelect';
 import { FamilyMovementDetails } from './FamilyMovementDetails';
 import type { ReactNode } from 'react';
 import { PagedList } from './PagedList';
+import type { familyOverview } from '@/server/reports';
+import { recordingDate } from '@/lib/entry-time';
+import { monthRange } from '@/lib/ledger-types';
 import { DateField } from './DateField';
 import { formatMoney } from '@/lib/deployment';
 import { amountToCents } from '@/server/model';
@@ -17,7 +20,7 @@ const kinds: Record<string, string> = {
   aa: 'AA 结算',
   loan: '借出款',
   repayment: '归还借款',
-  contribution: '共同钱包入金',
+  contribution: '家庭缴款',
 };
 export function FamilyFinance({
   family,
@@ -88,6 +91,24 @@ export function FamilyFinance({
       setBusy(false);
     }
   }
+  const [month, setMonth] = useState(() => recordingDate().slice(0, 7));
+  const [overview, setOverview] = useState<Awaited<ReturnType<typeof familyOverview>> | null>(null);
+  useEffect(() => {
+    setOverview(null);
+    if (view !== 'contributions' || !month) return;
+    const controller = new AbortController();
+    const params = new URLSearchParams({ familyId: family, ...monthRange(month) });
+    fetch('/api/family-finance/overview?' + params, { signal: controller.signal })
+      .then(async r => {
+        const value = await r.json();
+        if (!r.ok) throw Error(value.error);
+        if (!controller.signal.aborted) setOverview(value);
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [family, month, view, data]);
   if (!data) return <section className="panel">{error || tr('正在读取家庭资金往来…')}</section>;
   const wallets = data.wallets.map((a: any) => ({
     value: a.id,
@@ -98,9 +119,12 @@ export function FamilyFinance({
   const people = data.people
     .filter((p: any) => p.id !== userId)
     .map((p: any) => ({ value: p.id, label: p.name, icon: p.avatar }));
-  const contributions = data.movements.filter(
-    (m: any) => m.kind === 'contribution' && m.status === 'confirmed',
-  );
+  const contributionLabel = locale === 'en' ? 'Family contribution' : '家庭缴款';
+  const kindLabel = (value: string) => (value === 'contribution' ? contributionLabel : tr(kinds[value]));
+  const isContribution =
+    kind === 'transfer' &&
+    data.wallets.some((a: any) => a.id === source && a.owner_id === userId) &&
+    data.wallets.some((a: any) => a.id === target && a.family_id === family);
   const aa = data.expenses.filter((e: any) => e.shares);
   const editingPanel = !!(open || confirm || split || organize);
   const filtered = sortDetails<any>(
@@ -117,7 +141,7 @@ export function FamilyFinance({
           m.details?.note,
           m.details?.external_id ?? m.external_id,
           m.details?.platform ?? m.platform,
-          tr(kinds[m.kind]),
+          kindLabel(m.kind),
         ]
           .filter(Boolean)
           .join(' ')
@@ -142,7 +166,7 @@ export function FamilyFinance({
             id: selected.id,
             movement_family_id: family,
             amount: selected.amount,
-            title: selected.details?.title || tr(kinds[selected.kind]),
+            title: selected.details?.title || kindLabel(selected.kind),
             account_name: selected.source_name || selected.target_name || tr('对方钱包'),
           }}
           onClose={() => setSelected(null)}
@@ -186,7 +210,7 @@ export function FamilyFinance({
             {[
               ['records', tr('往来记录')],
               ['aa', tr('费用分担 / AA')],
-              ['contributions', tr('共同入金')],
+              ['contributions', locale === 'en' ? 'Family overview' : '家庭总览'],
             ].map(([key, label]) => (
               <button
                 type="button"
@@ -201,23 +225,47 @@ export function FamilyFinance({
           </nav>
           {view === 'contributions' && (
             <>
-              <p className="muted">{tr('仅汇总已确认转入家庭共同钱包的金额，不计作家庭消费。')}</p>
-              <div className="wallet-groups">
-                {data.people.map((p: any) => (
-                  <article key={p.id}>
-                    <small>
-                      {p.name} {tr(' · 共同入金')}
-                    </small>
-                    <strong>
-                      {formatMoney(
-                        contributions
-                          .filter((m: any) => m.sender_id === p.id)
-                          .reduce((n: number, m: any) => n + m.amount, 0),
-                      )}
-                    </strong>
-                  </article>
-                ))}
-              </div>
+              <label>
+                {tr('月份')}
+                <input type="month" value={month} onChange={e => setMonth(e.target.value)} />
+              </label>
+              {overview && (
+                <>
+                  <h3>{contributionLabel}</h3>
+                  <div className="wallet-groups">
+                    {overview.contributions.map(c => (
+                      <article key={c.id}>
+                        <small>{c.name}</small>
+                        <strong>{formatMoney(c.amount)}</strong>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="wallet-groups">
+                    {(
+                      [
+                        [locale === 'en' ? 'Common expenses' : '共同费用', overview.commonExpense],
+                        [
+                          locale === 'en' ? 'Claimed personal expenses' : '已认领个人费用',
+                          overview.claimedExpense,
+                        ],
+                        [locale === 'en' ? 'Opening balance' : '期初余额', overview.openingBalance],
+                        [locale === 'en' ? 'Closing balance' : '期末余额', overview.closingBalance],
+                        [locale === 'en' ? 'Period balance change' : '本期结余', overview.surplus],
+                      ] as const
+                    ).map(([label, value]) => (
+                      <article key={label}>
+                        <small>{tr(label)}</small>
+                        <strong>{formatMoney(value)}</strong>
+                      </article>
+                    ))}
+                  </div>
+                  {overview.categories.map(c => (
+                    <p key={c.name}>
+                      {c.name} · {formatMoney(c.amount)}
+                    </p>
+                  ))}
+                </>
+              )}
             </>
           )}
           {view === 'aa' && (
@@ -314,7 +362,7 @@ export function FamilyFinance({
                       <strong>
                         {m.details?.title && <span>{m.details.title} · </span>}
                         {m.kind === 'gift' ? <Gift size={16} /> : <ArrowLeftRight size={16} />}{' '}
-                        {m.sender_name} → {m.recipient_name || m.target_name} · {tr(kinds[m.kind])}
+                        {m.sender_name} → {m.recipient_name || m.target_name} · {kindLabel(m.kind)}
                       </strong>
                       <small>
                         {m.date} ·{' '}
@@ -441,7 +489,7 @@ export function FamilyFinance({
 
       {open && (
         <FamilyPanel
-          title={tr('记一笔家庭往来')}
+          title={isContribution || kind === 'contribution' ? contributionLabel : tr('记一笔家庭往来')}
           onClose={() => {
             if (!busy) setOpen(false);
           }}
@@ -455,7 +503,7 @@ export function FamilyFinance({
                   operation: 'create',
                   displayBookId: displayBook,
                   id: requestId,
-                  kind,
+                  kind: isContribution ? 'contribution' : kind,
                   sourceId: source,
                   ...(target ? { targetId: target } : { recipientId: recipient }),
                   amount: amountToCents(String(f.get('amount'))),
@@ -482,7 +530,7 @@ export function FamilyFinance({
                     setRecipient('');
                     setLink('');
                   }}
-                  options={Object.entries(kinds).map(([value, label]) => ({ value, label: tr(label) }))}
+                  options={Object.keys(kinds).map(value => ({ value, label: kindLabel(value) }))}
                 />
               </label>
               <label>

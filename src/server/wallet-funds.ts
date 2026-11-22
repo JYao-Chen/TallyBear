@@ -9,19 +9,19 @@ export async function walletFunds(
     names = new Map(accounts.map(a => [a.id, a.name]));
   const entries = (
     await db.query(
-      `WITH entries AS (SELECT DISTINCT ON(COALESCE(event_id,id)) * FROM transactions WHERE NOT deleted AND (account_id=ANY($1::uuid[]) OR target_id=ANY($1::uuid[])) ORDER BY COALESCE(event_id,id),created_at,id) SELECT id,book_id,account_id,target_id,kind,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date,created_at,occurred_at,title,payee,note,external_id,order_id FROM entries WHERE date<=$2::date`,
+      `WITH entries AS (SELECT DISTINCT ON(COALESCE(event_id,id)) * FROM transactions WHERE NOT deleted AND (account_id=ANY($1::uuid[]) OR target_id=ANY($1::uuid[])) ORDER BY COALESCE(event_id,id),created_at,id) SELECT EXISTS(SELECT 1 FROM family_contributions c WHERE c.origin='transaction' AND c.event_id=COALESCE(entries.event_id,entries.id)) AS contribution,id,book_id,account_id,target_id,kind,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date,created_at,occurred_at,title,payee,note,external_id,order_id FROM entries WHERE date<=$2::date`,
       [ids, to],
     )
   ).rows;
   const movements = (
     await db.query(
-      `SELECT v.id,v.source_id,v.target_id,v.kind,v.amount::float8 AS amount,to_char(v.date,'YYYY-MM-DD') AS date,v.created_at,v.note,v.external_id,c.rule->>'title' AS cost_title,s.name AS sender,r.name AS recipient FROM family_movements v JOIN users s ON s.id=v.sender_id LEFT JOIN users r ON r.id=v.recipient_id LEFT JOIN cost_schedule_settlements cs ON cs.movement_id=v.id LEFT JOIN cost_schedules c ON c.id=cs.schedule_id WHERE v.status='confirmed' AND (v.source_id=ANY($1::uuid[]) OR v.target_id=ANY($1::uuid[])) AND v.date<=$2::date`,
+      `SELECT EXISTS(SELECT 1 FROM family_contributions c WHERE c.origin='family' AND c.event_id=v.id) AS contribution,v.id,v.source_id,v.target_id,v.kind,v.amount::float8 AS amount,to_char(v.date,'YYYY-MM-DD') AS date,v.created_at,v.note,v.external_id,c.rule->>'title' AS cost_title,s.name AS sender,r.name AS recipient FROM family_movements v JOIN users s ON s.id=v.sender_id LEFT JOIN users r ON r.id=v.recipient_id LEFT JOIN cost_schedule_settlements cs ON cs.movement_id=v.id LEFT JOIN cost_schedules c ON c.id=cs.schedule_id WHERE v.status='confirmed' AND (v.source_id=ANY($1::uuid[]) OR v.target_id=ANY($1::uuid[])) AND v.date<=$2::date`,
       [ids, to],
     )
   ).rows;
   const adjustments = (
     await db.query(
-      `SELECT id,account_id,amount::float8 AS amount,to_char(created_at AT TIME ZONE 'Asia/Shanghai','YYYY-MM-DD') AS date,created_at,note FROM account_adjustments WHERE account_id=ANY($1::uuid[]) AND (created_at AT TIME ZONE 'Asia/Shanghai')::date<=$2::date`,
+      `SELECT id,account_id,amount::float8 AS amount,to_char(effective_date,'YYYY-MM-DD') AS date,created_at,note FROM account_adjustments WHERE account_id=ANY($1::uuid[]) AND effective_date<=$2::date`,
       [ids, to],
     )
   ).rows;
@@ -41,6 +41,7 @@ export async function walletFunds(
   );
   const events: FundEvent[] = entries.map(t => ({
     id: t.id,
+    contribution: t.contribution,
     bookId: t.book_id,
     date: t.date,
     createdAt: t.created_at,
@@ -63,6 +64,7 @@ export async function walletFunds(
       gift = m.kind === 'gift' && !both;
     events.push({
       id: m.id,
+      contribution: m.contribution,
       date: m.date,
       createdAt: m.created_at,
       kind: gift ? (outgoing ? 'expense' : 'income') : 'transfer',

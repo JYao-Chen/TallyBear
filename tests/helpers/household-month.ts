@@ -198,10 +198,15 @@ export async function householdMonth(c: PoolClient) {
     category: '交通',
     by: partner,
   });
-  // Balance correction entered on 11-25 (created_at is what the funds view dates it by).
+  // Balance correction entered on 11-25.
   await c.query(
-    "INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at) VALUES($1,$2,3000,'对账补差',$3,'2026-11-25T10:00:00+08:00')",
+    "INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at,effective_date) VALUES($1,$2,3000,'对账补差',$3,'2026-11-25T10:00:00+08:00','2026-11-25')",
     [id(), myBank, me],
+  );
+  // P2-7: a partner correction recorded in December belongs to November.
+  await c.query(
+    "INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at,effective_date) VALUES($1,$2,700,'补录',$3,'2026-12-02T10:00:00+08:00','2026-11-28')",
+    [id(), partnerBank, partner],
   );
   // Activity covering the credit-card purchase and its refund.
   await c.query("INSERT INTO activities(id,owner_id,name,category) VALUES($1,$2,'双十一','购物')", [

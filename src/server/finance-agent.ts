@@ -652,6 +652,7 @@ export async function executeFinanceTool(
         ? [
             { name: t('消费支付', 'Purchases'), value: s.expense },
             { name: t('转账转出', 'Transfers out'), value: s.transferOut },
+            { name: t('家庭缴款', 'Family contributions'), value: s.contribution },
           ]
         : p.dimension === 'inflows'
           ? [
@@ -1129,7 +1130,7 @@ export async function executeFinanceTool(
       .parse(args);
     return {
       scopeNote:
-        'Only the current user’s personal wallets are included across all books. Family and other members’ wallets are excluded. Current balances are not historical closing balances. funds.summary includes confirmed family transfers even without book projections. Consumption net expense is expense minus refunds and excludes ordinary transfers. Net wallet flow is income plus refunds plus transferIn minus expense minus transferOut; adjustments separately reconcile opening and closing book balances. Internal owned-wallet transfers cancel. Paginated funds.rows are not full totals. Do not chart consumption totals under cash-flow titles.',
+        'Only the current user’s personal wallets are included across all books. Family and other members’ wallets are excluded. Current balances are not historical closing balances. funds.summary.contribution is cash paid into family wallets and is separate from transferOut. funds.summary includes confirmed family transfers even without book projections. Consumption net expense is expense minus refunds and excludes ordinary transfers. Net wallet flow is income plus refunds plus transferIn minus expense minus transferOut minus contribution; adjustments separately reconcile opening and closing book balances. Internal owned-wallet transfers cancel. Paginated funds.rows are not full totals. Do not chart consumption totals under cash-flow titles.',
       data: await accountReport(
         ctx.user.id,
         new URLSearchParams({ ...p, sort: f.sort, q: f.query || '', flow: f.flow, offset: String(f.offset) }),

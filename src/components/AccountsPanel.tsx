@@ -1,4 +1,5 @@
 'use client';
+import { recordingDate } from '@/lib/entry-time';
 import { PagedList } from './PagedList';
 
 import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
@@ -48,7 +49,7 @@ export function AccountsPanel({
   month: string;
   onChanged: () => Promise<void>;
 }) {
-  const { t: tr } = useI18n();
+  const { t: tr, locale } = useI18n();
   const [loading, setLoading] = useState(true);
   const [allAccounts, setAccounts] = useState<Account[]>([]),
     [families, setFamilies] = useState<{ id: string; name: string }[]>([]),
@@ -92,7 +93,14 @@ export function AccountsPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [history, setHistory] = useState<
-      { id: string; amount: number; note: string; created_at: string; creator: string }[]
+      {
+        id: string;
+        amount: number;
+        note: string;
+        effective_date: string;
+        created_at: string;
+        creator: string;
+      }[]
     >([]),
     [showArchived, setShowArchived] = useState(false);
   const visible = accounts.filter(a => showArchived || !a.archived);
@@ -435,6 +443,7 @@ export function AccountsPanel({
                     expectedBalance: selected!.balance,
                     balance: signedCents(String(f.get('balance'))),
                     note: String(f.get('note')),
+                    effectiveDate: String(f.get('effectiveDate')),
                   });
                 } catch (e) {
                   setError((e as Error).message);
@@ -448,6 +457,16 @@ export function AccountsPanel({
               <label>
                 {tr('目前实际余额（元）')}
                 <input name="balance" inputMode="decimal" defaultValue={selected!.balance / 100} required />
+              </label>
+              <label>
+                {locale === 'en' ? 'Effective date' : '生效日期'}
+                <input
+                  type="date"
+                  name="effectiveDate"
+                  max={recordingDate()}
+                  defaultValue={recordingDate()}
+                  required
+                />
               </label>
               <label>
                 {tr('调整原因')}
@@ -526,6 +545,32 @@ export function AccountsPanel({
                           {yuan(h.amount)}
                         </strong>
                         <p>{h.note}</p>
+                        <form
+                          onSubmit={e => {
+                            e.preventDefault();
+                            submit({
+                              operation: 'edit-adjustment',
+                              id: selected.id,
+                              version: selected.version,
+                              adjustmentId: h.id,
+                              effectiveDate: new FormData(e.currentTarget).get('effectiveDate'),
+                            });
+                          }}
+                        >
+                          <label>
+                            {locale === 'en' ? 'Effective date' : '生效日期'}
+                            <input
+                              type="date"
+                              name="effectiveDate"
+                              defaultValue={h.effective_date}
+                              max={recordingDate()}
+                              required
+                            />
+                          </label>
+                          <button className="secondary" disabled={busy}>
+                            {locale === 'en' ? 'Save effective date' : '保存生效日期'}
+                          </button>
+                        </form>
                         <small>
                           {new Date(h.created_at).toLocaleString(getLocale())} · {h.creator}
                         </small>
