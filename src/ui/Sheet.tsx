@@ -1,6 +1,6 @@
 'use client';
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { IconButton } from './Button';
 import { useI18n } from '@/components/LanguageProvider';
 import s from './ui.module.css';
@@ -12,13 +12,15 @@ type Props = {
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  closeLabel?: string;
   /** Asked before closing via Esc/backdrop/close button, e.g. when a form has unsaved input. */
   confirmClose?: () => boolean;
 };
 
 /** Modal dialog; a bottom sheet on phones. Uses the native <dialog> for focus trapping and Esc. */
-export function Sheet({ open, onClose, title, children, footer, wide, confirmClose }: Props) {
+export function Sheet({ open, onClose, title, children, footer, wide, closeLabel, confirmClose }: Props) {
   const { t } = useI18n();
+  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -32,8 +34,10 @@ export function Sheet({ open, onClose, title, children, footer, wide, confirmClo
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       className={[s.sheet, wide && s.sheetWide].filter(Boolean).join(' ')}
       onCancel={e => {
+        e.stopPropagation();
         e.preventDefault();
         requestClose();
       }}
@@ -44,8 +48,8 @@ export function Sheet({ open, onClose, title, children, footer, wide, confirmClo
       {open && (
         <div className={s.sheetInner}>
           <header className={s.sheetHeader}>
-            <h2>{title}</h2>
-            <IconButton label={t('关闭')} onClick={requestClose}>
+            <h2 id={titleId}>{title}</h2>
+            <IconButton label={closeLabel ?? t('关闭')} onClick={requestClose}>
               <X size={20} />
             </IconButton>
           </header>

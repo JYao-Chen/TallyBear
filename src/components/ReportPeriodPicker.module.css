@@ -1,0 +1,16 @@
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+.picker > button {
+  min-height: var(--touch);
+}
+.dates {
+  display: grid;
+  gap: var(--space-4);
+}
+.summary {
+  color: var(--muted);
+}

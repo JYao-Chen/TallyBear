@@ -3,7 +3,7 @@ import { HomeTaskCenter } from './HomeTaskCenter';
 import { SectionTabs } from './SectionTabs';
 import { EntryDetailContext } from './EntryDetailContext';
 import { LedgerEntryDetail } from './LedgerEntryDetail';
-import { resolveEntryDetail } from '@/lib/entry-detail';
+import { copyEntryDraft, resolveEntryDetail } from '@/lib/entry-detail';
 import { ExpenseClaimsSent, ExpenseClaimsInbox, ExpenseClaimDetail } from './ExpenseClaims';
 import { ProfileLocation } from './ProfileLocation';
 import type { ProfileContext } from '@/lib/personal-profile';
@@ -102,7 +102,8 @@ import { Button, Segmented, TextArea } from '@/ui';
 import { QuickEntry } from './QuickEntry';
 import { ActivitiesPage } from './ActivitiesPage';
 import { invalidateActivityOptions, type Activity } from './ActivitySelect';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
+import detailStyles from './LedgerEntryDetail.module.css';
 import { appendDraftBatch } from '@/lib/draft-batch';
 import { askAssistant } from '@/lib/assistant-client';
 import { DraftReview, type Draft as Entry, type Original } from './DraftReview';
@@ -759,6 +760,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
           )}
           {openingDetail && (
             <Sheet
+              open
+              wide
+              closeLabel={tr('关闭弹窗')}
               title={tr('账单明细')}
               onClose={() => {
                 detailRequest.current++;
@@ -767,12 +771,10 @@ export default function Workspace({ children }: { children?: ReactNode }) {
             >
               {openingDetail.error ? (
                 <>
-                  <p role="alert" className="error">
+                  <p role="alert" className={detailStyles.error}>
                     {tr(openingDetail.error)}
                   </p>
-                  <button type="button" onClick={() => openEntry(openingDetail.row)}>
-                    {tr('重试')}
-                  </button>
+                  <Button onClick={() => openEntry(openingDetail.row)}>{tr('重试')}</Button>
                 </>
               ) : (
                 <p role="status">{tr('正在读取账单…')}</p>
@@ -783,7 +785,13 @@ export default function Workspace({ children }: { children?: ReactNode }) {
             <FamilyMovementDetails row={selected} onClose={() => setSelected(null)} onChanged={refresh} />
           )}
           {selected?.cost_row_key && (
-            <Sheet title={selected.title || selected.category} onClose={() => setSelected(null)}>
+            <Sheet
+              open
+              wide
+              closeLabel={tr('关闭弹窗')}
+              title={selected.title || selected.category}
+              onClose={() => setSelected(null)}
+            >
               <ChartTransactionDetail
                 row={selected}
                 money={n => yuan(n * 100)}
@@ -815,6 +823,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
             <LedgerEntryDetail
               key={selected.id}
               row={selected}
+              activityName={activities.find(a => a.id === selected.activity_id)?.name}
               detailBook={detailBook}
               books={books}
               accounts={accounts}
@@ -853,6 +862,10 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                   setNotice('已删除，可撤销。');
                 })
               }
+              onCopy={() => {
+                openDrafts([copyEntryDraft(selected, today(), newId)], selected.book_id || book);
+                setSelected(null);
+              }}
               onEdit={() => openEntry(selected, { edit: true })}
             />
           )}

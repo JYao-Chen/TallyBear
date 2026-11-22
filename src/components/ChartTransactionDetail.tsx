@@ -1,7 +1,10 @@
 'use client';
+import { Button, ListRow, Money } from '@/ui';
+import s from './ChartTransactionDetail.module.css';
 import { ExpenseClaimRecord } from './ExpenseClaims';
 import { Discussion } from './Discussion';
 import { TransactionBalance } from './TransactionBalance';
+import { CategoryIcon } from './VisualSelect';
 import { useI18n } from './LanguageProvider';
 import { LineItemsView } from './LineItems';
 import { ReceiptAttachments } from './ReceiptAttachments';
@@ -24,36 +27,38 @@ export function ChartTransactionDetail({
   const { t, locale } = useI18n();
   if (row.cost_row_key)
     return (
-      <article className="chart-transaction-detail">
-        <h3>{row.title}</h3>
-        <p>
-          {locale === 'en'
-            ? 'Allocated expense for the selected period; no additional wallet debit.'
-            : '所选期间应承担的费用，不会再次扣减钱包。'}
-        </p>
-        <strong>{money(Number(row.amount) / 100)}</strong>
-        <p>
-          {row.date?.slice(0, 10)} —{' '}
-          {new Date(Date.parse(row.cost_period_end) - 86400000).toISOString().slice(0, 10)}
-        </p>
-        <p>
-          {row.book_name} · {row.category}
-        </p>
-        <div className="sheet-actions">
+      <article className={s.detail}>
+        <div className={s.amount}>
+          <span>
+            <CategoryIcon name={row.category} size={26} /> {row.category}
+          </span>
+          <Money
+            size="large"
+            value={Number(row.amount)}
+            tone={row.kind === 'refund' ? 'income' : 'expense'}
+          />
+        </div>
+        <p className={s.note}>{t('所选期间应承担的费用，不会再次扣减钱包。')}</p>
+        <ListRow
+          className={s.field}
+          title={t('统计周期')}
+          end={
+            <>
+              {row.date?.slice(0, 10)} —{' '}
+              {new Date(Date.parse(row.cost_period_end) - 86400000).toISOString().slice(0, 10)}
+            </>
+          }
+        />
+        <ListRow className={s.field} title={t('记入账本')} end={row.book_name} />
+        <div className={s.actions}>
           {row.source_transaction_id && onOpenSource && (
-            <button type="button" onClick={onOpenSource}>
-              {t('打开原账单')}
-            </button>
+            <Button onClick={onOpenSource}>{t('打开原账单')}</Button>
           )}
           {row.cost_project_id && onOpenProject && (
-            <button type="button" onClick={onOpenProject}>
-              {t('管理费用项目')}
-            </button>
+            <Button onClick={onOpenProject}>{t('管理费用项目')}</Button>
           )}
           {row.source_schedule_id && onOpenSchedule && (
-            <button type="button" onClick={onOpenSchedule}>
-              {t('管理周期计划')}
-            </button>
+            <Button onClick={onOpenSchedule}>{t('管理周期计划')}</Button>
           )}
         </div>
         {row.cost_project_id && (
@@ -122,8 +127,8 @@ export function ChartTransactionDetail({
     ],
   ];
   return (
-    <article className="chart-transaction-detail">
-      <div className="chart-transaction-amount">
+    <article className={s.detail}>
+      <div className={s.amount}>
         <small>
           {t(
             (
@@ -134,35 +139,35 @@ export function ChartTransactionDetail({
             )[row.kind] || '金额',
           )}
         </small>
-        <strong className={row.kind === 'expense' ? 'expense' : row.kind === 'transfer' ? '' : 'income'}>
-          {money(Number(row.amount) / 100)}
-        </strong>
+        <Money
+          size="large"
+          value={Number(row.amount)}
+          tone={row.kind === 'expense' ? 'expense' : row.kind === 'transfer' ? 'plain' : 'income'}
+        />
       </div>
       <TransactionBalance id={row.id} book={row.book_id} balances={row.wallet_balances} />
       {row.actual_amount != null && Number(row.actual_amount) !== Number(row.amount) && (
-        <p className="context-note">
-          {locale === 'en' ? 'Original payment: ' : '原付款：'}
+        <p className={s.note}>
+          {t('原付款：')}
           {money(Number(row.actual_amount) / 100)}
-          {locale === 'en'
-            ? '. The amount above is the portion not assigned to an allocation plan.'
-            : '。上方金额为尚未纳入分摊的部分。'}
+          {t('。上方金额为尚未纳入分摊的部分。')}
         </p>
       )}
-      {row.event_id && (
-        <p className="context-note">{t('跨账本关联记录，同一笔实际收付不会重复计入钱包。')}</p>
-      )}
-      {row.family_movement_id && <p className="context-note">{t('此记录来自家庭往来。')}</p>}
+      {row.event_id && <p className={s.note}>{t('跨账本关联记录，同一笔实际收付不会重复计入钱包。')}</p>}
+      {row.family_movement_id && <p className={s.note}>{t('此记录来自家庭往来。')}</p>}
       {groups.slice(0, 2).map(([title, fields]) => (
         <section key={title}>
           <h3>{t(title)}</h3>
-          <dl className="chart-transaction-fields">
+          <div>
             {fields.map(([label, value]) => (
-              <div key={label}>
-                <dt>{t(label)}</dt>
-                <dd>{value ? String(value) : t('未填写')}</dd>
-              </div>
+              <ListRow
+                className={s.field}
+                key={label}
+                title={t(label)}
+                end={value ? String(value) : t('未填写')}
+              />
             ))}
-          </dl>
+          </div>
         </section>
       ))}
       <section>
@@ -170,7 +175,7 @@ export function ChartTransactionDetail({
         {row.line_items?.length ? (
           <LineItemsView category={row.category} items={row.line_items} total={Number(row.amount)} />
         ) : (
-          <p className="muted">{t('未记录商品明细')}</p>
+          <p className={s.muted}>{t('未记录商品明细')}</p>
         )}
         {row.verification_reason && (
           <p>
@@ -181,18 +186,20 @@ export function ChartTransactionDetail({
       </section>
       <section>
         <h3>{t('备注')}</h3>
-        <p className="chart-transaction-note">{row.note || t('未填写')}</p>
+        <p className={s.note}>{row.note || t('未填写')}</p>
       </section>
       <section>
         <h3>{t('记录信息')}</h3>
-        <dl className="chart-transaction-fields">
+        <div>
           {groups[2][1].map(([label, value]) => (
-            <div key={label}>
-              <dt>{t(label)}</dt>
-              <dd>{value ? String(value) : t('未填写')}</dd>
-            </div>
+            <ListRow
+              className={s.field}
+              key={label}
+              title={t(label)}
+              end={value ? String(value) : t('未填写')}
+            />
           ))}
-        </dl>
+        </div>
       </section>
       {!row.family_movement_id && row.book_id && (
         <section>

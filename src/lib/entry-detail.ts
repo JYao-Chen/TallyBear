@@ -11,3 +11,25 @@ export async function resolveEntryDetail(
   if (!source) throw new Error('记录不存在或已删除');
   return { ...row, ...source, book_id: book, cost_row_key: undefined, cost_project_id: undefined };
 }
+
+export function copyEntryDraft(row: LedgerRow, date: string, newId: () => string) {
+  return {
+    id: newId(),
+    action: 'create' as const,
+    date,
+    kind: row.kind,
+    amount: row.amount,
+    category: row.category,
+    title: row.title,
+    payee: row.payee,
+    note: row.note,
+    product: row.product,
+    platform: row.platform,
+    scene: row.scene,
+    accountId: row.account_id,
+    targetId: row.target_id,
+    activityId: row.activity_id,
+    refundOf: row.refund_of,
+    lineItems: row.line_items?.map(item => ({ ...item, id: newId() })),
+  };
+}

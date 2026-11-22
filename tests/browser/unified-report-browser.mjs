@@ -44,23 +44,27 @@ try {
         .getByRole('button', { name: '收支分析', exact: true })
         .click();
     else await page.locator('.mobile-nav').getByRole('button', { name: /分析/ }).click();
+    await page.getByRole('button', { name: '自定义', exact: true }).click();
+    await page.getByRole('combobox', { name: '统计周期' }).selectOption('month');
     await page
-      .locator('.report-period-picker')
+      .getByRole('dialog', { name: '自定义日期' })
       .getByRole('button', { name: /选择月份/ })
       .click();
     await page.getByRole('dialog').getByRole('textbox', { name: '手动输入日期' }).fill('2026-10');
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-    await page.locator('#analysis-records .transaction-after-balance').first().waitFor();
+    await page.getByRole('dialog', { name: '自定义日期' }).getByRole('button', { name: '关闭弹窗' }).click();
+    await page.getByRole('tab', { name: '明细', exact: true }).click();
+    const rowsWithBalance = page
+      .locator('#analysis-records')
+      .getByRole('button', { name: /^查看.*详情$/ })
+      .filter({ has: page.locator('small[title]') });
+    await rowsWithBalance.first().waitFor();
     assert.equal(await page.getByRole('button', { name: '分摊项目成本', exact: true }).count(), 0);
     await page.locator('#analysis-records').scrollIntoViewIfNeeded();
     await page.waitForLoadState('networkidle');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
     await page.screenshot({ path: `${out}/${device}-list.png`, animations: 'disabled' });
-    await page
-      .locator('#analysis-records .transaction-row')
-      .filter({ has: page.locator('.transaction-after-balance') })
-      .first()
-      .click();
+    await rowsWithBalance.first().click();
     await page.getByRole('dialog').getByRole('heading', { name: '交易后账面余额' }).waitFor();
     await page.getByRole('dialog').locator('.transaction-balance-detail').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${out}/${device}-detail.png`, animations: 'disabled' });

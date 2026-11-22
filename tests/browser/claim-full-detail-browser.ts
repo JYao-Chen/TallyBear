@@ -167,11 +167,7 @@ try {
     await page.getByLabel('备注', { exact: true }).fill('认领人自己的备注');
     await capture('recipient-edit-' + width);
     await page.getByRole('button', { name: '保存修改', exact: true }).click();
-    await page
-      .getByRole('dialog')
-      .locator('.detail-fields dd')
-      .filter({ hasText: '认领人自己的备注' })
-      .waitFor();
+    await page.getByRole('dialog').getByText('认领人自己的备注', { exact: true }).waitFor();
     const source = (await c.query('SELECT note,amount FROM transactions WHERE id=$1', [f.privateExpense]))
       .rows[0];
     assert.equal(source.note, '付款人的原始说明');

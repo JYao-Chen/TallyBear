@@ -5,9 +5,9 @@ import { TransactionBalance } from './TransactionBalance';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
-import { Sheet } from './Sheet';
+import { Button, ConfirmDialog, Input, ListRow, Money, Sheet, TextArea } from '@/ui';
+import s from './FamilyMovementDetails.module.css';
 import { VisualSelect } from './VisualSelect';
-import { formatMoney } from '@/lib/deployment';
 import type { LedgerRow } from '@/lib/ledger-types';
 export function FamilyMovementDetails({
   row,
@@ -29,8 +29,7 @@ export function FamilyMovementDetails({
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
-  const { t: tr, locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr, locale } = useI18n();
   const [tab, setTab] = useState('overview');
   const [options, setOptions] = useState<any>(null),
     [movement, setMovement] = useState<any>(null),
@@ -43,6 +42,8 @@ export function FamilyMovementDetails({
   const [correctingSource, setCorrectingSource] = useState(false),
     [sourceId, setSourceId] = useState(''),
     [sourceError, setSourceError] = useState('');
+  const [confirm, setConfirm] = useState<'source' | 'edit' | null>(null);
+  const [removeFile, setRemoveFile] = useState<string | null>(null);
   const [targetId, setTargetId] = useState('');
   const [form, setForm] = useState({
       title: '',
@@ -141,15 +142,6 @@ export function FamilyMovementDetails({
   }
   async function correctSource() {
     if (busy || !sourceId || sourceId === movement.source_id) return;
-    if (
-      !window.confirm(
-        l(
-          '确认更正这笔转账的付款钱包？已到账记录会重算两个付款钱包的余额，不会再次转账，收款方到账不变。',
-          'Correct this payment wallet? Confirmed payments will update the old and new wallet balances without another transfer or changing the recipient’s receipt.',
-        ),
-      )
-    )
-      return;
     setBusy(true);
     setSourceError('');
     try {
@@ -203,34 +195,65 @@ export function FamilyMovementDetails({
   };
   const canEdit = movement && [movement.sender_id, movement.recipient_id].includes(options?.userId);
   const footer = (
-    <div className="sheet-actions">
+    <div className={s.actions}>
       {' '}
       {canEdit && (
-        <button
+        <Button
           disabled={busy}
           onClick={() => {
-            if (editing) void save();
+            if (
+              editing &&
+              movement.recipient_id === options.userId &&
+              movement.status === 'confirmed' &&
+              targetId !== movement.target_id
+            )
+              setConfirm('edit');
+            else if (editing) void save();
             else {
               setEditing(true);
               setTab('record');
             }
           }}
         >
-          {busy
-            ? tr('处理中…')
-            : editing
-              ? l('保存私人记录', 'Save private record')
-              : l('修改私人记录', 'Edit private record')}
-        </button>
+          {busy ? tr('处理中…') : editing ? tr('保存私人记录') : tr('修改私人记录')}
+        </Button>
       )}
     </div>
   );
   const content = (
     <>
+      <ConfirmDialog
+        open={!!confirm}
+        onCancel={() => setConfirm(null)}
+        title={tr('确认更改')}
+        busy={busy}
+        onConfirm={() => {
+          setConfirm(null);
+          if (confirm === 'source') void correctSource();
+          else void save();
+        }}
+      >
+        {confirm === 'source'
+          ? tr(
+              '确认更正这笔转账的付款钱包？已到账记录会重算两个付款钱包的余额，不会再次转账，收款方到账不变。',
+            )
+          : tr('确认更改这笔往来的到账钱包？')}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={!!removeFile}
+        onCancel={() => setRemoveFile(null)}
+        title={tr('移除图片')}
+        onConfirm={() => {
+          if (removeFile) setRemoved(old => [...old, removeFile]);
+          setRemoveFile(null);
+        }}
+      >
+        {tr('确认移除这张图片？')}
+      </ConfirmDialog>
       {!movement && !error && <p role="status">{tr('正在读取往来详情…')}</p>}
       {movement && (
-        <div className="family-detail-heading">
-          <p className="muted">
+        <div className={s.heading}>
+          <p className={s.muted}>
             {labels[movement?.kind as keyof typeof labels] || tr('家庭往来')} ·{' '}
             {movement?.status === 'confirmed'
               ? tr('已到账')
@@ -238,13 +261,13 @@ export function FamilyMovementDetails({
                 ? tr('已取消')
                 : tr('待收款')}
           </p>
-          <strong className="family-detail-amount">{formatMoney(row.amount)}</strong>
+          <Money size="large" value={row.amount} />
           <h3>{form.title || row.title}</h3>
         </div>
       )}
       {options && (
         <SectionTabs
-          label={l('往来详情分区', 'Transfer sections')}
+          label={tr('往来详情分区')}
           value={tab}
           onChange={setTab}
           items={[
@@ -253,7 +276,7 @@ export function FamilyMovementDetails({
               label: tr('概览'),
               content: (
                 <>
-                  <dl className="movement-detail-fields">
+                  <div>
                     {[
                       [tr('交易日期'), movement.date],
                       [tr('交易时间'), form.transactionTime],
@@ -279,19 +302,16 @@ export function FamilyMovementDetails({
                     ]
                       .filter(([, value]) => value)
                       .map(([label, value]) => (
-                        <div key={label}>
-                          <dt className="muted">{label}</dt>
-                          <dd>{value}</dd>
-                        </div>
+                        <ListRow key={label} className={s.field} title={label} end={value} />
                       ))}
-                  </dl>
-                  <section className="entry-optional">
-                    <h3>{l('转账留言 · 双方可见', 'Transfer note · visible to both')}</h3>
+                  </div>
+                  <section className={s.section}>
+                    <h3>{tr('转账留言 · 双方可见')}</h3>
                     {editingNote ? (
                       <>
                         <label>
-                          {l('转账留言 · 双方可见', 'Transfer note · visible to both')}
-                          <textarea
+                          {tr('转账留言 · 双方可见')}
+                          <TextArea
                             value={sharedNote}
                             maxLength={500}
                             rows={3}
@@ -299,13 +319,13 @@ export function FamilyMovementDetails({
                             onChange={e => setSharedNote(e.target.value)}
                           />
                         </label>
-                        <div className="inline">
-                          <button type="button" disabled={busy} onClick={() => void saveSharedNote()}>
-                            {l('保存转账留言', 'Save transfer note')}
-                          </button>
-                          <button
+                        <div className={s.actions}>
+                          <Button type="button" disabled={busy} onClick={() => void saveSharedNote()}>
+                            {tr('保存转账留言')}
+                          </Button>
+                          <Button
                             type="button"
-                            className="secondary"
+                            variant="secondary"
                             disabled={busy}
                             onClick={() => {
                               setSharedNote(movement.note || '');
@@ -313,41 +333,36 @@ export function FamilyMovementDetails({
                             }}
                           >
                             {tr('取消')}
-                          </button>
+                          </Button>
                         </div>
                       </>
                     ) : (
                       <>
-                        <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                          {movement.note || l('暂无转账留言', 'No transfer note')}
-                        </p>
+                        <p className={s.note}>{movement.note || tr('暂无转账留言')}</p>
                         {movement.sender_id === options.userId && movement.status !== 'cancelled' && (
-                          <button
+                          <Button
                             type="button"
-                            className="secondary"
+                            variant="secondary"
                             disabled={busy}
                             onClick={() => setEditingNote(true)}
                           >
-                            {l('修改转账留言', 'Edit transfer note')}
-                          </button>
+                            {tr('修改转账留言')}
+                          </Button>
                         )}
                       </>
                     )}
-                    <p className="muted">
-                      {l(
-                        '转出人可修改留言；收款人可在讨论中回复。私人备注不会公开。',
-                        'The sender can edit this note. The recipient can reply in Discussion. Private notes remain private.',
-                      )}
+                    <p className={s.muted}>
+                      {tr('转出人可修改留言；收款人可在讨论中回复。私人备注不会公开。')}
                     </p>
                   </section>
                   {movement.sender_id === options.userId && movement.status !== 'cancelled' && (
-                    <section className="movement-source-correction">
+                    <section className={s.section}>
                       {correctingSource ? (
                         <>
                           <label>
-                            {l('正确的转出钱包', 'Correct payment wallet')}
+                            {tr('正确的转出钱包')}
                             <VisualSelect
-                              label={l('正确的转出钱包', 'Correct payment wallet')}
+                              label={tr('正确的转出钱包')}
                               value={sourceId}
                               disabled={busy}
                               onChange={setSourceId}
@@ -365,23 +380,22 @@ export function FamilyMovementDetails({
                                 }))}
                             />
                           </label>
-                          <p className="muted">
-                            {l(
+                          <p className={s.muted}>
+                            {tr(
                               '只更正付款钱包，不会再次转账。已到账时会重算原钱包和新钱包的余额，金额与收款方到账保持不变。',
-                              'This corrects the payment wallet without another transfer. Confirmed payments update the old and new wallet balances; the amount and recipient’s receipt stay unchanged.',
                             )}
                           </p>
-                          <div className="movement-source-actions">
-                            <button
+                          <div className={s.actions}>
+                            <Button
                               type="button"
                               disabled={busy || !sourceId || sourceId === movement.source_id}
-                              onClick={() => void correctSource()}
+                              onClick={() => setConfirm('source')}
                             >
-                              {l('确认更正钱包', 'Confirm wallet correction')}
-                            </button>
-                            <button
+                              {tr('确认更正钱包')}
+                            </Button>
+                            <Button
                               type="button"
-                              className="secondary"
+                              variant="secondary"
                               disabled={busy}
                               onClick={() => {
                                 setCorrectingSource(false);
@@ -389,26 +403,26 @@ export function FamilyMovementDetails({
                               }}
                             >
                               {tr('取消')}
-                            </button>
+                            </Button>
                           </div>
                           {sourceError && (
-                            <p className="error" role="alert">
-                              {sourceError}
+                            <p className={s.error} role="alert">
+                              {tr(sourceError)}
                             </p>
                           )}
                         </>
                       ) : (
-                        <button
+                        <Button
                           type="button"
-                          className="secondary"
+                          variant="secondary"
                           disabled={busy}
                           onClick={() => {
                             setSourceId(movement.source_id || '');
                             setCorrectingSource(true);
                           }}
                         >
-                          {l('更正转出钱包', 'Correct payment wallet')}
-                        </button>
+                          {tr('更正转出钱包')}
+                        </Button>
                       )}
                     </section>
                   )}
@@ -422,14 +436,14 @@ export function FamilyMovementDetails({
               content: (
                 <>
                   <h3>{tr('我的记录')}</h3>
-                  <p className="muted">{tr('以下补充信息仅自己可见。')}</p>
+                  <p className={s.muted}>{tr('以下补充信息仅自己可见。')}</p>
                   {editing ? (
-                    <div style={{ display: 'grid', gap: 16 }}>
+                    <div className={s.form}>
                       {movement.recipient_id === options.userId && movement.status === 'confirmed' && (
                         <label>
-                          {l('到账钱包', 'Receiving wallet')}
+                          {tr('到账钱包')}
                           <VisualSelect
-                            label={l('到账钱包', 'Receiving wallet')}
+                            label={tr('到账钱包')}
                             value={targetId}
                             disabled={busy}
                             onChange={setTargetId}
@@ -444,11 +458,8 @@ export function FamilyMovementDetails({
                                 ).join(' · '),
                               }))}
                           />
-                          <span className="muted">
-                            {l(
-                              '修改后，这笔入账会从原钱包移到新钱包，不会重复收款。',
-                              'Changing this moves the receipt to the new wallet without another payment.',
-                            )}
+                          <span className={s.muted}>
+                            {tr('修改后，这笔入账会从原钱包移到新钱包，不会重复收款。')}
                           </span>
                         </label>
                       )}
@@ -460,18 +471,18 @@ export function FamilyMovementDetails({
                               transactionTime: tr('交易时间'),
                               platform: tr('支付平台'),
                               externalId: tr('交易流水号'),
-                              note: l('私人备注 · 仅自己可见', 'Private note · only you'),
+                              note: tr('私人备注 · 仅自己可见'),
                             }[key]
                           }
                           {key === 'note' ? (
-                            <textarea
-                              aria-label={l('私人备注 · 仅自己可见', 'Private note · only you')}
+                            <TextArea
+                              aria-label={tr('私人备注 · 仅自己可见')}
                               value={form[key]}
                               maxLength={2000}
                               onChange={e => setForm({ ...form, [key]: e.target.value })}
                             />
                           ) : (
-                            <input
+                            <Input
                               type={key === 'transactionTime' ? 'time' : 'text'}
                               maxLength={key === 'platform' ? 60 : 200}
                               value={form[key]}
@@ -502,19 +513,17 @@ export function FamilyMovementDetails({
                         </p>
                       )}
                       {form.externalId && (
-                        <p style={{ overflowWrap: 'anywhere' }}>
+                        <p className={s.note}>
                           {tr('流水号：')}
                           {form.externalId}
                         </p>
                       )}
                       {form.note && (
                         <p>
-                          <strong>{l('私人备注 · 仅自己可见', 'Private note · only you')}</strong>
+                          <strong>{tr('私人备注 · 仅自己可见')}</strong>
                         </p>
                       )}
-                      {form.note && (
-                        <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{form.note}</p>
-                      )}
+                      {form.note && <p className={s.note}>{form.note}</p>}
                       <p>
                         {tr('记入账本：')}
                         {options.books.find((b: any) => b.id === book)?.name || tr('暂不展示')}
@@ -534,7 +543,7 @@ export function FamilyMovementDetails({
                   revision={movement.note || ''}
                 />
               ) : (
-                <p>{l('仅往来双方可见', 'Only participants can view this discussion')}</p>
+                <p>{tr('仅往来双方可见')}</p>
               ),
             },
             {
@@ -544,11 +553,11 @@ export function FamilyMovementDetails({
                 <>
                   {' '}
                   {(['receipt', 'photo'] as const).map(purpose => (
-                    <section className="transaction-photos" key={purpose}>
-                      <div className="panel-title">
+                    <section className={s.section} key={purpose}>
+                      <div className={s.actions}>
                         <strong>{purpose === 'receipt' ? tr('交易凭证') : tr('生活附图')}</strong>
                         {canEdit && (
-                          <label className="upload">
+                          <label className={s.upload}>
                             <ImagePlus size={18} />
                             {busy ? tr('上传中…') : tr('添加图片')}
                             <input
@@ -564,7 +573,7 @@ export function FamilyMovementDetails({
                           </label>
                         )}
                       </div>
-                      <div className="life-photo-grid">
+                      <div className={s.photos}>
                         {files
                           .filter(f => f.purpose === purpose && !removed.includes(f.id))
                           .map(f => (
@@ -573,20 +582,20 @@ export function FamilyMovementDetails({
                                 <img loading="lazy" src={'/api/receipts/' + f.id} alt={f.name} />
                               </a>
                               {editing && (
-                                <button
-                                  className="photo-remove"
+                                <Button
+                                  className={s.remove}
                                   aria-label={tr('移除图片')}
                                   disabled={busy}
-                                  onClick={() => setRemoved([...removed, f.id])}
+                                  onClick={() => setRemoveFile(f.id)}
                                 >
                                   <X size={16} />
-                                </button>
+                                </Button>
                               )}
                             </figure>
                           ))}
                       </div>
                       {!files.some(f => f.purpose === purpose && !removed.includes(f.id)) && (
-                        <p className="muted">
+                        <p className={s.muted}>
                           {tr('尚未添加')}
                           {purpose === 'receipt' ? tr('交易凭证') : tr('生活附图')}
                         </p>
@@ -600,22 +609,25 @@ export function FamilyMovementDetails({
         />
       )}
       {error && (
-        <p className="error" role="alert">
-          {error}
+        <p className={s.error} role="alert">
+          {tr(error)}
         </p>
       )}
     </>
   );
   return embedded ? (
-    <div className="family-detail-page">
-      <button className="text-button" disabled={busy} onClick={onClose}>
+    <div className={s.page}>
+      <Button variant="ghost" disabled={busy} onClick={onClose}>
         {tr('← 返回往来记录')}
-      </button>
+      </Button>
       {content}
-      <div className="movement-detail-footer">{footer}</div>
+      <div className={s.footer}>{footer}</div>
     </div>
   ) : (
     <Sheet
+      open
+      wide
+      closeLabel={tr('关闭弹窗')}
       title={tr('这笔家庭往来')}
       onClose={() => {
         if (!busy) onClose();

@@ -146,12 +146,12 @@ try {
     await page.getByRole('tab', { name: '商品 · 2', exact: true }).click();
     assert.ok(await page.getByText('青菜', { exact: true }).isVisible());
     await page.getByRole('tab', { name: '讨论', exact: true }).click();
-    await page.locator('.discussion textarea').fill('还没发送的讨论');
+    await page.getByRole('textbox', { name: '留言给参与成员' }).fill('还没发送的讨论');
     await page.getByRole('tab', { name: '附件', exact: true }).click();
     await page.getByRole('tab', { name: '讨论', exact: true }).click();
-    assert.equal(await page.locator('.discussion textarea').inputValue(), '还没发送的讨论');
+    assert.equal(await page.getByRole('textbox', { name: '留言给参与成员' }).inputValue(), '还没发送的讨论');
     await page.getByRole('tab', { name: '概览', exact: true }).click();
-    const footer = await page.locator('.sheet-footer').boundingBox();
+    const footer = await page.getByRole('dialog').locator('footer').boundingBox();
     assert.ok(footer && footer.y + footer.height <= 902);
     const editButton = await page.getByRole('button', { name: '修改记录', exact: true }).boundingBox();
     assert.ok(editButton && editButton.y >= 0 && editButton.y + editButton.height <= 902);
@@ -159,7 +159,10 @@ try {
     metrics.push({
       width,
       detailFooterBottom: Math.round(footer.y + footer.height),
-      detailContentHeight: await page.locator('.sheet-content').evaluate(e => e.scrollHeight),
+      detailContentHeight: await page
+        .getByRole('tablist', { name: '账目详情分区' })
+        .locator('../..')
+        .evaluate(e => e.scrollHeight),
     });
     await page.getByRole('button', { name: '关闭弹窗', exact: true }).click();
     await nav.getByRole('button', { name: 'readonly', exact: true }).click();

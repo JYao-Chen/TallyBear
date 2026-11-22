@@ -1,0 +1,37 @@
+.detail {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.amount,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.amount {
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-card);
+}
+.field {
+  grid-template-columns: 0 minmax(70px, 1fr) minmax(0, 2fr);
+}
+.muted,
+.note {
+  color: var(--muted);
+}
+.note {
+  white-space: pre-wrap;
+}
+.amount > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.detail p {
+  margin: 0;
+}

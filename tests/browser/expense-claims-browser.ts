@@ -119,9 +119,18 @@ try {
     (await c.query('SELECT 1 FROM members WHERE book_id=$1 AND user_id=$2', [bobBook, f.alice])).rowCount,
     0,
   );
-  await page.locator('.discussion').getByLabel('留言给参与成员').fill('这件衣服我认领了，谢谢！');
-  await page.locator('.discussion').getByRole('button', { name: '发送留言', exact: true }).click();
-  await page.locator('.discussion-body').getByText('这件衣服我认领了，谢谢！', { exact: true }).waitFor();
+  await page
+    .getByRole('region', { name: '账目讨论', exact: true })
+    .getByLabel('留言给参与成员')
+    .fill('这件衣服我认领了，谢谢！');
+  await page
+    .getByRole('region', { name: '账目讨论', exact: true })
+    .getByRole('button', { name: '发送留言', exact: true })
+    .click();
+  await page
+    .getByRole('region', { name: '账目讨论', exact: true })
+    .getByText('这件衣服我认领了，谢谢！', { exact: true })
+    .waitFor();
   await choose('认领账本', '家庭共享账本');
   await page.getByRole('button', { name: '调整归入账本', exact: true }).click();
   await page.getByRole('button', { name: '调整归入账本', exact: true }).waitFor({ state: 'visible' });

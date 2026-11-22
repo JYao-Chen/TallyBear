@@ -740,8 +740,22 @@ try {
         continue;
       }
       if (process.env.ANALYSIS_AUDIT_ONLY) {
+        await navigate('流水');
+        await page.getByRole('button', { name: t('筛选'), exact: true }).click();
+        const filters = page.getByRole('dialog', { name: t('筛选') });
+        await filters
+          .getByRole('checkbox', { name: lang === 'en' ? 'Personal journal' : '我的小账本' })
+          .check();
+        await filters.getByRole('button', { name: t('完成选择') }).click();
+        const serverTitle = lang === 'en' ? 'Three-year server' : '三年服务器';
+        await page.getByRole('textbox', { name: t('搜索流水') }).fill(serverTitle);
+        await page
+          .getByRole('button', { name: t('查看{0}详情').replace('{0}', serverTitle), exact: true })
+          .first()
+          .click();
+        await page.getByRole('button', { name: t('打开原账单') }).waitFor();
+        await shot('entry-cost-detail');
         await navigate('收支分析');
-        await page.locator('.records-panel .transaction-row').first().waitFor();
         await shot('analysis-books');
         await page.locator('.analysis-book-choice button').click();
         await shot('analysis-book-choices');
@@ -750,8 +764,6 @@ try {
           .getByRole('button', { name: lang === 'en' ? 'Done' : '完成选择', exact: true })
           .click();
         await page.locator('.analysis-modes button').nth(1).click();
-        await settle();
-        await page.locator('.records-panel .transaction-row').first().waitFor();
         await shot('analysis-personal');
         const values = await page.evaluate(
           async ({ book, month }) => {
@@ -766,12 +778,24 @@ try {
             r => r.title === (lang === 'en' ? 'Three-year server' : '三年服务器') && r.amount < 1700,
           ),
         );
-        await page.locator('.record-filters select').first().selectOption('expense', { force: true });
-        await page.locator('.record-search input').fill(lang === 'en' ? 'server' : '服务器');
+        await page.getByRole('tab', { name: t('明细'), exact: true }).click();
+        await page.getByRole('combobox', { name: t('收支类型') }).selectOption('expense', { force: true });
+        await page.getByRole('textbox', { name: t('搜索流水') }).fill(lang === 'en' ? 'server' : '服务器');
         await settle();
-        await page.locator('.records-panel .transaction-row').first().waitFor();
-        assert.equal(await page.locator('.records-panel .transaction-row').count(), 1);
+        await page
+          .getByRole('region', { name: t('收支明细') })
+          .getByRole('button', { name: t('查看{0}详情').replace('{0}', serverTitle), exact: true })
+          .first()
+          .waitFor();
+        assert.equal(
+          await page
+            .getByRole('region', { name: t('收支明细') })
+            .getByRole('button', { name: t('查看{0}详情').replace('{0}', serverTitle), exact: true })
+            .count(),
+          1,
+        );
         await shot('analysis-filtered');
+        await page.getByRole('tab', { name: t('概览'), exact: true }).click();
         await page.locator('.analysis-charts .chart-data-legend button:not(:disabled)').first().click();
         await settle();
         await shot('analysis-drilldown');
@@ -782,7 +806,7 @@ try {
         await page.locator('.analysis-modes button').nth(2).click();
         await settle();
         await page.locator('.funds-list>button').first().waitFor();
-        assert.equal(await page.locator('.records-panel').count(), 0);
+        assert.equal(await page.getByRole('region', { name: t('收支明细') }).count(), 0);
         assert.equal(await page.locator('.analysis-summary').count(), 0);
         await shot('analysis-wallets');
         await page.locator('.funds-filters select').selectOption('transfer');
@@ -894,17 +918,21 @@ try {
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
         const chooseSort = async (scope, value) => {
-          await scope.locator('.detail-sort select').selectOption(value, { force: true });
+          await scope.getByRole('combobox', { name: t('明细排序') }).selectOption(value, { force: true });
           await settle();
         };
         await page.locator('.funds-filters select').selectOption('all');
         await chooseSort(page.locator('.wallet-funds'), 'amount_desc');
-        await page.locator('.wallet-funds .detail-sort').scrollIntoViewIfNeeded();
-        await shot('funds-sorted');
-        await page.locator('.records-panel').scrollIntoViewIfNeeded();
-        await chooseSort(page.locator('.records-panel'), 'amount_desc');
         await page
-          .locator('.records-panel .detail-sort')
+          .locator('.wallet-funds')
+          .getByRole('combobox', { name: t('明细排序') })
+          .scrollIntoViewIfNeeded();
+        await shot('funds-sorted');
+        await page.getByRole('region', { name: t('收支明细') }).scrollIntoViewIfNeeded();
+        await chooseSort(page.getByRole('region', { name: t('收支明细') }), 'amount_desc');
+        await page
+          .getByRole('region', { name: t('收支明细') })
+          .getByRole('combobox', { name: t('明细排序') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('records-sorted');
         await page
@@ -924,7 +952,8 @@ try {
         await page.locator('.activity-records').waitFor();
         await chooseSort(page.locator('.activity-records'), 'amount_desc');
         await page
-          .locator('.activity-records .detail-sort')
+          .locator('.activity-records')
+          .getByRole('combobox', { name: t('明细排序') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('activity-sorted');
         await navigate('记一笔');
@@ -933,12 +962,15 @@ try {
         await page.locator('.family-finance').waitFor();
         await chooseSort(page.locator('.family-finance'), 'amount_desc');
         await page
-          .locator('.family-finance .detail-sort')
+          .locator('.family-finance')
+          .getByRole('combobox', { name: t('明细排序') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('family-sorted');
         await page.getByRole('button', { name: t('搜索整个账本系统'), exact: true }).click();
         await settle();
-        await page.locator('.unified-search select').last().selectOption('amount_desc', { force: true });
+        await page
+          .getByRole('combobox', { name: t('搜索结果排序') })
+          .selectOption('amount_desc', { force: true });
         await settle();
         await shot('search-sorted');
         await page
@@ -1094,6 +1126,65 @@ try {
       ]) {
         await navigate(name);
         await shot(key);
+        if (key === 'entries') {
+          const records = page.getByRole('region', { name: t('收支明细') });
+          const lastMonth = new Date(month + '-01T00:00:00Z');
+          lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
+          const changedRange = page.waitForRequest(req => {
+            const url = new URL(req.url());
+            return (
+              url.pathname.endsWith('/report') &&
+              url.searchParams.get('from') === lastMonth.toISOString().slice(0, 10)
+            );
+          });
+          await records.getByRole('button', { name: t('上月'), exact: true }).click();
+          await changedRange;
+          await records.getByRole('button', { name: t('本月'), exact: true }).click();
+          await records.getByRole('button', { name: t('批量整理'), exact: true }).click();
+          await records.getByRole('checkbox', { name: t('选择本页'), exact: true }).check();
+          const bar = records.getByRole('button', { name: t('退出多选'), exact: true });
+          assert.ok(await bar.evaluate(el => el.getBoundingClientRect().bottom <= innerHeight));
+          await bar.click();
+          await records.getByRole('button', { name: t('筛选'), exact: true }).click();
+          const filters = page.getByRole('dialog', { name: t('筛选') });
+          await filters
+            .getByRole('textbox', {
+              name: t('最低金额（元）').replace('CNY', 'USD'),
+            })
+            .fill('10.01');
+          await shot('entries-filters');
+          const request = page.waitForRequest(
+            r =>
+              new URL(r.url()).pathname.endsWith('/report') &&
+              new URL(r.url()).searchParams.get('min') === '1001',
+          );
+          await filters.getByRole('button', { name: t('完成选择') }).click();
+          await request;
+          await records.getByRole('button', { name: /10\.01/ }).click();
+          const title = lang === 'en' ? 'Breakfast & coffee' : '早餐与咖啡';
+          await records
+            .getByRole('button', { name: t('查看{0}详情').replace('{0}', title), exact: true })
+            .first()
+            .click();
+          const detail = page.getByRole('dialog', { name: t('这笔小记录') });
+          await detail.getByRole('button', { name: t('删除记录') }).waitFor();
+          await shot('entry-detail');
+          await detail.getByRole('button', { name: t('删除记录') }).click();
+          await page
+            .getByRole('dialog', { name: t('删除记录') })
+            .getByRole('button', { name: t('取消') })
+            .click();
+          await detail.getByRole('tab', { name: t('讨论') }).click();
+          const message =
+            lang === 'en' ? 'The breakfast receipt matches the amount.' : '早餐小票的金额核对过了。';
+          if (!(await detail.getByText(message, { exact: true }).count())) {
+            await detail.getByRole('textbox', { name: t('留言给参与成员') }).fill(message);
+            await detail.getByRole('button', { name: t('发送留言') }).click();
+            await detail.getByText(message, { exact: true }).waitFor();
+          }
+          await shot('entry-discussion');
+          await detail.getByRole('button', { name: t('关闭弹窗') }).click();
+        }
         if (key === 'analysis') {
           await page.locator('.chart-grid').first().scrollIntoViewIfNeeded();
           await page.evaluate(() => document.querySelector('.chart-grid').scrollIntoView({ block: 'start' }));
@@ -1194,6 +1285,18 @@ try {
       await navigate('记一笔');
       await page.getByRole('button', { name: t('家庭往来'), exact: true }).click();
       await shot('family-entry');
+      await page
+        .getByRole('button', { name: t('查看详情'), exact: true })
+        .first()
+        .click();
+      await page.getByRole('button', { name: t('修改私人记录') }).waitFor();
+      const movementAmount = page.getByText(lang === 'en' ? '$84.00' : '¥84.00', { exact: true });
+      assert.ok(
+        await movementAmount.first().evaluate(el => el.getBoundingClientRect().right <= innerWidth),
+        'Family movement amount clipped',
+      );
+      await shot('family-movement-detail');
+      await page.getByRole('button', { name: t('← 返回往来记录') }).click();
       await page.getByRole('button', { name: t('记一笔往来'), exact: true }).click();
       await shot('family-entry-form');
       await navigate('小熊对话');
@@ -1214,6 +1317,15 @@ try {
         .fill(lang === 'en' ? 'milk' : '牛奶');
       await settle();
       await shot('search');
+      const keyword = page.getByRole('textbox', { name: t('搜索关键词') });
+      await keyword.press('ArrowDown');
+      const first = page.locator('summary:focus');
+      assert.equal(await first.count(), 1);
+      await first.press('Enter');
+      assert.equal(await first.evaluate(el => el.parentElement.open), true);
+      await first.press('ArrowDown');
+      await page.keyboard.press('ArrowUp');
+      assert.equal(await page.locator('summary:focus').evaluate(el => el.parentElement.open), true);
       await context.close();
     }
   }

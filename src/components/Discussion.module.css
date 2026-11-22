@@ -1,0 +1,55 @@
+.thread,
+.composer {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.heading,
+.meta,
+.actions,
+.person,
+.heading h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.heading,
+.meta,
+.actions {
+  justify-content: space-between;
+}
+.heading h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+.muted,
+.meta time {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.message {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.body,
+.quote,
+.message blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.quote,
+.message blockquote {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+  border-inline-start: 3px solid var(--accent);
+}
+.error {
+  color: var(--danger);
+}
+.person {
+  flex-direction: row;
+  margin: 0;
+}

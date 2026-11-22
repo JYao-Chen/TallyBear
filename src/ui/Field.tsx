@@ -1,6 +1,6 @@
 import {
   useId,
-  type InputHTMLAttributes,
+  type ComponentPropsWithRef,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -38,7 +38,7 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
   );
 }
 
-export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...rest }: ComponentPropsWithRef<'input'>) {
   return <input className={[s.control, className].filter(Boolean).join(' ')} {...rest} />;
 }
 export function TextArea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {

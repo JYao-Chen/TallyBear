@@ -1,7 +1,8 @@
 'use client';
-import { hasItemCategories } from '@/lib/item-categories';
+import { categoryAmounts, hasItemCategories } from '@/lib/item-categories';
 import { SectionTabs } from './SectionTabs';
-import { Sheet } from './Sheet';
+import { Button, ConfirmDialog, ListRow, Money, Sheet } from '@/ui';
+import s from './LedgerEntryDetail.module.css';
 import { useState, type ReactNode } from 'react';
 import { ExpenseClaimRecord } from './ExpenseClaims';
 import { Discussion } from './Discussion';
@@ -13,13 +14,13 @@ import { OrganizeEntries } from './OrganizeEntries';
 import { AccountIcon, CategoryIcon, SymbolIcon } from './VisualSelect';
 import { walletOwnership } from '@/lib/accounts';
 import { displayTimestamp } from '@/lib/entry-time';
-import { formatMoney } from '@/lib/deployment';
 import type { LedgerRow } from '@/lib/ledger-types';
 import type { ManagedBook } from './ManagementPages';
 import type { Account } from './AccountsPanel';
 import { useI18n } from './LanguageProvider';
 export function LedgerEntryDetail({
   row,
+  activityName,
   detailBook,
   books,
   accounts,
@@ -34,8 +35,10 @@ export function LedgerEntryDetail({
   onInstallment,
   onDelete,
   onEdit,
+  onCopy,
 }: {
   row: LedgerRow;
+  activityName?: string;
   detailBook?: ManagedBook;
   books: ManagedBook[];
   accounts: Account[];
@@ -50,30 +53,51 @@ export function LedgerEntryDetail({
   onInstallment: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onCopy?: () => void;
 }) {
   const { t: tr } = useI18n(),
     book = row.book_id || detailBook?.id || '';
+  const [deleting, setDeleting] = useState(false);
   const actions =
     canWrite && (row.kind !== 'expense' || claimEditable) ? (
-      <div className="sheet-actions">
+      <div className={s.actions}>
         <OrganizeEntries book={book} ids={[row.id]} books={books} onSaved={onOrganized} />
-        <button className="secondary" disabled={busy} onClick={onDelete}>
+        <Button variant="danger" disabled={busy} onClick={() => setDeleting(true)}>
           {tr('删除记录')}
-        </button>
-        <button disabled={busy} onClick={onEdit}>
+        </Button>
+        {onCopy && (
+          <Button disabled={busy} onClick={onCopy}>
+            {tr('复制为新记录')}
+          </Button>
+        )}
+        <Button variant="primary" disabled={busy} onClick={onEdit}>
           {tr('修改记录')}
-        </button>
+        </Button>
       </div>
     ) : undefined;
   return (
-    <Sheet title={tr('这笔小记录')} onClose={onClose} footer={actions}>
+    <Sheet open wide closeLabel={tr('关闭弹窗')} title={tr('这笔小记录')} onClose={onClose} footer={actions}>
+      <ConfirmDialog
+        open={deleting}
+        title={tr('删除记录')}
+        confirmLabel={tr('删除记录')}
+        busy={busy}
+        onCancel={() => setDeleting(false)}
+        onConfirm={() => {
+          setDeleting(false);
+          onDelete();
+        }}
+      >
+        {tr('确认删除「{0}」？', [row.title || row.payee || row.category])}
+      </ConfirmDialog>
       {error && (
-        <p className="error" role="alert">
+        <p className={s.error} role="alert">
           {tr(error)}
         </p>
       )}
       <LedgerEntryContent
         row={row}
+        activityName={activityName}
         detailBook={detailBook}
         accounts={accounts}
         canWrite={canWrite && (row.kind !== 'expense' || claimEditable)}
@@ -88,9 +112,7 @@ export function LedgerEntryDetail({
               />
             )}{' '}
             {canWrite && claimEditable && row.kind === 'expense' && row.account_type === 'credit' && (
-              <button className="secondary" onClick={onInstallment}>
-                {tr('建立分期计划')}
-              </button>
+              <Button onClick={onInstallment}>{tr('建立分期计划')}</Button>
             )}
             {canWrite && claimEditable && row.kind === 'expense' && (
               <AllocationEditor
@@ -103,7 +125,7 @@ export function LedgerEntryDetail({
               />
             )}
             {row.kind === 'refund' && (
-              <p className="muted">
+              <p className={s.muted}>
                 {row.refund_of ? tr('已关联原消费') : tr('尚未关联原消费')} {tr('· 按到账日冲减支出')}
               </p>
             )}
@@ -115,6 +137,7 @@ export function LedgerEntryDetail({
 }
 export function LedgerEntryContent({
   row,
+  activityName,
   detailBook,
   accounts = [],
   canWrite = false,
@@ -125,18 +148,18 @@ export function LedgerEntryContent({
   overview?: ReactNode;
   discussion?: ReactNode;
   row: LedgerRow;
+  activityName?: string;
   detailBook?: ManagedBook;
   accounts?: Account[];
   canWrite?: boolean;
   attachments?: ReactNode;
 }) {
-  const { t: tr, locale } = useI18n(),
+  const { t: tr } = useI18n(),
     [tab, setTab] = useState('overview'),
-    book = row.book_id || detailBook?.id || '',
-    yuan = formatMoney;
+    book = row.book_id || detailBook?.id || '';
   return (
     <>
-      <div className="detail-amount">
+      <div role="group" aria-label={tr('金额')} className={s.hero}>
         <small>
           {row.kind === 'expense'
             ? tr('消费支出')
@@ -146,11 +169,18 @@ export function LedgerEntryContent({
                 ? tr('收入')
                 : tr('账户转账')}
         </small>
-        <strong className={row.kind === 'expense' ? 'expense' : 'income'}>{yuan(row.amount)}</strong>
-        <h3>{row.title || row.payee || row.product || row.category}</h3>
+        <Money
+          value={row.amount}
+          size="large"
+          tone={row.kind === 'expense' ? 'expense' : row.kind === 'transfer' ? 'plain' : 'income'}
+        />
+        <h3>
+          <CategoryIcon name={row.category} size={26} />
+          {row.title || row.payee || row.product || row.category}
+        </h3>
       </div>
       <SectionTabs
-        label={locale === 'en' ? 'Bill sections' : '账目详情分区'}
+        label={tr('账目详情分区')}
         value={tab}
         onChange={setTab}
         items={[
@@ -160,15 +190,15 @@ export function LedgerEntryContent({
             content: (
               <>
                 {row.event_id && (
-                  <div className="context-note">
-                    <p className="notice">
+                  <div className={s.notice}>
+                    <p>
                       {tr(
                         '跨账本关联记录：修改金额或日期会同步到关联账本；分类、备注只改当前账本。删除只移除当前账本的记录。',
                       )}
                     </p>
                   </div>
                 )}
-                <dl className="detail-fields">
+                <div role="group" aria-label={tr('交易信息')} className={s.fields}>
                   {[
                     ['交易日期', row.date],
                     ['交易时间', row.occurred_at],
@@ -186,6 +216,7 @@ export function LedgerEntryContent({
                         : '',
                     ],
                     [hasItemCategories(row.line_items || []) ? '未分类项默认分类' : '分类', row.category],
+                    ['活动', activityName],
                     ['商家', row.payee],
                     ['平台', row.platform],
                     ['商品摘要', row.product],
@@ -196,11 +227,13 @@ export function LedgerEntryContent({
                   ]
                     .filter(([, v]) => v)
                     .map(([label, value]) => (
-                      <div key={tr(label)}>
-                        <dt>{tr(label)}</dt>
-                        <dd>
-                          {label === '资金账户' ? (
-                            <span className="detail-entity">
+                      <ListRow
+                        key={label}
+                        className={s.field}
+                        title={tr(label)}
+                        end={
+                          label === '资金账户' ? (
+                            <span className={s.entity}>
                               <AccountIcon
                                 name={
                                   accounts.find(a => a.id === row.account_id)?.institution || String(value)
@@ -210,22 +243,26 @@ export function LedgerEntryContent({
                               {value}
                             </span>
                           ) : label === '分类' || label === '未分类项默认分类' ? (
-                            <span className="detail-entity">
+                            <span className={s.entity}>
                               <CategoryIcon name={String(value)} size={26} />
                               {value}
                             </span>
                           ) : label === '记入账本' ? (
-                            <span className="detail-entity">
+                            <span className={s.entity}>
                               <SymbolIcon icon={detailBook?.icon || '📒'} size={26} />
                               {value}
                             </span>
                           ) : (
                             value
-                          )}
-                        </dd>
-                      </div>
+                          )
+                        }
+                      />
                     ))}
-                </dl>
+                </div>
+                {hasItemCategories(row.line_items || []) &&
+                  categoryAmounts(row.line_items || [], row.amount, row.category).map(part => (
+                    <ListRow key={part.category} title={part.category} end={<Money value={part.amount} />} />
+                  ))}
                 <TransactionBalance id={row.id} book={row.book_id || book} balances={row.wallet_balances} />
                 {overview}
                 {row.verification_reason && (
@@ -243,9 +280,7 @@ export function LedgerEntryContent({
             content: (
               <>
                 <LineItemsView category={row.category} items={row.line_items || []} total={row.amount} />
-                {!row.line_items?.length && (
-                  <p className="muted">{locale === 'en' ? 'No item details recorded' : '未记录商品明细'}</p>
-                )}
+                {!row.line_items?.length && <p className={s.muted}>{tr('未记录商品明细')}</p>}
               </>
             ),
           },

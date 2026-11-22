@@ -6,28 +6,19 @@ import { OrganizeEntries } from './OrganizeEntries';
 import type { ManagedBook } from './ManagementPages';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 import type { ReportRange } from '@/lib/report-period';
-import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
-import { getLocale } from '@/lib/i18n';
 import { useI18n } from './LanguageProvider';
-import { FormSelect } from './FormSelect';
+import { Button, ChipButton, EmptyState, Input, Money, Select, Sheet, Stat } from '@/ui';
+import { amountToCents } from '@/server/model';
+import s from './RecordsPanel.module.css';
 
 import { AttentionRecords } from './AttentionRecords';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
-import {
-  CategoryFilterSelect,
-  VisualSelect,
-  SymbolIcon,
-  AccountIcon,
-  CategoryIcon,
-  CategoryIcons,
-} from './VisualSelect';
+import { CategoryFilterSelect, VisualSelect } from './VisualSelect';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransactionList } from './TransactionList';
 import { monthRange, type LedgerReport, type LedgerRow } from '@/lib/ledger-types';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
-const yuan = (n: number) =>
-  new Intl.NumberFormat(getLocale(), { style: 'currency', currency: deployment().currency }).format(n / 100);
 export type ReportScope = 'book' | 'personal_wallet' | 'personal_expense';
 export type AnalysisResult = { report: LedgerReport; from: string; to: string; query: string };
 export function RecordsPanel({
@@ -51,8 +42,18 @@ export function RecordsPanel({
   periodOnly = false,
   summary,
   overview,
+  currentBook = book,
+  onPeriodChange,
+  onBooksChange,
+  scopeControls,
+  onPlans,
   initialView = 'overview',
 }: {
+  currentBook?: string;
+  onPeriodChange?: (range: ReportRange) => void;
+  onBooksChange?: (ids: string[]) => void;
+  scopeControls?: ReactNode;
+  onPlans?: () => void;
   initialView?: 'overview' | 'entries';
   summary?: ReactNode;
   overview?: ReactNode;
@@ -75,7 +76,7 @@ export function RecordsPanel({
   showScope?: boolean;
   onReportChange?: (value: AnalysisResult) => void;
 }) {
-  const { t: tr, locale } = useI18n();
+  const { t: tr } = useI18n();
   const [view, setView] = useState<string>(initialView);
   const [sort, setSort] = useState<DetailSort>('date_desc');
   const [selecting, setSelecting] = useState(false),
@@ -96,6 +97,11 @@ export function RecordsPanel({
     [loading, setLoading] = useState(false),
     [error, setError] = useState(''),
     [exporting, setExporting] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [amounts, setAmounts] = useState({ min: '', max: '' });
+  const [draftAmounts, setDraftAmounts] = useState(amounts);
+  const [amountError, setAmountError] = useState('');
+  const entries = initialView === 'entries' && !!onPeriodChange;
   const top = useRef<HTMLElement>(null);
   useEffect(() => {
     const value = monthRange(month);
@@ -109,21 +115,26 @@ export function RecordsPanel({
     }, 300);
     return () => clearTimeout(timer);
   }, [q]);
+  const externalOptions = scope !== 'book' || (bookIds?.length || 0) > 1 || book !== currentBook;
   useEffect(() => {
-    if (scope === 'book' && (!bookIds || bookIds.length === 1)) return;
+    if (!externalOptions) return;
     const controller = new AbortController();
     Promise.all([
-      fetch('/api/assets', { signal: controller.signal }).then(r => r.json()),
-      fetch('/api/search-options?book=all', { signal: controller.signal }).then(r => r.json()),
+      entries ? Promise.resolve([]) : fetch('/api/assets', { signal: controller.signal }).then(r => r.json()),
+      fetch('/api/search-options?book=' + (entries && bookIds?.length === 1 ? book : 'all'), {
+        signal: controller.signal,
+      }).then(r => r.json()),
     ])
       .then(([assetRows, options]) => {
         if (controller.signal.aborted) return;
-        setPersonalAccounts(assetRows.filter((a: any) => a.ownership === 'personal'));
+        setPersonalAccounts(
+          entries ? options.accounts || [] : assetRows.filter((a: any) => a.ownership === 'personal'),
+        );
         setPersonalCategories((options.categories || []).map((name: string) => ({ name })));
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [scope, bookIds?.join(','), revision]);
+  }, [externalOptions, book, scope, bookIds?.join(','), revision, entries]);
   const queryParams = new URLSearchParams({
     from,
     to,
@@ -136,6 +147,8 @@ export function RecordsPanel({
     ...(scope !== 'book' ? { scope } : {}),
     ...(periodOnly ? { basis: 'period_expense', view: 'expenses' } : {}),
   });
+  for (const k of ['min', 'max'] as const)
+    if (amounts[k]) queryParams.set(k, String(amountToCents(amounts[k])));
   category.forEach(name => queryParams.append('category', name));
   bookIds?.forEach(id => queryParams.append('book', id));
   const query = queryParams.toString();
@@ -205,32 +218,238 @@ export function RecordsPanel({
       setExporting(false);
     }
   }
-  const shownAccounts = scope !== 'book' || (bookIds?.length || 0) > 1 ? personalAccounts : accounts,
-    shownCategories = scope !== 'book' || (bookIds?.length || 0) > 1 ? personalCategories : categories;
+  const shownAccounts = externalOptions ? personalAccounts : accounts,
+    shownCategories = externalOptions ? personalCategories : categories;
+  const typeLabels: Record<string, string> = {
+    all: '全部类型',
+    expense: '消费支出',
+    income: '收入',
+    refund: '退款到账',
+    transfer: '账户转账',
+  };
+  const clear = () => {
+    if (onBooksChange) onBooksChange(books.map(b => b.id));
+    setSelecting(false);
+    setKind('all');
+    setAccount('all');
+    setCategory([]);
+    setQ('');
+    setSearch('');
+    setAmounts({ min: '', max: '' });
+    setDraftAmounts({ min: '', max: '' });
+    setAmountError('');
+    setOffset(0);
+  };
+  const filterFields = (
+    <div className={s.fields}>
+      <Select
+        aria-label={tr('收支类型')}
+        value={kind}
+        onChange={selectedValue => {
+          setKind(selectedValue.target.value);
+          setOffset(0);
+        }}
+      >
+        <option value="all">{tr('全部类型')}</option>
+        <option value="expense">{tr('消费支出')}</option>
+        <option value="income">{tr('收入')}</option>
+        <option value="refund">{tr('退款到账')}</option>
+        {!periodOnly && <option value="transfer">{tr('账户转账')}</option>}
+      </Select>
+      {(!periodOnly || entries) && (
+        <VisualSelect
+          label={tr('资金账户')}
+          value={account}
+          onChange={v => {
+            setAccount(v);
+            setOffset(0);
+          }}
+          options={[
+            { value: 'all', label: tr('全部账户') },
+            ...shownAccounts.map(a => ({
+              value: a.id,
+              label: accountLabel(a),
+              account: true,
+              accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+            })),
+          ]}
+        />
+      )}
+      <CategoryFilterSelect
+        values={category}
+        onChange={v => {
+          setCategory(v);
+          setOffset(0);
+        }}
+        options={shownCategories}
+      />
+    </div>
+  );
+  const list = (
+    <>
+      {scope === 'book' && (!bookIds || bookIds.length === 1) && (
+        <AttentionRecords
+          book={book}
+          revision={revision}
+          onSelect={onSelect}
+          onRestored={() => setRestored(n => n + 1)}
+        />
+      )}
+      {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
+        <div className={selecting ? s.bulk : s.actions}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelecting(v => !v);
+              setSelection(new Set());
+            }}
+          >
+            {tr(selecting ? '退出多选' : '批量整理')}
+          </Button>
+          {selecting && (
+            <>
+              <label className={s.check}>
+                <input
+                  type="checkbox"
+                  disabled={loading || !report?.rows.some(r => !r.family_movement_id && !r.cost_row_key)}
+                  checked={
+                    !!report?.rows.some(r => !r.family_movement_id && !r.cost_row_key) &&
+                    report.rows
+                      .filter(r => !r.family_movement_id && !r.cost_row_key)
+                      .every(r => selection.has(r.id))
+                  }
+                  onChange={e =>
+                    setSelection(
+                      new Set(
+                        e.target.checked
+                          ? report?.rows.filter(r => !r.family_movement_id && !r.cost_row_key).map(r => r.id)
+                          : [],
+                      ),
+                    )
+                  }
+                />
+                {tr('选择本页')}
+              </label>
+              <span>{tr('已选 {0} 笔', [selection.size])}</span>
+              <OrganizeEntries
+                book={book}
+                ids={[...selection]}
+                books={books}
+                disabled={loading}
+                onSaved={() => {
+                  setSelection(new Set());
+                  setSelecting(false);
+                  setRestored(v => v + 1);
+                  onChanged();
+                }}
+              />
+            </>
+          )}
+        </div>
+      )}
+      {loading ? (
+        <div className={s.status} role="status">
+          {tr('正在查找记录…')}
+        </div>
+      ) : report?.rows.length ? (
+        <TransactionList
+          rows={report.rows}
+          shared={scope !== 'book' || shared}
+          showBook={scope !== 'book' || (bookIds?.length || 0) > 1}
+          onSelect={onSelect}
+          grouped={sort.startsWith('date')}
+          selection={selecting ? selection : undefined}
+          onToggle={id =>
+            setSelection(old => {
+              const next = new Set(old);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+        />
+      ) : (
+        !error && <EmptyState title={tr('这个范围内暂无记录，可以调整日期或筛选条件。')} />
+      )}
+      {report && report.totals.count > LIST_PAGE_SIZE && (
+        <div className={s.actions}>
+          <Button
+            disabled={loading || offset === 0}
+            onClick={() => {
+              setOffset(n => Math.max(0, n - LIST_PAGE_SIZE));
+              top.current?.scrollIntoView({ block: 'start' });
+            }}
+          >
+            <ChevronLeft size={16} />
+            {tr('上一页')}
+          </Button>
+          <span>
+            {offset + 1}–{Math.min(offset + LIST_PAGE_SIZE, report.totals.count)} / {report.totals.count}
+          </span>
+          <Button
+            disabled={loading || offset + LIST_PAGE_SIZE >= report.totals.count}
+            onClick={() => {
+              setOffset(n => n + LIST_PAGE_SIZE);
+              top.current?.scrollIntoView({ block: 'start' });
+            }}
+          >
+            {tr('下一页')}
+            <ChevronRight size={16} />
+          </Button>
+        </div>
+      )}
+    </>
+  );
+  const totals = report?.totals;
+  const expense = totals ? totals.expense - totals.refund : 0;
+  const chips: [string, string, () => void][] = [];
+  if (bookIds && onBooksChange)
+    for (const id of bookIds) {
+      if (bookIds.length < books.length)
+        chips.push([
+          'book' + id,
+          books.find(b => b.id === id)?.name || id,
+          () => {
+            onBooksChange(bookIds.length === 1 ? books.map(b => b.id) : bookIds.filter(b => b !== id));
+            setAccount('all');
+            setCategory([]);
+            setSelecting(false);
+          },
+        ]);
+    }
+  if (kind !== 'all') chips.push(['kind', tr(typeLabels[kind]), () => setKind('all')]);
+  if (account !== 'all')
+    chips.push([
+      'account',
+      shownAccounts.find(a => a.id === account)?.name || tr('资金账户'),
+      () => setAccount('all'),
+    ]);
+  for (const name of category)
+    chips.push(['category' + name, name, () => setCategory(category.filter(c => c !== name))]);
+  for (const k of ['min', 'max'] as const)
+    if (amounts[k])
+      chips.push([
+        k,
+        tr(k === 'min' ? '最低金额（元）' : '最高金额（元）') + ' ' + amounts[k],
+        () => setAmounts(v => ({ ...v, [k]: '' })),
+      ]);
+  if (q) chips.push(['query', q, () => setQ('')]);
   return (
-    <section id="analysis-records" className="panel records-panel" ref={top}>
-      <div className="panel-title">
-        <h2>
-          {overview
-            ? locale === 'en'
-              ? 'Filters and results'
-              : '筛选与结果'
-            : locale === 'en'
-              ? 'Expense entries'
-              : '收支明细'}
-        </h2>
-        <button
-          className="text-button"
+    <section id="analysis-records" aria-label={tr('收支明细')} className={s.panel} ref={top}>
+      <div className={s.heading}>
+        <h2>{tr(overview ? '筛选与结果' : '收支明细')}</h2>
+        <Button
+          variant="ghost"
           disabled={exporting || loading || q !== search || !report?.totals.count}
           onClick={download}
         >
           <Download size={17} />
-          {exporting ? tr('导出中…') : tr('导出全部结果')}
-        </button>
+          {tr(exporting ? '导出中…' : '导出全部结果')}
+        </Button>
       </div>
       {showScope && (
-        <div className="report-scope" role="group" aria-label={tr('统计范围')}>
-          <button
+        <div className={s.actions} role="group" aria-label={tr('统计范围')}>
+          <Button
             type="button"
             aria-pressed={scope === 'book'}
             onClick={() => {
@@ -242,8 +461,8 @@ export function RecordsPanel({
             }}
           >
             {tr('当前账本')}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             aria-pressed={scope === 'personal_wallet'}
             onClick={() => {
@@ -256,382 +475,195 @@ export function RecordsPanel({
           >
             {tr('我的个人钱包')}
             <small>{tr('跨全部账本')}</small>
-          </button>
+          </Button>
         </div>
       )}
-      {!dateRange && (
-        <ReportPeriodPicker
-          value={localRange}
-          onChange={value => {
-            setLocalRange(value);
-            setOffset(0);
-          }}
-        />
-      )}
-      <div className="range-shortcuts">
-        <button
-          className="text-button"
-          onClick={() => {
-            setKind('all');
-            setAccount('all');
-            setCategory([]);
-            setQ('');
-            setSearch('');
-            setOffset(0);
-          }}
-        >
-          {tr('清除筛选')}
-        </button>
-      </div>
-      <div className={`record-filters${periodOnly ? ' period-record-filters' : ''}`}>
-        <FormSelect
-          aria-label={tr('收支类型')}
-          value={kind}
-          onChange={selectedValue => {
-            setKind(selectedValue);
-            setOffset(0);
-          }}
-        >
-          <option value="all">{tr('全部类型')}</option>
-          <option value="expense">{tr('消费支出')}</option>
-          <option value="income">{tr('收入')}</option>
-          <option value="refund">{tr('退款到账')}</option>
-          {!periodOnly && <option value="transfer">{tr('账户转账')}</option>}
-        </FormSelect>
-        {!periodOnly && (
-          <VisualSelect
-            label={tr('资金账户')}
-            value={account}
+      <div className={s.toolbar}>
+        {(!dateRange || onPeriodChange) && (
+          <ReportPeriodPicker
+            value={dateRange || localRange}
             onChange={v => {
-              setAccount(v);
+              (onPeriodChange || setLocalRange)(v);
               setOffset(0);
             }}
-            options={[
-              { value: 'all', label: tr('全部账户') },
-              ...shownAccounts.map(a => ({
-                value: a.id,
-                label: accountLabel(a),
-                account: true,
-                accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-              })),
-            ]}
           />
         )}
-        <CategoryFilterSelect
-          values={category}
-          onChange={v => {
-            setCategory(v);
-            setOffset(0);
-          }}
-          options={shownCategories}
-        />
+        {(!overview || view === 'entries') && (
+          <DetailSortSelect
+            value={sort}
+            onChange={v => {
+              setSort(v);
+              setOffset(0);
+            }}
+          />
+        )}
+        <label className={s.search}>
+          <Search size={18} />
+          <Input
+            placeholder={tr('商家、商品、备注、订单号')}
+            aria-label={tr('搜索流水')}
+            value={q}
+            onChange={e => setQ(e.target.value)}
+          />
+        </label>
+        {entries && (
+          <Button
+            onClick={() => {
+              setDraftAmounts(amounts);
+              setAmountError('');
+              setFiltersOpen(true);
+            }}
+          >
+            {tr('筛选')}
+          </Button>
+        )}
       </div>
-      <div hidden={!!overview && view !== 'entries'}>
-        <DetailSortSelect
-          value={sort}
-          onChange={v => {
-            setSort(v);
-            setOffset(0);
-          }}
-        />
-      </div>
-      <label className="record-search">
-        <Search size={18} />
-        <input
-          placeholder={tr('商家、商品、备注、订单号')}
-          aria-label={tr('搜索流水')}
-          value={q}
-          onChange={e => setQ(e.target.value)}
-        />
-      </label>
+      {entries ? (
+        <>
+          <Sheet
+            open={filtersOpen}
+            title={tr('筛选')}
+            closeLabel={tr('关闭弹窗')}
+            onClose={() => setFiltersOpen(false)}
+            footer={
+              <>
+                <Button onClick={clear}>{tr('清除筛选')}</Button>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    try {
+                      const min = draftAmounts.min ? amountToCents(draftAmounts.min) : 0;
+                      if (draftAmounts.max && amountToCents(draftAmounts.max) < min)
+                        throw new Error('最高金额不能低于最低金额');
+                      setAmounts(draftAmounts);
+                      setOffset(0);
+                      setFiltersOpen(false);
+                    } catch (err) {
+                      setAmountError((err as Error).message);
+                    }
+                  }}
+                >
+                  {tr('完成选择')}
+                </Button>
+              </>
+            }
+          >
+            <div className={s.fields}>
+              {scopeControls}
+              {onBooksChange && bookIds && (
+                <fieldset>
+                  <legend>{tr('统计账本')}</legend>
+                  {books.map(b => (
+                    <label key={b.id} className={s.check}>
+                      <input
+                        type="checkbox"
+                        checked={bookIds.includes(b.id)}
+                        disabled={bookIds.length === 1 && bookIds[0] === b.id}
+                        onChange={e => {
+                          onBooksChange(
+                            e.target.checked ? [...bookIds, b.id] : bookIds.filter(id => id !== b.id),
+                          );
+                          setAccount('all');
+                          setCategory([]);
+                          setOffset(0);
+                          setSelecting(false);
+                        }}
+                      />
+                      {b.name}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {filterFields}
+              {(['min', 'max'] as const).map(k => (
+                <label key={k}>
+                  {tr(k === 'min' ? '最低金额（元）' : '最高金额（元）')}
+                  <Input
+                    inputMode="decimal"
+                    value={draftAmounts[k]}
+                    onChange={e => setDraftAmounts(v => ({ ...v, [k]: e.target.value }))}
+                  />
+                </label>
+              ))}
+              {amountError && (
+                <p role="alert" className={s.error}>
+                  {tr(amountError)}
+                </p>
+              )}
+            </div>
+          </Sheet>
+          {!!chips.length && (
+            <div className={s.actions}>
+              {chips.map(([key, label, remove]) => (
+                <ChipButton
+                  className={s.removeChip}
+                  key={key}
+                  selected
+                  aria-label={tr('移除筛选：{0}', [label])}
+                  onClick={() => {
+                    remove();
+                    setOffset(0);
+                  }}
+                >
+                  {label} ×
+                </ChipButton>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {filterFields}
+          <Button variant="ghost" onClick={clear}>
+            {tr('清除筛选')}
+          </Button>
+        </>
+      )}
       {error && (
-        <p role="alert" className="error">
+        <p role="alert" className={s.error}>
           {tr(error)}
         </p>
       )}
-      {!periodOnly && !!report?.excludedCosts?.length && (
-        <p className="notice">
-          {locale === 'en'
-            ? 'Some allocation sources changed. Their original payments are shown until the plans are reviewed.'
-            : '部分分摊的原账单已变化，暂按原付款统计，请在计划与分摊中重新核对。'}
-        </p>
+      {(!periodOnly || entries) && !!report?.excludedCosts?.length && (
+        <aside className={s.notice}>
+          {tr('部分分摊的原账单已变化，暂按原付款统计，请在计划与分摊中重新核对。')}
+          {onPlans && <Button onClick={onPlans}>{tr('前往计划与分摊')}</Button>}
+        </aside>
       )}
-      {!summary && report && (
-        <div className="filtered-summary" aria-busy={loading}>
-          <span>
-            {tr('匹配')}
-            <strong>{report.totals.count}</strong> {tr('笔')}
-          </span>
-          <span>
-            {tr('收入')}
-            <strong className="income">{yuan(report.totals.income)}</strong>
-          </span>
-          <span>
-            {tr('净支出')}
-            <strong className="expense">{yuan(report.totals.expense - report.totals.refund)}</strong>
-          </span>
-          <small>
-            {tr('含退款')}
-            {yuan(report.totals.refund)} {tr('· 汇总覆盖全部匹配记录')}
-          </small>
-        </div>
+      {!summary && (
+        <>
+          <div className={s.stats} aria-busy={loading} aria-label={tr('筛选结果汇总')}>
+            <Stat label={tr('当期净支出')}>{totals ? <Money value={-expense} tone="signed" /> : '—'}</Stat>
+            <Stat label={tr('收入')}>{totals ? <Money value={totals.income} tone="income" /> : '—'}</Stat>
+            <Stat label={tr('收支结余')}>
+              {totals ? <Money value={totals.income - expense} tone="signed" /> : '—'}
+            </Stat>
+          </div>
+          {totals && (
+            <small className={s.status}>
+              {tr('匹配')} {totals.count} {tr('笔')} · {tr('含退款')} <Money value={totals.refund} />
+            </small>
+          )}
+          {scope === 'personal_expense' && report?.familyContribution !== undefined && (
+            <p>
+              {tr('另有家庭缴款')} <Money value={report.familyContribution} />
+            </p>
+          )}
+        </>
       )}
       {summary}
       {overview ? (
         <SectionTabs
-          label={locale === 'en' ? 'Analysis view' : '分析视图'}
+          label={tr('分析视图')}
           value={view}
           onChange={setView}
           items={[
-            { key: 'overview', label: locale === 'en' ? 'Overview' : '概览', content: overview },
-            {
-              key: 'entries',
-              label: locale === 'en' ? 'Entries' : '明细',
-              content: (
-                <>
-                  {scope === 'book' && (!bookIds || bookIds.length === 1) && (
-                    <AttentionRecords
-                      book={book}
-                      revision={revision}
-                      onSelect={onSelect}
-                      onRestored={() => setRestored(n => n + 1)}
-                    />
-                  )}
-                  {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
-                    <div className="records-actions">
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          setSelecting(v => !v);
-                          setSelection(new Set());
-                        }}
-                      >
-                        {tr(selecting ? '退出多选' : '批量整理')}
-                      </button>
-                      {selecting && (
-                        <>
-                          <label className="check">
-                            <input
-                              type="checkbox"
-                              disabled={
-                                loading || !report?.rows.some(r => !r.family_movement_id && !r.cost_row_key)
-                              }
-                              checked={
-                                !!report?.rows.some(r => !r.family_movement_id && !r.cost_row_key) &&
-                                report.rows
-                                  .filter(r => !r.family_movement_id && !r.cost_row_key)
-                                  .every(r => selection.has(r.id))
-                              }
-                              onChange={e =>
-                                setSelection(
-                                  new Set(
-                                    e.target.checked
-                                      ? report?.rows
-                                          .filter(r => !r.family_movement_id && !r.cost_row_key)
-                                          .map(r => r.id)
-                                      : [],
-                                  ),
-                                )
-                              }
-                            />
-                            {tr('选择本页')}
-                          </label>
-                          <span>{tr('已选 {0} 笔', [selection.size])}</span>
-                          <OrganizeEntries
-                            book={book}
-                            ids={[...selection]}
-                            books={books}
-                            disabled={loading}
-                            onSaved={() => {
-                              setSelection(new Set());
-                              setSelecting(false);
-                              setRestored(v => v + 1);
-                              onChanged();
-                            }}
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {loading ? (
-                    <div className="empty" role="status">
-                      {tr('正在查找记录…')}
-                    </div>
-                  ) : report?.rows.length ? (
-                    <TransactionList
-                      rows={report.rows}
-                      shared={scope !== 'book' || shared}
-                      showBook={scope !== 'book' || (bookIds?.length || 0) > 1}
-                      onSelect={onSelect}
-                      grouped={sort.startsWith('date')}
-                      selection={selecting ? selection : undefined}
-                      onToggle={id =>
-                        setSelection(old => {
-                          const next = new Set(old);
-                          if (next.has(id)) next.delete(id);
-                          else next.add(id);
-                          return next;
-                        })
-                      }
-                    />
-                  ) : (
-                    !error && (
-                      <div className="empty">{tr('这个范围内暂无记录，可以调整日期或筛选条件。')}</div>
-                    )
-                  )}
-                  {report && report.totals.count > LIST_PAGE_SIZE && (
-                    <div className="pagination">
-                      <button
-                        className="secondary"
-                        disabled={loading || offset === 0}
-                        onClick={() => {
-                          setOffset(n => Math.max(0, n - LIST_PAGE_SIZE));
-                          top.current?.scrollIntoView({ block: 'start' });
-                        }}
-                      >
-                        <ChevronLeft size={16} />
-                        {tr('上一页')}
-                      </button>
-                      <span>
-                        {offset + 1}–{Math.min(offset + LIST_PAGE_SIZE, report.totals.count)} /{' '}
-                        {report.totals.count}
-                      </span>
-                      <button
-                        className="secondary"
-                        disabled={loading || offset + LIST_PAGE_SIZE >= report.totals.count}
-                        onClick={() => {
-                          setOffset(n => n + LIST_PAGE_SIZE);
-                          top.current?.scrollIntoView({ block: 'start' });
-                        }}
-                      >
-                        {tr('下一页')}
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  )}
-                </>
-              ),
-            },
+            { key: 'overview', label: tr('概览'), content: overview },
+            { key: 'entries', label: tr('明细'), content: list },
           ]}
         />
       ) : (
-        <>
-          {scope === 'book' && (!bookIds || bookIds.length === 1) && (
-            <AttentionRecords
-              book={book}
-              revision={revision}
-              onSelect={onSelect}
-              onRestored={() => setRestored(n => n + 1)}
-            />
-          )}
-          {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
-            <div className="records-actions">
-              <button
-                className="text-button"
-                onClick={() => {
-                  setSelecting(v => !v);
-                  setSelection(new Set());
-                }}
-              >
-                {tr(selecting ? '退出多选' : '批量整理')}
-              </button>
-              {selecting && (
-                <>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      disabled={loading || !report?.rows.some(r => !r.family_movement_id && !r.cost_row_key)}
-                      checked={
-                        !!report?.rows.some(r => !r.family_movement_id && !r.cost_row_key) &&
-                        report.rows
-                          .filter(r => !r.family_movement_id && !r.cost_row_key)
-                          .every(r => selection.has(r.id))
-                      }
-                      onChange={e =>
-                        setSelection(
-                          new Set(
-                            e.target.checked
-                              ? report?.rows
-                                  .filter(r => !r.family_movement_id && !r.cost_row_key)
-                                  .map(r => r.id)
-                              : [],
-                          ),
-                        )
-                      }
-                    />
-                    {tr('选择本页')}
-                  </label>
-                  <span>{tr('已选 {0} 笔', [selection.size])}</span>
-                  <OrganizeEntries
-                    book={book}
-                    ids={[...selection]}
-                    books={books}
-                    disabled={loading}
-                    onSaved={() => {
-                      setSelection(new Set());
-                      setSelecting(false);
-                      setRestored(v => v + 1);
-                      onChanged();
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          )}
-          {loading ? (
-            <div className="empty" role="status">
-              {tr('正在查找记录…')}
-            </div>
-          ) : report?.rows.length ? (
-            <TransactionList
-              rows={report.rows}
-              shared={scope !== 'book' || shared}
-              showBook={scope !== 'book' || (bookIds?.length || 0) > 1}
-              onSelect={onSelect}
-              grouped={sort.startsWith('date')}
-              selection={selecting ? selection : undefined}
-              onToggle={id =>
-                setSelection(old => {
-                  const next = new Set(old);
-                  if (next.has(id)) next.delete(id);
-                  else next.add(id);
-                  return next;
-                })
-              }
-            />
-          ) : (
-            !error && <div className="empty">{tr('这个范围内暂无记录，可以调整日期或筛选条件。')}</div>
-          )}
-          {report && report.totals.count > LIST_PAGE_SIZE && (
-            <div className="pagination">
-              <button
-                className="secondary"
-                disabled={loading || offset === 0}
-                onClick={() => {
-                  setOffset(n => Math.max(0, n - LIST_PAGE_SIZE));
-                  top.current?.scrollIntoView({ block: 'start' });
-                }}
-              >
-                <ChevronLeft size={16} />
-                {tr('上一页')}
-              </button>
-              <span>
-                {offset + 1}–{Math.min(offset + LIST_PAGE_SIZE, report.totals.count)} / {report.totals.count}
-              </span>
-              <button
-                className="secondary"
-                disabled={loading || offset + LIST_PAGE_SIZE >= report.totals.count}
-                onClick={() => {
-                  setOffset(n => n + LIST_PAGE_SIZE);
-                  top.current?.scrollIntoView({ block: 'start' });
-                }}
-              >
-                {tr('下一页')}
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
-        </>
+        list
       )}
     </section>
   );

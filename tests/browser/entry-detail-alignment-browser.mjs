@@ -77,7 +77,7 @@ try {
       ])
         assert((await dialog.getByText(text, { exact: true }).count()) > 0, text);
       await dialog.getByRole('button', { name: '删除记录', exact: true }).waitFor();
-      const fields = await dialog.locator('.detail-fields').first().innerText();
+      const fields = await dialog.getByRole('group', { name: '交易信息', exact: true }).innerText();
       snapshots.push({ width, route, fields });
       assert.equal(fields, snapshots[0].fields, 'same canonical detail fields for ' + route);
       assert(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1));
@@ -112,7 +112,10 @@ try {
   await page.locator('.transaction-row').filter({ hasText: '年度服务分摊' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: '打开原账单', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).waitFor();
-  assert.match(await page.getByRole('dialog').locator('.detail-amount').innerText(), /120.00/);
+  assert.match(
+    await page.getByRole('dialog').getByRole('group', { name: '金额', exact: true }).innerText(),
+    /120.00/,
+  );
   await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗' }).click();
   // Read-only users see the same information but no mutation actions, including chart entry points.
   const viewer = randomUUID(),
@@ -131,7 +134,7 @@ try {
     .addCookies([{ name: 'bubu_session', value: viewerToken, domain: 'localhost', path: '/' }]);
   await page.goto(origin);
   await page.locator('.transaction-row').filter({ hasText: '卡里烤肉' }).first().click();
-  await page.getByRole('dialog').locator('.detail-fields').first().waitFor();
+  await page.getByRole('dialog').getByRole('group', { name: '交易信息', exact: true }).waitFor();
   assert.equal(
     await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).count(),
     0,

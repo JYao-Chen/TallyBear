@@ -1,4 +1,5 @@
 'use client';
+import { Button } from '@/ui/Button';
 import { useEffect, useState } from 'react';
 import { BookOpen, UserRound, Wallet, ScanLine, ChevronDown, Check } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
@@ -37,7 +38,7 @@ type Props = {
   initialView?: 'overview' | 'entries';
 };
 export function SpendingAnalysis(props: Props) {
-  const { locale } = useI18n(),
+  const { locale, t } = useI18n(),
     en = locale === 'en',
     text = (zh: string, eng: string) => (en ? eng : zh);
   const [mode, setMode] = useState<Mode>('book'),
@@ -109,6 +110,53 @@ export function SpendingAnalysis(props: Props) {
     ...range,
     unit: deployment().currency,
   };
+  if (props.initialView === 'entries' && mode !== 'funds') {
+    return (
+      <RecordsPanel
+        {...props}
+        book={ids[0]}
+        bookIds={ids}
+        dateRange={range}
+        onPeriodChange={setRange}
+        onBooksChange={setSelectedBooks}
+        currentBook={props.book}
+        shared={ids.some(id => props.books.find(b => b.id === id)?.kind === 'shared')}
+        canWrite={ids.length === 1 && props.books.find(b => b.id === ids[0])?.role !== 'viewer'}
+        scope={mode}
+        onScopeChange={next => changeMode(next === 'book' ? 'book' : 'personal_expense')}
+        periodOnly
+        showScope={false}
+        scopeControls={
+          <>
+            <fieldset>
+              <legend>{t('统计口径')}</legend>
+              {(
+                [
+                  { key: 'book', label: '账本收支' },
+                  { key: 'personal_expense', label: '我的费用' },
+                  { key: 'funds', label: '钱包资金流' },
+                ] as const
+              ).map(({ key, label }) => (
+                <label key={key}>
+                  <input
+                    type="radio"
+                    name="entries-scope"
+                    checked={mode === key}
+                    onChange={() => changeMode(key)}
+                  />
+                  {t(label)}
+                </label>
+              ))}
+            </fieldset>
+            <Button variant="ghost" onClick={props.onReconcile}>
+              {t('智能核对账单')}
+            </Button>
+          </>
+        }
+        onPlans={props.onPlans}
+      />
+    );
+  }
   return (
     <div className="spending-analysis">
       <div className="analysis-modes" role="group" aria-label={text('统计口径', 'Accounting view')}>

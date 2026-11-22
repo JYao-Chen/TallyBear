@@ -112,7 +112,10 @@ try {
     }
     await detail.locator('.transaction-row').filter({ hasText: '卡里烤肉' }).click();
     await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).waitFor();
-    assert.match(await page.getByRole('dialog').locator('.detail-amount').innerText(), /272.00/);
+    assert.match(
+      await page.getByRole('dialog').getByRole('group', { name: '金额', exact: true }).innerText(),
+      /272.00/,
+    );
     await page.getByRole('dialog').getByRole('button', { name: '删除记录', exact: true }).waitFor();
     await page.screenshot({ path: dir + '/entry-' + width + '.png' });
     await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗' }).click();

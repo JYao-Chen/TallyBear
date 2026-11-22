@@ -212,31 +212,42 @@ try {
       const nav = page.locator(width < 600 ? '.mobile-nav' : '#primary-navigation');
       await nav.getByRole('button', { name: '收支分析', exact: true }).click();
       await page.getByRole('tab', { name: '明细', exact: true }).click();
-      await page.locator('#analysis-records .transaction-row').first().waitFor();
+      await page
+        .locator('#analysis-records')
+        .getByRole('button', { name: /^查看.*详情$/ })
+        .first()
+        .waitFor();
       await page.getByRole('button', { name: '记账分类：全部分类', exact: true }).click();
       await page.getByRole('button', { name: '餐饮', exact: true }).click();
       await page.getByRole('button', { name: '奶茶', exact: true }).click();
       await page.getByRole('button', { name: '完成选择', exact: true }).click();
       await page
         .locator('#analysis-records')
-        .getByRole('button', { name: '收支类型: 全部类型', exact: true })
-        .click();
-      await page.getByRole('button', { name: '消费支出', exact: true }).click();
+        .getByRole('combobox', { name: '收支类型' })
+        .selectOption('expense');
       await page
         .locator('#analysis-records')
-        .getByRole('button', { name: '明细排序: 时间 · 从新到旧', exact: true })
-        .click();
-      await page.getByRole('button', { name: '金额 · 从高到低', exact: true }).click();
+        .getByRole('combobox', { name: '明细排序' })
+        .selectOption('amount_desc');
       const search = page.getByRole('textbox', { name: '搜索流水', exact: true });
       await search.fill('Filter test');
       await page.waitForTimeout(350);
+      await page.locator('#analysis-records').getByRole('button', { name: '下一页', exact: true }).click();
       await page
-        .locator('#analysis-records .pagination')
+        .locator('#analysis-records')
+        .getByRole('button', { name: /^查看.*详情$/ })
+        .first()
+        .waitFor();
+      const pagination = await page
+        .locator('#analysis-records')
         .getByRole('button', { name: '下一页', exact: true })
+        .locator('..')
+        .innerText();
+      await page
+        .locator('#analysis-records')
+        .getByRole('button', { name: /^查看.*详情$/ })
+        .first()
         .click();
-      await page.locator('#analysis-records .transaction-row').first().waitFor();
-      const pagination = await page.locator('#analysis-records .pagination').innerText();
-      await page.locator('#analysis-records .transaction-row').first().click();
       await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).waitFor();
       await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
       assert.ok(
@@ -244,11 +255,16 @@ try {
         `Category lost ${width} cross=${foreign}`,
       );
       assert.equal(await search.inputValue(), 'Filter test');
-      assert.ok(await page.getByRole('button', { name: '收支类型: 消费支出', exact: true }).isVisible());
-      assert.ok(
-        await page.getByRole('button', { name: '明细排序: 金额 · 从高到低', exact: true }).isVisible(),
+      assert.equal(await page.getByRole('combobox', { name: '收支类型' }).inputValue(), 'expense');
+      assert.equal(await page.getByRole('combobox', { name: '明细排序' }).inputValue(), 'amount_desc');
+      assert.equal(
+        await page
+          .locator('#analysis-records')
+          .getByRole('button', { name: '下一页', exact: true })
+          .locator('..')
+          .innerText(),
+        pagination,
       );
-      assert.equal(await page.locator('#analysis-records .pagination').innerText(), pagination);
       await page.screenshot({ path: resolve(out, `analysis-${width}-cross-${foreign}.png`), fullPage: true });
       const exported = page.waitForRequest(r => r.url().includes('/export?'));
       await page.getByRole('button', { name: '导出全部结果', exact: true }).click();
@@ -331,18 +347,29 @@ try {
   await page.getByRole('button', { name: '搜索整个账本系统', exact: true }).click();
   const globalQuery = page.getByRole('textbox', { name: '搜索关键词', exact: true });
   await globalQuery.fill('Filter test');
-  await page.locator('.search-result summary').first().click();
+  await page.locator('summary[data-result]').first().click();
   await page.getByRole('button', { name: '打开这笔记录', exact: true }).waitFor();
   await page.getByRole('dialog').getByRole('button', { name: '下一页', exact: true }).click();
-  await page.locator('.search-result summary').first().click();
+  await page.locator('summary[data-result]').first().click();
   await page.getByRole('button', { name: '打开这笔记录', exact: true }).waitFor();
-  const searchPage = await page.getByRole('dialog').locator('.pagination').innerText();
+  const searchPage = await page
+    .getByRole('dialog')
+    .getByRole('button', { name: '下一页', exact: true })
+    .locator('..')
+    .innerText();
   await page.getByRole('button', { name: '打开这笔记录', exact: true }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('dialog').count(), 1);
   assert.equal(await globalQuery.inputValue(), 'Filter test');
-  assert.equal(await page.getByRole('dialog').locator('.pagination').innerText(), searchPage);
+  assert.equal(
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: '下一页', exact: true })
+      .locator('..')
+      .innerText(),
+    searchPage,
+  );
   await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
   // Wallet flow keeps its local flow filter, query and page after detail closes.
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
@@ -368,7 +395,11 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.locator('.mobile-nav').getByRole('button', { name: '收支分析', exact: true }).click();
   await page.getByRole('tab', { name: '明细', exact: true }).click();
-  await page.locator('#analysis-records .transaction-row').first().click();
+  await page
+    .locator('#analysis-records')
+    .getByRole('button', { name: /^查看.*详情$/ })
+    .first()
+    .click();
   await page.getByRole('dialog').getByRole('heading', { name: '这笔小记录', exact: true }).waitFor();
   assert.equal(
     await page.getByRole('dialog').getByRole('button', { name: '修改记录', exact: true }).count(),

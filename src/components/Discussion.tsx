@@ -1,6 +1,8 @@
 'use client';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Avatar } from './ManagementPages';
+import { Button, TextArea } from '@/ui';
+import s from './Discussion.module.css';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { MessageCircle, Reply, X } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
 import type { DiscussionMessage, DiscussionTarget } from '@/lib/discussions';
@@ -16,6 +18,9 @@ export async function discussionRequest(path: string, body?: unknown, signal?: A
   if (!r.ok) throw Object.assign(new Error(d.error || 'Request failed'), { status: r.status });
   return d;
 }
+function participantAvatar(value?: string) {
+  return value && value !== '🧸' ? value : '👤';
+}
 export function Discussion({
   target,
   hideUnavailable = false,
@@ -25,9 +30,7 @@ export function Discussion({
   hideUnavailable?: boolean;
   revision?: string;
 }) {
-  const { locale } = useI18n(),
-    en = locale === 'en',
-    l = (zh: string, english: string) => (en ? english : zh);
+  const { locale, t: tr } = useI18n();
   const inputId = useId(),
     [data, setData] = useState<any>(null),
     [error, setError] = useState(''),
@@ -152,15 +155,19 @@ export function Discussion({
   }
   if (unavailable) return null;
   return (
-    <section ref={section} className="discussion" aria-label={l('账目讨论', 'Account discussion')}>
-      <div className="panel-title">
+    <section
+      ref={section}
+      className={s.thread}
+      aria-label={locale === 'en' ? tr('账目讨论分区') : tr('账目讨论')}
+    >
+      <div className={s.heading}>
         <h3>
           <MessageCircle size={19} />
-          {scope ? l('本期讨论', 'Cycle discussion') : l('账目讨论', 'Discussion')}
+          {scope ? tr('本期讨论') : tr('账目讨论')}
         </h3>
-        <button
+        <Button
           type="button"
-          className="text-button"
+          variant="ghost"
           disabled={loading || busy}
           onClick={() => {
             setLoading(true);
@@ -169,45 +176,40 @@ export function Discussion({
               .finally(() => setLoading(false));
           }}
         >
-          {l('刷新', 'Refresh')}
-        </button>
+          {tr('刷新')}
+        </Button>
       </div>
       {data && (
-        <p className="muted discussion-audience">
+        <p className={s.muted}>
           {kind === 'claim'
-            ? l('仅付款人和认领人可见', 'Visible only to the payer and recipient')
+            ? tr('仅付款人和认领人可见')
             : kind === 'movement'
-              ? l('仅转账双方可见', 'Visible only to the sender and recipient')
+              ? tr('仅转账双方可见')
               : kind === 'transaction'
-                ? l('本共享账本有权查看的成员可见', 'Visible to members with access to this shared book')
-                : l('本项目参与成员可见', 'Visible to project participants')}{' '}
+                ? tr('本共享账本有权查看的成员可见')
+                : tr('本项目参与成员可见')}{' '}
           · {data.people.map((p: any) => p.name).join('、')}
           {scope && <> · {scope}</>}
         </p>
       )}
       {data?.context.note && (
-        <div className="discussion-original">
-          <strong>{l('转账留言', 'Transfer note')}</strong>
+        <div className={s.quote}>
+          <strong>{tr('转账留言')}</strong>
           <p>{data.context.note}</p>
         </div>
       )}
-      {loading && <p role="status">{l('正在读取讨论…', 'Loading discussion…')}</p>}
+      {loading && <p role="status">{tr('正在读取讨论…')}</p>}
       {!loading && data && !data.rows.length && (
-        <p className="muted">
-          {l(
-            '还没有留言，可以在这里核对用途、金额或分担。',
-            'No messages yet. Discuss the purpose, amount or allocation here.',
-          )}
-        </p>
+        <p className={s.muted}>{tr('还没有留言，可以在这里核对用途、金额或分担。')}</p>
       )}
       {data?.rows.map((m: DiscussionMessage) => (
-        <article className="discussion-message" key={m.id}>
-          <div className="discussion-message-meta">
-            <span className="discussion-person">
-              <Avatar value={m.avatar} size={34} />
+        <article className={s.message} key={m.id}>
+          <div className={s.meta}>
+            <span className={s.person}>
+              <Avatar value={participantAvatar(m.avatar)} size={34} />
               <strong>
                 {m.name}
-                {m.user_id === data.userId ? l('（我）', ' (me)') : ''}
+                {m.user_id === data.userId ? tr('（我）') : ''}
               </strong>
             </span>
             <time dateTime={m.created_at}>
@@ -221,19 +223,19 @@ export function Discussion({
           </div>
           {m.reply_to && (
             <blockquote>
-              <span className="discussion-person">
-                <Avatar value={m.reply_avatar || undefined} size={24} />
+              <span className={s.person}>
+                <Avatar value={participantAvatar(m.reply_avatar || undefined)} size={24} />
                 <strong>{m.reply_name}</strong>
               </span>
               <p>{m.reply_body}</p>
             </blockquote>
           )}
-          <p className="discussion-body">{m.body}</p>
-          <button
+          <p className={s.body}>{m.body}</p>
+          <Button
             type="button"
-            className="text-button"
+            variant="ghost"
             disabled={busy}
-            aria-label={l('回复', 'Reply to') + ' ' + m.name}
+            aria-label={tr('回复 {0}', [m.name])}
             onClick={() => {
               setReply(m);
               requestId.current = '';
@@ -241,71 +243,74 @@ export function Discussion({
             }}
           >
             <Reply size={15} />
-            {l('回复', 'Reply')}
-          </button>
+            {tr('回复')}
+          </Button>
         </article>
       ))}
       {data?.total > 20 && (
-        <nav className="discussion-pagination" aria-label={l('讨论分页', 'Discussion pages')}>
-          <button
+        <nav className={s.actions} aria-label={tr('讨论分页')}>
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             disabled={loading || busy || offset + 20 >= data.total}
             onClick={() => setOffset(v => v + 20)}
           >
-            {l('更早留言', 'Older')}
-          </button>
+            {tr('更早留言')}
+          </Button>
           <span>
             {Math.max(1, data.total - offset - 19)}–{data.total - offset} / {data.total}
           </span>
-          <button
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             disabled={loading || busy || !offset}
             onClick={() => setOffset(v => Math.max(0, v - 20))}
           >
-            {l('更新留言', 'Newer')}
-          </button>
+            {tr('更新留言')}
+          </Button>
         </nav>
       )}
       {error && (
-        <p className="error" role="alert">
-          {error}
+        <p className={s.error} role="alert">
+          {tr(error)}
         </p>
       )}
       {data && (
         <form
-          className="discussion-composer"
+          className={s.composer}
           onSubmit={e => {
             e.preventDefault();
             void send();
           }}
         >
           {reply && (
-            <div className="discussion-reply-preview">
+            <div className={s.quote}>
               <span>
-                <Avatar value={reply.avatar} size={24} />
-                {l('回复', 'Reply to')} {reply.name}：{reply.body}
+                <Avatar value={participantAvatar(reply.avatar)} size={24} /> {tr('回复 {0}', [reply.name])}：
+                {reply.body}
               </span>
-              <button
+              <Button
                 type="button"
-                className="text-button"
+                variant="ghost"
                 disabled={busy}
-                aria-label={l('取消回复', 'Cancel reply')}
+                aria-label={tr('取消回复')}
                 onClick={() => {
                   setReply(null);
                   requestId.current = '';
                 }}
               >
                 <X size={17} />
-              </button>
+              </Button>
             </div>
           )}
-          <label className="discussion-person" htmlFor={inputId}>
-            <Avatar value={data.people.find((p: any) => p.id === data.userId)?.avatar} size={30} />
-            {l('留言给参与成员', 'Message participants')}
+          <label className={s.person} htmlFor={inputId}>
+            <Avatar
+              value={participantAvatar(data.people.find((p: any) => p.id === data.userId)?.avatar)}
+              size={30}
+            />
+            {tr('留言给参与成员')}
           </label>
-          <textarea
+          <TextArea
             id={inputId}
             rows={3}
             maxLength={2000}
@@ -316,13 +321,11 @@ export function Discussion({
               requestId.current = '';
             }}
           />
-          <div className="discussion-compose-actions">
-            <small className="muted">
-              {l('留言不会确认收款或修改分摊。', 'Messages do not confirm receipts or change allocations.')}
-            </small>
-            <button type="submit" disabled={busy || !text.trim()}>
-              {busy ? l('发送中…', 'Sending…') : l('发送留言', 'Send message')}
-            </button>
+          <div className={s.actions}>
+            <small className={s.muted}>{tr('留言不会确认收款或修改分摊。')}</small>
+            <Button type="submit" disabled={busy || !text.trim()}>
+              {busy ? tr('发送中…') : tr('发送留言')}
+            </Button>
           </div>
         </form>
       )}

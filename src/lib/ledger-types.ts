@@ -1,5 +1,6 @@
 import type { LineItem } from './line-items';
 export type LedgerRow = {
+  activity_id?: string | null;
   matched_amount?: number;
   category_parts?: { category: string; amount: number }[];
   claim_id?: string;

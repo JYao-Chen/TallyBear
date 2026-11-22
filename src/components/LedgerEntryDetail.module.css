@@ -1,0 +1,52 @@
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--surface-sunk);
+}
+.hero small,
+.muted {
+  color: var(--muted);
+}
+.hero h3,
+.entity,
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.hero h3 {
+  grid-column: 1/-1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.fields {
+  min-width: 0;
+}
+.field {
+  grid-template-columns: 0 minmax(72px, 1fr) minmax(0, 2fr);
+}
+.field > :last-child,
+.entity {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.notice {
+  padding: var(--space-3);
+  background: var(--attention-soft);
+  color: var(--ink);
+}
+.error {
+  color: var(--danger);
+}
+.field > span:nth-child(2) > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

@@ -14,23 +14,28 @@ const bundle = await build({
   },
   bundle: true,
   write: false,
+  outfile: 'app.js',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env.NODE_ENV': '"development"', 'process.env': '{}' },
   logLevel: 'silent',
 });
-const css = (
-  await Promise.all(
-    ['globals', 'mobile-refinement', 'desktop-refinement', 'workspace-polish'].map(n =>
-      readFile('src/app/' + n + '.css', 'utf8'),
-    ),
-  )
-).join('\n');
+const css =
+  (
+    await Promise.all(
+      [
+        'src/ui/tokens.css',
+        ...['globals', 'mobile-refinement', 'desktop-refinement', 'workspace-polish'].map(
+          n => 'src/app/' + n + '.css',
+        ),
+      ].map(n => readFile(n, 'utf8')),
+    )
+  ).join('\n') + bundle.outputFiles.find(f => f.path.endsWith('.css')).text;
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', req.url === '/app.js' ? 'text/javascript' : 'text/html');
   res.end(
     req.url === '/app.js'
-      ? bundle.outputFiles[0].contents
+      ? bundle.outputFiles.find(f => f.path.endsWith('.js')).contents
       : `<meta name="viewport" content="width=device-width"><style>${css}</style><div id="root"></div><script src="/app.js"></script>`,
   );
 });
@@ -43,7 +48,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
-page.on('dialog', d => d.accept());
+
 let user = 'sender',
   status = 'confirmed',
   fail = false,
@@ -113,9 +118,13 @@ try {
     await page.getByRole('button', { name: '更正转出钱包', exact: true }).click();
     await page.getByRole('button', { name: /^正确的转出钱包：/ }).click();
     await page.getByRole('button', { name: '建设银行 · 1234', exact: true }).click();
-    await page.locator('.movement-source-correction').scrollIntoViewIfNeeded();
+    await page.getByRole('button', { name: '确认更正钱包', exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: out + '/correction-' + width + '.png' });
     await page.getByRole('button', { name: '确认更正钱包', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: '确认更改', exact: true })
+      .getByRole('button', { name: '确认', exact: true })
+      .click();
     await page.waitForFunction(() => window.refreshed && window.closedDetail);
     assert.deepEqual(body, {
       operation: 'correct-source',
@@ -130,6 +139,10 @@ try {
   await page.getByRole('button', { name: /^正确的转出钱包：/ }).click();
   await page.getByRole('button', { name: '建设银行 · 1234', exact: true }).click();
   await page.getByRole('button', { name: '确认更正钱包', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '确认更改', exact: true })
+    .getByRole('button', { name: '确认', exact: true })
+    .click();
   await page.getByRole('alert').filter({ hasText: '付款钱包已改变' }).waitFor();
   assert.equal(await page.evaluate(() => !!window.closedDetail), false);
   user = 'recipient';
@@ -145,6 +158,10 @@ try {
     assert.equal(await page.getByRole('button', { name: '建设银行 · 1234', exact: true }).count(), 0);
     await page.getByRole('button', { name: '收款银行', exact: true }).click();
     await page.getByRole('button', { name: '保存私人记录', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: '确认更改', exact: true })
+      .getByRole('button', { name: '确认', exact: true })
+      .click();
     await page.waitForFunction(() => window.refreshed && window.closedDetail);
     assert.equal(body.operation, 'edit');
     assert.equal(body.targetId, 'receivebank');

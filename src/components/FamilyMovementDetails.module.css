@@ -1,0 +1,112 @@
+.page,
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
+}
+.heading,
+.section {
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+}
+.heading {
+  display: grid;
+  justify-items: end;
+}
+.field {
+  grid-template-columns: 0 minmax(80px, 1fr) minmax(0, 2fr);
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.footer {
+  position: sticky;
+  bottom: var(--safe-bottom);
+  background: var(--surface);
+  padding: var(--space-2);
+}
+.photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-2);
+}
+.photos figure {
+  margin: 0;
+  position: relative;
+}
+.photos img {
+  max-width: 100%;
+  border-radius: var(--radius-control);
+}
+.remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.upload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+}
+.upload:focus-within {
+  outline: 2px solid var(--focus);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+.note {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.heading {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.heading h3,
+.heading p {
+  justify-self: start;
+  margin: 0;
+}
+.heading h3 {
+  grid-column: 1/-1;
+}
+.page > button {
+  justify-self: start;
+}
+.page > * {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .page [role='tablist'] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .page [role='tablist'] > button {
+    min-width: 0;
+    padding-inline: var(--space-1);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .footer {
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-bottom));
+  }
+}
