@@ -42,9 +42,19 @@
   justify-content: start;
   text-align: start;
   min-height: var(--touch);
+  height: auto;
+  padding: var(--space-2) var(--space-3);
+  column-gap: var(--space-2);
+  line-height: 1.45;
+  font-weight: 500;
   border: 0;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--muted);
+}
+.helpTopicGroup button:not([aria-current]):hover {
+  color: var(--ink);
+  background: var(--surface-sunk);
 }
 .helpTopicGroup button[aria-current='page'] {
   color: var(--accent);
