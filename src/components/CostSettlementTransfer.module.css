@@ -1,0 +1,14 @@
+.costTransfer {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.costTransfer fieldset {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+.costTransfer form {
+  display: grid;
+  gap: var(--space-3);
+}

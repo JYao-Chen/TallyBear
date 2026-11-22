@@ -1,4 +1,7 @@
 'use client';
+import { Button, Card, Field, Input, Select, ListRow, ConfirmDialog } from '@/ui';
+import styles from './CostProjects.module.css';
+import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react';
@@ -8,6 +11,7 @@ import { calculateCostPlan, type CostPlan } from '@/lib/cost-attribution';
 import { PagedList } from './PagedList';
 import { CostSchedules } from './CostSchedules';
 import { CostSettlementTransfer } from './CostSettlementTransfer';
+// CostReport still uses the shared legacy cost layout.
 import './cost-projects.css';
 
 async function request(path: string, method = 'GET', body?: unknown) {
@@ -34,8 +38,7 @@ function SourcePicker({
   onChoose: (v: Source) => void;
   onClose: () => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [q, setQ] = useState(''),
     [offset, setOffset] = useState(0),
     [rows, setRows] = useState<Source[]>([]),
@@ -67,21 +70,17 @@ function SourcePicker({
     };
   }, [q, kind, offset]);
   return (
-    <section className="cost-source-picker" aria-label={l('选择原始账单', 'Choose an existing transaction')}>
-      <div className="cost-toolbar">
-        <h4>
-          {kind === 'income'
-            ? l('关联工资或其他收入', 'Link salary or other income')
-            : l('关联已支付账单', 'Link an existing payment')}
-        </h4>
-        <button type="button" className="text-button" onClick={onClose}>
-          {l('关闭', 'Close')}
-        </button>
+    <section className={styles.costSourcePicker} aria-label={tr('选择原始账单')}>
+      <div className={shared.toolbar}>
+        <h4>{kind === 'income' ? tr('关联工资或其他收入') : tr('关联已支付账单')}</h4>
+        <Button variant="ghost" type="button" onClick={onClose}>
+          {tr('关闭')}
+        </Button>
       </div>
       <label>
         <Search size={16} />
-        {l('跨可编辑账本搜索本人流水', 'Search your transactions across editable ledgers')}
-        <input
+        {tr('跨可编辑账本搜索本人流水')}
+        <Input
           autoFocus
           value={q}
           onChange={e => {
@@ -91,15 +90,21 @@ function SourcePicker({
         />
       </label>
       {error && (
-        <p role="alert" className="error">
-          {error}
+        <p role="alert" className={shared.error}>
+          {tr(error)}
         </p>
       )}
       {loading ? (
-        <p role="status">{l('正在查找…', 'Searching…')}</p>
+        <p role="status">{tr('正在查找…')}</p>
       ) : (
         rows.slice(0, 20).map(r => (
-          <button type="button" className="cost-source-row secondary" key={r.id} onClick={() => onChoose(r)}>
+          <Button
+            variant="secondary"
+            type="button"
+            className={styles.costSourceRow}
+            key={r.id}
+            onClick={() => onChoose(r)}
+          >
             <span>
               <strong>{r.title || r.payee}</strong>
               <small>
@@ -107,35 +112,28 @@ function SourcePicker({
               </small>
             </span>
             <b>{formatMoney(r.amount)}</b>
-          </button>
+          </Button>
         ))
       )}
-      {!loading && !rows.length && (
-        <p>
-          {l(
-            '没有符合条件的账单。请先完成真实收付款记账。',
-            'No matching transactions. Record the actual payment or income first.',
-          )}
-        </p>
-      )}
-      <div className="cost-toolbar">
-        <button
-          className="secondary"
+      {!loading && !rows.length && <p>{tr('没有符合条件的账单。请先完成真实收付款记账。')}</p>}
+      <div className={shared.toolbar}>
+        <Button
+          variant="secondary"
           type="button"
           disabled={!offset || loading}
           onClick={() => setOffset(v => Math.max(0, v - 20))}
         >
-          {l('上一页', 'Previous')}
-        </button>
+          {tr('上一页')}
+        </Button>
         <span>{offset / 20 + 1}</span>
-        <button
-          className="secondary"
+        <Button
+          variant="secondary"
           type="button"
           disabled={rows.length <= 20 || loading}
           onClick={() => setOffset(v => v + 20)}
         >
-          {l('下一页', 'Next')}
-        </button>
+          {tr('下一页')}
+        </Button>
       </div>
     </section>
   );
@@ -153,76 +151,73 @@ function PersonalOffsets({
   busy: boolean;
   onSave: (entries: CostPlan['offsets']) => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [items, setItems] = useState(entries),
     [picker, setPicker] = useState<number | null>(null),
     [editing, setEditing] = useState(false);
   const update = (i: number, patch: Partial<CostPlan['offsets'][number]>) =>
     setItems(old => old.map((o, j) => (i === j ? { ...o, ...patch } : o)));
   return (
-    <div className="cost-section">
-      <h3>{l('我的收入抵减', 'My income offsets')}</h3>
-      <p className="muted">
-        {l(
+    <div className={shared.section}>
+      <h3>{tr('我的收入抵减')}</h3>
+      <p className={shared.muted}>
+        {tr(
           '只改变我的净承担，不改变其他人的分担。可关联工资中的部分金额；默认不共享收入金额和来源。原收入变化后，抵减暂按预计处理，请重新核对保存。',
-          'Changes only your net cost, not anyone else’s share. Link part of your salary or other income; amounts and sources are private by default. Changed income becomes an estimate until reviewed.',
         )}
       </p>
       {!editing ? (
-        <button className="secondary" disabled={busy} onClick={() => setEditing(true)}>
-          {l('管理我的抵减', 'Manage my offsets')} ({entries.length})
-        </button>
+        <Button variant="secondary" disabled={busy} onClick={() => setEditing(true)}>
+          {tr('管理我的抵减')} ({entries.length})
+        </Button>
       ) : (
         <>
           <PagedList items={items}>
             {(o, i) => (
-              <div className="cost-offset">
-                <div className="form-grid">
-                  <label>
-                    {l('归属月份', 'Cost month')}
-                    <input
-                      type="month"
-                      value={o.month}
-                      onChange={e => update(i, { month: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    {l('抵减金额', 'Offset amount')}
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={o.amount / 100}
-                      onChange={e => update(i, { amount: Math.round(Number(e.target.value) * 100) })}
-                    />
-                  </label>
+              <div className={shared.row}>
+                <div className={shared.grid}>
+                  <Field label={tr('归属月份')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        type="month"
+                        value={o.month}
+                        onChange={e => update(i, { month: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field label={tr('抵减金额')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={o.amount / 100}
+                        onChange={e => update(i, { amount: Math.round(Number(e.target.value) * 100) })}
+                      />
+                    )}
+                  </Field>
                 </div>
-                <div className="cost-toolbar">
-                  <button className="secondary" onClick={() => setPicker(i)}>
-                    {o.transactionId
-                      ? l('已关联收入 · 更换', 'Income linked · change')
-                      : l('关联到账收入', 'Link received income')}
-                  </button>
+                <div className={shared.toolbar}>
+                  <Button variant="secondary" onClick={() => setPicker(i)}>
+                    {o.transactionId ? tr('已关联收入 · 更换') : tr('关联到账收入')}
+                  </Button>
                   {o.transactionId && (
-                    <button className="text-button" onClick={() => update(i, { transactionId: null })}>
-                      {l('改为预计', 'Mark expected')}
-                    </button>
+                    <Button variant="ghost" onClick={() => update(i, { transactionId: null })}>
+                      {tr('改为预计')}
+                    </Button>
                   )}
-                  <label className="check">
+                  <label className={shared.check}>
                     <input
                       type="checkbox"
                       checked={o.shared}
                       onChange={e => update(i, { shared: e.target.checked })}
                     />
-                    {l('共享抵减金额（不共享收入来源）', 'Share offset amount, not income source')}
+                    {tr('共享抵减金额（不共享收入来源）')}
                   </label>
-                  <button
-                    className="text-button"
-                    onClick={() => setItems(old => old.filter((_, j) => i !== j))}
-                  >
-                    {l('移除', 'Remove')}
-                  </button>
+                  <Button variant="ghost" onClick={() => setItems(old => old.filter((_, j) => i !== j))}>
+                    {tr('移除')}
+                  </Button>
                 </div>
               </div>
             )}
@@ -237,9 +232,9 @@ function PersonalOffsets({
               }}
             />
           )}
-          <div className="cost-toolbar">
-            <button
-              className="secondary"
+          <div className={shared.toolbar}>
+            <Button
+              variant="secondary"
               onClick={() =>
                 setItems(old => [
                   ...old,
@@ -247,20 +242,24 @@ function PersonalOffsets({
                 ])
               }
             >
-              {l('添加抵减', 'Add offset')}
-            </button>
-            <button disabled={busy || items.some(o => !o.amount || !o.month)} onClick={() => onSave(items)}>
-              {l('保存我的抵减', 'Save my offsets')}
-            </button>
-            <button
-              className="text-button"
+              {tr('添加抵减')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={busy || items.some(o => !o.amount || !o.month)}
+              onClick={() => onSave(items)}
+            >
+              {tr('保存我的抵减')}
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 setEditing(false);
                 setItems(entries);
               }}
             >
-              {l('取消', 'Cancel')}
-            </button>
+              {tr('取消')}
+            </Button>
           </div>
         </>
       )}
@@ -284,8 +283,8 @@ export function CostProjects({
   seed?: { id: string; amount: number; date: string };
   onClearSeed?: () => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr, locale } = useI18n();
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [step, setStep] = useState(0);
   const creationId = useRef('');
   const [movements, setMovements] = useState<any[]>([]);
@@ -336,7 +335,7 @@ export function CostProjects({
     creationId.current = crypto.randomUUID();
     return {
       title: '',
-      category: l('其他', 'Other'),
+      category: tr('其他'),
       familyId: null,
       sources: initial ? [{ transactionId: initial.id, amount: initial.amount }] : [],
       coverageStart: initial?.date || month + '-01',
@@ -380,7 +379,7 @@ export function CostProjects({
   const person = (id: string) =>
     options?.people.find(p => p.id === id)?.name ||
     selected?.members?.find((m: any) => m.user_id === id)?.name ||
-    (id === options?.userId ? l('我', 'Me') : id.slice(0, 8));
+    (id === options?.userId ? tr('我') : id.slice(0, 8));
   const set = (patch: Partial<CostPlan>) => {
     setPlan(p => (p ? { ...p, ...patch } : p));
     setError('');
@@ -436,9 +435,7 @@ export function CostProjects({
       });
       await open(result.id || selected.id);
       setRevision(v => v + 1);
-      setNotice(
-        l('费用规则已保存，未新增钱包扣款。', 'Cost rules saved. No additional wallet payment was created.'),
-      );
+      setNotice(tr('费用规则已保存，未新增钱包扣款。'));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -446,21 +443,16 @@ export function CostProjects({
     }
   }
   return (
-    <section className="panel cost-projects">
-      <div className="cost-toolbar">
+    <Card className={shared.panel}>
+      <div className={shared.toolbar}>
         <div>
-          <h2>{l('费用归属与分担', 'Cost allocation & sharing')}</h2>
-          <p className="muted">
-            {l(
-              '付款只记一次，费用按期、按人查看。个账与公账均可关联。',
-              'Record the payment once; attribute costs by period and person, from private or shared ledgers.',
-            )}
-          </p>
+          <h2>{tr('费用归属与分担')}</h2>
+          <p className={shared.muted}>{tr('付款只记一次，费用按期、按人查看。个账与公账均可关联。')}</p>
         </div>
         {selected || plan ? (
-          <button
+          <Button
+            variant="secondary"
             type="button"
-            className="secondary"
             disabled={busy}
             onClick={() => {
               setSelected(null);
@@ -471,10 +463,11 @@ export function CostProjects({
             }}
           >
             <ArrowLeft size={16} />
-            {l('返回项目', 'Back to projects')}
-          </button>
+            {tr('返回项目')}
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="primary"
             disabled={!options || busy}
             type="button"
             onClick={() => {
@@ -483,17 +476,17 @@ export function CostProjects({
             }}
           >
             <Plus size={18} />
-            {l('新建费用项目', 'New cost project')}
-          </button>
+            {tr('新建费用项目')}
+          </Button>
         )}
       </div>
       {error && (
-        <p role="alert" className="error">
-          {error}
+        <p role="alert" className={shared.error}>
+          {tr(error)}
         </p>
       )}
       {notice && (
-        <p role="status" className="notice">
+        <p role="status" className={shared.notice}>
           {notice}
         </p>
       )}
@@ -509,18 +502,20 @@ export function CostProjects({
       )}
       {!selected && !plan && (
         <>
-          <div className="cost-toolbar">
-            <label>
-              {l('搜索费用项目', 'Search cost projects')}
-              <input
-                value={q}
-                onChange={e => {
-                  setQ(e.target.value);
-                  setOffset(0);
-                }}
-              />
-            </label>
-            <label className="check">
+          <div className={shared.toolbar}>
+            <Field label={tr('搜索费用项目')}>
+              {control => (
+                <Input
+                  {...control}
+                  value={q}
+                  onChange={e => {
+                    setQ(e.target.value);
+                    setOffset(0);
+                  }}
+                />
+              )}
+            </Field>
+            <label className={shared.check}>
               <input
                 type="checkbox"
                 checked={archived}
@@ -529,49 +524,40 @@ export function CostProjects({
                   setOffset(0);
                 }}
               />
-              {l('查看已归档', 'Show archived')}
+              {tr('查看已归档')}
             </label>
           </div>
           {loading ? (
-            <p role="status">{l('正在加载…', 'Loading…')}</p>
+            <p role="status">{tr('正在加载…')}</p>
           ) : list.length ? (
             list.map(p => (
-              <button
-                className="cost-project-row secondary"
+              <ListRow
                 key={p.id}
                 disabled={busy}
                 onClick={() => open(p.id)}
-              >
-                <strong>{p.title}</strong>
-                <span>{p.pending ? l('待成员确认', 'Awaiting approval') : l('已生效', 'Active')}</span>
-              </button>
+                title={p.title}
+                end={p.pending ? tr('待成员确认') : tr('已生效')}
+              />
             ))
           ) : (
-            <p className="empty">
-              {l(
-                '关联一笔已支付账单，设置它属于哪些月份、由谁承担。不会再次扣款。',
-                'Link an existing payment and choose its periods and participants. This does not charge a wallet again.',
-              )}
+            <p className={shared.empty}>
+              {tr('关联一笔已支付账单，设置它属于哪些月份、由谁承担。不会再次扣款。')}
             </p>
           )}
-          <div className="cost-toolbar">
-            <button
-              className="secondary"
-              disabled={!offset || loading}
-              onClick={() => setOffset(v => v - 20)}
-            >
-              {l('上一页', 'Previous')}
-            </button>
+          <div className={shared.toolbar}>
+            <Button variant="secondary" disabled={!offset || loading} onClick={() => setOffset(v => v - 20)}>
+              {tr('上一页')}
+            </Button>
             <span>
               {offset / 20 + 1} / {Math.max(1, Math.ceil((list[0]?.total || 0) / 20))}
             </span>
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               disabled={loading || offset + 20 >= (list[0]?.total || 0)}
               onClick={() => setOffset(v => v + 20)}
             >
-              {l('下一页', 'Next')}
-            </button>
+              {tr('下一页')}
+            </Button>
           </div>
         </>
       )}
@@ -593,145 +579,160 @@ export function CostProjects({
           }}
         >
           <fieldset disabled={busy}>
-            <ol className="cost-steps" aria-label={l('设置进度', 'Setup progress')}>
-              {[l('原始账单', 'Payments'), l('期间与成员', 'Periods & people'), l('核对确认', 'Review')].map(
-                (label, i) => (
-                  <li key={i} aria-current={step === i ? 'step' : undefined}>
-                    <button
-                      type="button"
-                      disabled={i > step}
-                      onClick={() => {
-                        setStep(i);
-                      }}
-                    >
-                      {i + 1}. {label}
-                    </button>
-                  </li>
-                ),
-              )}
+            <ol className={styles.costSteps} aria-label={tr('设置进度')}>
+              {[tr('原始账单'), tr('期间与成员'), tr('核对确认')].map((label, i) => (
+                <li key={i} aria-current={step === i ? 'step' : undefined}>
+                  <Button
+                    variant="primary"
+                    type="button"
+                    disabled={i > step}
+                    onClick={() => {
+                      setStep(i);
+                    }}
+                  >
+                    {i + 1}. {label}
+                  </Button>
+                </li>
+              ))}
             </ol>
             <div hidden={step !== 0}>
-              <div className="cost-section">
-                <h3>{l('原始付款', 'Original payments')}</h3>
-                <div className="form-grid">
-                  <label>
-                    {l('费用名称', 'Project name')}
-                    <input
-                      required
-                      maxLength={120}
-                      value={plan.title}
-                      onChange={e => set({ title: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    {l('费用分类', 'Category')}
-                    <input
-                      required
-                      maxLength={60}
-                      value={plan.category}
-                      onChange={e => set({ category: e.target.value })}
-                    />
-                  </label>
+              <div className={shared.section}>
+                <h3>{tr('原始付款')}</h3>
+                <div className={shared.grid}>
+                  <Field label={tr('费用名称')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        maxLength={120}
+                        value={plan.title}
+                        onChange={e => set({ title: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field label={tr('费用分类')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        maxLength={60}
+                        value={plan.category}
+                        onChange={e => set({ category: e.target.value })}
+                      />
+                    )}
+                  </Field>
                 </div>
                 <PagedList items={plan.sources}>
                   {(s, i) => (
-                    <div className="cost-edit-row">
+                    <div className={shared.row}>
                       <span>
-                        {sourceNames[s.transactionId] || l('已关联付款', 'Linked payment')}
+                        {sourceNames[s.transactionId] || tr('已关联付款')}
                         <small>{s.transactionId.slice(0, 8)}</small>
                       </span>
-                      <label>
-                        {l('参与分摊金额', 'Amount to allocate')}
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          required
-                          value={s.amount / 100}
-                          onChange={e =>
-                            set({
-                              sources: plan.sources.map((v, j) =>
-                                j === i ? { ...v, amount: cents(e.target.value) } : v,
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                      <button
+                      <Field label={tr('参与分摊金额')}>
+                        {control => (
+                          <Input
+                            {...control}
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            required
+                            value={s.amount / 100}
+                            onChange={e =>
+                              set({
+                                sources: plan.sources.map((v, j) =>
+                                  j === i ? { ...v, amount: cents(e.target.value) } : v,
+                                ),
+                              })
+                            }
+                          />
+                        )}
+                      </Field>
+                      <Button
+                        variant="ghost"
                         type="button"
-                        className="text-button"
-                        aria-label={l('移除付款关联', 'Remove payment link')}
+                        aria-label={tr('移除付款关联')}
                         onClick={() => set({ sources: plan.sources.filter((_, j) => j !== i) })}
                       >
                         <Trash2 size={18} />
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </PagedList>
-                <button type="button" className="secondary" onClick={() => setPicker('expense')}>
+                <Button variant="secondary" type="button" onClick={() => setPicker('expense')}>
                   <Plus size={16} />
-                  {l('查找已支付账单', 'Find a payment')}
-                </button>
+                  {tr('查找已支付账单')}
+                </Button>
                 <p>
-                  {l('本项目原始费用', 'Original project cost')} <strong>{formatMoney(total)}</strong>
+                  {tr('本项目原始费用')} <strong>{formatMoney(total)}</strong>
                 </p>
               </div>
             </div>
             <div hidden={step !== 1}>
-              <div className="cost-section">
-                <h3>{l('期间归属', 'Cost periods')}</h3>
-                <div className="form-grid">
-                  <label>
-                    {l('实际覆盖开始日', 'Coverage starts')}
-                    <input
-                      type="date"
-                      required
-                      value={plan.coverageStart}
-                      onChange={e => set({ coverageStart: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    {l('覆盖结束日（不含当天）', 'Coverage ends (exclusive)')}
-                    <input
-                      type="date"
-                      required
-                      value={plan.coverageEnd}
-                      onChange={e => set({ coverageEnd: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    {l('分摊方式', 'Allocation method')}
-                    <select
-                      value={plan.mode}
-                      onChange={e => set({ mode: e.target.value as CostPlan['mode'] })}
-                    >
-                      <option value="monthly">{l('指定自然月等额', 'Equal calendar months')}</option>
-                      <option value="daily">{l('真实覆盖期按天', 'Daily over coverage')}</option>
-                      <option value="custom">{l('自定义期间金额', 'Custom periods')}</option>
-                    </select>
-                  </label>
+              <div className={shared.section}>
+                <h3>{tr('期间归属')}</h3>
+                <div className={shared.grid}>
+                  <Field label={tr('实际覆盖开始日')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        type="date"
+                        required
+                        value={plan.coverageStart}
+                        onChange={e => set({ coverageStart: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field label={tr('覆盖结束日（不含当天）')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        type="date"
+                        required
+                        value={plan.coverageEnd}
+                        onChange={e => set({ coverageEnd: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field label={tr('分摊方式')}>
+                    {control => (
+                      <Select
+                        {...control}
+                        value={plan.mode}
+                        onChange={e => set({ mode: e.target.value as CostPlan['mode'] })}
+                      >
+                        <option value="monthly">{tr('指定自然月等额')}</option>
+                        <option value="daily">{tr('真实覆盖期按天')}</option>
+                        <option value="custom">{tr('自定义期间金额')}</option>
+                      </Select>
+                    )}
+                  </Field>
                   {plan.mode === 'monthly' && (
                     <>
-                      <label>
-                        {l('归属起始月份', 'First cost month')}
-                        <input
-                          type="month"
-                          required
-                          value={plan.startMonth}
-                          onChange={e => set({ startMonth: e.target.value })}
-                        />
-                      </label>
-                      <label>
-                        {l('分摊月数', 'Number of months')}
-                        <input
-                          type="number"
-                          min={1}
-                          max={1200}
-                          required
-                          value={plan.months}
-                          onChange={e => set({ months: Number(e.target.value) })}
-                        />
-                      </label>
+                      <Field label={tr('归属起始月份')}>
+                        {control => (
+                          <Input
+                            {...control}
+                            type="month"
+                            required
+                            value={plan.startMonth}
+                            onChange={e => set({ startMonth: e.target.value })}
+                          />
+                        )}
+                      </Field>
+                      <Field label={tr('分摊月数')}>
+                        {control => (
+                          <Input
+                            {...control}
+                            type="number"
+                            min={1}
+                            max={1200}
+                            required
+                            value={plan.months}
+                            onChange={e => set({ months: Number(e.target.value) })}
+                          />
+                        )}
+                      </Field>
                     </>
                   )}
                 </div>
@@ -739,66 +740,72 @@ export function CostProjects({
                   <>
                     <PagedList items={plan.periods}>
                       {(p, i) => (
-                        <div className="cost-edit-row">
-                          <label>
-                            {l('开始', 'Start')}
-                            <input
-                              type="date"
-                              required
-                              value={p.start}
-                              onChange={e =>
-                                set({
-                                  periods: plan.periods.map((v, j) =>
-                                    j === i ? { ...v, start: e.target.value } : v,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {l('结束（不含当天）', 'End (exclusive)')}
-                            <input
-                              type="date"
-                              required
-                              value={p.end}
-                              onChange={e =>
-                                set({
-                                  periods: plan.periods.map((v, j) =>
-                                    j === i ? { ...v, end: e.target.value } : v,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                          <label>
-                            {l('金额', 'Amount')}
-                            <input
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              value={p.amount / 100}
-                              onChange={e =>
-                                set({
-                                  periods: plan.periods.map((v, j) =>
-                                    j === i ? { ...v, amount: cents(e.target.value) } : v,
-                                  ),
-                                })
-                              }
-                            />
-                          </label>
-                          <button
+                        <div className={shared.row}>
+                          <Field label={tr('开始')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="date"
+                                required
+                                value={p.start}
+                                onChange={e =>
+                                  set({
+                                    periods: plan.periods.map((v, j) =>
+                                      j === i ? { ...v, start: e.target.value } : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label={tr('结束（不含当天）')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="date"
+                                required
+                                value={p.end}
+                                onChange={e =>
+                                  set({
+                                    periods: plan.periods.map((v, j) =>
+                                      j === i ? { ...v, end: e.target.value } : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label={tr('金额')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={p.amount / 100}
+                                onChange={e =>
+                                  set({
+                                    periods: plan.periods.map((v, j) =>
+                                      j === i ? { ...v, amount: cents(e.target.value) } : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Button
+                            variant="ghost"
                             type="button"
-                            className="text-button"
                             onClick={() => set({ periods: plan.periods.filter((_, j) => j !== i) })}
                           >
-                            {l('移除', 'Remove')}
-                          </button>
+                            {tr('移除')}
+                          </Button>
                         </div>
                       )}
                     </PagedList>
-                    <button
+                    <Button
+                      variant="secondary"
                       type="button"
-                      className="secondary"
                       onClick={() =>
                         set({
                           periods: [
@@ -808,40 +815,42 @@ export function CostProjects({
                         })
                       }
                     >
-                      {l('添加期间', 'Add period')}
-                    </button>
+                      {tr('添加期间')}
+                    </Button>
                   </>
                 )}
               </div>
-              <div className="cost-section">
-                <h3>{l('成员承担', 'Participants')}</h3>
-                <label>
-                  {l('选人范围（不改变记入账本）', 'Choose participants (does not move the transaction)')}
-                  <select
-                    disabled={!!selected}
-                    value={plan.familyId || ''}
-                    onChange={e =>
-                      set({
-                        familyId: e.target.value || null,
-                        shares: [{ userId: options!.userId, amount: total }],
-                      })
-                    }
-                  >
-                    <option value="">{l('仅自己', 'Just me')}</option>
-                    {[...new Map(options?.people.map(p => [p.family_id, p.family_name])).entries()].map(
-                      ([id, name]) => (
-                        <option key={id} value={id}>
-                          {name}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </label>
+              <div className={shared.section}>
+                <h3>{tr('成员承担')}</h3>
+                <Field label={tr('选人范围（不改变记入账本）')}>
+                  {control => (
+                    <Select
+                      {...control}
+                      disabled={!!selected}
+                      value={plan.familyId || ''}
+                      onChange={e =>
+                        set({
+                          familyId: e.target.value || null,
+                          shares: [{ userId: options!.userId, amount: total }],
+                        })
+                      }
+                    >
+                      <option value="">{tr('仅自己')}</option>
+                      {[...new Map(options?.people.map(p => [p.family_id, p.family_name])).entries()].map(
+                        ([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ),
+                      )}
+                    </Select>
+                  )}
+                </Field>
                 {!selected &&
                   people
                     .filter(p => p.id !== options?.userId)
                     .map(p => (
-                      <label className="check" key={p.id}>
+                      <label className={shared.check} key={p.id}>
                         <input
                           type="checkbox"
                           checked={plan.shares.some(s => s.userId === p.id)}
@@ -856,9 +865,9 @@ export function CostProjects({
                         {p.name}
                       </label>
                     ))}
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="text-button"
                   onClick={() =>
                     set({
                       shares: plan.shares.map((s, i) => ({
@@ -869,13 +878,13 @@ export function CostProjects({
                     })
                   }
                 >
-                  {l('按当前成员均分', 'Split equally')}
-                </button>
-                <div className="form-grid">
+                  {tr('按当前成员均分')}
+                </Button>
+                <div className={shared.grid}>
                   {plan.shares.map((s, i) => (
                     <label key={s.userId}>
-                      {person(s.userId)} · {l('全期承担', 'Total share')}
-                      <input
+                      {person(s.userId)} · {tr('全期承担')}
+                      <Input
                         type="number"
                         step="0.01"
                         min={0}
@@ -892,93 +901,91 @@ export function CostProjects({
                     </label>
                   ))}
                 </div>
-                <p className="muted">
-                  {l(
-                    '其他成员须确认分担。私人账单详情和钱包余额不随邀请共享。',
-                    'Other participants must approve their shares. Private transaction details and wallet balances are not shared.',
-                  )}
+                <p className={shared.muted}>
+                  {tr('其他成员须确认分担。私人账单详情和钱包余额不随邀请共享。')}
                 </p>
               </div>
-              <div className="cost-section">
-                <h3>{l('收入抵减（可选）', 'Income offsets (optional)')}</h3>
-                <p className="muted">
-                  {l(
-                    '工资等任意收入可关联部分金额。预计收入不计入已实现净承担。',
-                    'Use part of any income, including salary. Expected income does not reduce realized costs.',
-                  )}
+              <div className={shared.section}>
+                <h3>{tr('收入抵减（可选）')}</h3>
+                <p className={shared.muted}>
+                  {tr('工资等任意收入可关联部分金额。预计收入不计入已实现净承担。')}
                 </p>
                 <PagedList items={plan.offsets}>
                   {(o, i) => (
-                    <div className="cost-offset">
-                      <div className="form-grid">
-                        <label>
-                          {l('归属月份', 'Cost month')}
-                          <input
-                            type="month"
-                            required
-                            value={o.month}
-                            onChange={e =>
-                              set({
-                                offsets: plan.offsets.map((v, j) =>
-                                  j === i ? { ...v, month: e.target.value } : v,
-                                ),
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          {l('抵减金额', 'Offset amount')}
-                          <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            required
-                            value={o.amount / 100}
-                            onChange={e =>
-                              set({
-                                offsets: plan.offsets.map((v, j) =>
-                                  j === i ? { ...v, amount: cents(e.target.value) } : v,
-                                ),
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          {l('受益人', 'Beneficiary')}
-                          <select
-                            value={o.userId}
-                            onChange={e =>
-                              set({
-                                offsets: plan.offsets.map((v, j) =>
-                                  j === i
-                                    ? {
-                                        ...v,
-                                        userId: e.target.value,
-                                        shared: e.target.value !== options?.userId || v.shared,
-                                      }
-                                    : v,
-                                ),
-                              })
-                            }
-                          >
-                            {plan.shares.map(s => (
-                              <option key={s.userId} value={s.userId}>
-                                {person(s.userId)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                    <div className={shared.row}>
+                      <div className={shared.grid}>
+                        <Field label={tr('归属月份')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              type="month"
+                              required
+                              value={o.month}
+                              onChange={e =>
+                                set({
+                                  offsets: plan.offsets.map((v, j) =>
+                                    j === i ? { ...v, month: e.target.value } : v,
+                                  ),
+                                })
+                              }
+                            />
+                          )}
+                        </Field>
+                        <Field label={tr('抵减金额')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              required
+                              value={o.amount / 100}
+                              onChange={e =>
+                                set({
+                                  offsets: plan.offsets.map((v, j) =>
+                                    j === i ? { ...v, amount: cents(e.target.value) } : v,
+                                  ),
+                                })
+                              }
+                            />
+                          )}
+                        </Field>
+                        <Field label={tr('受益人')}>
+                          {control => (
+                            <Select
+                              {...control}
+                              value={o.userId}
+                              onChange={e =>
+                                set({
+                                  offsets: plan.offsets.map((v, j) =>
+                                    j === i
+                                      ? {
+                                          ...v,
+                                          userId: e.target.value,
+                                          shared: e.target.value !== options?.userId || v.shared,
+                                        }
+                                      : v,
+                                  ),
+                                })
+                              }
+                            >
+                              {plan.shares.map(s => (
+                                <option key={s.userId} value={s.userId}>
+                                  {person(s.userId)}
+                                </option>
+                              ))}
+                            </Select>
+                          )}
+                        </Field>
                       </div>
-                      <div className="cost-toolbar">
-                        <button type="button" className="secondary" onClick={() => setPicker(i)}>
-                          {o.transactionId
-                            ? l('已关联到账收入 · 更换', 'Income linked · change')
-                            : l('关联实际到账收入', 'Link received income')}
-                        </button>
+                      <div className={shared.toolbar}>
+                        <Button variant="secondary" type="button" onClick={() => setPicker(i)}>
+                          {o.transactionId ? tr('已关联到账收入 · 更换') : tr('关联实际到账收入')}
+                        </Button>
                         {o.transactionId && (
-                          <button
+                          <Button
+                            variant="ghost"
                             type="button"
-                            className="text-button"
                             onClick={() =>
                               set({
                                 offsets: plan.offsets.map((v, j) =>
@@ -987,10 +994,10 @@ export function CostProjects({
                               })
                             }
                           >
-                            {l('改为预计', 'Mark expected')}
-                          </button>
+                            {tr('改为预计')}
+                          </Button>
                         )}
-                        <label className="check">
+                        <label className={shared.check}>
                           <input
                             type="checkbox"
                             checked={o.shared}
@@ -1002,27 +1009,27 @@ export function CostProjects({
                               })
                             }
                           />
-                          {l('向参与者共享抵减金额', 'Share offset amount')}
+                          {tr('向参与者共享抵减金额')}
                         </label>
-                        <button
+                        <Button
+                          variant="ghost"
                           type="button"
-                          className="text-button"
                           onClick={() => set({ offsets: plan.offsets.filter((_, j) => j !== i) })}
                         >
-                          {l('移除', 'Remove')}
-                        </button>
+                          {tr('移除')}
+                        </Button>
                       </div>
                       <small>
                         {o.transactionId
-                          ? sourceNames[o.transactionId] || l('实际收入关联', 'Received income linked')
-                          : l('预计，尚未计入实际抵减', 'Expected, not included in realized offsets')}
+                          ? sourceNames[o.transactionId] || tr('实际收入关联')
+                          : tr('预计，尚未计入实际抵减')}
                       </small>
                     </div>
                   )}
                 </PagedList>
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
-                  className="secondary"
                   onClick={() =>
                     set({
                       offsets: [
@@ -1040,8 +1047,8 @@ export function CostProjects({
                   }
                 >
                   <Plus size={16} />
-                  {l('添加抵减', 'Add offset')}
-                </button>
+                  {tr('添加抵减')}
+                </Button>
               </div>
             </div>
             {picker !== null && (
@@ -1068,27 +1075,22 @@ export function CostProjects({
               />
             )}
             {step === 2 && (
-              <div className="cost-section">
+              <div className={shared.section}>
                 <p>
                   <strong>{plan.title}</strong> · {plan.coverageStart} → {plan.coverageEnd}
                 </p>
-                <h3>{l('确认预览', 'Review before saving')}</h3>
+                <h3>{tr('确认预览')}</h3>
                 {problem ? (
-                  <p role="alert" className="error">
-                    {problem}
+                  <p role="alert" className={shared.error}>
+                    {tr(problem)}
                   </p>
                 ) : (
                   preview && (
                     <>
-                      <p className="notice">
-                        {l(
-                          '本次仅更新费用分析，不新增收入或扣款。',
-                          'This updates cost attribution only. No income or payment is created.',
-                        )}
-                      </p>
+                      <p className={shared.notice}>{tr('本次仅更新费用分析，不新增收入或扣款。')}</p>
                       <PagedList items={preview.periods}>
                         {p => (
-                          <div className="cost-period">
+                          <div className={shared.row}>
                             <strong>
                               {p.start} → {p.end}
                             </strong>
@@ -1108,86 +1110,83 @@ export function CostProjects({
                 )}
               </div>
             )}
-            <div className="cost-toolbar">
+            <div className={shared.toolbar}>
               {step > 0 && (
-                <button
+                <Button
+                  variant="secondary"
                   type="button"
-                  className="secondary"
                   onClick={() => {
                     setStep(step - 1);
                   }}
                 >
-                  {l('上一步', 'Back')}
-                </button>
+                  {tr('上一步')}
+                </Button>
               )}
-              <button type="submit" disabled={busy || (step === 2 && !preview)}>
-                {busy
-                  ? l('正在保存…', 'Saving…')
-                  : step === 2
-                    ? l('确认保存规则', 'Confirm cost rules')
-                    : l('下一步', 'Continue')}
-              </button>
-              <button
+              <Button variant="primary" type="submit" disabled={busy || (step === 2 && !preview)}>
+                {busy ? tr('正在保存…') : step === 2 ? tr('确认保存规则') : tr('下一步')}
+              </Button>
+              <Button
+                variant="secondary"
                 type="button"
-                className="secondary"
                 onClick={() => {
                   setPlan(null);
                   setPicker(null);
                 }}
               >
-                {l('取消编辑', 'Cancel editing')}
-              </button>
+                {tr('取消编辑')}
+              </Button>
             </div>
           </fieldset>
         </form>
       )}
       {selected && !plan && (
         <>
-          <div className="cost-toolbar">
+          <div className={shared.toolbar}>
             <div>
               <h3>{selected.title}</h3>
               <p>
-                {selected.coverageStart} → {selected.coverageEnd} · {l('原始费用', 'Original cost')}{' '}
+                {selected.coverageStart} → {selected.coverageEnd} · {tr('原始费用')}{' '}
                 {formatMoney(selected.total)}
               </p>
             </div>
+            {confirmArchive && (
+              <ConfirmDialog
+                open
+                title={selected.archived ? tr('恢复项目') : tr('归档项目')}
+                onCancel={() => setConfirmArchive(false)}
+                onConfirm={() => {
+                  setConfirmArchive(false);
+                  void operation('/archive', { archived: !selected.archived });
+                }}
+              >
+                {selected.title}
+              </ConfirmDialog>
+            )}
             {selected.ownerId === options?.userId && (
               <>
-                <button
-                  className="secondary"
+                <Button
+                  variant="secondary"
                   disabled={busy || selected.archived}
                   onClick={() => {
                     setPlan(selected.proposedPlan || selected.plan);
                   }}
                 >
-                  {l('编辑规则', 'Edit rules')}
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => operation('/archive', { archived: !selected.archived })}
-                >
-                  {selected.archived ? l('恢复项目', 'Restore project') : l('归档项目', 'Archive project')}
-                </button>
+                  {tr('编辑规则')}
+                </Button>
+                <Button variant="ghost" disabled={busy} onClick={() => setConfirmArchive(true)}>
+                  {selected.archived ? tr('恢复项目') : tr('归档项目')}
+                </Button>
               </>
             )}
           </div>
           {!selected.valid && (
-            <p role="alert" className="error">
-              {l(
-                '来源已变化，请所有者核对后重新保存。以下是原规则，不作为当前有效统计。',
-                'A source changed. The owner must review it. These are previous rules, not current valid totals.',
-              )}
+            <p role="alert" className={shared.error}>
+              {tr('来源已变化，请所有者核对后重新保存。以下是原规则，不作为当前有效统计。')}
             </p>
           )}
           {selected.pending && !selected.archived && (
-            <div className="notice">
-              <p>
-                {l(
-                  '存在待确认的分担规则；已生效版本在确认完成前保持不变。',
-                  'A proposal awaits approval. The current agreed version remains effective until approval.',
-                )}
-              </p>
+            <div className={shared.notice}>
+              <p>{tr('存在待确认的分担规则；已生效版本在确认完成前保持不变。')}</p>
               <PagedList items={selected.proposedPeriods || []}>
                 {(p: any) => (
                   <p>
@@ -1199,54 +1198,52 @@ export function CostProjects({
               <PagedList items={selected.proposedOffsets || []}>
                 {(o: any) => (
                   <p>
-                    {o.month} · {person(o.userId)} ·{' '}
-                    {o.realized ? l('到账抵减', 'Received offset') : l('预计抵减', 'Expected offset')}{' '}
+                    {o.month} · {person(o.userId)} · {o.realized ? tr('到账抵减') : tr('预计抵减')}{' '}
                     {formatMoney(o.amount)}
                   </p>
                 )}
               </PagedList>
-              <button disabled={busy} onClick={() => operation('/respond', { accept: true })}>
-                {l('接受本版分担', 'Accept this version')}
-              </button>
-              <button
-                className="secondary"
+              <Button
+                variant="primary"
+                disabled={busy}
+                onClick={() => operation('/respond', { accept: true })}
+              >
+                {tr('接受本版分担')}
+              </Button>
+              <Button
+                variant="secondary"
                 disabled={busy}
                 onClick={() => operation('/respond', { accept: false })}
               >
-                {l('拒绝本版分担', 'Reject this version')}
-              </button>
+                {tr('拒绝本版分担')}
+              </Button>
             </div>
           )}
-          <div className="cost-section">
-            <h3>{l('我的月度承担', 'My monthly costs')}</h3>
-            <p className="muted">
-              {l(
-                '分摊记录不扣钱包；未到账抵减单独显示。',
-                'Allocation does not charge your wallet. Expected offsets are shown separately.',
-              )}
-            </p>
+          <div className={shared.section}>
+            <h3>{tr('我的月度承担')}</h3>
+            <p className={shared.muted}>{tr('分摊记录不扣钱包；未到账抵减单独显示。')}</p>
             <PagedList items={selected.personal}>
               {(r: any) => (
-                <div className="cost-period">
+                <div className={shared.row}>
                   <strong>{r.month}</strong>
                   <dl>
                     <div>
-                      <dt>{l('承担', 'Share')}</dt>
+                      <dt>{tr('承担')}</dt>
                       <dd>{formatMoney(r.cost)}</dd>
                     </div>
                     <div>
-                      <dt>{l('到账抵减', 'Received offsets')}</dt>
+                      <dt>{tr('到账抵减')}</dt>
                       <dd>{formatMoney(r.offset)}</dd>
                     </div>
                     <div>
-                      <dt>{l('净承担', 'Net cost')}</dt>
+                      <dt>{tr('净承担')}</dt>
                       <dd>
                         <strong>{formatMoney(r.net)}</strong>
                       </dd>
                     </div>
                     {r.expected > 0 && (
                       <div>
-                        <dt>{l('预计净承担', 'Projected net cost')}</dt>
+                        <dt>{tr('预计净承担')}</dt>
                         <dd>{formatMoney(r.projected)}</dd>
                       </div>
                     )}
@@ -1273,77 +1270,76 @@ export function CostProjects({
               onChanged={() => open(selected.id)}
             />
           )}
-          <div className="cost-section">
-            <h3>{l('全项目结算', 'Whole-project settlement')}</h3>
+          <div className={shared.section}>
+            <h3>{tr('全项目结算')}</h3>
             {selected.settlement.map((s: any) => (
               <p key={s.userId}>
-                {person(s.userId)} · {s.balance >= 0 ? l('待收回', 'To receive') : l('待补付', 'To pay')}{' '}
+                {person(s.userId)} · {s.balance >= 0 ? tr('待收回') : tr('待补付')}{' '}
                 <strong>{formatMoney(Math.abs(s.balance))}</strong>
               </p>
             ))}
-            <p className="muted">
-              {l(
-                '只关联参与人之间已经确认的真实转账，不再次扣款。',
-                'Link an already confirmed transfer between participants. This does not create another payment.',
-              )}
-            </p>
-            <div className="form-grid">
-              <label>
-                {l('已确认的家庭转账', 'Confirmed family transfer')}
-                <select
-                  value={movement}
-                  onChange={e => {
-                    setMovement(e.target.value);
-                    const m = movements.find(m => m.id === e.target.value);
-                    setSettlementAmount(m ? String(m.amount / 100) : '');
-                  }}
-                >
-                  <option value="">{l('选择已有转账', 'Choose an existing transfer')}</option>
-                  {movements.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {String(m.date).slice(0, 10)} · {m.sender} → {m.recipient} · {formatMoney(m.amount)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {l('用于本项目的金额', 'Amount for this project')}
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={settlementAmount}
-                  onChange={e => setSettlementAmount(e.target.value)}
-                />
-              </label>
+            <p className={shared.muted}>{tr('只关联参与人之间已经确认的真实转账，不再次扣款。')}</p>
+            <div className={shared.grid}>
+              <Field label={tr('已确认的家庭转账')}>
+                {control => (
+                  <Select
+                    {...control}
+                    value={movement}
+                    onChange={e => {
+                      setMovement(e.target.value);
+                      const m = movements.find(m => m.id === e.target.value);
+                      setSettlementAmount(m ? String(m.amount / 100) : '');
+                    }}
+                  >
+                    <option value="">{tr('选择已有转账')}</option>
+                    {movements.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {String(m.date).slice(0, 10)} · {m.sender} → {m.recipient} · {formatMoney(m.amount)}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label={tr('用于本项目的金额')}>
+                {control => (
+                  <Input
+                    {...control}
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={settlementAmount}
+                    onChange={e => setSettlementAmount(e.target.value)}
+                  />
+                )}
+              </Field>
             </div>
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               disabled={busy || !selected.active || !selected.valid || !movement || !Number(settlementAmount)}
               onClick={() =>
                 operation('/settlements', { movementId: movement, amount: cents(settlementAmount) })
               }
             >
-              {l('关联已有结算', 'Link settlement')}
-            </button>
+              {tr('关联已有结算')}
+            </Button>
           </div>
-          <div className="cost-section">
-            <h3>{l('变更记录', 'Change history')}</h3>
+          <div className={shared.section}>
+            <h3>{tr('变更记录')}</h3>
             <PagedList items={selected.changes}>
               {(c: any) => (
                 <p>
                   {(
                     {
-                      settlement_sent: l('记录成员转款', 'Member transfer recorded'),
-                      settlement_confirmed: l('确认到账', 'Receipt confirmed'),
-                      settlement_cancelled: l('取消转款', 'Transfer cancelled'),
-                      personal_offsets: l('个人抵减更新', 'Personal offsets updated'),
-                      created: l('创建', 'Created'),
-                      accepted: l('接受', 'Accepted'),
-                      rejected: l('拒绝', 'Rejected'),
-                      revised: l('修订', 'Revised'),
-                      settlement: l('关联结算', 'Settlement linked'),
-                      archive: l('归档状态变更', 'Archive status changed'),
+                      settlement_sent: tr('记录成员转款'),
+                      settlement_confirmed: tr('确认到账'),
+                      settlement_cancelled: tr('取消转款'),
+                      personal_offsets: tr('个人抵减更新'),
+                      created: tr('创建'),
+                      accepted: tr('接受'),
+                      rejected: tr('拒绝'),
+                      revised: tr('修订'),
+                      settlement: tr('关联结算'),
+                      archive: tr('归档状态变更'),
                     } as Record<string, string>
                   )[c.operation] || c.operation}{' '}
                   · v{c.version} · {new Date(c.created_at).toLocaleString(locale)}
@@ -1354,6 +1350,6 @@ export function CostProjects({
           <Discussion key={selected.id} target={{ kind: 'project', id: selected.id }} />
         </>
       )}
-    </section>
+    </Card>
   );
 }

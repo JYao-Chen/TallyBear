@@ -1,0 +1,22 @@
+.costSourcePicker {
+  padding: var(--space-4);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-card);
+}
+.costSourceRow {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+  margin-top: var(--space-2);
+}
+.costSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+}
+.costSteps [aria-current='step'] button {
+  background: var(--accent);
+  color: var(--accent-ink);
+}

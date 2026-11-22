@@ -1,0 +1,123 @@
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: var(--space-3);
+}
+.tabs button {
+  flex: 1 1 auto;
+  min-height: var(--touch);
+}
+.panel {
+  min-width: 0;
+  margin-block: var(--space-4);
+}
+.panel h2,
+.heading h2 {
+  margin: 0;
+  font: 700 var(--text-lg)/1.4 var(--font-title);
+}
+.heading,
+.toolbar,
+.actions,
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.heading,
+.toolbar,
+.pair {
+  justify-content: space-between;
+}
+.heading,
+.toolbar {
+  margin-block: var(--space-3);
+}
+.heading h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.actions {
+  margin-block: var(--space-3);
+  padding-bottom: var(--safe-bottom);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-3);
+}
+.grid > *,
+.toolbar > *,
+.panel fieldset {
+  min-width: 0;
+}
+.row,
+.section,
+.pair {
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.row {
+  display: grid;
+  gap: var(--space-2);
+}
+.check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+}
+.check input {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+.notice,
+.empty {
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+}
+.muted,
+.empty {
+  color: var(--muted);
+}
+.expense,
+.error {
+  color: var(--expense);
+}
+.panel,
+.grid,
+.actions,
+.pair {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.numeric,
+.panel input[inputmode='decimal'],
+.grid input {
+  font-variant-numeric: tabular-nums;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+}
+.form > button {
+  justify-self: start;
+}
+@media (max-width: 600px) {
+  .tabs[role='tablist'] {
+    width: 100%;
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tabs[role='tablist'] button {
+    white-space: normal;
+  }
+}

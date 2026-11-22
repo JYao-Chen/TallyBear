@@ -1,9 +1,11 @@
 'use client';
+import { Button, ConfirmDialog } from '@/ui';
+import styles from './WalletEntryActions.module.css';
 import { useEffect, useState } from 'react';
 import { useI18n } from './LanguageProvider';
 export function WalletEntryActions({ id, onDeleted }: { id: string; onDeleted: () => Promise<void> }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
+  const [confirming, setConfirming] = useState(false);
   const [data, setData] = useState<any>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -25,15 +27,7 @@ export function WalletEntryActions({ id, onDeleted }: { id: string; onDeleted: (
   }, [id, retry]);
   async function remove() {
     if (busy || !data?.canDelete) return;
-    if (
-      !window.confirm(
-        l(
-          `确认删除这笔真实资金流水？${data.copies > 1 ? '它在' + data.copies + '个账本中的关联记录将一起移入回收站。' : ''}涉及钱包的余额会重新计算，不会撤销银行或支付平台的真实交易。`,
-          'Delete this recorded payment and all its linked book copies? Wallet balances will be recalculated. This does not reverse any real bank or payment transaction.',
-        ),
-      )
-    )
-      return;
+    setConfirming(false);
     setBusy(true);
     setError('');
     try {
@@ -52,32 +46,43 @@ export function WalletEntryActions({ id, onDeleted }: { id: string; onDeleted: (
     }
   }
   return (
-    <section className="funds-entry-actions">
+    <section className={styles.actions}>
       {!data && !error && (
-        <p className="muted" role="status">
-          {l('正在读取流水操作…', 'Loading entry actions…')}
+        <p className={styles.muted} role="status">
+          {tr('正在读取流水操作…')}
         </p>
       )}
       {data?.canDelete && (
         <>
-          <p className="muted">
-            {l(
+          <p className={styles.muted}>
+            {tr(
               '多记或重复的流水可在这里删除，并重新计算相关钱包余额。关联账本记录一起移入回收站，不只是隐藏当前列表。',
-              'Delete an extra or duplicate entry here to recalculate the affected wallets. Linked book records move to the recycle bin; this does not merely hide a list item.',
             )}
           </p>
-          <button type="button" className="secondary" disabled={busy} onClick={() => void remove()}>
-            {busy ? l('正在删除…', 'Deleting…') : l('删除这笔流水', 'Delete this entry')}
-          </button>
+          <Button type="button" disabled={busy} onClick={() => setConfirming(true)}>
+            {busy ? tr('正在删除…') : tr('删除这笔流水')}
+          </Button>
+          {confirming && (
+            <ConfirmDialog
+              open
+              title={tr('删除这笔流水')}
+              confirmLabel={tr('删除这笔流水')}
+              onCancel={() => setConfirming(false)}
+              onConfirm={() => void remove()}
+            >
+              <p>{tr('涉及钱包的余额会重新计算，不会撤销银行或支付平台的真实交易。')}</p>
+              {data.copies > 1 && <p>{tr('它在 {0} 个账本中的关联记录将一起移入回收站。', [data.copies])}</p>}
+            </ConfirmDialog>
+          )}
         </>
       )}
-      {data && !data.canDelete && <p className="muted">{data.reason}</p>}
+      {data && !data.canDelete && <p className={styles.muted}>{tr(data.reason)}</p>}
       {error && (
-        <p className="error" role="alert">
-          {error}{' '}
-          <button type="button" className="text-button" disabled={busy} onClick={() => setRetry(v => v + 1)}>
-            {l('重新读取', 'Reload')}
-          </button>
+        <p className={styles.error} role="alert">
+          {tr(error)}{' '}
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => setRetry(v => v + 1)}>
+            {tr('重新读取')}
+          </Button>
         </p>
       )}
     </section>

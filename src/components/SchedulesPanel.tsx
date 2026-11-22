@@ -1,16 +1,16 @@
 'use client';
+import { Button, Card, Field, Input, Select, Sheet, Money, ListRow, ConfirmDialog, EmptyState } from '@/ui';
+import styles from './SchedulesPanel.module.css';
+import shared from './WorkspacePlans.module.css';
 import { PagedList } from './PagedList';
 
 import { DateField } from './DateField';
-import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
-import { FormSelect } from './FormSelect';
 
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
-import { VisualSelect, SymbolIcon, AccountIcon, CategoryIcon, CategoryIcons } from './VisualSelect';
+import { VisualSelect } from './VisualSelect';
 import { useState } from 'react';
 import { Plus, CalendarDays } from 'lucide-react';
-import { Sheet } from './Sheet';
 import { amountToCents } from '@/server/model';
 import type { Draft } from './DraftReview';
 export type Schedule = {
@@ -40,6 +40,7 @@ export function SchedulesPanel({
   onChange: (body: unknown) => Promise<void>;
 }) {
   const { t: tr, locale } = useI18n();
+  const [deleting, setDeleting] = useState(false);
   const [frequency, setFrequency] = useState('monthly');
   const [selected, setSelected] = useState<Schedule | null>(null),
     [mode, setMode] = useState<'edit' | 'confirm' | null>(null),
@@ -64,51 +65,60 @@ export function SchedulesPanel({
     setError('');
   }
   return (
-    <section className="panel">
-      <div className="panel-title">
+    <Card className={shared.panel}>
+      <div className={shared.heading}>
         <h2>
           <CalendarDays size={22} />
           {tr('我的周期账单')}
         </h2>
         {canWrite && (
-          <button className="text-button" onClick={() => open(null, 'edit')}>
+          <Button variant="ghost" onClick={() => open(null, 'edit')}>
             <Plus size={18} />
             {tr('新增')}
-          </button>
+          </Button>
         )}
       </div>
-      <></>
-      {error && !mode && <p className="error">{tr(error)}</p>}
-      {!items.length && <div className="empty">{tr('还没有周期账单，先添加一项固定开销吧。')}</div>}
+
+      {error && !mode && <p className={shared.error}>{tr(error)}</p>}
+      {!items.length && <EmptyState title={tr('还没有周期账单，先添加一项固定开销吧。')} />}
       {
         <PagedList items={items}>
           {s => (
-            <article className="schedule-card" key={s.id}>
-              <div>
-                <strong>{s.name}</strong>
-                <small>
-                  {s.next_date} ·{' '}
-                  {tr('每 {0} {1}', [
-                    s.interval_count || 1,
-                    locale === 'en'
-                      ? { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }[s.frequency] +
-                        ((s.interval_count || 1) === 1 ? '' : 's')
-                      : tr({ daily: '天', weekly: '周', monthly: '个月', yearly: '年' }[s.frequency]),
-                  ])}
-                  {s.amortize ? tr(' · 按月分摊') : ''} ·{' '}
-                  {s.paused ? tr('已暂停') : s.next_date <= today() ? tr('已到期，待核对') : tr('未到期')}
-                </small>
-              </div>
-              <strong>{formatMoney(s.value.amount)}</strong>
+            <article className={styles.scheduleCard} key={s.id}>
+              <ListRow
+                title={s.name}
+                meta={
+                  <>
+                    {s.next_date} ·{' '}
+                    {tr('每 {0} {1}', [
+                      s.interval_count || 1,
+                      locale === 'en'
+                        ? { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' }[s.frequency] +
+                          ((s.interval_count || 1) === 1 ? '' : 's')
+                        : tr({ daily: '天', weekly: '周', monthly: '个月', yearly: '年' }[s.frequency]),
+                    ])}
+                    {s.amortize ? tr(' · 按月分摊') : ''} ·{' '}
+                    {s.paused ? tr('已暂停') : s.next_date <= today() ? tr('已到期，待核对') : tr('未到期')}
+                  </>
+                }
+                end={
+                  <Money
+                    value={s.value.amount}
+                    tone={
+                      s.value.kind === 'expense' ? 'expense' : s.value.kind === 'income' ? 'income' : 'plain'
+                    }
+                  />
+                }
+              />
               {canWrite && (
-                <div className="schedule-actions">
-                  <button className="text-button" disabled={busy} onClick={() => open(s, 'edit')}>
+                <div className={shared.actions}>
+                  <Button variant="ghost" disabled={busy} onClick={() => open(s, 'edit')}>
                     {tr('管理')}
-                  </button>
+                  </Button>
                   {!s.paused && s.next_date <= today() && (
-                    <button disabled={busy} onClick={() => open(s, 'confirm')}>
+                    <Button variant="primary" disabled={busy} onClick={() => open(s, 'confirm')}>
                       {tr('核对本期')}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -118,18 +128,21 @@ export function SchedulesPanel({
       }
       {mode && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={mode === 'confirm' ? tr('核对本期账单') : selected ? tr('管理周期账单') : tr('新增周期账单')}
           onClose={() => {
             if (!busy) setMode(null);
           }}
         >
           {error && (
-            <p className="error" role="alert">
+            <p className={shared.error} role="alert">
               {tr(error)}
             </p>
           )}
           {mode === 'confirm' && selected ? (
             <form
+              className={shared.form}
               onSubmit={e => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
@@ -150,20 +163,23 @@ export function SchedulesPanel({
               }}
             >
               <h3>{selected.name}</h3>
-              <p className="muted">
+              <p className={shared.muted}>
                 {tr('本期应付日期')}
                 {selected.next_date}
                 {tr('。确认后只记录本期，下一期按原周期计算。')}
               </p>
-              <label>
-                {tr('实际金额（元）')}
-                <input
-                  name="amount"
-                  inputMode="decimal"
-                  defaultValue={selected.value.amount / 100}
-                  required
-                />
-              </label>
+              <Field label={tr('实际金额（元）')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="amount"
+                    className={shared.numeric}
+                    inputMode="decimal"
+                    defaultValue={selected.value.amount / 100}
+                    required
+                  />
+                )}
+              </Field>
               {selected.amortize && (
                 <label>
                   {tr('分摊开始')}
@@ -183,10 +199,10 @@ export function SchedulesPanel({
                 {tr('实际收付款日期')}
                 <DateField name="date" type="date" defaultValue={today()} required />
               </label>
-              <div className="sheet-actions">
-                <button
+              <div className={shared.actions}>
+                <Button
+                  variant="secondary"
                   type="button"
-                  className="secondary"
                   disabled={busy}
                   onClick={() =>
                     run({
@@ -198,12 +214,15 @@ export function SchedulesPanel({
                   }
                 >
                   {tr('本期不记，跳过')}
-                </button>
-                <button disabled={busy}>{tr('确认本期已收付')}</button>
+                </Button>
+                <Button variant="primary" type="submit" disabled={busy}>
+                  {tr('确认本期已收付')}
+                </Button>
               </div>
             </form>
           ) : (
             <form
+              className={shared.form}
               onSubmit={e => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
@@ -231,52 +250,66 @@ export function SchedulesPanel({
                 }
               }}
             >
-              <label>
-                {tr('账单名称')}
-                <input
-                  name="name"
-                  defaultValue={selected?.name}
-                  maxLength={80}
-                  required
-                  placeholder={tr('例如：房租、视频会员')}
-                />
-              </label>
-              <div className="form-grid">
-                <label>
-                  {tr('类型')}
-                  <FormSelect name="kind" defaultValue={selected?.value.kind}>
-                    <option value="expense">{tr('支出')}</option>
-                    <option value="income">{tr('收入')}</option>
-                  </FormSelect>
-                </label>
-                <label>
-                  {tr('预计金额（元）')}
-                  <input
-                    name="amount"
-                    inputMode="decimal"
-                    defaultValue={selected ? selected.value.amount / 100 : ''}
+              <Field label={tr('账单名称')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="name"
+                    defaultValue={selected?.name}
+                    maxLength={80}
                     required
+                    placeholder={tr('例如：房租、视频会员')}
                   />
-                </label>
-                <label>
-                  {tr('重复周期')}
-                  <FormSelect name="frequency" value={frequency} onChange={setFrequency}>
-                    <option value="daily">{tr('天')}</option>
-                    <option value="weekly">{tr('周')}</option>
-                    <option value="monthly">{tr('月')}</option>
-                    <option value="yearly">{tr('年')}</option>
-                  </FormSelect>
-                </label>
-                <label>
-                  {tr('周期数量')}
-                  <input
-                    name="intervalCount"
-                    type="number"
-                    min={1}
-                    defaultValue={selected?.interval_count || 1}
-                    required
-                  />
-                </label>
+                )}
+              </Field>
+              <div className={shared.grid}>
+                <Field label={tr('类型')}>
+                  {control => (
+                    <Select {...control} name="kind" defaultValue={selected?.value.kind}>
+                      <option value="expense">{tr('支出')}</option>
+                      <option value="income">{tr('收入')}</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label={tr('预计金额（元）')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="amount"
+                      className={shared.numeric}
+                      inputMode="decimal"
+                      defaultValue={selected ? selected.value.amount / 100 : ''}
+                      required
+                    />
+                  )}
+                </Field>
+                <Field label={tr('重复周期')}>
+                  {control => (
+                    <Select
+                      {...control}
+                      name="frequency"
+                      value={frequency}
+                      onChange={e => setFrequency(e.target.value)}
+                    >
+                      <option value="daily">{tr('天')}</option>
+                      <option value="weekly">{tr('周')}</option>
+                      <option value="monthly">{tr('月')}</option>
+                      <option value="yearly">{tr('年')}</option>
+                    </Select>
+                  )}
+                </Field>
+                <Field label={tr('周期数量')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="intervalCount"
+                      type="number"
+                      min={1}
+                      defaultValue={selected?.interval_count || 1}
+                      required
+                    />
+                  )}
+                </Field>
                 <label>
                   {tr('下一次日期')}
                   <DateField
@@ -310,25 +343,27 @@ export function SchedulesPanel({
                   />
                 </label>
               </div>
-              <label className="allocation-toggle">
+              <label className={styles.allocationToggle}>
                 <input type="checkbox" name="amortize" defaultChecked={selected?.amortize} />
                 {tr('付款后按覆盖周期分摊')}
               </label>
-              <></>
-              <label>
-                {tr('商家 / 交易对方')}
-                <input name="payee" defaultValue={selected?.value.payee} maxLength={120} />
-              </label>
-              <label>
-                {tr('备注')}
-                <input name="note" defaultValue={selected?.value.note} maxLength={2000} />
-              </label>
-              <></>
-              <div className="sheet-actions">
+
+              <Field label={tr('商家 / 交易对方')}>
+                {control => (
+                  <Input {...control} name="payee" defaultValue={selected?.value.payee} maxLength={120} />
+                )}
+              </Field>
+              <Field label={tr('备注')}>
+                {control => (
+                  <Input {...control} name="note" defaultValue={selected?.value.note} maxLength={2000} />
+                )}
+              </Field>
+
+              <div className={shared.actions}>
                 {selected && (
-                  <button
+                  <Button
+                    variant="secondary"
                     type="button"
-                    className="secondary"
                     disabled={busy}
                     onClick={() =>
                       run({
@@ -340,24 +375,34 @@ export function SchedulesPanel({
                     }
                   >
                     {selected.paused ? tr('恢复计划') : tr('暂停计划')}
-                  </button>
+                  </Button>
                 )}
-                <button disabled={busy}>{tr('保存计划')}</button>
+                <Button variant="primary" type="submit" disabled={busy}>
+                  {tr('保存计划')}
+                </Button>
               </div>
               {selected && (
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => run({ operation: 'delete', id: selected.id, version: selected.version })}
-                >
+                <Button variant="ghost" type="button" disabled={busy} onClick={() => setDeleting(true)}>
                   {tr('删除计划（已入账记录保留）')}
-                </button>
+                </Button>
               )}
             </form>
           )}
+          {deleting && selected && (
+            <ConfirmDialog
+              open
+              title={tr('删除计划（已入账记录保留）')}
+              onCancel={() => setDeleting(false)}
+              onConfirm={() => {
+                setDeleting(false);
+                void run({ operation: 'delete', id: selected.id, version: selected.version });
+              }}
+            >
+              {selected.name}
+            </ConfirmDialog>
+          )}
         </Sheet>
       )}
-    </section>
+    </Card>
   );
 }

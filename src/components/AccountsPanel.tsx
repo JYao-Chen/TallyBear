@@ -1,24 +1,35 @@
 'use client';
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Select,
+  Sheet,
+  Money,
+  Stat,
+  ListRow,
+  ConfirmDialog,
+  EmptyState,
+} from '@/ui';
+import styles from './AccountsPanel.module.css';
+import shared from './WorkspacePlans.module.css';
 import { recordingDate } from '@/lib/entry-time';
 import { PagedList } from './PagedList';
 
-import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
+import { deployment } from '@/lib/deployment';
 import { getLocale } from '@/lib/i18n';
 import { useI18n } from './LanguageProvider';
-import { FormSelect } from './FormSelect';
+import { monthRange, type LedgerReport, type LedgerRow } from '@/lib/ledger-types';
+import { ReportPeriodPicker } from './ReportPeriodPicker';
+import { WalletFundsPanel } from './WalletFundsPanel';
+import { TransactionList } from './TransactionList';
 
-import {
-  accountTypes,
-  accountLabel,
-  walletOwnership,
-  type WalletOwnership,
-  type AccountType,
-} from '@/lib/accounts';
+import { accountTypes, accountLabel, type WalletOwnership, type AccountType } from '@/lib/accounts';
 import { AccountStatistics } from './AccountStatistics';
-import { VisualSelect, SymbolIcon, AccountIcon, CategoryIcon, CategoryIcons } from './VisualSelect';
+import { VisualSelect, AccountIcon } from './VisualSelect';
 import { useEffect, useRef, useState } from 'react';
-import { Wallet, Plus, ChevronRight, Archive, RotateCcw } from 'lucide-react';
-import { Sheet } from './Sheet';
+import { Plus, Archive, RotateCcw } from 'lucide-react';
 import { amountToCents } from '@/server/model';
 export type Account = {
   owner_id?: string;
@@ -42,11 +53,15 @@ const yuan = (n: number) =>
 const signedCents = (s: string) => (s.startsWith('-') ? -amountToCents(s.slice(1)) : amountToCents(s));
 export function AccountsPanel({
   book,
+  books,
   month,
+  onSelect,
   onChanged,
 }: {
   book: string;
+  books?: readonly { id: string }[];
   month: string;
+  onSelect?: (row: LedgerRow) => void;
   onChanged: () => Promise<void>;
 }) {
   const { t: tr, locale } = useI18n();
@@ -71,7 +86,11 @@ export function AccountsPanel({
   }
   async function reload() {
     try {
-      setAccounts(await request('GET'));
+      const wallets: Account[] = await request('GET');
+      setAccounts(wallets);
+      setSelected(previous =>
+        previous ? (wallets.find(wallet => wallet.id === previous.id) ?? null) : null,
+      );
     } finally {
       setLoading(false);
     }
@@ -88,7 +107,7 @@ export function AccountsPanel({
   const [mergeTarget, setMergeTarget] = useState(''),
     [mergeBalance, setMergeBalance] = useState('');
   const [selected, setSelected] = useState<Account | null>(null),
-    [mode, setMode] = useState<'detail' | 'edit' | 'reconcile' | 'new' | 'delete' | 'merge'>('detail'),
+    [mode, setMode] = useState<'detail' | 'edit' | 'reconcile' | 'new' | 'merge'>('detail'),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -103,8 +122,24 @@ export function AccountsPanel({
       }[]
     >([]),
     [showArchived, setShowArchived] = useState(false);
-  const visible = accounts.filter(a => showArchived || !a.archived);
+  const [confirmation, setConfirmation] = useState<{
+    label: string;
+    detail: string;
+    action: () => void;
+  } | null>(null);
+  const formScope = selected ? selected.family_id || 'personal' : scope;
+  const mergeCandidates = selected
+    ? allAccounts.filter(
+        a => a.id !== selected.id && !a.archived && (a.family_id || 'personal') === formScope,
+      )
+    : [];
+  const visible = allAccounts.filter(a => showArchived || !a.archived);
   const total = accounts.reduce((n, a) => n + a.balance, 0);
+  const assets = accounts.reduce((n, a) => n + Math.max(0, a.balance), 0);
+  const groups = [
+    { id: 'personal', label: tr('个人') },
+    ...families.map(f => ({ id: f.id, label: f.name + ' · ' + tr('家庭') })),
+  ];
   function show(a: Account) {
     historyAccount.current = a.id;
     setSelected(a);
@@ -116,7 +151,9 @@ export function AccountsPanel({
       .then(data => {
         if (historyAccount.current === a.id) setHistory(data as typeof history);
       })
-      .catch(e => setError(e.message));
+      .catch(e => {
+        if (historyAccount.current === a.id) setError(e.message);
+      });
   }
   async function submit(body: unknown, method = 'PATCH', merge = false) {
     if (busy) return;
@@ -137,7 +174,7 @@ export function AccountsPanel({
     scope === 'personal' ? tr('我的资产') : families.find(f => f.id === scope)?.name || tr('家庭资产');
   return (
     <>
-      <div className="page-heading">
+      <div className={shared.heading}>
         <h1>{tr('资金资产')}</h1>
         <VisualSelect
           label={tr('资产归属')}
@@ -149,13 +186,26 @@ export function AccountsPanel({
           ]}
         />
       </div>
-      {error && !open && <p className="error">{tr(error)}</p>}
-      <section className="panel">
-        <div className="panel-title">
+      {error && !open && <p className={shared.error}>{tr(error)}</p>}
+      {!loading && !error && (
+        <Card className={styles.stats} aria-label={scopeLabel}>
+          <Stat label={tr('资产')}>
+            <Money value={assets} />
+          </Stat>
+          <Stat label={tr('负债')}>
+            <Money value={assets - total} />
+          </Stat>
+          <Stat label={tr('当前资产净值')}>
+            <Money value={total} />
+          </Stat>
+        </Card>
+      )}
+      <Card className={shared.panel}>
+        <div className={shared.heading}>
           <h2>{tr('资金钱包')}</h2>
           {canWrite && (
-            <button
-              className="text-button"
+            <Button
+              variant="ghost"
               onClick={() => {
                 setSelected(null);
                 setMode('new');
@@ -165,40 +215,66 @@ export function AccountsPanel({
             >
               <Plus size={18} />
               {tr('添加')}
-            </button>
+            </Button>
           )}
         </div>
-        {
-          <PagedList items={visible} resetKey={scope}>
-            {a => (
-              <button className="account-row" key={a.id} onClick={() => show(a)}>
-                <span className="account-icon">
-                  <AccountIcon name={accountLabel(a)} size={30} />
-                </span>
-                <span>
-                  <strong>{accountLabel(a)}</strong>
-                  {a.archived && <small>{tr('已归档 · 历史流水保留')}</small>}
-                </span>
-                <strong>{yuan(a.balance)}</strong>
-                <ChevronRight size={18} />
-              </button>
-            )}
-          </PagedList>
-        }
+        {groups.map(group => {
+          const wallets = visible.filter(a => (a.family_id || 'personal') === group.id);
+          if (!wallets.length) return null;
+          return (
+            <section key={group.id} className={styles.group}>
+              <h3>{group.label}</h3>
+              <PagedList
+                items={wallets}
+                resetKey={group.id}
+                container={rows => <div className={styles.walletGrid}>{rows}</div>}
+              >
+                {a => (
+                  <ListRow
+                    className={styles.wallet}
+                    onClick={() => show(a)}
+                    leading={
+                      <AccountIcon
+                        name={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                        size={32}
+                      />
+                    }
+                    title={accountLabel({ ...a, suffix: '' }, locale)}
+                    meta={[
+                      a.suffix && tr('尾号 {0}', [a.suffix]),
+                      a.archived && tr('已归档 · 历史流水保留'),
+                      a.type === 'credit' && tr('账单日未记录'),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    end={<Money value={a.balance} />}
+                    endMeta={
+                      a.type === 'credit' && (
+                        <>
+                          {tr('欠款')} <Money value={Math.max(0, -a.balance)} />
+                        </>
+                      )
+                    }
+                  />
+                )}
+              </PagedList>
+            </section>
+          );
+        })}
         {loading && (
-          <p role="status" className="muted">
+          <p role="status" className={shared.muted}>
             {tr('正在读取钱包…')}
           </p>
         )}
         {!loading && !error && !visible.length && (
-          <p className="muted">{tr('还没有可用账户，添加或恢复一个账户即可开始记账。')}</p>
+          <EmptyState title={tr('还没有可用账户，添加或恢复一个账户即可开始记账。')} />
         )}
-        {accounts.some(a => a.archived) && (
-          <button className="text-button" onClick={() => setShowArchived(s => !s)}>
+        {allAccounts.some(a => a.archived) && (
+          <Button variant="ghost" onClick={() => setShowArchived(s => !s)}>
             {showArchived ? tr('隐藏已归档账户') : tr('查看已归档账户')}
-          </button>
+          </Button>
         )}
-      </section>
+      </Card>
       <AccountStatistics
         book={book}
         month={month}
@@ -212,77 +288,55 @@ export function AccountsPanel({
       />
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={
-            mode === 'delete'
-              ? tr('删除钱包')
-              : mode === 'merge'
-                ? tr('合并钱包')
-                : mode === 'new'
-                  ? tr('添加资金账户')
-                  : mode === 'edit'
-                    ? tr('修改账户')
-                    : mode === 'reconcile'
-                      ? tr('核对实际余额')
-                      : selected?.name || tr('账户')
+            mode === 'merge'
+              ? tr('合并钱包')
+              : mode === 'new'
+                ? tr('添加资金账户')
+                : mode === 'edit'
+                  ? tr('修改账户')
+                  : mode === 'reconcile'
+                    ? tr('核对实际余额')
+                    : selected?.name || tr('账户')
           }
           onClose={() => {
             if (!busy) setOpen(false);
           }}
         >
           {error && (
-            <p className="error" role="alert">
+            <p className={shared.error} role="alert">
               {tr(error)}
             </p>
           )}
-          {mode === 'delete' && selected ? (
-            <>
-              <p>{tr('删除钱包后，该钱包的余额将从资产总额中移除。')}</p>
-              <div className="detail-amount">
-                <strong>{accountLabel(selected)}</strong>
-                <span>{yuan(selected.balance)}</span>
-              </div>
-              <div className="context-note">
-                <p>{tr('有历史流水、余额校准或周期计划的钱包，请先合并到其他钱包；也可以归档保留历史。')}</p>
-              </div>
-              <div className="sheet-actions">
-                <button className="secondary" disabled={busy} onClick={() => setMode('detail')}>
-                  {tr('取消')}
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    submit({
-                      operation: 'delete',
-                      id: selected.id,
-                      version: selected.version,
-                      expectedBalance: selected.balance,
-                    })
-                  }
-                >
-                  {tr('确认删除钱包')}
-                </button>
-              </div>
-            </>
-          ) : mode === 'merge' && selected ? (
+          {mode === 'merge' && selected ? (
             <form
+              className={shared.form}
               onSubmit={e => {
                 e.preventDefault();
-                const target = accounts.find(a => a.id === mergeTarget);
+                const target = mergeCandidates.find(a => a.id === mergeTarget);
                 if (!target) return;
                 try {
-                  submit(
-                    {
-                      id: selected.id,
-                      targetId: target.id,
-                      version: selected.version,
-                      targetVersion: target.version,
-                      expectedBalance: selected.balance,
-                      expectedTargetBalance: target.balance,
-                      balance: signedCents(mergeBalance),
-                    },
-                    'POST',
-                    true,
-                  );
+                  const balance = signedCents(mergeBalance);
+                  setConfirmation({
+                    label: tr('确认合并钱包'),
+                    detail: accountLabel(selected) + ' → ' + accountLabel(target) + ' · ' + yuan(balance),
+                    action: () =>
+                      submit(
+                        {
+                          id: selected.id,
+                          targetId: target.id,
+                          version: selected.version,
+                          targetVersion: target.version,
+                          expectedBalance: selected.balance,
+                          expectedTargetBalance: target.balance,
+                          balance,
+                        },
+                        'POST',
+                        true,
+                      ),
+                  });
                 } catch (e) {
                   setError((e as Error).message);
                 }
@@ -300,50 +354,56 @@ export function AccountsPanel({
                   onChange={id => {
                     setMergeTarget(id);
                     setMergeBalance(
-                      String((selected.balance + (accounts.find(a => a.id === id)?.balance || 0)) / 100),
+                      String(
+                        (selected.balance + (mergeCandidates.find(a => a.id === id)?.balance || 0)) / 100,
+                      ),
                     );
                   }}
-                  options={accounts
-                    .filter(a => a.id !== selected.id && !a.archived)
-                    .map(a => ({
-                      value: a.id,
-                      label: accountLabel(a),
-                      account: true,
-                      accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-                    }))}
+                  options={mergeCandidates.map(a => ({
+                    value: a.id,
+                    label: accountLabel(a),
+                    account: true,
+                    accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+                  }))}
                 />
               </label>
-              <label>
-                {tr('合并后的实际余额')}
-                <input
-                  inputMode="decimal"
-                  required
-                  value={mergeBalance}
-                  onChange={e => setMergeBalance(e.target.value)}
-                />
-              </label>
-              <div className="context-note">
+              <Field label={tr('合并后的实际余额')}>
+                {control => (
+                  <Input
+                    {...control}
+                    className={shared.numeric}
+                    inputMode="decimal"
+                    required
+                    value={mergeBalance}
+                    onChange={e => setMergeBalance(e.target.value)}
+                  />
+                )}
+              </Field>
+              <div className={shared.notice}>
                 <p>
                   {tr(
                     '流水、校准、草稿与周期计划转入保留的钱包，原钱包删除。默认合计两个余额；如果余额曾重复录入，请填写真实余额。账本归属不变。',
                   )}
                 </p>
               </div>
-              <div className="sheet-actions">
-                <button type="button" className="secondary" disabled={busy} onClick={() => setMode('detail')}>
+              <div className={shared.actions}>
+                <Button variant="secondary" type="button" disabled={busy} onClick={() => setMode('detail')}>
                   {tr('取消')}
-                </button>
-                <button disabled={busy || !mergeTarget}>{tr('确认合并钱包')}</button>
+                </Button>
+                <Button variant="primary" type="submit" disabled={busy || !mergeTarget}>
+                  {tr('确认合并钱包')}
+                </Button>
               </div>
             </form>
           ) : mode === 'new' || mode === 'edit' ? (
             <form
+              className={shared.form}
               onSubmit={e => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 try {
                   const body = {
-                    familyId: scope === 'personal' ? null : scope,
+                    familyId: formScope === 'personal' ? null : formScope,
                     name: String(f.get('name')),
                     opening: signedCents(String(f.get('opening') || '0')),
                     type: String(f.get('type')),
@@ -351,99 +411,132 @@ export function AccountsPanel({
                     institution: String(f.get('institution') || ''),
                     suffix: String(f.get('suffix') || ''),
                   };
-                  submit(
-                    mode === 'new'
-                      ? body
-                      : { ...body, id: selected!.id, version: selected!.version, operation: 'edit' },
-                    mode === 'new' ? 'POST' : 'PATCH',
-                  );
+                  if (mode === 'new') {
+                    void submit(body, 'POST');
+                  } else if (selected) {
+                    const save = () =>
+                      submit({ ...body, id: selected.id, version: selected.version, operation: 'edit' });
+                    if (body.opening === selected.opening) void save();
+                    else
+                      setConfirmation({
+                        label: tr('修改期初余额'),
+                        detail:
+                          accountLabel(selected) +
+                          ' · ' +
+                          yuan(selected.opening) +
+                          ' → ' +
+                          yuan(body.opening),
+                        action: save,
+                      });
+                  }
                 } catch (e) {
                   setError((e as Error).message);
                 }
               }}
             >
-              <p className="entry-book-label">
-                {scope === 'personal'
+              <p className={shared.muted}>
+                {formScope === 'personal'
                   ? tr('归属：我个人')
-                  : tr('归属家庭：') + families.find(f => f.id === scope)?.name}
+                  : tr('归属家庭：') + families.find(f => f.id === formScope)?.name}
               </p>
-              <label>
-                {tr('账户类型')}
-                <FormSelect name="type" defaultValue={selected?.type || 'bank'}>
-                  {Object.entries(accountTypes).map(([value, label]) => (
-                    <option key={value} value={value} data-account={value}>
-                      {tr(label)}
-                    </option>
-                  ))}
-                </FormSelect>
-              </label>
-              <label>
-                {tr('账户名称')}
-                <input
-                  name="name"
-                  defaultValue={selected?.name}
-                  maxLength={80}
-                  required
-                  placeholder={tr('例如：工资卡、日常微信、备用支付宝')}
-                />
-              </label>
-              <div className="form-grid">
-                <label>
-                  {tr('持有人 / 账号备注')}
-                  <input
-                    name="holder"
-                    defaultValue={selected?.holder}
-                    maxLength={60}
-                    placeholder={tr('例如：自己、家人、工作号')}
+              <Field label={tr('账户类型')}>
+                {control => (
+                  <Select {...control} name="type" defaultValue={selected?.type || 'bank'}>
+                    {Object.entries(accountTypes).map(([value, label]) => (
+                      <option key={value} value={value} data-account={value}>
+                        {tr(label)}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label={tr('账户名称')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="name"
+                    defaultValue={selected?.name}
+                    maxLength={80}
+                    required
+                    placeholder={tr('例如：工资卡、日常微信、备用支付宝')}
                   />
-                </label>
-                <label>
-                  {tr('银行 / 机构')}
-                  <input
-                    name="institution"
-                    defaultValue={selected?.institution}
-                    maxLength={60}
-                    placeholder={tr('例如：招商银行')}
-                  />
-                </label>
-                <label>
-                  {tr('卡号 / 手机号尾号')}
-                  <input
-                    name="suffix"
-                    defaultValue={selected?.suffix}
-                    inputMode="numeric"
-                    pattern="[0-9]{4}"
-                    maxLength={4}
-                    placeholder={tr('选填，4位数字')}
-                  />
-                </label>
+                )}
+              </Field>
+              <div className={shared.grid}>
+                <Field label={tr('持有人 / 账号备注')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="holder"
+                      defaultValue={selected?.holder}
+                      maxLength={60}
+                      placeholder={tr('例如：自己、家人、工作号')}
+                    />
+                  )}
+                </Field>
+                <Field label={tr('银行 / 机构')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="institution"
+                      defaultValue={selected?.institution}
+                      maxLength={60}
+                      placeholder={tr('例如：招商银行')}
+                    />
+                  )}
+                </Field>
+                <Field label={tr('卡号 / 手机号尾号')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="suffix"
+                      defaultValue={selected?.suffix}
+                      inputMode="numeric"
+                      pattern="[0-9]{4}"
+                      maxLength={4}
+                      placeholder={tr('选填，4位数字')}
+                    />
+                  )}
+                </Field>
               </div>
-              <label>
-                {tr('开始记账前的余额（元）')}
-                <input
-                  name="opening"
-                  inputMode="decimal"
-                  defaultValue={selected ? selected.opening / 100 : '0'}
-                  required
-                />
-              </label>
-              <></>
-              <button disabled={busy}>{tr('保存账户')}</button>
+              <Field label={tr('开始记账前的余额（元）')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="opening"
+                    className={shared.numeric}
+                    inputMode="decimal"
+                    defaultValue={selected ? selected.opening / 100 : '0'}
+                    required
+                  />
+                )}
+              </Field>
+
+              <Button variant="primary" type="submit" disabled={busy}>
+                {tr('保存账户')}
+              </Button>
             </form>
           ) : mode === 'reconcile' ? (
             <form
+              className={shared.form}
               onSubmit={e => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 try {
-                  submit({
-                    operation: 'reconcile',
-                    id: selected!.id,
-                    version: selected!.version,
-                    expectedBalance: selected!.balance,
-                    balance: signedCents(String(f.get('balance'))),
-                    note: String(f.get('note')),
-                    effectiveDate: String(f.get('effectiveDate')),
+                  const balance = signedCents(String(f.get('balance')));
+                  setConfirmation({
+                    label: tr('确认校准余额'),
+                    detail: accountLabel(selected!) + ' · ' + yuan(selected!.balance) + ' → ' + yuan(balance),
+                    action: () =>
+                      submit({
+                        operation: 'reconcile',
+                        id: selected!.id,
+                        version: selected!.version,
+                        expectedBalance: selected!.balance,
+                        balance,
+                        note: String(f.get('note')),
+                        effectiveDate: String(f.get('effectiveDate')),
+                      }),
                   });
                 } catch (e) {
                   setError((e as Error).message);
@@ -454,40 +547,54 @@ export function AccountsPanel({
                 {tr('账面余额：')}
                 <strong>{yuan(selected!.balance)}</strong>
               </p>
-              <label>
-                {tr('目前实际余额（元）')}
-                <input name="balance" inputMode="decimal" defaultValue={selected!.balance / 100} required />
-              </label>
-              <label>
-                {locale === 'en' ? 'Effective date' : '生效日期'}
-                <input
-                  type="date"
-                  name="effectiveDate"
-                  max={recordingDate()}
-                  defaultValue={recordingDate()}
-                  required
-                />
-              </label>
-              <label>
-                {tr('调整原因')}
-                <input
-                  name="note"
-                  maxLength={500}
-                  required
-                  placeholder={tr('例如：核对银行余额，补齐早期差额')}
-                />
-              </label>
-              <></>
-              <button disabled={busy}>{tr('确认校准余额')}</button>
+              <Field label={tr('目前实际余额（元）')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="balance"
+                    className={shared.numeric}
+                    inputMode="decimal"
+                    defaultValue={selected!.balance / 100}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label={tr('生效日期')}>
+                {control => (
+                  <Input
+                    {...control}
+                    type="date"
+                    name="effectiveDate"
+                    max={recordingDate()}
+                    defaultValue={recordingDate()}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label={tr('调整原因')}>
+                {control => (
+                  <Input
+                    {...control}
+                    name="note"
+                    maxLength={500}
+                    required
+                    placeholder={tr('例如：核对银行余额，补齐早期差额')}
+                  />
+                )}
+              </Field>
+
+              <Button variant="primary" type="submit" disabled={busy}>
+                {tr('确认校准余额')}
+              </Button>
             </form>
           ) : (
             selected && (
               <>
-                <div className="detail-amount">
+                <div className={styles.detailAmount}>
                   <small>{tr('当前余额')}</small>
                   <strong>{yuan(selected.balance)}</strong>
                 </div>
-                <div className="detail-fields">
+                <div className={styles.detailFields}>
                   <div>
                     <dt>{tr('期初余额')}</dt>
                     <dd>{yuan(selected.opening)}</dd>
@@ -498,13 +605,15 @@ export function AccountsPanel({
                   </div>
                 </div>
                 {canWrite && (
-                  <div className="account-actions">
-                    <button onClick={() => setMode('edit')}>{tr('修改账户')}</button>
-                    <button className="secondary" onClick={() => setMode('reconcile')}>
+                  <div className={shared.actions}>
+                    <Button variant="primary" onClick={() => setMode('edit')}>
+                      {tr('修改账户')}
+                    </Button>
+                    <Button variant="secondary" onClick={() => setMode('reconcile')}>
                       {tr('核对余额')}
-                    </button>
-                    <button
-                      className="secondary"
+                    </Button>
+                    <Button
+                      variant="secondary"
                       disabled={busy}
                       onClick={() => {
                         setMergeTarget('');
@@ -513,63 +622,120 @@ export function AccountsPanel({
                       }}
                     >
                       {tr('合并钱包')}
-                    </button>
-                    <button className="text-button" disabled={busy} onClick={() => setMode('delete')}>
-                      {tr('删除钱包')}
-                    </button>
-                    <button
-                      className="text-button"
+                    </Button>
+                    <Button
+                      variant="ghost"
                       disabled={busy}
                       onClick={() =>
-                        submit({
-                          operation: 'archive',
-                          id: selected.id,
-                          version: selected.version,
-                          archived: !selected.archived,
+                        setConfirmation({
+                          label: tr('确认删除钱包'),
+                          detail:
+                            accountLabel(selected) +
+                            ' · ' +
+                            yuan(selected.balance) +
+                            ' · ' +
+                            tr('删除钱包后，该钱包的余额将从资产总额中移除。') +
+                            ' ' +
+                            tr(
+                              '有历史流水、余额校准或周期计划的钱包，请先合并到其他钱包；也可以归档保留历史。',
+                            ),
+                          action: () =>
+                            submit({
+                              operation: 'delete',
+                              id: selected.id,
+                              version: selected.version,
+                              expectedBalance: selected.balance,
+                            }),
+                        })
+                      }
+                    >
+                      {tr('删除钱包')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirmation({
+                          label: selected.archived ? tr('恢复使用') : tr('归档账户'),
+                          detail: accountLabel(selected),
+                          action: () =>
+                            submit({
+                              operation: 'archive',
+                              id: selected.id,
+                              version: selected.version,
+                              archived: !selected.archived,
+                            }),
                         })
                       }
                     >
                       {selected.archived ? <RotateCcw size={17} /> : <Archive size={17} />}{' '}
                       {selected.archived ? tr('恢复使用') : tr('归档账户')}
-                    </button>
+                    </Button>
                   </div>
                 )}
-                <></>
+                <WalletPeriod
+                  key={selected.id + month}
+                  account={selected}
+                  book={book}
+                  books={books}
+                  month={month}
+                  revision={allAccounts}
+                  onChanged={async () => {
+                    await reload();
+                    await onChanged();
+                  }}
+                  onSelect={
+                    onSelect &&
+                    (row => {
+                      setOpen(false);
+                      onSelect(row);
+                    })
+                  }
+                />
                 <h3>{tr('最近的余额校准')}</h3>
                 {history.length ? (
-                  <PagedList items={history} resetKey={scope}>
+                  <PagedList items={history} resetKey={selected.id}>
                     {h => (
-                      <div className="adjustment" key={h.id}>
+                      <div className={styles.adjustment} key={h.id}>
                         <strong>
                           {h.amount > 0 ? '+' : ''}
                           {yuan(h.amount)}
                         </strong>
                         <p>{h.note}</p>
                         <form
+                          className={shared.form}
                           onSubmit={e => {
                             e.preventDefault();
-                            submit({
-                              operation: 'edit-adjustment',
-                              id: selected.id,
-                              version: selected.version,
-                              adjustmentId: h.id,
-                              effectiveDate: new FormData(e.currentTarget).get('effectiveDate'),
+                            const effectiveDate = String(new FormData(e.currentTarget).get('effectiveDate'));
+                            setConfirmation({
+                              label: tr('保存生效日期'),
+                              detail: accountLabel(selected) + ' · ' + effectiveDate,
+                              action: () =>
+                                submit({
+                                  operation: 'edit-adjustment',
+                                  id: selected.id,
+                                  version: selected.version,
+                                  adjustmentId: h.id,
+                                  effectiveDate,
+                                }),
                             });
                           }}
                         >
-                          <label>
-                            {locale === 'en' ? 'Effective date' : '生效日期'}
-                            <input
-                              type="date"
-                              name="effectiveDate"
-                              defaultValue={h.effective_date}
-                              max={recordingDate()}
-                              required
-                            />
-                          </label>
-                          <button className="secondary" disabled={busy}>
-                            {locale === 'en' ? 'Save effective date' : '保存生效日期'}
-                          </button>
+                          <Field label={tr('生效日期')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="date"
+                                name="effectiveDate"
+                                defaultValue={h.effective_date}
+                                max={recordingDate()}
+                                required
+                              />
+                            )}
+                          </Field>
+                          <Button variant="secondary" type="submit" disabled={busy}>
+                            {tr('保存生效日期')}
+                          </Button>
                         </form>
                         <small>
                           {new Date(h.created_at).toLocaleString(getLocale())} · {h.creator}
@@ -578,13 +744,120 @@ export function AccountsPanel({
                     )}
                   </PagedList>
                 ) : (
-                  <p className="muted">{tr('暂无余额校准记录。')}</p>
+                  <p className={shared.muted}>{tr('暂无余额校准记录。')}</p>
                 )}
               </>
             )
           )}
         </Sheet>
       )}
+      {confirmation && (
+        <ConfirmDialog
+          open
+          title={confirmation.label}
+          confirmLabel={confirmation.label}
+          onCancel={() => setConfirmation(null)}
+          onConfirm={() => {
+            setConfirmation(null);
+            confirmation.action();
+          }}
+        >
+          {confirmation.detail}
+        </ConfirmDialog>
+      )}
     </>
+  );
+}
+
+function WalletPeriod({
+  account,
+  book,
+  books,
+  month,
+  revision,
+  onChanged,
+  onSelect,
+}: {
+  account: Account;
+  book: string;
+  books?: readonly { id: string }[];
+  month: string;
+  revision: unknown;
+  onChanged: () => Promise<void>;
+  onSelect?: (row: LedgerRow) => void;
+}) {
+  const { t: tr } = useI18n();
+  const hasEntries = !!onSelect && !!book;
+  const [range, setRange] = useState(() => monthRange(month));
+  const [offset, setOffset] = useState(0);
+  const [report, setReport] = useState<LedgerReport | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!hasEntries) return;
+    const controller = new AbortController();
+    setReport(null);
+    setError('');
+    const query = new URLSearchParams({
+      ...range,
+      account: account.id,
+      basis: 'cashflow',
+      offset: String(offset),
+      limit: '20',
+    });
+    books?.forEach(b => query.append('book', b.id));
+    fetch('/api/books/' + book + '/report?' + query, { signal: controller.signal })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw Error(data.error);
+        if (!controller.signal.aborted) setReport(data);
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [range, offset, account.id, book, books, revision, hasEntries]);
+  return (
+    <section>
+      <ReportPeriodPicker
+        value={range}
+        onChange={value => {
+          setRange(value);
+          setOffset(0);
+        }}
+      />
+      <WalletFundsPanel
+        {...range}
+        owner={account.family_id || 'personal'}
+        walletId={account.id}
+        revision={revision}
+        onChanged={onChanged}
+      />
+      {hasEntries && onSelect && (
+        <>
+          <h3>{tr('账本流水')}</h3>
+          {error && <p role="alert">{tr(error)}</p>}
+          {report &&
+            (report.rows.length ? (
+              <TransactionList rows={report.rows} onSelect={onSelect} showBook />
+            ) : (
+              <EmptyState title={tr('没有匹配的资金流水')} />
+            ))}
+          {report && (offset > 0 || offset + 20 < report.totals.count) && (
+            <div className={styles.actions}>
+              <Button variant="primary" disabled={!offset} onClick={() => setOffset(offset - 20)}>
+                {tr('上一页')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={offset + 20 >= report.totals.count}
+                onClick={() => setOffset(offset + 20)}
+              >
+                {tr('下一页')}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }

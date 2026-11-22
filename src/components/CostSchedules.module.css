@@ -1,0 +1,28 @@
+.costScheduleCard {
+  margin-block: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.costScheduleSummary {
+  display: grid;
+  gap: var(--space-1);
+}
+.costScheduleAmount,
+.costScheduleProgress {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.costAcceptShares,
+.costScheduleShares {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.costScheduleShares > span {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+}

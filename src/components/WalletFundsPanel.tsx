@@ -1,40 +1,44 @@
 'use client';
+import { Button, Card, Field, Input, Select, Sheet, Money } from '@/ui';
+import styles from './WalletFundsPanel.module.css';
+import shared from './WorkspacePlans.module.css';
 import { WalletEntryActions } from './WalletEntryActions';
 import { DetailSortSelect } from './DetailSortSelect';
 import type { DetailSort } from '@/lib/detail-sort';
 import { useEffect, useState } from 'react';
-import { ChevronRight, Search } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
 import { FinanceChart } from './InteractiveFinanceChart';
-import { Sheet } from './Sheet';
-import { FormSelect } from './FormSelect';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { deployment } from '@/lib/deployment';
 import type { FundsData, FundRow } from '@/lib/wallet-funds';
-import './wallet-funds.css';
 export function WalletFundsPanel({
   from,
   to,
   owner = 'personal',
+  walletId,
   revision,
   onChanged,
 }: {
   from: string;
   to: string;
   owner?: string;
+  walletId?: string;
   revision: unknown;
   onChanged?: () => void | Promise<void>;
 }) {
   const [entryRevision, setEntryRevision] = useState(0);
-  const [account, setAccount] = useState('all'),
+  const [choice, setAccount] = useState('all'),
     [accounts, setAccounts] = useState<
       (AccountIdentity & { id: string; ownership: string; family_id?: string })[]
     >([]);
+  const account = walletId || choice;
   useEffect(() => {
     setAccount('all');
   }, [owner]);
   useEffect(() => {
     const abort = new AbortController();
+    if (walletId) return;
     fetch('/api/assets', { signal: abort.signal })
       .then(r => r.json())
       .then(rows => {
@@ -47,11 +51,9 @@ export function WalletFundsPanel({
       })
       .catch(() => {});
     return () => abort.abort();
-  }, [owner, revision, entryRevision]);
+  }, [owner, revision, entryRevision, walletId]);
   const [sort, setSort] = useState<DetailSort>('date_desc');
-  const { locale } = useI18n(),
-    en = locale.startsWith('en'),
-    text = (zh: string, eng: string) => (en ? eng : zh);
+  const { t: tr, locale } = useI18n();
   const money = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'currency', currency: deployment().currency }).format(n / 100);
   const [data, setData] = useState<FundsData | null>(null),
@@ -148,21 +150,21 @@ export function WalletFundsPanel({
   }, [from, to, owner, account, sort, query, flow, offset, revision, entryRevision]);
   const label = (r: FundRow) =>
     r.repayment
-      ? text('信用账户还款', 'Credit repayment')
+      ? tr('信用账户还款')
       : r.internal
-        ? text('自有钱包互转', 'Internal transfer')
+        ? tr('自有钱包互转')
         : r.kind === 'adjustment'
-          ? text('余额校准', 'Balance adjustment')
+          ? tr('余额校准')
           : r.kind === 'transfer'
-            ? text('转账往来', 'Transfer')
+            ? tr('转账往来')
             : r.kind === 'income'
-              ? text('收入到账', 'Income')
+              ? tr('收入到账')
               : r.kind === 'refund'
-                ? text('退款到账', 'Refund')
-                : text('消费支付', 'Purchase');
+                ? tr('退款到账')
+                : tr('消费支付');
   const title = (r: FundRow) =>
     r.origin === 'family'
-      ? `${r.costTitle ? r.costTitle + ' · ' : ''}${label(r)} · ${r.counterparty || text('共同钱包', 'Shared wallet')}`
+      ? `${r.costTitle ? r.costTitle + ' · ' : ''}${label(r)} · ${r.counterparty || tr('共同钱包')}`
       : r.origin === 'adjustment'
         ? label(r)
         : r.title;
@@ -174,12 +176,7 @@ export function WalletFundsPanel({
     try {
       await onChanged?.();
     } catch {
-      setError(
-        text(
-          '流水已删除，请刷新页面以更新全部统计。',
-          'Entry deleted. Refresh the page to update all statistics.',
-        ),
-      );
+      setError(tr('流水已删除，请刷新页面以更新全部统计。'));
     }
   }
   const filter = (value: string) => {
@@ -188,127 +185,122 @@ export function WalletFundsPanel({
   };
   const s = data?.summary;
   return (
-    <section className="panel wallet-funds" aria-label={text('钱包资金流动', 'Wallet cash flow')}>
-      <header className="funds-heading">
+    <Card className={shared.panel + ' ' + styles.walletFunds} aria-label={tr('钱包资金流动')}>
+      <header className={styles.fundsHeading}>
         <div>
-          <h2>{text('钱包资金流动', 'Wallet cash flow')}</h2>
-          <p className="muted">
-            {text(
-              '消费是花在了什么；资金流动是钱包实际进出多少。',
-              'Spending shows what you bought; cash flow shows money moving into and out of your wallets.',
-            )}
-          </p>
+          <h2>{tr('钱包资金流动')}</h2>
+          <p className={shared.muted}>{tr('消费是花在了什么；资金流动是钱包实际进出多少。')}</p>
         </div>
         <small>
           {from} — {to}
         </small>
       </header>
-      <label className="funds-wallet-choice">
-        {text('资金钱包', 'Funding wallets')}
-        <FormSelect
-          value={account}
-          onChange={value => {
-            setAccount(value);
-            setOffset(0);
-          }}
-        >
-          <option value="all">{text('全部钱包（现金口径）', 'All wallets (cash basis)')}</option>
-          {accounts.map(a => (
-            <option key={a.id} value={a.id}>
-              {accountLabel(a, locale)}
-            </option>
-          ))}
-        </FormSelect>
-      </label>
-      <p className="funds-scope">
-        {owner === 'personal'
-          ? text('本人钱包 · 跨全部账本', 'My wallets · Across all books')
-          : text('家庭共同钱包', 'Shared household wallets')}{' '}
-        ·{' '}
-        {text(
-          '仅已确认流水，包含家庭往来；搜索只筛选下方资金明细。',
-          'Confirmed entries and family movements only. Search filters entries below, not period totals.',
-        )}
+      {!walletId && (
+        <Field className={styles.fundsWalletChoice} label={tr('资金钱包')}>
+          {control => (
+            <Select
+              {...control}
+              value={account}
+              onChange={e => {
+                setAccount(e.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="all">{tr('全部钱包（现金口径）')}</option>
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>
+                  {accountLabel(a, locale)}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      )}
+      <p className={styles.fundsScope}>
+        {owner === 'personal' ? tr('本人钱包 · 跨全部账本') : tr('家庭共同钱包')} ·{' '}
+        {tr('仅已确认流水，包含家庭往来；搜索只筛选下方资金明细。')}
       </p>
       {error && (
-        <p className="error" role="alert">
-          {error}
+        <p className={shared.error} role="alert">
+          {tr(error)}
         </p>
       )}
-      {loading && !error && <p role="status">{text('正在汇总资金流水…', 'Loading cash flow…')}</p>}
+      {loading && !error && <p role="status">{tr('正在汇总资金流水…')}</p>}
       {data && s && (
         <>
-          <div className="funds-metrics">
+          <div className={styles.fundsMetrics}>
             {[
-              [text('资金流入', 'Money in'), s.inflow, 'income', 'in'],
-              [text('资金流出', 'Money out'), s.outflow, 'expense', 'out'],
-              [
-                text('现金净变化', 'Net cash flow'),
-                s.flowChange,
-                s.flowChange < 0 ? 'expense' : 'income',
-                'all',
-              ],
+              [tr('资金流入'), s.inflow, 'income', 'in'],
+              [tr('资金流出'), s.outflow, 'expense', 'out'],
+              [tr('现金净变化'), s.flowChange, s.flowChange < 0 ? 'expense' : 'income', 'all'],
             ].map(([name, value, cls, key]) => (
-              <button key={String(key)} type="button" onClick={() => filter(String(key))}>
+              <Button variant="primary" key={String(key)} type="button" onClick={() => filter(String(key))}>
                 <span>{String(name)}</span>
-                <strong className={String(cls)}>{money(Number(value))}</strong>
-              </button>
+                <strong className={cls === 'income' ? styles.income : shared.expense}>
+                  {money(Number(value))}
+                </strong>
+              </Button>
             ))}
           </div>
-          <div className="funds-breakdown">
-            <p>
-              {text('流入', 'In')} = {text('收入', 'income')} {money(s.income)} + {text('退款', 'refunds')}{' '}
-              {money(s.refund)} + {text('转入', 'transfers in')} {money(s.transferIn)}
-            </p>
-            <p>
-              {text('流出', 'Out')} = {text('消费支付', 'purchases')} {money(s.expense)} +{' '}
-              {text('转出', 'transfers out')} {money(s.transferOut)} +<br />
-              {text('家庭缴款', 'Family contributions')} {money(s.contribution)}
-            </p>
-          </div>
-          <div className="funds-balance">
+          <dl className={styles.fundsBreakdown}>
+            {[
+              [tr('收入'), s.income],
+              [tr('退款'), s.refund],
+              [tr('转入'), s.transferIn],
+              [tr('消费支付'), s.expense],
+              [tr('转出'), s.transferOut],
+              [tr('家庭缴款'), s.contribution],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>
+                  <Money value={Number(value)} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className={styles.fundsBalance}>
             <span>
-              {text('期初现金余额', 'Opening cash balance')}
+              {tr('期初现金余额')}
               <b>{money(s.cashOpeningBalance)}</b>
             </span>
             <span>
-              {text('余额校准', 'Adjustments')}
+              {tr('余额校准')}
               <b>{money(s.cashAdjustment)}</b>
             </span>
             <span>
-              {text('期末现金余额', 'Closing cash balance')}
+              {tr('期末现金余额')}
               <b>{money(s.cashClosingBalance)}</b>
             </span>
           </div>
-          <p className="muted funds-note">
-            {text(
+          <p className={shared.muted + ' ' + styles.fundsNote}>
+            {tr(
               '期末现金 = 期初现金 + 现金净变化 + 现金校准。信用消费只增加欠款，还款才计现金流出；自有现金钱包互转抵消。',
-              'Closing cash = opening cash + net cash flow + cash adjustments. Credit purchases increase debt; repayments are cash outflows. Transfers between cash wallets cancel.',
             )}
           </p>
-          <div className="chart-grid funds-charts">
+          <div className={styles.fundsCharts}>
             <FinanceChart
-              valueLabel={text('资金流出', 'Money out')}
+              valueLabel={tr('资金流出')}
               chart={{
                 id: 'wallet-outgoing',
-                title: text('资金流出去哪里', 'Where money went'),
+                title: tr('资金流出去哪里'),
                 type: 'pie',
                 from,
                 to,
                 unit: deployment().currency,
                 data: [
-                  { name: text('消费支付', 'Purchases'), value: s.expense / 100 },
-                  { name: text('转账转出', 'Transfers out'), value: s.transferOut / 100 },
-                  { name: text('家庭缴款', 'Family contributions'), value: s.contribution / 100 },
+                  { name: tr('消费支付'), value: s.expense / 100 },
+                  { name: tr('转账转出'), value: s.transferOut / 100 },
+                  { name: tr('家庭缴款'), value: s.contribution / 100 },
                 ].filter(d => d.value > 0),
               }}
             />
             <FinanceChart
               onSelect={openDay}
-              valueLabel={text('现金净变化', 'Net cash flow')}
+              valueLabel={tr('现金净变化')}
               chart={{
                 id: 'wallet-net-flow',
-                title: text('每日资金净变化', 'Daily net cash flow'),
+                title: tr('每日资金净变化'),
                 type: 'bar',
                 from,
                 to,
@@ -317,47 +309,45 @@ export function WalletFundsPanel({
               }}
             />
           </div>
-          <div className="funds-list-heading">
-            <h3>{text('资金明细', 'Cash-flow entries')}</h3>
+          <div className={styles.fundsListHeading}>
+            <h3>{tr('资金明细')}</h3>
             <small>
-              {data.count} {text('条匹配记录', 'matching entries')}
+              {data.count} {tr('条匹配记录')}
             </small>
           </div>
         </>
       )}
-      <div className="funds-filters">
-        <label>
-          <Search size={18} />
-          <input
-            type="search"
-            aria-label={text('搜索资金明细', 'Search cash-flow entries')}
-            placeholder={text('名称、成员、钱包、备注、订单号', 'Title, member, wallet, notes, order ID')}
-            value={query}
-            onChange={e => {
-              setQuery(e.target.value);
-              setOffset(0);
-            }}
-          />
-        </label>
-        <select
-          aria-label={text('资金流动类型', 'Cash-flow type')}
-          value={flow}
-          onChange={e => filter(e.target.value)}
-        >
+      <div className={styles.fundsFilters}>
+        <Field label={tr('搜索资金明细')}>
+          {control => (
+            <Input
+              {...control}
+              type="search"
+              aria-label={tr('搜索资金明细')}
+              placeholder={tr('名称、成员、钱包、备注、订单号')}
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                setOffset(0);
+              }}
+            />
+          )}
+        </Field>
+        <Select aria-label={tr('资金流动类型')} value={flow} onChange={e => filter(e.target.value)}>
           {[
-            ['all', '全部流水', 'All entries'],
-            ['in', '资金流入', 'Money in'],
-            ['out', '资金流出', 'Money out'],
-            ['transfer', '转账往来', 'Transfers'],
-            ['repayment', '信用账户还款', 'Credit repayments'],
-            ['internal', '自有钱包互转', 'Internal transfers'],
-            ['adjustment', '余额校准', 'Adjustments'],
-          ].map(([key, zh, eng]) => (
+            ['all', '全部流水'],
+            ['in', '资金流入'],
+            ['out', '资金流出'],
+            ['transfer', '转账往来'],
+            ['repayment', '信用账户还款'],
+            ['internal', '自有钱包互转'],
+            ['adjustment', '余额校准'],
+          ].map(([key, zh]) => (
             <option key={key} value={key}>
-              {text(zh, eng)}
+              {tr(zh)}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <DetailSortSelect
         value={sort}
@@ -368,44 +358,56 @@ export function WalletFundsPanel({
       />
       {data && !loading && (
         <>
-          <div className="funds-list">
+          <div className={styles.fundsList} role="group" aria-label={tr('资金明细')}>
             {data.rows.map(r => (
-              <button type="button" key={r.id} onClick={() => setDetail(r)}>
-                <span className="funds-entry-copy">
+              <Button variant="primary" type="button" key={r.id} onClick={() => setDetail(r)}>
+                <span className={styles.fundsEntryCopy}>
                   <strong>{title(r)}</strong>
                   <small>
                     {r.date} · {label(r)} · {[r.sourceName, r.targetName].filter(Boolean).join(' → ')}
                   </small>
                 </span>
-                <span className="funds-entry-amount">
-                  <b className={r.delta < 0 ? 'expense' : r.delta > 0 ? 'income' : ''}>
+                <span className={styles.fundsEntryAmount}>
+                  <b className={r.delta < 0 ? shared.expense : r.delta > 0 ? styles.income : undefined}>
                     {r.internal && !r.repayment
                       ? money(r.amount)
                       : `${r.delta > 0 ? '+' : ''}${money(r.delta)}`}
                   </b>
-                  {r.internal && !r.repayment && <small>{text('合计不变', 'No net change')}</small>}
+                  {r.internal && !r.repayment && <small>{tr('合计不变')}</small>}
                 </span>
                 <ChevronRight size={16} />
-              </button>
+              </Button>
             ))}
           </div>
-          {!data.rows.length && <p className="empty">{text('没有匹配的资金流水', 'No matching entries')}</p>}
-          <nav className="funds-pagination" aria-label={text('资金明细分页', 'Cash-flow pagination')}>
-            <button type="button" disabled={!offset} onClick={() => setOffset(v => Math.max(0, v - 20))}>
-              {text('上一页', 'Previous')}
-            </button>
+          {!data.rows.length && <p className={shared.empty}>{tr('没有匹配的资金流水')}</p>}
+          <nav className={styles.fundsPagination} aria-label={tr('资金明细分页')}>
+            <Button
+              variant="primary"
+              type="button"
+              disabled={!offset}
+              onClick={() => setOffset(v => Math.max(0, v - 20))}
+            >
+              {tr('上一页')}
+            </Button>
             <small>
-              {data.count ? `${offset + 1}–${Math.min(offset + 20, data.count)}` : '0'} {text('／', 'of')}{' '}
+              {data.count ? `${offset + 1}–${Math.min(offset + 20, data.count)}` : '0'} {tr('／')}{' '}
               {data.count} · {Math.floor(offset / 20) + 1} / {Math.max(1, Math.ceil(data.count / 20))}
             </small>
-            <button type="button" disabled={!data.hasMore} onClick={() => setOffset(v => v + 20)}>
-              {text('下一页', 'Next')}
-            </button>
+            <Button
+              variant="primary"
+              type="button"
+              disabled={!data.hasMore}
+              onClick={() => setOffset(v => v + 20)}
+            >
+              {tr('下一页')}
+            </Button>
           </nav>
         </>
       )}
       {(day || detail) && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={detail ? title(detail) : day!}
           onClose={() => {
             setDetail(null);
@@ -415,24 +417,26 @@ export function WalletFundsPanel({
           {detail ? (
             <>
               {day && (
-                <button type="button" className="text-button" onClick={() => setDetail(null)}>
-                  {text('返回当天明细', 'Back to daily entries')}
-                </button>
+                <Button variant="ghost" type="button" onClick={() => setDetail(null)}>
+                  {tr('返回当天明细')}
+                </Button>
               )}
-              <div className="funds-detail">
-                <strong className={detail.delta < 0 ? 'expense' : 'income'}>{money(detail.amount)}</strong>
+              <div className={styles.fundsDetail}>
+                <strong className={detail.delta < 0 ? shared.expense : styles.income}>
+                  {money(detail.amount)}
+                </strong>
                 <dl>
                   {[
-                    [text('类型', 'Type'), label(detail)],
-                    [text('交易日期', 'Date'), detail.date],
-                    [text('资金账户', 'Funding wallet'), detail.sourceName],
-                    [text('转入钱包', 'Receiving wallet'), detail.targetName],
-                    [text('交易对方', 'Counterparty'), detail.counterparty],
-                    [text('实际资金流出', 'Actual money out'), money(detail.outflow)],
-                    [text('实际资金流入', 'Actual money in'), money(detail.inflow)],
-                    [text('合计余额变化', 'Net balance change'), money(detail.balanceDelta)],
-                    [text('订单／流水号', 'Order / payment ID'), detail.reference],
-                    [text('备注', 'Notes'), detail.note],
+                    [tr('类型'), label(detail)],
+                    [tr('交易日期'), detail.date],
+                    [tr('资金账户'), detail.sourceName],
+                    [tr('转入钱包'), detail.targetName],
+                    [tr('交易对方'), detail.counterparty],
+                    [tr('实际资金流出'), money(detail.outflow)],
+                    [tr('实际资金流入'), money(detail.inflow)],
+                    [tr('合计余额变化'), money(detail.balanceDelta)],
+                    [tr('订单／流水号'), detail.reference],
+                    [tr('备注'), detail.note],
                   ]
                     .filter(([, value]) => value)
                     .map(([key, value]) => (
@@ -442,11 +446,8 @@ export function WalletFundsPanel({
                       </div>
                     ))}
                 </dl>
-                <p className="muted">
-                  {text(
-                    '这是已有资金流水，不会新增消费或重复扣款；其他成员的钱包余额不在此展示。',
-                    'Existing fund movements, not extra expenses. Other members’ balances are not shown.',
-                  )}
+                <p className={shared.muted}>
+                  {tr('这是已有资金流水，不会新增消费或重复扣款；其他成员的钱包余额不在此展示。')}
                 </p>
                 {detail.origin === 'transaction' && (
                   <WalletEntryActions key={detail.id} id={detail.id} onDeleted={deleted} />
@@ -455,11 +456,8 @@ export function WalletFundsPanel({
             </>
           ) : (
             <>
-              <p className="muted">
-                {text(
-                  '当天实际资金流水，与所选钱包和图表口径一致；包含收入、消费、退款和家庭往来。',
-                  'Actual daily movements for the wallets shown in the chart, including income, purchases, refunds and family transfers.',
-                )}
+              <p className={shared.muted}>
+                {tr('当天实际资金流水，与所选钱包和图表口径一致；包含收入、消费、退款和家庭往来。')}
               </p>
               <DetailSortSelect
                 value={daySort}
@@ -469,84 +467,82 @@ export function WalletFundsPanel({
                 }}
               />
               {dayLoading ? (
-                <p role="status">{text('正在加载…', 'Loading…')}</p>
+                <p role="status">{tr('正在加载…')}</p>
               ) : dayError ? (
                 <>
-                  <p className="error" role="alert">
-                    {dayError}
+                  <p className={shared.error} role="alert">
+                    {tr(dayError)}
                   </p>
-                  <button type="button" className="secondary" onClick={() => setDayRevision(v => v + 1)}>
-                    {text('重试', 'Retry')}
-                  </button>
+                  <Button variant="secondary" type="button" onClick={() => setDayRevision(v => v + 1)}>
+                    {tr('重试')}
+                  </Button>
                 </>
               ) : (
                 dayData && (
                   <>
                     <p>
-                      {text('资金流入', 'Money in')} {money(dayData.summary.inflow)} ·{' '}
-                      {text('资金流出', 'Money out')} {money(dayData.summary.outflow)}
+                      {tr('资金流入')} {money(dayData.summary.inflow)} · {tr('资金流出')}{' '}
+                      {money(dayData.summary.outflow)}
                     </p>
                     <p>
                       <strong>
-                        {text('现金净变化', 'Net cash flow')} {money(dayData.summary.flowChange)}
+                        {tr('现金净变化')} {money(dayData.summary.flowChange)}
                       </strong>{' '}
-                      · {dayData.count} {text('笔', 'entries')}
+                      · {dayData.count} {tr('笔')}
                     </p>
                     {dayData.summary.adjustment !== 0 && (
-                      <p className="muted">
-                        {text('余额校准', 'Adjustments')} {money(dayData.summary.adjustment)} ·{' '}
-                        {text(
-                          '单独影响账面余额，不计入图表资金净变化。',
-                          'Affects the book balance separately, not the chart’s net cash flow.',
-                        )}
+                      <p className={shared.muted}>
+                        {tr('余额校准')} {money(dayData.summary.adjustment)} ·{' '}
+                        {tr('单独影响账面余额，不计入图表资金净变化。')}
                       </p>
                     )}
-                    <div className="funds-list">
+                    <div className={styles.fundsList} role="group" aria-label={tr('资金明细')}>
                       {dayData.rows.map(r => (
-                        <button type="button" key={r.id} onClick={() => setDetail(r)}>
-                          <span className="funds-entry-copy">
+                        <Button variant="primary" type="button" key={r.id} onClick={() => setDetail(r)}>
+                          <span className={styles.fundsEntryCopy}>
                             <strong>{title(r)}</strong>
                             <small>
                               {r.date} · {label(r)} ·{' '}
                               {[r.sourceName, r.targetName].filter(Boolean).join(' → ')}
                             </small>
                           </span>
-                          <span className="funds-entry-amount">
-                            <b className={r.delta < 0 ? 'expense' : r.delta > 0 ? 'income' : ''}>
+                          <span className={styles.fundsEntryAmount}>
+                            <b
+                              className={
+                                r.delta < 0 ? shared.expense : r.delta > 0 ? styles.income : undefined
+                              }
+                            >
                               {r.internal && !r.repayment
                                 ? money(r.amount)
                                 : `${r.delta > 0 ? '+' : ''}${money(r.delta)}`}
                             </b>
-                            {r.internal && !r.repayment && <small>{text('合计不变', 'No net change')}</small>}
+                            {r.internal && !r.repayment && <small>{tr('合计不变')}</small>}
                           </span>
                           <ChevronRight size={16} />
-                        </button>
+                        </Button>
                       ))}
                     </div>
-                    {!dayData.rows.length && (
-                      <p className="empty">{text('当天没有资金流水', 'No fund movements on this day')}</p>
-                    )}
-                    <nav
-                      className="funds-pagination"
-                      aria-label={text('当天资金明细分页', 'Daily cash-flow pagination')}
-                    >
-                      <button
+                    {!dayData.rows.length && <p className={shared.empty}>{tr('当天没有资金流水')}</p>}
+                    <nav className={styles.fundsPagination} aria-label={tr('当天资金明细分页')}>
+                      <Button
+                        variant="primary"
                         type="button"
                         disabled={!dayOffset}
                         onClick={() => setDayOffset(v => Math.max(0, v - 20))}
                       >
-                        {text('上一页', 'Previous')}
-                      </button>
+                        {tr('上一页')}
+                      </Button>
                       <small>
                         {Math.floor(dayOffset / 20) + 1} / {Math.max(1, Math.ceil(dayData.count / 20))}
                       </small>
-                      <button
+                      <Button
+                        variant="primary"
                         type="button"
                         disabled={!dayData.hasMore}
                         onClick={() => setDayOffset(v => v + 20)}
                       >
-                        {text('下一页', 'Next')}
-                      </button>
+                        {tr('下一页')}
+                      </Button>
                     </nav>
                   </>
                 )
@@ -555,6 +551,6 @@ export function WalletFundsPanel({
           )}
         </Sheet>
       )}
-    </section>
+    </Card>
   );
 }

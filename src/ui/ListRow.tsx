@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import s from './ui.module.css';
 
 type Props = {
+  disabled?: boolean;
+  'aria-label'?: string;
   leading?: ReactNode;
   title: ReactNode;
   meta?: ReactNode;
@@ -14,7 +16,18 @@ type Props = {
 };
 
 /** One line per record: icon, title + meta, right-aligned amount. Renders a link, button or plain row. */
-export function ListRow({ leading, title, meta, end, endMeta, href, onClick, className }: Props) {
+export function ListRow({
+  leading,
+  title,
+  meta,
+  end,
+  endMeta,
+  href,
+  onClick,
+  className,
+  disabled,
+  'aria-label': label,
+}: Props) {
   const body = (
     <>
       <span>{leading}</span>
@@ -37,7 +50,7 @@ export function ListRow({ leading, title, meta, end, endMeta, href, onClick, cla
     );
   if (onClick)
     return (
-      <button type="button" className={cls} onClick={onClick}>
+      <button type="button" disabled={disabled} aria-label={label} className={cls} onClick={onClick}>
         {body}
       </button>
     );

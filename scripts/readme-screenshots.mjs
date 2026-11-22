@@ -97,6 +97,7 @@ async function seed(db, lang) {
       [id, name, type, user, opening],
     );
   }
+  await db.query("UPDATE accounts SET suffix='2468' WHERE id=$1", [wallets[2]]);
   const sharedWallet = randomUUID();
   await db.query(
     "INSERT INTO accounts(id,name,type,family_id,ownership,opening) VALUES($1,$2,'cash',$3,'shared',80000)",
@@ -211,6 +212,58 @@ async function seed(db, lang) {
         }),
         month + '-28',
       ],
+    );
+  // Link the plan to an existing credit purchase; planning adds no wallet movement.
+  await db.query('UPDATE transactions SET event_id=id WHERE id=$1', [transactions[8]]);
+  await db.query(
+    'INSERT INTO installment_plans(id,account_id,event_id,name,principal,schedule,created_by) VALUES($1,$2,$3,$4,$5,$6,$7)',
+    [
+      randomUUID(),
+      wallets[2],
+      transactions[8],
+      label('山间午餐', 'Lunch on the trail'),
+      7800,
+      JSON.stringify([15, 22, 28].map(day => ({ date: month + '-' + day, principal: 2600, fee: 0 }))),
+      user,
+    ],
+  );
+  const preset = label('地铁通勤', 'Metro commute');
+  await db.query('INSERT INTO entry_templates(id,book_id,user_id,name,value) VALUES($1,$2,$3,$4,$5)', [
+    randomUUID(),
+    book,
+    user,
+    preset,
+    JSON.stringify({
+      kind: 'expense',
+      title: preset,
+      accountId: wallets[0],
+      category: label('交通', 'Transport'),
+      amount: 600,
+    }),
+  ]);
+  const plannedCost = randomUUID();
+  await db.query('INSERT INTO cost_schedules(id,owner_id,family_id,rule,next_date) VALUES($1,$2,$3,$4,$5)', [
+    plannedCost,
+    user,
+    family,
+    JSON.stringify({
+      title: label('家庭网络', 'Home internet'),
+      category: label('居家', 'Household'),
+      familyId: family,
+      firstDate: month + '-28',
+      months: 1,
+      totalCycles: 12,
+      shares: [
+        { userId: user, amount: 4500 },
+        { userId: sam, amount: 4500 },
+      ],
+    }),
+    month + '-28',
+  ]);
+  for (const member of [user, sam])
+    await db.query(
+      'INSERT INTO cost_schedule_members(schedule_id,user_id,accepted,book_id) VALUES($1,$2,true,$3)',
+      [plannedCost, member, book],
     );
   const lineItems = [
     {
@@ -861,21 +914,37 @@ try {
           .click();
         await page.getByRole('button', { name: new RegExp(t('钱包资金流')) }).click();
         await settle();
-        await page.locator('.funds-list>button').first().waitFor();
+        await page
+          .getByRole('group', { name: t('资金明细') })
+          .getByRole('button')
+          .first()
+          .waitFor();
         assert.equal(await page.getByRole('region', { name: t('收支明细') }).count(), 0);
         assert.equal(await page.getByLabel(t('筛选结果汇总')).count(), 0);
         await shot('analysis-wallets');
-        await page.locator('.funds-filters select').selectOption('transfer');
+        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('transfer');
         await settle();
-        assert.equal(await page.locator('.funds-list>button').count(), 2);
+        assert.equal(
+          await page
+            .getByRole('group', { name: t('资金明细') })
+            .getByRole('button')
+            .count(),
+          2,
+        );
         await shot('analysis-transfers');
-        await page.locator('.funds-list>button').first().click();
+        await page
+          .getByRole('group', { name: t('资金明细') })
+          .getByRole('button')
+          .first()
+          .click();
         await shot('analysis-transfer-detail');
         await page
           .getByRole('dialog')
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
-        await page.locator('.funds-wallet-choice select').selectOption({ index: 1 }, { force: true });
+        await page
+          .getByRole('combobox', { name: t('资金钱包'), exact: true })
+          .selectOption({ index: 1 }, { force: true });
         await settle();
         await shot('analysis-single-wallet');
         await page.getByRole('button', { name: /^Wallet owner:|^钱包归属:/ }).click();
@@ -951,8 +1020,12 @@ try {
         await navigate('收支分析');
         await page.getByRole('button', { name: t('我的个人钱包'), exact: false }).click();
         await settle();
-        await page.locator('.wallet-funds').waitFor();
-        await page.locator('.funds-list>button').first().waitFor();
+        await page.getByRole('region', { name: t('钱包资金流动') }).waitFor();
+        await page
+          .getByRole('group', { name: t('资金明细') })
+          .getByRole('button')
+          .first()
+          .waitFor();
         const data = await page.evaluate(async month => {
           const r = await fetch(
             '/api/assets/report?from=' + month + '-01&to=' + month + '-28&owner=personal',
@@ -964,14 +1037,26 @@ try {
         assert.equal(data.funds.summary.internalTransfer, 10000);
         assert.equal(data.funds.summary.closingBalance, data.summary.netAssets);
         assert.equal(data.funds.count, 34);
-        await page.locator('.wallet-funds').evaluate(el => el.scrollIntoView({ block: 'start' }));
+        await page
+          .getByRole('region', { name: t('钱包资金流动') })
+          .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('funds-summary');
-        await page.locator('.funds-filters select').selectOption('transfer');
+        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('transfer');
         await settle();
-        assert.equal(await page.locator('.funds-list>button').count(), 2);
-        await page.locator('.funds-filters').scrollIntoViewIfNeeded();
+        assert.equal(
+          await page
+            .getByRole('group', { name: t('资金明细') })
+            .getByRole('button')
+            .count(),
+          2,
+        );
+        await page.getByRole('combobox', { name: t('资金流动类型') }).scrollIntoViewIfNeeded();
         await shot('funds-transfers');
-        await page.locator('.funds-list>button').first().click();
+        await page
+          .getByRole('group', { name: t('资金明细') })
+          .getByRole('button')
+          .first()
+          .click();
         await shot('funds-detail');
         await page
           .getByRole('dialog')
@@ -981,10 +1066,10 @@ try {
           await scope.getByRole('combobox', { name: t('明细排序') }).selectOption(value, { force: true });
           await settle();
         };
-        await page.locator('.funds-filters select').selectOption('all');
-        await chooseSort(page.locator('.wallet-funds'), 'amount_desc');
+        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('all');
+        await chooseSort(page.getByRole('region', { name: t('钱包资金流动') }), 'amount_desc');
         await page
-          .locator('.wallet-funds')
+          .getByRole('region', { name: t('钱包资金流动') })
           .getByRole('combobox', { name: t('明细排序') })
           .scrollIntoViewIfNeeded();
         await shot('funds-sorted');
@@ -1038,8 +1123,10 @@ try {
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
         await navigate('资金资产');
-        await page.locator('.wallet-funds').waitFor();
-        await page.locator('.wallet-funds').evaluate(el => el.scrollIntoView({ block: 'start' }));
+        await page.getByRole('region', { name: t('钱包资金流动') }).waitFor();
+        await page
+          .getByRole('region', { name: t('钱包资金流动') })
+          .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('asset-funds');
         await context.close();
         continue;
@@ -1308,6 +1395,43 @@ try {
             .click();
         }
         if (key === 'assets') {
+          const householdWallet = lang === 'en' ? 'Household wallet' : '家庭共同钱包';
+          await page
+            .getByRole('button', { name: new RegExp(householdWallet) })
+            .first()
+            .click();
+          await page
+            .getByRole('dialog', { name: householdWallet, exact: true })
+            .getByRole('button', { name: t('关闭弹窗') })
+            .click();
+          await page.getByRole('region', { name: t('我的资产'), exact: true }).waitFor();
+          const walletName = lang === 'en' ? 'Daily wallet' : '微信钱包';
+          await page
+            .getByRole('button', { name: new RegExp(walletName) })
+            .first()
+            .click();
+          const wallet = page.getByRole('dialog', { name: walletName, exact: true });
+          await wallet.getByRole('heading', { name: t('资金明细') }).waitFor();
+          await wallet.getByRole('heading', { name: t('账本流水') }).waitFor();
+          await shot('wallet-detail');
+          await wallet.getByText(t('家庭缴款'), { exact: true }).first().waitFor();
+          await wallet.getByRole('heading', { name: t('账本流水') }).scrollIntoViewIfNeeded();
+          await shot('wallet-entries');
+          await wallet.getByRole('button', { name: t('归档账户'), exact: true }).click();
+          await page
+            .getByRole('dialog', { name: t('归档账户'), exact: true })
+            .getByRole('button', { name: t('取消'), exact: true })
+            .click();
+          await wallet.getByRole('button', { name: t('核对余额'), exact: true }).click();
+          await page.getByLabel(t('调整原因')).fill('test');
+          await page.getByRole('button', { name: t('确认校准余额'), exact: true }).click();
+          const confirmation = page.getByRole('dialog', { name: t('确认校准余额'), exact: true });
+          await confirmation.getByRole('button', { name: t('取消'), exact: true }).click();
+          await page
+            .getByRole('dialog', { name: t('核对实际余额') })
+            .getByRole('button', { name: t('关闭弹窗') })
+            .click();
+
           await page
             .getByRole('heading', { name: t('资产与收支分析'), exact: true })
             .evaluate(el => el.scrollIntoView({ block: 'start' }));
@@ -1349,6 +1473,37 @@ try {
       await navigate('计划与分摊');
       await page.getByRole('tab', { name: t('周期收支'), exact: true }).click();
       await shot('plans');
+      for (const [label, key] of [
+        ['分期与还款', 'installments'],
+        ['费用分摊', 'allocations'],
+        ['模板', 'plan-templates'],
+      ]) {
+        await page
+          .getByRole('tablist', { name: t('计划与分摊'), exact: true })
+          .getByRole('tab', { name: t(label), exact: true })
+          .click();
+        await settle();
+        if (key === 'installments') {
+          const progress = page.getByRole('progressbar', { name: t('已还期数') });
+          assert.equal(await progress.getAttribute('max'), '3');
+          assert.equal(await progress.getAttribute('value'), '0');
+          await page.getByRole('button', { name: t('登记还款'), exact: true }).click();
+          await page
+            .getByRole('dialog', { name: t('登记实际还款'), exact: true })
+            .getByRole('button', { name: t('关闭弹窗'), exact: true })
+            .click();
+        }
+        if (key === 'plan-templates')
+          await page
+            .getByRole('button', { name: new RegExp(t('使用预设')) })
+            .first()
+            .waitFor();
+        await shot(key);
+      }
+      await page.getByRole('tab', { name: t('费用分摊'), exact: true }).click();
+      await page.getByRole('tab', { name: t('费用归属与分担'), exact: true }).click();
+      await page.getByText(lang === 'en' ? 'Home internet' : '家庭网络', { exact: true }).waitFor();
+      await shot('cost-plans');
       await navigate('个人资料');
       await shot('profile');
       await page.getByRole('button', { name: t('个人画像'), exact: true }).click();

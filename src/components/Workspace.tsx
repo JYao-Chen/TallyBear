@@ -96,6 +96,7 @@ import { CategoryPanel, type Category } from './CategoryPanel';
 import { TemplatesPanel, type Template } from './TemplatesPanel';
 import { AccountsPanel, type Account } from './AccountsPanel';
 import { BudgetPanel } from './BudgetPanel';
+import planStyles from './WorkspacePlans.module.css';
 import entryStyles from './WorkspaceEntry.module.css';
 import { EntrySaveFeedback } from './EntrySaveFeedback';
 import { Button, Segmented, Sheet, TextArea } from '@/ui';
@@ -236,7 +237,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
   const { t: tr, locale } = useI18n();
   const [costTarget, setCostTarget] = useState<string | undefined>();
   const [settingsTab, setSettingsTab] = useState('categories');
-  const [planTab, setPlanTab] = useState('cost');
+  const [planTab, setPlanTab] = useState('renewal');
   const [installmentSeed, setInstallmentSeed] = useState<Row | null>(null);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
@@ -969,7 +970,13 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                     />
                   )}
                   {page === 'accounts' && (
-                    <AccountsPanel book={book} month={month} onChanged={() => refresh()} />
+                    <AccountsPanel
+                      books={books}
+                      onSelect={openEntry}
+                      book={book}
+                      month={month}
+                      onChanged={() => refresh()}
+                    />
                   )}{' '}
                   {page === 'families' && (
                     <FamiliesPage
@@ -1688,24 +1695,68 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                   )}
                   {page === 'schedules' && (
                     <>
-                      <div className="entry-modes" role="tablist" aria-label={tr('计划与分摊')}>
-                        {[
-                          ['cost', locale === 'en' ? 'Cost allocation & sharing' : '费用归属与分担'],
-                          ['installments', '分期与还款'],
+                      <Segmented
+                        tabs
+                        className={planStyles.tabs}
+                        label={tr('计划与分摊')}
+                        value={planTab === 'cost' ? 'allocation' : planTab}
+                        onChange={setPlanTab}
+                        options={[
                           ['renewal', '周期收支'],
+                          ['installments', '分期与还款'],
                           ['allocation', '费用分摊'],
-                        ].map(([v, l]) => (
-                          <button
-                            role="tab"
-                            aria-selected={planTab === v}
-                            key={v}
-                            className={planTab === v ? 'active' : ''}
-                            onClick={() => setPlanTab(v)}
-                          >
-                            {tr(l)}
-                          </button>
+                          ['templates', '模板'],
+                        ].map(([value, label]) => ({ value, label: tr(label) }))}
+                      />
+                      {(planTab === 'cost' || planTab === 'allocation') && (
+                        <Segmented
+                          tabs
+                          className={planStyles.tabs}
+                          label={tr('费用分摊')}
+                          value={planTab}
+                          onChange={setPlanTab}
+                          options={[
+                            { value: 'cost', label: tr('费用归属与分担') },
+                            { value: 'allocation', label: tr('按月看费用') },
+                          ]}
+                        />
+                      )}
+                      {planTab === 'templates' &&
+                        (canWrite && manual.ready ? (
+                          <EntrySaveFeedback>
+                            {(_, confirm) => (
+                              <TemplatesPanel
+                                items={templateItems}
+                                current={manual.value}
+                                accounts={availableAccounts}
+                                onSave={async (value, method) => {
+                                  await api('books/' + book + '/templates', method, value);
+                                  await refresh();
+                                }}
+                                onDelete={async id => {
+                                  if (
+                                    !(await confirm(
+                                      tr('删除常用'),
+                                      templateItems.find(item => item.id === id)?.name || tr('删除常用'),
+                                    ))
+                                  )
+                                    throw Error('');
+                                  await api('books/' + book + '/templates', 'DELETE', { id });
+                                  await refresh();
+                                }}
+                                onUse={async value => {
+                                  setEntryMode('manual');
+                                  manual.setValue({ ...value, id: newId(), date: today() });
+                                  await manual.flush();
+                                  await manual.reload();
+                                  router.push(pathForPage('entry'));
+                                }}
+                              />
+                            )}
+                          </EntrySaveFeedback>
+                        ) : (
+                          <p>{canWrite ? tr('正在读取…') : tr('只读账本')}</p>
                         ))}
-                      </div>
                       {planTab === 'cost' && (
                         <CostProjects
                           scheduleTarget={scheduleDiscussionTarget}
@@ -1738,7 +1789,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                           seed={installmentSeed}
                           onClearSeed={() => setInstallmentSeed(null)}
                           onChanged={refresh}
-                          onAccounts={() => switchPage('accounts')}
+                          onAccounts={() => router.push(pathForPage('accounts'))}
                         />
                       )}
                     </>

@@ -1,0 +1,131 @@
+.walletFunds {
+  container-type: inline-size;
+}
+.fundsHeading,
+.fundsListHeading,
+.fundsPagination,
+.fundsBalance {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+.fundsHeading small,
+.fundsScope,
+.fundsNote,
+.fundsEntryCopy small,
+.fundsEntryAmount small {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.fundsWalletChoice {
+  max-width: 25rem;
+}
+.fundsMetrics,
+.fundsCharts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-3);
+  margin-block: var(--space-4);
+}
+.fundsMetrics button {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  background: var(--surface-sunk);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.fundsMetrics strong {
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+}
+.income {
+  color: var(--income);
+}
+.fundsBreakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-1) var(--space-5);
+}
+.fundsBreakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.fundsBreakdown dt {
+  color: var(--muted);
+}
+.fundsBreakdown dd {
+  margin: 0;
+}
+.fundsBalance {
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.fundsBalance b,
+.fundsEntryCopy strong,
+.fundsEntryCopy small,
+.fundsEntryAmount small {
+  display: block;
+}
+.fundsFilters {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+}
+.fundsFilters > * {
+  min-width: 0;
+}
+.fundsList button {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  gap: var(--space-2);
+  background: var(--surface);
+  color: var(--ink);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--space-3) 0;
+}
+.fundsEntryCopy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fundsEntryAmount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fundsPagination {
+  margin-top: var(--space-3);
+}
+.fundsDetail dl > div {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.fundsDetail dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+@container (max-width:34rem) {
+  .fundsMetrics,
+  .fundsFilters,
+  .fundsCharts {
+    grid-template-columns: 1fr;
+  }
+  .fundsMetrics button {
+    display: flex;
+    justify-content: space-between;
+  }
+}

@@ -1,0 +1,15 @@
+.actions {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-4);
+  margin-top: var(--space-5);
+}
+.actions p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--expense);
+}

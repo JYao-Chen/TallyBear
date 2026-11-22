@@ -1,0 +1,59 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  background: var(--surface-sunk);
+  font-variant-numeric: tabular-nums;
+}
+.stats > div:last-child {
+  color: var(--accent);
+}
+.group {
+  margin-top: var(--space-4);
+}
+.group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+.walletGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-2);
+}
+.wallet {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+.detailAmount {
+  display: grid;
+  gap: var(--space-1);
+  margin-block: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+.detailAmount strong {
+  font-size: var(--text-money);
+}
+.detailFields > div,
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.detailFields dd {
+  margin: 0;
+}
+.adjustment {
+  padding: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 600px) {
+  .stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stats > div:last-child {
+    grid-column: 1/-1;
+  }
+}

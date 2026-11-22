@@ -1,0 +1,54 @@
+.templatePanel {
+  min-width: 0;
+}
+.templateHeading,
+.templateToggle,
+.presetFeedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.templateHeading {
+  justify-content: space-between;
+}
+.templateCount {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.templateAdd,
+.presetEdit {
+  flex: none;
+}
+.templateCards {
+  display: grid;
+  gap: var(--space-1);
+}
+.applied,
+.presetCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.applied {
+  background: var(--accent-soft);
+}
+.presetEdit {
+  width: var(--touch);
+  padding: 0;
+}
+.presetEmpty,
+.templateSaveCurrent,
+.presetFeedback {
+  margin-top: var(--space-3);
+}
+.presetEditor fieldset {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+.presetNotes {
+  color: var(--muted);
+}

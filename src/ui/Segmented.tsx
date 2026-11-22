@@ -9,22 +9,30 @@ export function Segmented<T extends string>({
   value,
   onChange,
   label,
+  tabs,
   className,
 }: {
   options: readonly Option<T>[];
   value: T;
   onChange: (value: T) => void;
   label: string;
+  tabs?: boolean;
   className?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className={[s.segmented, className].filter(Boolean).join(' ')}>
+    <div
+      role={tabs ? 'tablist' : 'group'}
+      aria-label={label}
+      className={[s.segmented, className].filter(Boolean).join(' ')}
+    >
       {options.map(o => (
         <button
           key={o.value}
           type="button"
           className={s.segment}
-          aria-pressed={o.value === value}
+          role={tabs ? 'tab' : undefined}
+          aria-selected={tabs ? o.value === value : undefined}
+          aria-pressed={tabs ? undefined : o.value === value}
           disabled={o.disabled}
           onClick={() => onChange(o.value)}
         >

@@ -1,11 +1,24 @@
 'use client';
+import {
+  Button,
+  Card,
+  Field,
+  Input,
+  Select,
+  Sheet,
+  Money,
+  Segmented,
+  ListRow,
+  ConfirmDialog,
+  EmptyState,
+} from '@/ui';
+import styles from './InstallmentsPanel.module.css';
+import shared from './WorkspacePlans.module.css';
 import { PagedList } from './PagedList';
 
 import { useEffect, useState } from 'react';
 import { CreditCard, Plus, CalendarDays, CheckCircle2, ArrowRightLeft } from 'lucide-react';
-import { Sheet } from './Sheet';
 import { DateField } from './DateField';
-import { FormSelect } from './FormSelect';
 import { useI18n } from './LanguageProvider';
 import { formatMoney } from '@/lib/deployment';
 import { amountToCents } from '@/server/model';
@@ -184,13 +197,14 @@ export function InstallmentsPanel({
     setPayer(accounts.find(a => !a.archived && a.usable !== false && a.type !== 'credit')?.id || '');
   }
   return (
-    <section className="panel installment-panel">
-      <div className="panel-title">
+    <Card className={shared.panel}>
+      <div className={shared.heading}>
         <h2>
           <CreditCard size={22} />
           {tr('分期与还款')}
         </h2>
-        <button
+        <Button
+          variant="primary"
           onClick={() => {
             onClearSeed();
             setSelected(null);
@@ -206,9 +220,9 @@ export function InstallmentsPanel({
         >
           <Plus size={18} />
           {tr('新增分期')}
-        </button>
+        </Button>
       </div>
-      <div className="installment-summary">
+      <div className={styles.installmentSummary}>
         {[
           ['剩余本金', active.reduce((n, p) => n + p.remaining, 0)],
           ['已还本金', active.reduce((n, p) => n + p.paid, 0)],
@@ -220,25 +234,22 @@ export function InstallmentsPanel({
           </div>
         ))}
       </div>
-      <div className="entry-modes" aria-label={tr('资产归属')}>
-        {[
-          ['all', '全部'],
-          ['personal', '个人'],
-          ['family', '家庭共有'],
-        ].map(([v, l]) => (
-          <button
-            key={v}
-            aria-pressed={scope === v}
-            className={scope === v ? 'active' : ''}
-            onClick={() => setScope(v)}
-          >
-            {tr(l)}
-          </button>
-        ))}
-        <button onClick={onAccounts}>{tr('管理负债账户')}</button>
+      <div className={styles.actions}>
+        <Segmented
+          value={scope}
+          onChange={setScope}
+          label={tr('资产归属')}
+          options={['all', 'personal', 'family'].map((value, i) => ({
+            value,
+            label: tr(['全部', '个人', '家庭共有'][i]),
+          }))}
+        />
+        <Button variant="primary" onClick={onAccounts}>
+          {tr('管理负债账户')}
+        </Button>
       </div>
       {error && !mode && (
-        <p className="error" role="alert">
+        <p className={shared.error} role="alert">
           {tr(error)}
         </p>
       )}
@@ -246,167 +257,181 @@ export function InstallmentsPanel({
       {loading ? (
         <p>{tr('正在读取…')}</p>
       ) : !active.length ? (
-        <div className="empty">
-          <CreditCard size={36} />
-          <p>{tr('还没有分期计划')}</p>
-          <p>{tr('使用负债账户记录购买，再按实际金额还款。')}</p>
-        </div>
+        <EmptyState title={tr('还没有分期计划')}>{tr('使用负债账户记录购买，再按实际金额还款。')}</EmptyState>
       ) : (
-        <div className="installment-list">
+        <div className={styles.installmentList}>
           {
             <PagedList items={active} resetKey={scope}>
-              {p => (
-                <article key={p.id} className="installment-card">
-                  <div className="panel-title">
-                    <div>
-                      <h3>{p.name}</h3>
-                      <small>
-                        {p.account_name} · {p.owner_name}
-                      </small>
+              {p => {
+                const completed = p.dues.filter(d => d.remaining === 0).length;
+                const nextDue = p.dues.find(d => d.remaining > 0);
+                return (
+                  <article key={p.id} className={styles.installmentCard}>
+                    <ListRow
+                      title={p.name}
+                      meta={
+                        <>
+                          {p.account_name} · {p.owner_name}
+                        </>
+                      }
+                      end={<Money value={p.remaining} />}
+                      endMeta={p.remaining ? tr('剩余本金') : tr('本金已结清')}
+                    />
+                    <div className={styles.progressLabel}>
+                      <span>{p.remaining ? tr('还款中') : tr('本金已结清')}</span>
+                      <span>
+                        {tr('已还期数')} {completed} / {p.dues.length}
+                      </span>
                     </div>
-                    <span className="installment-state">{p.remaining ? tr('还款中') : tr('本金已结清')}</span>
-                  </div>
-                  <div className="rank">
-                    <span>{tr('剩余本金')}</span>
-                    <strong>{formatMoney(p.remaining)}</strong>
-                  </div>
-                  <progress max={p.principal} value={p.principal - p.remaining} />
-                  <small>
-                    {tr('原始本金')} {formatMoney(p.principal)} · {tr('已退回负债账户')}{' '}
-                    {formatMoney(p.refunded)}
-                  </small>
-                  <div className="sheet-actions">
-                    <button onClick={() => openPlan(p, 'pay')}>
-                      <ArrowRightLeft size={16} />
-                      {tr('登记还款')}
-                    </button>
-                    {p.remaining > 0 && (
-                      <button className="secondary" onClick={() => openPlan(p, 'schedule')}>
-                        {tr('调整后续计划')}
-                      </button>
+                    <progress
+                      className={styles.progress}
+                      aria-label={tr('已还期数')}
+                      max={p.dues.length || 1}
+                      value={completed}
+                    />
+                    {nextDue && (
+                      <small>
+                        {tr('下次还款日')} {nextDue.date}
+                      </small>
                     )}
-                  </div>
-                  <details>
-                    <summary>{tr('查看还款计划')}</summary>
-                    <div className="installment-dues">
-                      {
-                        <PagedList items={p.dues.filter(d => d.remaining > 0)}>
-                          {(d, i) => (
-                            <div className="rank" key={i}>
-                              <span>
-                                <CalendarDays size={15} /> {d.date}
-                                {d.date < today() && <small className="expense"> {tr('待核对')}</small>}
-                              </span>
-                              <span>
-                                {formatMoney(d.remaining)}
+                    <small>
+                      {tr('原始本金')} {formatMoney(p.principal)} · {tr('已退回负债账户')}{' '}
+                      {formatMoney(p.refunded)}
+                    </small>
+                    <div className={shared.actions}>
+                      <Button variant="primary" onClick={() => openPlan(p, 'pay')}>
+                        <ArrowRightLeft size={16} />
+                        {tr('登记还款')}
+                      </Button>
+                      {p.remaining > 0 && (
+                        <Button variant="secondary" onClick={() => openPlan(p, 'schedule')}>
+                          {tr('调整后续计划')}
+                        </Button>
+                      )}
+                    </div>
+                    <details>
+                      <summary>{tr('查看还款计划')}</summary>
+                      <div className={styles.installmentDues}>
+                        {
+                          <PagedList items={p.dues.filter(d => d.remaining > 0)}>
+                            {(d, i) => (
+                              <div className={shared.pair} key={i}>
+                                <span>
+                                  <CalendarDays size={15} /> {d.date}
+                                  {d.date < today() && (
+                                    <small className={shared.expense}> {tr('待核对')}</small>
+                                  )}
+                                </span>
+                                <span>
+                                  {formatMoney(d.remaining)}
+                                  <small>
+                                    {' '}
+                                    + {formatMoney(d.fee)} {tr('预计费用')}
+                                  </small>
+                                </span>
+                              </div>
+                            )}
+                          </PagedList>
+                        }
+                        {!p.remaining && (
+                          <p>
+                            <CheckCircle2 size={16} /> {tr('后续本金无需再还，费用以实际结清账单为准。')}
+                          </p>
+                        )}
+                      </div>
+                    </details>
+                    <details>
+                      <summary>{tr('实际还款记录')}</summary>
+                      {p.payments.length ? (
+                        <PagedList items={p.payments}>
+                          {r => (
+                            <div className={styles.installmentPayment} key={r.id}>
+                              <div>
+                                {r.date}
                                 <small>
-                                  {' '}
-                                  + {formatMoney(d.fee)} {tr('预计费用')}
+                                  {tr('本金')} {formatMoney(r.principal)} · {tr('费用')} {formatMoney(r.fee)}
                                 </small>
-                              </span>
+                              </div>
+                              {r.voided ? (
+                                <span>{tr('已撤销')}</span>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setConfirmation({
+                                      message: '撤销后恢复钱包和负债余额，是否继续？',
+                                      body: {
+                                        operation: 'void',
+                                        id: p.id,
+                                        version: p.version,
+                                        paymentId: r.id,
+                                      },
+                                    });
+                                  }}
+                                >
+                                  {tr('撤销还款')}
+                                </Button>
+                              )}
                             </div>
                           )}
                         </PagedList>
-                      }
-                      {!p.remaining && (
-                        <p>
-                          <CheckCircle2 size={16} /> {tr('后续本金无需再还，费用以实际结清账单为准。')}
-                        </p>
+                      ) : (
+                        <p>{tr('尚无实际还款')}</p>
                       )}
-                    </div>
-                  </details>
-                  <details>
-                    <summary>{tr('实际还款记录')}</summary>
-                    {p.payments.length ? (
-                      <PagedList items={p.payments}>
-                        {r => (
-                          <div className="installment-payment" key={r.id}>
-                            <div>
-                              {r.date}
-                              <small>
-                                {tr('本金')} {formatMoney(r.principal)} · {tr('费用')} {formatMoney(r.fee)}
-                              </small>
-                            </div>
-                            {r.voided ? (
-                              <span>{tr('已撤销')}</span>
-                            ) : (
-                              <button
-                                className="text-button"
-                                disabled={busy}
-                                onClick={() => {
-                                  setConfirmation({
-                                    message: '撤销后恢复钱包和负债余额，是否继续？',
-                                    body: {
-                                      operation: 'void',
-                                      id: p.id,
-                                      version: p.version,
-                                      paymentId: r.id,
-                                    },
-                                  });
-                                }}
-                              >
-                                {tr('撤销还款')}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </PagedList>
-                    ) : (
-                      <p>{tr('尚无实际还款')}</p>
-                    )}
-                  </details>
-                  <details className="context-details">
-                    <summary>{tr('更多操作')}</summary>
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => {
-                        setConfirmation({
-                          message: '仅移除分期计划，原消费和费用分摊仍然保留。',
-                          body: { operation: 'delete', id: p.id, version: p.version },
-                        });
-                      }}
-                    >
-                      {tr('移除计划')}
-                    </button>
-                  </details>
-                </article>
-              )}
+                    </details>
+                    <details className={styles.contextDetails}>
+                      <summary>{tr('更多操作')}</summary>
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() => {
+                          setConfirmation({
+                            message: '仅移除分期计划，原消费和费用分摊仍然保留。',
+                            body: { operation: 'delete', id: p.id, version: p.version },
+                          });
+                        }}
+                      >
+                        {tr('移除计划')}
+                      </Button>
+                    </details>
+                  </article>
+                );
+              }}
             </PagedList>
           }
         </div>
       )}
-      <></>
+
       {confirmation && (
-        <Sheet title={tr('确认操作')} onClose={() => setConfirmation(null)}>
+        <ConfirmDialog
+          open
+          busy={busy}
+          title={tr('确认操作')}
+          onCancel={() => {
+            if (!busy) setConfirmation(null);
+          }}
+          onConfirm={() =>
+            run(async () => {
+              await api(confirmation.body);
+              setConfirmation(null);
+            })
+          }
+        >
           <p>{tr(confirmation.message)}</p>
-          {error && <p className="error">{tr(error)}</p>}
-          <div className="sheet-actions">
-            <button
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  await api(confirmation.body);
-                  setConfirmation(null);
-                })
-              }
-            >
-              {tr('确认')}
-            </button>
-            <button className="secondary" onClick={() => setConfirmation(null)}>
-              {tr('取消')}
-            </button>
-          </div>
-        </Sheet>
+          {error && <p role="alert">{tr(error)}</p>}
+        </ConfirmDialog>
       )}
       {mode && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={tr(mode === 'create' ? '新增分期' : mode === 'pay' ? '登记实际还款' : '调整后续计划')}
           onClose={close}
-          variant="wide"
+          wide
         >
           <form
-            className="installment-form"
+            className={styles.installmentForm}
             onSubmit={e => {
               e.preventDefault();
               run(async () => {
@@ -466,88 +491,107 @@ export function InstallmentsPanel({
             }}
           >
             {error && (
-              <p className="error" role="alert">
+              <p className={shared.error} role="alert">
                 {tr(error)}
               </p>
             )}
             {mode !== 'pay' ? (
               <>
-                <label>
-                  {tr('分期名称')}
-                  <input required value={name} maxLength={80} onChange={e => setName(e.target.value)} />
-                </label>
+                <Field label={tr('分期名称')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      required
+                      value={name}
+                      maxLength={80}
+                      onChange={e => setName(e.target.value)}
+                    />
+                  )}
+                </Field>
                 {mode === 'create' && (
                   <>
                     {seed ? (
-                      <p className="notice">
+                      <p className={shared.notice}>
                         {tr('关联已有消费')}：{seed.title || seed.payee} · {formatMoney(seed.amount)}
                       </p>
                     ) : (
-                      <div className="form-grid">
-                        <label>
-                          {tr('购买金额')}
-                          <input
-                            required
-                            inputMode="decimal"
-                            value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                          />
-                        </label>
+                      <div className={shared.grid}>
+                        <Field label={tr('购买金额')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              required
+                              className={shared.numeric}
+                              inputMode="decimal"
+                              value={amount}
+                              onChange={e => setAmount(e.target.value)}
+                            />
+                          )}
+                        </Field>
                         <label>
                           {tr('购买日期')}
                           <DateField type="date" value={purchaseDate} onChange={setPurchaseDate} />
                         </label>
-                        <label>
-                          {tr('负债账户')}
-                          <FormSelect value={account} onChange={setAccount} required>
-                            <option value="">{tr('请选择')}</option>
-                            {debtAccounts.map(a => (
-                              <option
-                                key={a.id}
-                                value={a.id}
-                                data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
-                              >
-                                {accountLabel(a)}
-                              </option>
-                            ))}
-                          </FormSelect>
-                        </label>
-                        <label>
-                          {tr('消费分类')}
-                          <FormSelect value={category} onChange={setCategory}>
-                            {formCategories
-                              .filter(c => !c.archived)
-                              .map(c => (
-                                <option key={c.name} data-icon={c.icon}>
-                                  {c.name}
+                        <Field label={tr('负债账户')}>
+                          {control => (
+                            <Select
+                              {...control}
+                              value={account}
+                              onChange={e => setAccount(e.target.value)}
+                              required
+                            >
+                              <option value="">{tr('请选择')}</option>
+                              {debtAccounts.map(a => (
+                                <option
+                                  key={a.id}
+                                  value={a.id}
+                                  data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                                >
+                                  {accountLabel(a)}
                                 </option>
                               ))}
-                          </FormSelect>
-                        </label>
+                            </Select>
+                          )}
+                        </Field>
+                        <Field label={tr('消费分类')}>
+                          {control => (
+                            <Select {...control} value={category} onChange={e => setCategory(e.target.value)}>
+                              {formCategories
+                                .filter(c => !c.archived)
+                                .map(c => (
+                                  <option key={c.name} data-icon={c.icon}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                            </Select>
+                          )}
+                        </Field>
                       </div>
                     )}
                     {!debtAccounts.length && (
-                      <p className="error">
+                      <p className={shared.error}>
                         {tr('请先在资金资产中建立信用卡／白条／花呗负债账户，初始余额无需包含本次新购买。')}
                       </p>
                     )}
                   </>
                 )}
-                <div className="form-grid">
-                  <label>
-                    {tr('剩余期数')}
-                    <input
-                      type="number"
-                      min={1}
-                      max={600}
-                      required
-                      value={terms}
-                      onChange={e => {
-                        setTerms(Number(e.target.value));
-                        setCustom(null);
-                      }}
-                    />
-                  </label>
+                <div className={shared.grid}>
+                  <Field label={tr('剩余期数')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        type="number"
+                        min={1}
+                        max={600}
+                        required
+                        value={terms}
+                        onChange={e => {
+                          setTerms(Number(e.target.value));
+                          setCustom(null);
+                        }}
+                      />
+                    )}
+                  </Field>
                   <label>
                     {tr('首次还款日')}
                     <DateField
@@ -559,28 +603,28 @@ export function InstallmentsPanel({
                       }}
                     />
                   </label>
-                  <label>
-                    {tr('预计剩余总费用')}
-                    <input
-                      inputMode="decimal"
-                      value={fees}
-                      onChange={e => {
-                        setFees(e.target.value);
-                        setCustom(null);
-                      }}
-                    />
-                  </label>
+                  <Field label={tr('预计剩余总费用')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        className={shared.numeric}
+                        inputMode="decimal"
+                        value={fees}
+                        onChange={e => {
+                          setFees(e.target.value);
+                          setCustom(null);
+                        }}
+                      />
+                    )}
+                  </Field>
                 </div>
                 <details open={mode === 'schedule'}>
                   <summary>{tr('各期本金与费用预览')}</summary>
-                  <div className="installment-preview">
+                  <div className={styles.installmentPreview}>
                     {
                       <PagedList items={preview}>
                         {(r, i) => (
-                          <div
-                            className={`installment-due-edit${mode === 'schedule' ? ' is-editable' : ''}`}
-                            key={i}
-                          >
+                          <div className={styles.dueEdit} key={i}>
                             <span>{i + 1}</span>
                             {mode === 'schedule' ? (
                               <>
@@ -591,46 +635,55 @@ export function InstallmentsPanel({
                                     setCustom(preview.map((x, j) => (j === i ? { ...x, date } : x)))
                                   }
                                 />
-                                <label className="installment-principal">
-                                  <span>{tr('本金')}</span>
-                                  <input
-                                    aria-label={tr('本金')}
-                                    inputMode="decimal"
-                                    defaultValue={r.principal / 100}
-                                    key={r.principal}
-                                    onBlur={e => {
-                                      try {
-                                        setCustom(
-                                          preview.map((x, j) =>
-                                            j === i ? { ...x, principal: cents(e.target.value) } : x,
-                                          ),
-                                        );
-                                      } catch (e) {
-                                        setError((e as Error).message);
-                                      }
-                                    }}
-                                  />
-                                </label>
-                                <label className="installment-fee">
-                                  <span>{tr('费用')}</span>
-                                  <input
-                                    aria-label={tr('费用')}
-                                    inputMode="decimal"
-                                    defaultValue={r.fee / 100}
-                                    key={'fee' + r.fee}
-                                    onBlur={e => {
-                                      try {
-                                        setCustom(
-                                          preview.map((x, j) =>
-                                            j === i ? { ...x, fee: cents(e.target.value) } : x,
-                                          ),
-                                        );
-                                      } catch (e) {
-                                        setError((e as Error).message);
-                                      }
-                                    }}
-                                  />
-                                </label>
+                                <Field
+                                  className={styles.installmentPrincipal}
+                                  label={<span>{tr('本金')}</span>}
+                                >
+                                  {control => (
+                                    <Input
+                                      {...control}
+                                      aria-label={tr('本金')}
+                                      className={shared.numeric}
+                                      inputMode="decimal"
+                                      defaultValue={r.principal / 100}
+                                      key={r.principal}
+                                      onBlur={e => {
+                                        try {
+                                          setCustom(
+                                            preview.map((x, j) =>
+                                              j === i ? { ...x, principal: cents(e.target.value) } : x,
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          setError((e as Error).message);
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </Field>
+                                <Field className={styles.installmentFee} label={<span>{tr('费用')}</span>}>
+                                  {control => (
+                                    <Input
+                                      {...control}
+                                      aria-label={tr('费用')}
+                                      className={shared.numeric}
+                                      inputMode="decimal"
+                                      defaultValue={r.fee / 100}
+                                      key={'fee' + r.fee}
+                                      onBlur={e => {
+                                        try {
+                                          setCustom(
+                                            preview.map((x, j) =>
+                                              j === i ? { ...x, fee: cents(e.target.value) } : x,
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          setError((e as Error).message);
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </Field>
                               </>
                             ) : (
                               <>
@@ -646,9 +699,9 @@ export function InstallmentsPanel({
                   </div>
                 </details>
                 {mode === 'create' && (
-                  <details className="context-details">
+                  <details className={styles.contextDetails}>
                     <summary>{tr('费用分摊（独立设置）')}</summary>
-                    <label className="check">
+                    <label className={shared.check}>
                       <input
                         type="checkbox"
                         checked={allocate}
@@ -657,7 +710,7 @@ export function InstallmentsPanel({
                       {tr('将购买成本按月展示')}
                     </label>
                     {allocate && (
-                      <div className="form-grid">
+                      <div className={shared.grid}>
                         <label>
                           {tr('分摊开始月份')}
                           <DateField
@@ -666,16 +719,18 @@ export function InstallmentsPanel({
                             onChange={v => setAllocationStart(v + '-01')}
                           />
                         </label>
-                        <label>
-                          {tr('成本覆盖月数')}
-                          <input
-                            type="number"
-                            min={1}
-                            max={1200}
-                            value={allocationMonths}
-                            onChange={e => setAllocationMonths(Number(e.target.value))}
-                          />
-                        </label>
+                        <Field label={tr('成本覆盖月数')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              type="number"
+                              min={1}
+                              max={1200}
+                              value={allocationMonths}
+                              onChange={e => setAllocationMonths(Number(e.target.value))}
+                            />
+                          )}
+                        </Field>
                       </div>
                     )}
                     <p>{tr('成本覆盖期可与还款期数不同，提前结清不会缩短成本分摊。')}</p>
@@ -688,7 +743,7 @@ export function InstallmentsPanel({
                 <p>
                   {tr('剩余本金')} {formatMoney(selected?.remaining || 0)}
                 </p>
-                <label className="check">
+                <label className={shared.check}>
                   <input
                     type="checkbox"
                     checked={settle}
@@ -699,55 +754,67 @@ export function InstallmentsPanel({
                   />
                   {tr('提前结清全部本金')}
                 </label>
-                <div className="form-grid">
-                  <label>
-                    {tr('本次归还本金')}
-                    <input
-                      required
-                      inputMode="decimal"
-                      value={principal}
-                      onChange={e => setPrincipal(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    {tr('实际利息与手续费')}
-                    <input inputMode="decimal" value={fee} onChange={e => setFee(e.target.value)} />
-                  </label>
+                <div className={shared.grid}>
+                  <Field label={tr('本次归还本金')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        className={shared.numeric}
+                        inputMode="decimal"
+                        value={principal}
+                        onChange={e => setPrincipal(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Field label={tr('实际利息与手续费')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        className={shared.numeric}
+                        inputMode="decimal"
+                        value={fee}
+                        onChange={e => setFee(e.target.value)}
+                      />
+                    )}
+                  </Field>
                   <label>
                     {tr('实际还款日')}
                     <DateField type="date" value={paidDate} onChange={setPaidDate} />
                   </label>
-                  <label>
-                    {tr('付款钱包')}
-                    <FormSelect required value={payer} onChange={setPayer}>
-                      <option value="">{tr('请选择')}</option>
-                      {accounts
-                        .filter(a => !a.archived && a.usable !== false && a.id !== selected?.account_id)
-                        .map(a => (
-                          <option
-                            key={a.id}
-                            value={a.id}
-                            data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
-                          >
-                            {accountLabel(a)}
-                          </option>
-                        ))}
-                    </FormSelect>
-                  </label>
-                  <label>
-                    {tr('费用分类')}
-                    <FormSelect value={category} onChange={setCategory}>
-                      {formCategories
-                        .filter(c => !c.archived)
-                        .map(c => (
-                          <option key={c.name} data-icon={c.icon}>
-                            {c.name}
-                          </option>
-                        ))}
-                    </FormSelect>
-                  </label>
+                  <Field label={tr('付款钱包')}>
+                    {control => (
+                      <Select {...control} required value={payer} onChange={e => setPayer(e.target.value)}>
+                        <option value="">{tr('请选择')}</option>
+                        {accounts
+                          .filter(a => !a.archived && a.usable !== false && a.id !== selected?.account_id)
+                          .map(a => (
+                            <option
+                              key={a.id}
+                              value={a.id}
+                              data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                            >
+                              {accountLabel(a)}
+                            </option>
+                          ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label={tr('费用分类')}>
+                    {control => (
+                      <Select {...control} value={category} onChange={e => setCategory(e.target.value)}>
+                        {formCategories
+                          .filter(c => !c.archived)
+                          .map(c => (
+                            <option key={c.name} data-icon={c.icon}>
+                              {c.name}
+                            </option>
+                          ))}
+                      </Select>
+                    )}
+                  </Field>
                 </div>
-                <p className="notice">
+                <p className={shared.notice}>
                   {tr('本次实际付款')}{' '}
                   {(() => {
                     try {
@@ -760,35 +827,37 @@ export function InstallmentsPanel({
               </>
             )}
             {mode !== 'schedule' && (
-              <label>
-                {tr(mode === 'pay' ? '还款与费用记入账本' : '消费记入账本')}
-                <FormSelect
-                  disabled={!!seed && mode === 'create'}
-                  value={destination}
-                  onChange={setDestination}
-                >
-                  {books
-                    .filter(b => b.role !== 'viewer')
-                    .map(b => (
-                      <option key={b.id} value={b.id} data-icon={b.icon || '📒'}>
-                        {b.name}
-                      </option>
-                    ))}
-                </FormSelect>
-              </label>
+              <Field label={tr(mode === 'pay' ? '还款与费用记入账本' : '消费记入账本')}>
+                {control => (
+                  <Select
+                    {...control}
+                    disabled={!!seed && mode === 'create'}
+                    value={destination}
+                    onChange={e => setDestination(e.target.value)}
+                  >
+                    {books
+                      .filter(b => b.role !== 'viewer')
+                      .map(b => (
+                        <option key={b.id} value={b.id} data-icon={b.icon || '📒'}>
+                          {b.name}
+                        </option>
+                      ))}
+                  </Select>
+                )}
+              </Field>
             )}
-            <div className="sheet-actions">
-              <button type="submit" disabled={busy || categoryLoading}>
+            <div className={shared.actions}>
+              <Button variant="primary" type="submit" disabled={busy || categoryLoading}>
                 {tr(busy ? '正在保存…' : '确认保存')}
-              </button>
-              <button type="button" className="secondary" onClick={close}>
+              </Button>
+              <Button variant="secondary" type="button" onClick={close}>
                 {tr('取消')}
-              </button>
+              </Button>
             </div>
           </form>
         </Sheet>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -812,11 +881,11 @@ export function InstallmentReminder({ revision, onOpen }: { revision: number; on
     };
   }, [revision]);
   return count > 0 ? (
-    <div className="notice">
+    <div className={shared.notice}>
       <span>{tr('有 {0} 项分期到期，待核对还款', [count])}</span>
-      <button className="text-button" onClick={onOpen}>
+      <Button variant="ghost" onClick={onOpen}>
         {tr('查看分期')}
-      </button>
+      </Button>
     </div>
   ) : null;
 }

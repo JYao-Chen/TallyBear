@@ -1,4 +1,7 @@
 'use client';
+import { Button, Field, Input, TextArea, Select, Money, ListRow } from '@/ui';
+import styles from './CostSchedules.module.css';
+import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
 import { useEffect, useState } from 'react';
 import { useI18n } from './LanguageProvider';
@@ -29,8 +32,7 @@ export function CostSchedules({
   onClearTarget?: () => void;
   onProject: (id: string) => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [rows, setRows] = useState<any[]>([]),
     [options, setOptions] = useState<any>(null),
     [books, setBooks] = useState<any[]>([]),
@@ -146,7 +148,7 @@ export function CostSchedules({
     };
   }, [initialTarget]);
   const people = options?.people.filter((p: any) => p.family_id === rule?.familyId) || [];
-  const name = (id: string) => options?.people.find((p: any) => p.id === id)?.name || l('我', 'Me');
+  const name = (id: string) => options?.people.find((p: any) => p.id === id)?.name || tr('我');
   const update = (patch: Partial<CostSchedule>) => setRule(v => (v ? { ...v, ...patch } : v));
   const close = () => {
     setSelected(null);
@@ -197,32 +199,30 @@ export function CostSchedules({
     selectedExpected = selectedShare ? selectedShare.amount * selected.rule.months : 0,
     selectedRemaining = Math.max(0, selectedExpected - selectedReceived);
   const bookField = (
-    <label>
-      {action === 'pay' ? l('付款记入账本', 'Record payment in ledger') : l('我的归属账本', 'My cost ledger')}
-      <select required value={book} onChange={e => setBook(e.target.value)}>
-        <option value="">{l('选择账本', 'Choose a ledger')}</option>
-        {books.map(b => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Field label={action === 'pay' ? tr('付款记入账本') : tr('我的归属账本')}>
+      {control => (
+        <Select {...control} required value={book} onChange={e => setBook(e.target.value)}>
+          <option value="">{tr('选择账本')}</option>
+          {books.map(b => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </Select>
+      )}
+    </Field>
   );
   return (
-    <div className="cost-section cost-schedules">
-      <div className="cost-toolbar">
+    <div className={shared.section}>
+      <div className={shared.toolbar}>
         <div>
-          <h3>{l('周期费用计划', 'Recurring cost plans')}</h3>
-          <p className="muted">
-            {l(
-              '先定规则，由付款人确认实付。成员分摊可提前到账并关联本期，不会重复结算。',
-              'Plan first; the payer confirms the actual expense. Member shares can be received early and linked to this cycle to prevent duplicate settlement.',
-            )}
+          <h3>{tr('周期费用计划')}</h3>
+          <p className={shared.muted}>
+            {tr('先定规则，由付款人确认实付。成员分摊可提前到账并关联本期，不会重复结算。')}
           </p>
         </div>
-        <button
-          className="secondary"
+        <Button
+          variant="secondary"
           disabled={!options || busy}
           onClick={() => {
             close();
@@ -230,7 +230,7 @@ export function CostSchedules({
             setBook('');
             setRule({
               title: '',
-              category: l('房租', 'Rent'),
+              category: tr('房租'),
               familyId: null,
               firstDate: new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }),
               months: 3,
@@ -238,12 +238,12 @@ export function CostSchedules({
             });
           }}
         >
-          {l('新建周期计划', 'New recurring plan')}
-        </button>
+          {tr('新建周期计划')}
+        </Button>
       </div>
       {error && (
-        <p className="error" role="alert">
-          {error}
+        <p className={shared.error} role="alert">
+          {tr(error)}
         </p>
       )}
       {rule ? (
@@ -259,113 +259,126 @@ export function CostSchedules({
           }}
         >
           <fieldset disabled={busy}>
-            <h4>
-              {action === 'edit'
-                ? l('编辑周期计划', 'Edit recurring plan')
-                : l('周期和金额', 'Schedule and amounts')}
-            </h4>
+            <h4>{action === 'edit' ? tr('编辑周期计划') : tr('周期和金额')}</h4>
             {action === 'edit' && (
-              <p className="notice">
-                {l(
+              <p className={shared.notice}>
+                {tr(
                   '仅修改后续计划，历史付款与分摊保持不变。修改成员、承担金额或延长计划后，其他成员需要重新确认。',
-                  'Updates future cycles only. Past payments and allocations stay unchanged. Changes to members, shares or an extension require renewed acceptance.',
                 )}
               </p>
             )}
-            <div className="form-grid">
-              <label>
-                {l('名称', 'Name')}
-                <input
-                  required
-                  maxLength={120}
-                  value={rule.title}
-                  onChange={e => update({ title: e.target.value })}
-                />
-              </label>
-              <label>
-                {l('分类', 'Category')}
-                <input required value={rule.category} onChange={e => update({ category: e.target.value })} />
-              </label>
-              <label>
-                {l('首次付款日', 'First due date')}
-                <input
-                  disabled={action === 'edit' && selected?.processed > 0}
-                  required
-                  type="date"
-                  value={rule.firstDate}
-                  onChange={e => update({ firstDate: e.target.value })}
-                />
-              </label>
-              <label>
-                {l('每隔几个月付款', 'Pay every N months')}
-                <input
-                  disabled={action === 'edit' && selected?.processed > 0}
-                  required
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={rule.months}
-                  onChange={e => update({ months: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                {l('结束规则', 'End condition')}
-                <select
-                  value={rule.totalCycles == null ? 'unlimited' : 'limited'}
-                  onChange={e =>
-                    update({
-                      totalCycles:
-                        e.target.value === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
-                    })
-                  }
-                >
-                  <option value="unlimited">{l('持续重复', 'Repeat indefinitely')}</option>
-                  <option value="limited">{l('指定总期数', 'Fixed number of cycles')}</option>
-                </select>
-              </label>
-              {rule.totalCycles != null && (
-                <label>
-                  {l('总期数（含已处理）', 'Total cycles (including processed)')}
-                  <input
+            <div className={shared.grid}>
+              <Field label={tr('名称')}>
+                {control => (
+                  <Input
+                    {...control}
+                    required
+                    maxLength={120}
+                    value={rule.title}
+                    onChange={e => update({ title: e.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label={tr('分类')}>
+                {control => (
+                  <Input
+                    {...control}
+                    required
+                    value={rule.category}
+                    onChange={e => update({ category: e.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label={tr('首次付款日')}>
+                {control => (
+                  <Input
+                    {...control}
+                    disabled={action === 'edit' && selected?.processed > 0}
+                    required
+                    type="date"
+                    value={rule.firstDate}
+                    onChange={e => update({ firstDate: e.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label={tr('每隔几个月付款')}>
+                {control => (
+                  <Input
+                    {...control}
+                    disabled={action === 'edit' && selected?.processed > 0}
                     required
                     type="number"
-                    min={Math.max(1, selected?.processed || 0)}
+                    min={1}
                     max={120}
-                    value={rule.totalCycles}
-                    onChange={e => update({ totalCycles: Number(e.target.value) })}
+                    value={rule.months}
+                    onChange={e => update({ months: Number(e.target.value) })}
                   />
-                </label>
+                )}
+              </Field>
+              <Field label={tr('结束规则')}>
+                {control => (
+                  <Select
+                    {...control}
+                    value={rule.totalCycles == null ? 'unlimited' : 'limited'}
+                    onChange={e =>
+                      update({
+                        totalCycles:
+                          e.target.value === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
+                      })
+                    }
+                  >
+                    <option value="unlimited">{tr('持续重复')}</option>
+                    <option value="limited">{tr('指定总期数')}</option>
+                  </Select>
+                )}
+              </Field>
+              {rule.totalCycles != null && (
+                <Field label={tr('总期数（含已处理）')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      required
+                      type="number"
+                      min={Math.max(1, selected?.processed || 0)}
+                      max={120}
+                      value={rule.totalCycles ?? ''}
+                      onChange={e => update({ totalCycles: Number(e.target.value) })}
+                    />
+                  )}
+                </Field>
               )}
               {bookField}
-              <label>
-                {l('参与家庭', 'Family')}
-                <select
-                  value={rule.familyId || ''}
-                  onChange={e =>
-                    update({
-                      familyId: e.target.value || null,
-                      shares: [rule.shares.find(s => s.userId === options.userId)!],
-                    })
-                  }
-                >
-                  <option value="">{l('仅自己', 'Just me')}</option>
-                  {[
-                    ...new Map<string, string>(
-                      options.people.map((p: any) => [p.family_id, p.family_name]),
-                    ).entries(),
-                  ].map(([id, n]) => (
-                    <option key={id} value={id}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Field label={tr('参与家庭')}>
+                {control => (
+                  <Select
+                    {...control}
+                    value={rule.familyId || ''}
+                    onChange={e =>
+                      update({
+                        familyId: e.target.value || null,
+                        shares: [rule.shares.find(s => s.userId === options.userId)!],
+                      })
+                    }
+                  >
+                    <option value="">{tr('仅自己')}</option>
+                    {[
+                      ...new Map<string, string>(
+                        options.people.map((p: any) => [p.family_id, p.family_name]),
+                      ).entries(),
+                    ].map(([id, n]) => (
+                      <option key={id} value={id}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
             </div>
-            <h4>{l('每人每月承担', 'Each person’s monthly share')}</h4>
+            <h4>{tr('每人每月承担')}</h4>
             {people
               .filter((p: any) => p.id !== options.userId)
               .map((p: any) => (
-                <label className="check" key={p.id}>
+                <label className={shared.check} key={p.id}>
                   <input
                     type="checkbox"
                     checked={rule.shares.some(s => s.userId === p.id)}
@@ -380,67 +393,63 @@ export function CostSchedules({
                   {p.name}
                 </label>
               ))}
-            <div className="form-grid">
+            <div className={shared.grid}>
               {rule.shares.map((s, i) => (
-                <label key={s.userId}>
-                  {name(s.userId)}
-                  <input
-                    required
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={s.amount / 100}
-                    onChange={e =>
-                      update({
-                        shares: rule.shares.map((v, j) =>
-                          j === i ? { ...v, amount: Math.round(Number(e.target.value) * 100) } : v,
-                        ),
-                      })
-                    }
-                  />
-                </label>
+                <Field key={s.userId} label={name(s.userId)}>
+                  {control => (
+                    <Input
+                      {...control}
+                      required
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={s.amount / 100}
+                      onChange={e =>
+                        update({
+                          shares: rule.shares.map((v, j) =>
+                            j === i ? { ...v, amount: Math.round(Number(e.target.value) * 100) } : v,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                </Field>
               ))}
             </div>
             {rule.totalCycles != null && rule.firstDate && rule.months > 0 && (
-              <p className="notice">
-                {l('覆盖结束日（不含当天）：', 'Coverage ends (exclusive): ')}
-                {costScheduleProgress(rule, 0).coverageEnd} ·{' '}
-                {l('跳过的账期也计入总期数。', 'Skipped cycles also count toward the limit.')}
+              <p className={shared.notice}>
+                {tr('覆盖结束日（不含当天）：')}
+                {costScheduleProgress(rule, 0).coverageEnd} · {tr('跳过的账期也计入总期数。')}
               </p>
             )}
             <p>
-              {l('每期付款', 'Payment per cycle')}{' '}
+              {tr('每期付款')}{' '}
               <strong>{formatMoney(rule.shares.reduce((n, s) => n + s.amount, 0) * rule.months)}</strong>
             </p>
-            <p className="muted">
-              {l(
+            <p className={shared.muted}>
+              {tr(
                 '成本从付款日所在自然月起等额归属。其他成员需接受规则并选择自己的账本。现在不需要选择钱包，不会入账。',
-                'Costs are allocated equally from the due month. Other members must accept and choose their own ledger. No wallet is needed and no payment is recorded now.',
               )}
             </p>
-            <div className="cost-toolbar">
-              <button type="submit">
-                {busy
-                  ? l('保存中…', 'Saving…')
-                  : action === 'edit'
-                    ? l('保存计划修改', 'Save changes')
-                    : l('保存计划，不扣款', 'Save plan without payment')}
-              </button>
-              <button type="button" className="text-button" onClick={close}>
-                {l('取消', 'Cancel')}
-              </button>
+            <div className={shared.toolbar}>
+              <Button variant="primary" type="submit">
+                {busy ? tr('保存中…') : action === 'edit' ? tr('保存计划修改') : tr('保存计划，不扣款')}
+              </Button>
+              <Button variant="ghost" type="button" onClick={close}>
+                {tr('取消')}
+              </Button>
             </div>
           </fieldset>
         </form>
       ) : selected ? (
         <div>
-          <div className="cost-toolbar">
+          <div className={shared.toolbar}>
             <h4>
               {selected.rule.title} · {selected.next_date}
             </h4>
-            <button className="text-button" disabled={busy} onClick={close}>
-              {l('返回计划', 'Back to plans')}
-            </button>
+            <Button variant="ghost" disabled={busy} onClick={close}>
+              {tr('返回计划')}
+            </Button>
           </div>
           {action === 'receive' && (
             <form
@@ -457,86 +466,87 @@ export function CostSchedules({
               }}
             >
               <p>
-                {l('本期该成员分摊应付', 'Sender share due this cycle')}{' '}
-                <strong>{formatMoney(selectedExpected)}</strong> · {l('已确认到账', 'received')}:{' '}
-                {formatMoney(selectedReceived)} · {l('待收', 'remaining')}: {formatMoney(selectedRemaining)}
+                {tr('本期该成员分摊应付')} <strong>{formatMoney(selectedExpected)}</strong> ·{' '}
+                {tr('已确认到账')}: {formatMoney(selectedReceived)} · {tr('待收')}:{' '}
+                {formatMoney(selectedRemaining)}
               </p>
-              <p className="notice">
-                {l(
+              <p className={shared.notice}>
+                {tr(
                   '选择对方已转给你的本期分摊。待确认转款会记入你选择的个人钱包；已确认到账的转款只关联本期，不会重复入账。',
-                  'Select the transfer for your share. Pending transfers are credited to your personal wallet; already confirmed transfers are linked without crediting them again.',
                 )}
               </p>
               {selected.receiptMovements?.length ? (
                 <>
-                  <label>
-                    {l('转款记录', 'Transfer')}
-                    <select
-                      required
-                      value={receiptMovement}
-                      onChange={e => {
-                        setReceiptMovement(e.target.value);
-                        setReceiptWallet('');
-                      }}
-                    >
-                      {selected.receiptMovements.map((m: any) => (
-                        <option key={m.id} value={m.id}>
-                          {m.sender_name} · {formatMoney(m.amount)} · {m.date} ·{' '}
-                          {m.status === 'pending' ? l('待确认到账', 'pending') : l('已到账', 'received')}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <Field label={tr('转款记录')}>
+                    {control => (
+                      <Select
+                        {...control}
+                        required
+                        value={receiptMovement}
+                        onChange={e => {
+                          setReceiptMovement(e.target.value);
+                          setReceiptWallet('');
+                        }}
+                      >
+                        {selected.receiptMovements.map((m: any) => (
+                          <option key={m.id} value={m.id}>
+                            {m.sender_name} · {formatMoney(m.amount)} · {m.date} ·{' '}
+                            {m.status === 'pending' ? tr('待确认到账') : tr('已到账')}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
                   {selectedMovement?.status === 'pending' && (
                     <>
-                      <label>
-                        {l('回复转账人（选填，对方可见）', 'Reply to sender (optional)')}
-                        <textarea
-                          maxLength={2000}
-                          value={receiptReply}
-                          onChange={e => setReceiptReply(e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        {l('我的到账钱包', 'My receiving wallet')}
-                        <select
-                          required
-                          value={receiptWallet}
-                          onChange={e => setReceiptWallet(e.target.value)}
-                        >
-                          <option value="">
-                            {l('选择实际到账钱包', 'Choose the wallet that received it')}
-                          </option>
-                          {assets.map(a => (
-                            <option key={a.id} value={a.id}>
-                              {a.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <p className="muted">
-                        {l('确认后钱包余额增加', 'The wallet balance increases by')}{' '}
-                        {formatMoney(selectedMovement.amount)}。
+                      <Field label={tr('回复转账人（选填，对方可见）')}>
+                        {control => (
+                          <TextArea
+                            {...control}
+                            maxLength={2000}
+                            value={receiptReply}
+                            onChange={e => setReceiptReply(e.target.value)}
+                          />
+                        )}
+                      </Field>
+                      <Field label={tr('我的到账钱包')}>
+                        {control => (
+                          <Select
+                            {...control}
+                            required
+                            value={receiptWallet}
+                            onChange={e => setReceiptWallet(e.target.value)}
+                          >
+                            <option value="">{tr('选择实际到账钱包')}</option>
+                            {assets.map(a => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      </Field>
+                      <p className={shared.muted}>
+                        {tr('确认后钱包余额增加')} {formatMoney(selectedMovement.amount)}。
                       </p>
                     </>
                   )}
                 </>
               ) : (
-                <p className="muted">
-                  {l(
-                    '没有可关联的成员转款。请确认对方已在家庭往来中记录转款，或先完成待收款确认。',
-                    'No member transfer is available. Ask the sender to record it in Family movements, or finish its receipt confirmation first.',
-                  )}
+                <p className={shared.muted}>
+                  {tr('没有可关联的成员转款。请确认对方已在家庭往来中记录转款，或先完成待收款确认。')}
                 </p>
               )}
-              <div className="cost-toolbar">
-                <button
+              <div className={shared.toolbar}>
+                <Button
+                  variant="primary"
+                  type="submit"
                   disabled={
                     busy || !selectedMovement || (selectedMovement.status === 'pending' && !receiptWallet)
                   }
                 >
-                  {l('确认本期分摊到账', 'Confirm this cycle share')}
-                </button>
+                  {tr('确认本期分摊到账')}
+                </Button>
               </div>
             </form>
           )}
@@ -551,60 +561,53 @@ export function CostSchedules({
                 });
               }}
             >
-              <p>
-                {l(
-                  '接受以下规则，后续付款确认后自动归属到你选择的账本，不产生额外扣款。',
-                  'Accept these rules to attribute future confirmed payments to your selected ledger, without another wallet charge.',
-                )}
-              </p>
+              <p>{tr('接受以下规则，后续付款确认后自动归属到你选择的账本，不产生额外扣款。')}</p>
               <p>
                 <strong>
-                  {l('每', 'Every ')} {selected.rule.months} {l('个月付款，每期', ' months, per cycle ')}{' '}
+                  {tr('每')} {selected.rule.months} {tr('个月付款，每期')}{' '}
                   {formatMoney(
                     selected.rule.shares.reduce((n: number, s: any) => n + s.amount, 0) *
                       selected.rule.months,
                   )}
                 </strong>
               </p>
-              <p className="muted">
-                {l('分类：', 'Category: ')}
-                {selected.rule.category} ·{' '}
-                {l(
-                  '成本从到期日所在自然月起，按上述周期的月数等额分摊。',
-                  'Costs are allocated equally over these calendar months, starting with the due month.',
-                )}
+              <p className={shared.muted}>
+                {tr('分类：')}
+                {selected.rule.category} · {tr('成本从到期日所在自然月起，按上述周期的月数等额分摊。')}
               </p>
-              <p className="notice">
+              <p className={shared.notice}>
                 {selected.totalCycles
-                  ? `${l('总期数', 'Total cycles')}: ${selected.totalCycles} · ${l('覆盖至', 'Coverage ends')}: ${selected.coverageEnd}`
-                  : l('持续重复，未设结束期数', 'Repeats indefinitely; no cycle limit')}
+                  ? `${tr('总期数')}: ${selected.totalCycles} · ${tr('覆盖至')}: ${selected.coverageEnd}`
+                  : tr('持续重复，未设结束期数')}
               </p>
-              <div className="cost-accept-shares">
+              <div className={styles.costAcceptShares}>
                 <PagedList items={selected.rule.shares}>
                   {(s: any) => (
                     <div>
                       <span>{name(s.userId)}</span>
                       <strong>
                         {formatMoney(s.amount)}
-                        <small> / {l('月', 'month')}</small>
+                        <small> / {tr('月')}</small>
                       </strong>
                     </div>
                   )}
                 </PagedList>
               </div>
               {bookField}
-              <div className="cost-toolbar">
-                <button disabled={busy}>{l('接受规则并保存账本', 'Accept and save ledger')}</button>
-                <button
+              <div className={shared.toolbar}>
+                <Button variant="primary" type="submit" disabled={busy}>
+                  {tr('接受规则并保存账本')}
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="text-button"
                   disabled={busy}
                   onClick={() =>
                     run('/' + selected.id + '/respond', { version: selected.version, accept: false })
                   }
                 >
-                  {l('撤回我的同意', 'Withdraw my acceptance')}
-                </button>
+                  {tr('撤回我的同意')}
+                </Button>
               </div>
             </form>
           )}
@@ -622,14 +625,11 @@ export function CostSchedules({
                 });
               }}
             >
-              <p className="notice">
-                {l(
-                  '仅在实际付款后确认。若已通过识图或手动记账，请关联原付款，避免重复记账。',
-                  'Confirm only after payment. If already recorded, link the existing payment to avoid duplicates.',
-                )}
+              <p className={shared.notice}>
+                {tr('仅在实际付款后确认。若已通过识图或手动记账，请关联原付款，避免重复记账。')}
               </p>
               <p>
-                {l('本期金额', 'Cycle amount')}{' '}
+                {tr('本期金额')}{' '}
                 <strong>
                   {formatMoney(
                     selected.rule.shares.reduce((n: number, s: any) => n + s.amount, 0) *
@@ -637,56 +637,67 @@ export function CostSchedules({
                   )}
                 </strong>
               </p>
-              <label>
-                {l('付款记录', 'Payment record')}
-                <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
-                  <option value="new">{l('已付款，尚未记账', 'Paid, not yet recorded')}</option>
-                  <option value="existing">{l('关联已记账的付款', 'Link a recorded payment')}</option>
-                </select>
-              </label>
+              <Field label={tr('付款记录')}>
+                {control => (
+                  <Select {...control} value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
+                    <option value="new">{tr('已付款，尚未记账')}</option>
+                    <option value="existing">{tr('关联已记账的付款')}</option>
+                  </Select>
+                )}
+              </Field>
               {paymentMode === 'new' ? (
-                <div className="form-grid">
+                <div className={shared.grid}>
                   {bookField}
-                  <label>
-                    {l('实际付款钱包', 'Actual payment wallet')}
-                    <select required value={account} onChange={e => setAccount(e.target.value)}>
-                      <option value="">{l('请选择', 'Choose')}</option>
-                      {assets.map(a => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {l('实际付款日期', 'Actual payment date')}
-                    <input
-                      required
-                      type="date"
-                      value={paidDate}
-                      onChange={e => setPaidDate(e.target.value)}
-                    />
-                  </label>
+                  <Field label={tr('实际付款钱包')}>
+                    {control => (
+                      <Select
+                        {...control}
+                        required
+                        value={account}
+                        onChange={e => setAccount(e.target.value)}
+                      >
+                        <option value="">{tr('请选择')}</option>
+                        {assets.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label={tr('实际付款日期')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        type="date"
+                        value={paidDate}
+                        onChange={e => setPaidDate(e.target.value)}
+                      />
+                    )}
+                  </Field>
                 </div>
               ) : (
                 <>
-                  <label>
-                    {l('搜索原付款', 'Search recorded payments')}
-                    <input
-                      value={query}
-                      onChange={e => {
-                        setQuery(e.target.value);
-                        setSourceOffset(0);
-                        setSource('');
-                      }}
-                    />
-                  </label>
+                  <Field label={tr('搜索原付款')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        value={query}
+                        onChange={e => {
+                          setQuery(e.target.value);
+                          setSourceOffset(0);
+                          setSource('');
+                        }}
+                      />
+                    )}
+                  </Field>
                   {sourceLoading ? (
-                    <p role="status">{l('正在查找…', 'Searching…')}</p>
+                    <p role="status">{tr('正在查找…')}</p>
                   ) : (
                     sources.slice(0, 20).map(s => (
-                      <label className="check" key={s.id}>
-                        <input
+                      <label className={shared.check} key={s.id}>
+                        <Input
                           required
                           type="radio"
                           name="cost-payment"
@@ -697,62 +708,66 @@ export function CostSchedules({
                       </label>
                     ))
                   )}
-                  <div className="cost-toolbar">
-                    <button
+                  <div className={shared.toolbar}>
+                    <Button
+                      variant="secondary"
                       type="button"
-                      className="secondary"
                       disabled={sourceLoading || !sourceOffset}
                       onClick={() => {
                         setSource('');
                         setSourceOffset(v => v - 20);
                       }}
                     >
-                      {l('上一页', 'Previous')}
-                    </button>
+                      {tr('上一页')}
+                    </Button>
                     <span>
                       {sources[0]?.total ? sourceOffset + 1 : 0}–
                       {Math.min(sourceOffset + 20, sources[0]?.total || 0)} / {sources[0]?.total || 0}
                     </span>
-                    <button
+                    <Button
+                      variant="secondary"
                       type="button"
-                      className="secondary"
                       disabled={sourceLoading || sources.length <= 20}
                       onClick={() => {
                         setSource('');
                         setSourceOffset(v => v + 20);
                       }}
                     >
-                      {l('下一页', 'Next')}
-                    </button>
+                      {tr('下一页')}
+                    </Button>
                   </div>
                 </>
               )}
-              <div className="cost-toolbar">
-                <button disabled={busy || (paymentMode === 'existing' && !source)}>
-                  {busy ? l('保存中…', 'Saving…') : l('确认实际付款并分摊', 'Confirm payment and allocate')}
-                </button>
+              <div className={shared.toolbar}>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={busy || (paymentMode === 'existing' && !source)}
+                >
+                  {busy ? tr('保存中…') : tr('确认实际付款并分摊')}
+                </Button>
               </div>
             </form>
           )}
           {action === 'discussion' && (
             <>
-              <div className="cost-toolbar">
-                <button
+              <div className={shared.toolbar}>
+                <Button
+                  variant="secondary"
                   type="button"
-                  className="secondary"
                   aria-pressed={!discussionScope}
                   onClick={() => setDiscussionScope('')}
                 >
-                  {l('计划讨论', 'Plan discussion')}
-                </button>
-                <button
+                  {tr('计划讨论')}
+                </Button>
+                <Button
+                  variant="secondary"
                   type="button"
-                  className="secondary"
                   aria-pressed={discussionScope === selected.next_date}
                   onClick={() => setDiscussionScope(selected.next_date)}
                 >
-                  {l('本期讨论', 'Current cycle')} · {selected.next_date}
-                </button>
+                  {tr('本期讨论')} · {selected.next_date}
+                </Button>
               </div>
               <Discussion
                 key={selected.id + discussionScope}
@@ -762,53 +777,51 @@ export function CostSchedules({
           )}
           {action === 'history' && (
             <>
-              {historyLoading && <p role="status">{l('正在加载账期…', 'Loading cycles…')}</p>}
+              {historyLoading && <p role="status">{tr('正在加载账期…')}</p>}
               <PagedList items={historyLoading ? [] : history} pageSize={20}>
                 {(h: any) => (
-                  <div className="cost-edit-row">
+                  <div className={shared.row}>
                     <span>{h.due_date}</span>
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
-                      className="text-button"
                       onClick={() => {
                         setDiscussionScope(h.due_date);
                         setAction('discussion');
                       }}
                     >
-                      {l('讨论本期', 'Discuss cycle')}
-                    </button>
+                      {tr('讨论本期')}
+                    </Button>
                     {h.project_id ? (
-                      <button className="secondary" onClick={() => onProject(h.project_id)}>
-                        {l('查看分摊与结算', 'View allocation and settlement')}
-                      </button>
+                      <Button variant="secondary" onClick={() => onProject(h.project_id)}>
+                        {tr('查看分摊与结算')}
+                      </Button>
                     ) : (
-                      <span>{l('已跳过', 'Skipped')}</span>
+                      <span>{tr('已跳过')}</span>
                     )}
                   </div>
                 )}
               </PagedList>
-              {!historyLoading && !error && !history.length && (
-                <p>{l('尚无已处理账期', 'No processed cycles yet')}</p>
-              )}
-              <div className="cost-toolbar">
-                <button
-                  className="secondary"
+              {!historyLoading && !error && !history.length && <p>{tr('尚无已处理账期')}</p>}
+              <div className={shared.toolbar}>
+                <Button
+                  variant="secondary"
                   disabled={historyLoading || !historyOffset}
                   onClick={() => setHistoryOffset(v => v - 20)}
                 >
-                  {l('上一页', 'Previous')}
-                </button>
+                  {tr('上一页')}
+                </Button>
                 <span>
                   {history[0]?.total ? historyOffset + 1 : 0}–
                   {Math.min(historyOffset + 20, history[0]?.total || 0)} / {history[0]?.total || 0}
                 </span>
-                <button
-                  className="secondary"
+                <Button
+                  variant="secondary"
                   disabled={historyLoading || historyOffset + 20 >= (history[0]?.total || 0)}
                   onClick={() => setHistoryOffset(v => v + 20)}
                 >
-                  {l('下一页', 'Next')}
-                </button>
+                  {tr('下一页')}
+                </Button>
               </div>
             </>
           )}
@@ -816,44 +829,43 @@ export function CostSchedules({
       ) : (
         <>
           {loading ? (
-            <p role="status">{l('加载中…', 'Loading…')}</p>
+            <p role="status">{tr('加载中…')}</p>
           ) : (
             rows.map(s => (
-              <div className="cost-edit-row cost-schedule-card" key={s.id}>
-                <div className="cost-schedule-summary">
-                  <strong>{s.rule.title}</strong>
-                  <small>
-                    {s.completed ? l('全部账期已处理', 'All cycles processed') : s.next_date} ·{' '}
-                    {s.completed
-                      ? l('已结束', 'Completed')
-                      : s.paused
-                        ? l('已暂停', 'Paused')
-                        : s.members.some((m: any) => !m.accepted)
-                          ? l('待成员同意', 'Awaiting acceptance')
-                          : s.due
-                            ? l('到期待确认付款', 'Due: confirm payment')
-                            : l('未到期，不自动扣款', 'Upcoming, no automatic payment')}
-                  </small>
-                  <div className="cost-schedule-amount">
-                    <small>{l('每期付款', 'Payment per cycle')}</small>
-                    <b>
-                      {' '}
-                      {formatMoney(
-                        s.rule.shares.reduce((n: number, p: any) => n + p.amount, 0) * s.rule.months,
-                      )}
-                    </b>
-                    <small>
-                      {l('每', 'Every ')}
-                      {s.rule.months}
-                      {l('个月一次', ' months')}
-                    </small>
+              <div className={shared.row + ' ' + styles.costScheduleCard} key={s.id}>
+                <div className={styles.costScheduleSummary}>
+                  <ListRow
+                    title={s.rule.title}
+                    meta={
+                      <>
+                        {s.completed ? tr('全部账期已处理') : s.next_date} ·{' '}
+                        {s.completed
+                          ? tr('已结束')
+                          : s.paused
+                            ? tr('已暂停')
+                            : s.members.some((m: any) => !m.accepted)
+                              ? tr('待成员同意')
+                              : s.due
+                                ? tr('到期待确认付款')
+                                : tr('未到期，不自动扣款')}
+                      </>
+                    }
+                    end={
+                      <Money
+                        value={s.rule.shares.reduce((n: number, p: any) => n + p.amount, 0) * s.rule.months}
+                      />
+                    }
+                    endMeta={tr('每期付款')}
+                  />
+                  <div className={styles.costScheduleAmount}>
+                    <small>{tr('每 {0} 个月一次', [s.rule.months])}</small>
                   </div>
-                  <small className="cost-schedule-progress">
+                  <small className={styles.costScheduleProgress}>
                     {s.totalCycles
-                      ? `${l('已处理', 'Processed')} ${s.processed} / ${s.totalCycles} · ${l('覆盖至', 'Coverage ends')} ${s.coverageEnd}`
-                      : l('持续重复', 'Repeats indefinitely')}
+                      ? `${tr('已处理')} ${s.processed} / ${s.totalCycles} · ${tr('覆盖至')} ${s.coverageEnd}`
+                      : tr('持续重复')}
                   </small>
-                  <div className="cost-schedule-shares">
+                  <div className={styles.costScheduleShares}>
                     {s.rule.shares.map((p: any) => {
                       const received = Number(
                           s.received?.find((v: any) => v.user_id === p.userId)?.amount || 0,
@@ -864,17 +876,16 @@ export function CostSchedules({
                           {s.members.find((m: any) => m.user_id === p.userId)?.name || name(p.userId)}
                           <strong>
                             {formatMoney(p.amount)}
-                            <small> / {l('月', 'month')}</small>
+                            <small> / {tr('月')}</small>
                           </strong>
                           <small>
                             {s.members.find((m: any) => m.user_id === p.userId)?.accepted
-                              ? l('已确认规则', 'Accepted')
-                              : l('待确认规则', 'Awaiting acceptance')}
+                              ? tr('已确认规则')
+                              : tr('待确认规则')}
                           </small>
                           {received > 0 && (
                             <small>
-                              {l('本期已付', 'Paid this cycle')}: {formatMoney(received)} /{' '}
-                              {formatMoney(expected)}
+                              {tr('本期已付')}: {formatMoney(received)} / {formatMoney(expected)}
                             </small>
                           )}
                         </span>
@@ -882,41 +893,42 @@ export function CostSchedules({
                     })}
                   </div>
                 </div>
-                <div className="cost-toolbar cost-schedule-actions">
-                  <button className="secondary" disabled={busy} onClick={() => open(s, 'respond')}>
-                    {l('我的归属与确认', 'My ledger and acceptance')}
-                  </button>
+                <div className={shared.toolbar}>
+                  <Button variant="secondary" disabled={busy} onClick={() => open(s, 'respond')}>
+                    {tr('我的归属与确认')}
+                  </Button>
                   {s.owner_id === options?.userId && (
                     <>
-                      <button
-                        className="secondary"
+                      <Button
+                        variant="secondary"
                         disabled={busy}
                         onClick={() => {
                           open(s, 'edit');
                           setRule({ ...s.rule });
                         }}
                       >
-                        {l('编辑计划', 'Edit plan')}
-                      </button>
-                      <button
+                        {tr('编辑计划')}
+                      </Button>
+                      <Button
+                        variant="primary"
                         disabled={busy || !s.due || s.members.some((m: any) => !m.accepted)}
                         onClick={() => open(s, 'pay')}
                       >
-                        {l('确认本期付款', 'Confirm this payment')}
-                      </button>
-                      <button
-                        className="text-button"
+                        {tr('确认本期付款')}
+                      </Button>
+                      <Button
+                        variant="ghost"
                         disabled={busy}
                         onClick={() => run('/' + s.id + '/pause', { version: s.version, paused: !s.paused })}
                       >
-                        {s.paused ? l('恢复', 'Resume') : l('暂停', 'Pause')}
-                      </button>
+                        {s.paused ? tr('恢复') : tr('暂停')}
+                      </Button>
                     </>
                   )}
                   {s.members.some((m: any) => m.user_id === options?.userId && m.accepted) &&
                     !s.completed && (
-                      <button
-                        className="secondary"
+                      <Button
+                        variant="secondary"
                         disabled={
                           busy ||
                           !s.rule.shares.some(
@@ -928,45 +940,38 @@ export function CostSchedules({
                         }
                         onClick={() => open(s, 'receive')}
                       >
-                        {l('确认本期分摊到账', 'Confirm share received')}
-                      </button>
+                        {tr('确认本期分摊到账')}
+                      </Button>
                     )}
-                  <button type="button" className="secondary" onClick={() => open(s, 'discussion')}>
-                    {l('讨论', 'Discussion')}
-                  </button>
-                  <button className="text-button" onClick={() => open(s, 'history')}>
-                    {l('账期记录', 'Cycle history')}
-                  </button>
+                  <Button variant="secondary" type="button" onClick={() => open(s, 'discussion')}>
+                    {tr('讨论')}
+                  </Button>
+                  <Button variant="ghost" onClick={() => open(s, 'history')}>
+                    {tr('账期记录')}
+                  </Button>
                 </div>
               </div>
             ))
           )}
           {!loading && !rows.length && (
-            <p className="muted">
-              {l(
-                '尚无周期计划。可提前规划房租、保险或服务费用，到期再确认实付。',
-                'No recurring plans. Plan rent, insurance or services now and confirm payment when due.',
-              )}
+            <p className={shared.muted}>
+              {tr('尚无周期计划。可提前规划房租、保险或服务费用，到期再确认实付。')}
             </p>
           )}
-          <div className="cost-toolbar">
-            <button
-              className="secondary"
-              disabled={!offset || loading}
-              onClick={() => setOffset(v => v - 20)}
-            >
-              {l('上一页', 'Previous')}
-            </button>
+          <div className={shared.toolbar}>
+            <Button variant="secondary" disabled={!offset || loading} onClick={() => setOffset(v => v - 20)}>
+              {tr('上一页')}
+            </Button>
             <span>
               {offset / 20 + 1} / {Math.max(1, Math.ceil((rows[0]?.total || 0) / 20))}
             </span>
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               disabled={loading || offset + 20 >= (rows[0]?.total || 0)}
               onClick={() => setOffset(v => v + 20)}
             >
-              {l('下一页', 'Next')}
-            </button>
+              {tr('下一页')}
+            </Button>
           </div>
         </>
       )}

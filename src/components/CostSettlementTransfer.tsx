@@ -1,4 +1,7 @@
 'use client';
+import { Button, Field, Input, TextArea, Select } from '@/ui';
+import styles from './CostSettlementTransfer.module.css';
+import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
 import { useEffect, useState } from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
@@ -36,8 +39,7 @@ export function CostSettlementTransfer({
   userId: string;
   onChanged: () => Promise<void>;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [wallets, setWallets] = useState<{ id: string; name: string }[]>([]),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -76,7 +78,7 @@ export function CostSettlementTransfer({
       live = false;
     };
   }, [userId]);
-  const person = (id: string) => project.members.find(m => m.user_id === id)?.name || l('成员', 'Member');
+  const person = (id: string) => project.members.find(m => m.user_id === id)?.name || tr('成员');
   async function act(body: Record<string, unknown>) {
     setBusy(true);
     setError('');
@@ -93,16 +95,10 @@ export function CostSettlementTransfer({
       setReceiving('');
       setNotice(
         body.operation === 'create'
-          ? l(
-              '转款已记录，等待对方确认到账；确认后自动计入本项目结算。',
-              'Transfer recorded. It settles this project once the recipient confirms receipt.',
-            )
+          ? tr('转款已记录，等待对方确认到账；确认后自动计入本项目结算。')
           : body.operation === 'confirm'
-            ? l(
-                '已确认到账，钱包余额和项目结算已更新。',
-                'Receipt confirmed. Wallet balances and project settlement updated.',
-              )
-            : l('已取消待确认转款，未计入结算。', 'Pending transfer cancelled; no settlement recorded.'),
+            ? tr('已确认到账，钱包余额和项目结算已更新。')
+            : tr('已取消待确认转款，未计入结算。'),
       );
       window.dispatchEvent(new Event('cost-payment-recorded'));
       await onChanged();
@@ -114,12 +110,12 @@ export function CostSettlementTransfer({
   }
   if (!project.familyId) return null;
   return (
-    <div className="cost-transfer" aria-label={l('成员转款与收款', 'Member transfers and receipts')}>
-      <div className="cost-toolbar">
-        <h4>{l('成员转款与收款', 'Member transfers and receipts')}</h4>
-        <button
+    <div className={styles.costTransfer} aria-label={tr('成员转款与收款')}>
+      <div className={shared.toolbar}>
+        <h4>{tr('成员转款与收款')}</h4>
+        <Button
+          variant="ghost"
           type="button"
-          className="text-button"
           disabled={busy}
           onClick={async () => {
             setBusy(true);
@@ -131,27 +127,27 @@ export function CostSettlementTransfer({
           }}
         >
           <RefreshCw size={16} />
-          {l('刷新状态', 'Refresh status')}
-        </button>
+          {tr('刷新状态')}
+        </Button>
       </div>
-      <p className="muted">
-        {l(
+      <p className={shared.muted}>
+        {tr(
           '这里记录真实成员转款，不重复记房租等费用。双方余额在收款人确认后更新；个人承担仍按分摊规则统计。',
-          'Record actual member transfers here, without duplicating the expense. Both wallet balances update after receipt confirmation; cost shares still follow the allocation rules.',
         )}
       </p>
       {error && (
-        <p role="alert" className="error">
-          {error}
+        <p role="alert" className={shared.error}>
+          {tr(error)}
         </p>
       )}
       {notice && (
-        <p role="status" className="notice">
+        <p role="status" className={shared.notice}>
           {notice}
         </p>
       )}
       {!editing ? (
-        <button
+        <Button
+          variant="primary"
           type="button"
           disabled={busy || loading || !project.active || !project.valid || project.archived}
           onClick={() => {
@@ -166,8 +162,8 @@ export function CostSettlementTransfer({
             setError('');
           }}
         >
-          {l('向成员结算', 'Settle with a member')}
-        </button>
+          {tr('向成员结算')}
+        </Button>
       ) : (
         <form
           onSubmit={e => {
@@ -185,104 +181,102 @@ export function CostSettlementTransfer({
           }}
         >
           <fieldset disabled={busy || loading}>
-            <legend>{l('记录已发生的转款', 'Record a completed transfer')}</legend>
-            <div className="form-grid">
-              <label>
-                {l('收款成员', 'Recipient')}
-                <select required value={recipient} onChange={e => setRecipient(e.target.value)}>
-                  <option value="">{l('选择成员', 'Choose member')}</option>
-                  {project.members
-                    .filter(m => m.user_id !== userId)
-                    .map(m => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.name}
+            <legend>{tr('记录已发生的转款')}</legend>
+            <div className={shared.grid}>
+              <Field label={tr('收款成员')}>
+                {control => (
+                  <Select
+                    {...control}
+                    required
+                    value={recipient}
+                    onChange={e => setRecipient(e.target.value)}
+                  >
+                    <option value="">{tr('选择成员')}</option>
+                    {project.members
+                      .filter(m => m.user_id !== userId)
+                      .map(m => (
+                        <option key={m.user_id} value={m.user_id}>
+                          {m.name}
+                        </option>
+                      ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label={tr('我的付款钱包')}>
+                {control => (
+                  <Select {...control} required value={source} onChange={e => setSource(e.target.value)}>
+                    <option value="">{tr('选择钱包')}</option>
+                    {wallets.map(w => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
                       </option>
                     ))}
-                </select>
-              </label>
-              <label>
-                {l('我的付款钱包', 'My payment wallet')}
-                <select required value={source} onChange={e => setSource(e.target.value)}>
-                  <option value="">{l('选择钱包', 'Choose wallet')}</option>
-                  {wallets.map(w => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {l('实际转款金额', 'Actual transfer amount')}
-                <input
-                  required
-                  type="number"
-                  min="0.01"
-                  max="1000000000"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                />
-              </label>
-              <label>
-                {l('转款日期', 'Transfer date')}
-                <input
-                  required
-                  type="date"
-                  max={new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })}
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                />
-              </label>
+                  </Select>
+                )}
+              </Field>
+              <Field label={tr('实际转款金额')}>
+                {control => (
+                  <Input
+                    {...control}
+                    required
+                    type="number"
+                    min="0.01"
+                    max="1000000000"
+                    step="0.01"
+                    className={shared.numeric}
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label={tr('转款日期')}>
+                {control => (
+                  <Input
+                    {...control}
+                    required
+                    type="date"
+                    max={new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })}
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                  />
+                )}
+              </Field>
             </div>
-            <label>
-              {l('转账留言（选填，收款人可见）', 'Transfer note (visible to recipient)')}
-              <input maxLength={500} value={note} onChange={e => setNote(e.target.value)} />
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={similar} onChange={e => setSimilar(e.target.checked)} />
-              {l(
-                '同日同金额仍是另一笔真实转款',
-                'This is a separate transfer even if the date and amount match',
+            <Field label={tr('转账留言（选填，收款人可见）')}>
+              {control => (
+                <Input {...control} maxLength={500} value={note} onChange={e => setNote(e.target.value)} />
               )}
+            </Field>
+            <label className={shared.check}>
+              <input type="checkbox" checked={similar} onChange={e => setSimilar(e.target.checked)} />
+              {tr('同日同金额仍是另一笔真实转款')}
             </label>
             {!loading && !wallets.length && (
-              <p className="error">
-                {l('请先在资金资产中添加个人钱包。', 'Add a personal wallet in Assets first.')}
-              </p>
+              <p className={shared.error}>{tr('请先在资金资产中添加个人钱包。')}</p>
             )}
-            <p className="muted">
-              {l(
-                '不代替微信或银行转账。已在家庭往来记过的，请使用下方“关联已有结算”。',
-                'This does not send money through a bank or payment app. If already recorded, use “Link settlement” below.',
-              )}
+            <p className={shared.muted}>
+              {tr('不代替微信或银行转账。已在家庭往来记过的，请使用下方“关联已有结算”。')}
             </p>
-            <div className="cost-toolbar">
-              <button type="submit" disabled={!wallets.length}>
-                {busy
-                  ? l('正在记录…', 'Recording…')
-                  : l('已转款，等待对方确认', 'Record transfer for recipient confirmation')}
-              </button>
-              <button type="button" className="text-button" onClick={() => setEditing(false)}>
-                {l('取消', 'Cancel')}
-              </button>
+            <div className={shared.toolbar}>
+              <Button variant="primary" type="submit" disabled={!wallets.length}>
+                {busy ? tr('正在记录…') : tr('已转款，等待对方确认')}
+              </Button>
+              <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
+                {tr('取消')}
+              </Button>
             </div>
           </fieldset>
         </form>
       )}
-      <h4>{l('本项目的结算流水', 'Project settlement transfers')}</h4>
+      <h4>{tr('本项目的结算流水')}</h4>
       {!project.movements.length && (
-        <p className="muted">
-          {l(
-            '还没有成员结算记录。转款后在这里记录，或关联已有转账。',
-            'No settlement transfers yet. Record a transfer here or link an existing one.',
-          )}
-        </p>
+        <p className={shared.muted}>{tr('还没有成员结算记录。转款后在这里记录，或关联已有转账。')}</p>
       )}
       <PagedList items={project.movements}>
         {m => (
-          <div className="cost-offset">
-            <div className="cost-toolbar">
+          <div className={shared.row}>
+            <div className={shared.toolbar}>
               <span>
                 {person(m.sender_id)} <ArrowRight size={14} aria-hidden="true" /> {person(m.recipient_id)}
               </span>
@@ -291,31 +285,32 @@ export function CostSettlementTransfer({
             <small>
               {m.date} ·{' '}
               {m.status === 'confirmed'
-                ? l('已到账 · 已计入结算', 'Received · settled')
+                ? tr('已到账 · 已计入结算')
                 : m.status === 'cancelled'
-                  ? l('已取消', 'Cancelled')
-                  : l('待收款人确认 · 未计入结算', 'Awaiting receipt · not settled')}
+                  ? tr('已取消')
+                  : tr('待收款人确认 · 未计入结算')}
             </small>
             {m.note && <p>{m.note}</p>}
             {[m.sender_id, m.recipient_id].includes(userId) && (
               <>
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="text-button"
                   aria-expanded={discussionMovement === m.movement_id}
                   onClick={() => setDiscussionMovement(v => (v === m.movement_id ? '' : m.movement_id))}
                 >
-                  {l('转款讨论', 'Transfer discussion')}
-                </button>
+                  {tr('转款讨论')}
+                </Button>
                 {discussionMovement === m.movement_id && (
                   <Discussion key={m.movement_id} target={{ kind: 'movement', id: m.movement_id }} />
                 )}
               </>
             )}
             {m.status === 'pending' && [m.sender_id, m.recipient_id].includes(userId) && (
-              <div className="cost-toolbar">
+              <div className={shared.toolbar}>
                 {m.recipient_id === userId && (
-                  <button
+                  <Button
+                    variant="primary"
                     type="button"
                     disabled={busy || loading}
                     onClick={() => {
@@ -325,17 +320,17 @@ export function CostSettlementTransfer({
                       setEditing(false);
                     }}
                   >
-                    {l('确认到账', 'Confirm receipt')}
-                  </button>
+                    {tr('确认到账')}
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
-                  className="text-button"
                   disabled={busy}
                   onClick={() => void act({ operation: 'cancel', id: m.movement_id })}
                 >
-                  {l('取消这笔待确认转款', 'Cancel pending transfer')}
-                </button>
+                  {tr('取消这笔待确认转款')}
+                </Button>
               </div>
             )}
             {receiving === m.movement_id && m.status === 'pending' && (
@@ -346,43 +341,42 @@ export function CostSettlementTransfer({
                 }}
               >
                 <fieldset disabled={busy}>
-                  <label>
-                    {l('我的到账钱包', 'My receiving wallet')}
-                    <select required value={target} onChange={e => setTarget(e.target.value)}>
-                      <option value="">
-                        {l('选择实际到账钱包', 'Choose the wallet that received payment')}
-                      </option>
-                      {wallets.map(w => (
-                        <option key={w.id} value={w.id}>
-                          {w.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {l('回复转账人（选填，对方可见）', 'Reply to sender (optional)')}
-                    <textarea maxLength={2000} value={reply} onChange={e => setReply(e.target.value)} />
-                  </label>
+                  <Field label={tr('我的到账钱包')}>
+                    {control => (
+                      <Select {...control} required value={target} onChange={e => setTarget(e.target.value)}>
+                        <option value="">{tr('选择实际到账钱包')}</option>
+                        {wallets.map(w => (
+                          <option key={w.id} value={w.id}>
+                            {w.name}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label={tr('回复转账人（选填，对方可见）')}>
+                    {control => (
+                      <TextArea
+                        {...control}
+                        maxLength={2000}
+                        value={reply}
+                        onChange={e => setReply(e.target.value)}
+                      />
+                    )}
+                  </Field>
                   {!loading && !wallets.length && (
-                    <p className="error">
-                      {l(
-                        '请先在资金资产中添加个人钱包，再回来确认到账。',
-                        'Add a personal wallet in Assets, then return to confirm receipt.',
-                      )}
-                    </p>
+                    <p className={shared.error}>{tr('请先在资金资产中添加个人钱包，再回来确认到账。')}</p>
                   )}
                   <p>
-                    {l('确认后该钱包增加', 'After confirmation this wallet increases by')}{' '}
-                    {formatMoney(m.amount)}
-                    {l('，不会计为收入或再增加费用。', ', with no additional income or expense.')}
+                    {tr('确认后该钱包增加')} {formatMoney(m.amount)}
+                    {tr('，不会计为收入或再增加费用。')}
                   </p>
-                  <div className="cost-toolbar">
-                    <button type="submit" disabled={loading || !wallets.length}>
-                      {l('确已到账，确认结算', 'Confirm receipt and settlement')}
-                    </button>
-                    <button type="button" className="text-button" onClick={() => setReceiving('')}>
-                      {l('返回', 'Back')}
-                    </button>
+                  <div className={shared.toolbar}>
+                    <Button variant="primary" type="submit" disabled={loading || !wallets.length}>
+                      {tr('确已到账，确认结算')}
+                    </Button>
+                    <Button variant="ghost" type="button" onClick={() => setReceiving('')}>
+                      {tr('返回')}
+                    </Button>
                   </div>
                 </fieldset>
               </form>
