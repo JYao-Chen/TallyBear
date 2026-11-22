@@ -1716,7 +1716,7 @@ try {
       await audit('memory-detail-expanded');
       await memoryEditor.getByRole('button', { name: t('关闭'), exact: true }).click();
       await portraitSection('学习记录', 'History');
-      await audit('memory-history');
+      await shot('memory-history');
       await portraitSection('学习与隐私', 'Learning & privacy');
       await page.getByText(t('记忆模型配置与运行统计（管理员）'), { exact: true }).click();
       await audit('memory-settings');

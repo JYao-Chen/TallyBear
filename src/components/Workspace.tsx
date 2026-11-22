@@ -67,6 +67,7 @@ import homeStyles from '@/features/home/home.module.css';
 import pageStyles from './Workspace.module.css';
 import shellStyles from '@/features/shell/shell.module.css';
 import {
+  ArrowLeft,
   ArrowLeftRight,
   PanelLeftClose,
   PanelLeftOpen,
@@ -1535,14 +1536,28 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                 </>
                               ) : (
                                 <>
-                                  <Button onClick={() => setEntryMode('ai')}>{tr('交给小熊')}</Button>
+                                  <Button variant="ghost" onClick={() => setEntryMode('ai')}>
+                                    <ArrowLeft size={18} />
+                                    {tr('返回交给小熊')}
+                                  </Button>
                                   <h2>{tr('导入已有账单')}</h2>
-                                  <></>
-                                  <input
-                                    type="file"
-                                    accept=".csv"
-                                    onChange={e => run(() => importCSV(e.target.files?.[0]))}
-                                  />
+                                  <small>{tr('选择从微信或支付宝导出的 CSV 账单（5MB 以内），逐笔生成草稿，核对后再入账。')}</small>
+                                  <div className={entryStyles.row}>
+                                    <label className={entryStyles.upload}>
+                                      <Upload size={18} />
+                                      {tr('选择 CSV 账单文件')}
+                                      <input
+                                        type="file"
+                                        accept=".csv"
+                                        disabled={busy}
+                                        onChange={e => {
+                                          const file = e.target.files?.[0];
+                                          run(() => importCSV(file));
+                                          e.target.value = '';
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
                                 </>
                               )}
                             </section>

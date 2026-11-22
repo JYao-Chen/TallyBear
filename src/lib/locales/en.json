@@ -2818,5 +2818,8 @@
   "保存后，这笔支出直接计入你的费用。": "This expense will count as yours immediately.",
   "成员接受后，这笔支出从家庭共同费用转入其个人费用。": "The expense stays shared until the member accepts.",
   "对方将收到待认领消息，确认后自己选择账本。付款仍记在你的钱包；只分享这笔账的信息，不分享私人附图或其他账目。": "The member receives an invitation and chooses their own book. Payment stays in your wallet. Only this bill’s details are shared; private photos and other records stay private.",
-  "已用只计有预算的分类；其他分类本月另有支出": "Used counts budgeted categories only. Other categories spent"
+  "已用只计有预算的分类；其他分类本月另有支出": "Used counts budgeted categories only. Other categories spent",
+  "返回交给小熊": "Back to Ask the bear",
+  "选择从微信或支付宝导出的 CSV 账单（5MB 以内），逐笔生成草稿，核对后再入账。": "Choose a CSV bill exported from WeChat or Alipay (up to 5 MB). Each payment becomes a draft to review before saving.",
+  "选择 CSV 账单文件": "Choose a CSV bill"
 }
