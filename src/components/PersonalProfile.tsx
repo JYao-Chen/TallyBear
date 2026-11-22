@@ -336,11 +336,11 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     />
                   </label>
                   {section === 'overview' && (
-                    <select
+                    <FormSelect
                       aria-label={t('习惯状态', 'Habit status')}
                       value={status}
-                      onChange={e => {
-                        setStatus(e.target.value);
+                      onChange={value => {
+                        setStatus(value);
                         setPage(1);
                       }}
                     >
@@ -350,7 +350,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                           {label(s)}
                         </option>
                       ))}
-                    </select>
+                    </FormSelect>
                   )}
                 </div>
                 <ProfileInsightBoard

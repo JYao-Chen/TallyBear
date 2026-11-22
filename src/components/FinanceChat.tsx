@@ -64,6 +64,18 @@ async function api(book: string, body?: unknown, id?: string) {
   if (!r.ok) throw new Error(d.error);
   return d;
 }
+function QueryScope({ books }: { books: AgentArtifact['analysisBooks'] }) {
+  const { t: tr } = useI18n();
+  const names = books
+    ?.map(book => book?.name?.trim())
+    .filter(Boolean)
+    .join('、');
+  return names ? (
+    <small className={styles.financeQuestionAttachments}>
+      {tr('查询范围')}：{names}
+    </small>
+  ) : null;
+}
 function requestUUID() {
   const b = crypto.getRandomValues(new Uint8Array(16));
   b[6] = (b[6] & 15) | 64;
@@ -216,6 +228,7 @@ export function FinanceChat({
   const activeTask = useRef('');
   const abort = useRef<AbortController | null>(null),
     bodyRef = useRef<HTMLDivElement>(null),
+    messageContent = useRef<HTMLDivElement>(null),
     nearBottom = useRef(true),
     conversation = useRef(id);
   conversation.current = id;
@@ -281,6 +294,24 @@ export function FinanceChat({
     onPromptOpened?.();
     requestAnimationFrame(() => bodyRef.current?.parentElement?.querySelector('textarea')?.focus());
   }, [initialPrompt?.id]);
+  useEffect(() => {
+    const messages = bodyRef.current,
+      content = messageContent.current;
+    if (!messages || !content) return;
+    const update = () => {
+      const remaining = messages.scrollHeight - messages.scrollTop - messages.clientHeight;
+      nearBottom.current = remaining < 100;
+      setShowLatest(remaining > messages.clientHeight);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(messages);
+    observer.observe(content);
+    messages.addEventListener('scroll', update);
+    return () => {
+      observer.disconnect();
+      messages.removeEventListener('scroll', update);
+    };
+  }, []);
   useEffect(() => {
     if (nearBottom.current) bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
   }, [turns, status]);
@@ -618,7 +649,7 @@ export function FinanceChat({
           {library}
         </Sheet>
       )}
-      <div className={styles.financeMain} data-conversation>
+      <div className={styles.financeMain}>
         <div className={styles.financeToolbar}>
           <Button
             className={styles.financeLibraryToggle}
@@ -706,217 +737,205 @@ export function FinanceChat({
           </p>
         )}
         {notice && <p className={styles.notice}>{tr(notice)}</p>}
-        <div
-          className={styles.financeMessages}
-          role="region"
-          aria-label={tr('财务对话')}
-          ref={bodyRef}
-          onScroll={e => {
-            const el = e.currentTarget;
-            nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
-            setShowLatest(!nearBottom.current);
-          }}
-        >
-          {report ? (
-            <>
-              <h1>{report.title}</h1>
-              <details className={styles.contextDetails}>
-                <summary>{tr('报告信息')}</summary>
-                <p className={styles.muted}>
-                  {tr('保存于')}
-                  {new Date(report.created_at).toLocaleString(getLocale())} {tr('· 参考月份')}
-                  {report.artifacts.month || tr('见正文')} {tr('· 模型')}
-                  {report.model} {tr('· 数据为当时快照')}
-                </p>
-              </details>
-              <div data-report-body className={styles.reportBody}>
-                <FinanceNarrative book={book} text={report.content} artifacts={report.artifacts} />
-              </div>
-            </>
-          ) : tab === 'reports' ? (
-            <div className={styles.financeEmpty}>
-              <FileText size={36} />
-              <h2>{tr('把有用的分析，留成报告')}</h2>
-              <p>{tr('选择一份报告，或将对话回答保存为报告。')}</p>
-            </div>
-          ) : (
-            <>
-              {!turns.length && (
-                <div className={styles.financeEmpty}>
-                  <img src={themes[theme].icon} width={58} height={58} alt="" />
-                  <h2>{tr('想记什么，聊聊就好')}</h2>
-                  <p className={styles.financeWelcomeCaption}>{tr('记账、整理订阅，或看看最近的开销。')}</p>
-                  <div className={styles.financeSuggestions}>
-                    {[
-                      '帮我记一笔，缺少的信息请问我',
-                      '帮我设置一个周期订阅',
-                      '把通勤消费保存为常用一笔',
-                      '分析这个月的财务状况，生成图文报告',
-                    ].map(q => (
-                      <Button
-                        key={q}
-                        disabled={busy}
-                        onClick={() => {
-                          setText(tr(q));
-                          bodyRef.current?.parentElement?.querySelector('textarea')?.focus();
-                        }}
-                      >
-                        {tr(q)}
-                      </Button>
-                    ))}
-                  </div>
+        <div className={styles.financeMessages} role="region" aria-label={tr('财务对话')} ref={bodyRef}>
+          <div ref={messageContent}>
+            {report ? (
+              <>
+                <h1>{report.title}</h1>
+                <details className={styles.contextDetails}>
+                  <summary>{tr('报告信息')}</summary>
+                  <p className={styles.muted}>
+                    {tr('保存于')}
+                    {new Date(report.created_at).toLocaleString(getLocale())} {tr('· 参考月份')}
+                    {report.artifacts.month || tr('见正文')} {tr('· 模型')}
+                    {report.model} {tr('· 数据为当时快照')}
+                  </p>
+                </details>
+                <div data-report-body className={styles.reportBody}>
+                  <FinanceNarrative book={book} text={report.content} artifacts={report.artifacts} />
                 </div>
-              )}
-              {turns.map((t, index) => (
-                <article className={styles.financeTurn} key={t.id}>
-                  <div className={styles.financeQuestion}>
-                    {!!t.artifacts.analysisBooks?.length && (
-                      <small className={styles.financeQuestionAttachments}>
-                        {tr('查询范围')}：{t.artifacts.analysisBooks.map(b => b.name).join('、')}
-                      </small>
-                    )}
-                    <span>{t.question}</span>
-                    {!!t.artifacts.images?.length && (
-                      <small className={styles.financeQuestionAttachments}>
-                        <Images size={15} />
-                        {tr('已附 {0} 张图片').replace('{0}', String(t.artifacts.images.length))}
-                      </small>
-                    )}
-                  </div>
-                  <div className={styles.financeAnswer}>
-                    {index === 0 && <img src={themes[theme].icon} width={32} height={32} alt="" />}
-                    {t.artifacts.tools?.length > 0 && (
-                      <details className={styles.toolTraces}>
-                        <summary>
-                          {tr('已执行')}
-                          {t.artifacts.tools.length} {tr('次工具查询')}
-                        </summary>
-                        {t.artifacts.tools.map((tool, i) => (
-                          <div key={i}>
-                            <strong>{tool.label}</strong>
-                            <small>{toolScope(tool.args)}</small>
-                            {(tool.result as any)?.error && (
-                              <p className={styles.error}>{(tool.result as any).error}</p>
-                            )}
-                          </div>
-                        ))}
-                      </details>
-                    )}
-                    <FinanceNarrative book={book} text={t.answer} artifacts={t.artifacts} />
-                    {t.error && <p className={styles.error}>{t.error}</p>}
-                    {!t.artifacts.actions?.length && t.artifacts.drafts?.length > 0 && (
-                      <div className={styles.draftChatCard}>
-                        <strong>
-                          {tr('整理出')}
-                          {t.artifacts.drafts.length} {tr('笔待确认草稿')}
-                        </strong>
-                        <></>
+              </>
+            ) : tab === 'reports' ? (
+              <div className={styles.financeEmpty}>
+                <FileText size={36} />
+                <h2>{tr('把有用的分析，留成报告')}</h2>
+                <p>{tr('选择一份报告，或将对话回答保存为报告。')}</p>
+              </div>
+            ) : (
+              <>
+                {!turns.length && (
+                  <div className={styles.financeEmpty}>
+                    <img src={themes[theme].icon} width={58} height={58} alt="" />
+                    <h2>{tr('想记什么，聊聊就好')}</h2>
+                    <p className={styles.financeWelcomeCaption}>{tr('记账、整理订阅，或看看最近的开销。')}</p>
+                    <div className={styles.financeSuggestions}>
+                      {[
+                        '帮我记一笔，缺少的信息请问我',
+                        '帮我设置一个周期订阅',
+                        '把通勤消费保存为常用一笔',
+                        '分析这个月的财务状况，生成图文报告',
+                      ].map(q => (
                         <Button
-                          variant="primary"
-                          disabled={busy || !canWrite}
-                          onClick={() => onDrafts(t.artifacts.drafts)}
-                        >
-                          {tr('送到记账草稿核对')}
-                        </Button>
-                      </div>
-                    )}
-                    {!!t.artifacts.links?.length && (
-                      <div className={styles.assistantLinks}>
-                        {t.artifacts.links.map((link, i) =>
-                          link.page ? (
-                            <Button
-                              key={i}
-                              onClick={() => {
-                                if (link.helpId) sessionStorage.setItem('help-article', link.helpId);
-                                onNavigate?.(link.page!);
-                              }}
-                            >
-                              {tr('打开')} · {tr(link.title)}
-                            </Button>
-                          ) : link.downloadUrl?.startsWith('/api/books/') ? (
-                            <a className={styles.button} key={i} href={link.downloadUrl} download>
-                              {tr(link.title)}
-                            </a>
-                          ) : null,
-                        )}
-                      </div>
-                    )}
-                    {!!cardsByTurn.get(t.id)?.length && (
-                      <ChatActionCards
-                        onUndo={setUndoId}
-                        undone={undone}
-                        onEdit={async (actionId, data) => {
-                          await api(book, {
-                            operation: 'edit_action',
-                            id,
-                            turnId: latestTurn!.id,
-                            actionId,
-                            data,
-                          });
-                          await load(id);
-                        }}
-                        actions={cardsByTurn.get(t.id)!}
-                        confirmable={latestTurn?.status === 'complete'}
-                        disabled={busy || latestTurn?.status === 'running'}
-                        onConfirm={async (actionId, acknowledgeWarnings) => {
-                          await api(book, {
-                            operation: 'confirm_action',
-                            id,
-                            turnId: latestTurn!.id,
-                            actionId,
-                            acknowledgeWarnings,
-                          });
-                          await load(id);
-                          setRevision(n => n + 1);
-                          await onChanged?.();
-                          setNotice('已保存，可继续描述下一项操作。');
-                        }}
-                        onCancel={async actionId => {
-                          await api(book, {
-                            operation: 'cancel_action',
-                            id,
-                            turnId: latestTurn!.id,
-                            actionId,
-                          });
-                          await load(id);
-                        }}
-                        onRevise={a => {
-                          setReplyAction(a);
-                          setText('');
-                          bodyRef.current?.parentElement?.querySelector('textarea')?.focus();
-                        }}
-                      />
-                    )}
-                    {t.status === 'complete' && (
-                      <div className={styles.answerActions}>
-                        <small>{t.model}</small>
-                        <Button variant="ghost" onClick={() => saveReport(t)}>
-                          <FileText size={15} />
-                          {tr('保存为报告')}
-                        </Button>
-                        <Button
-                          variant="ghost"
+                          key={q}
+                          disabled={busy}
                           onClick={() => {
-                            setText('请基于最新账目重新生成：' + t.question);
+                            setText(tr(q));
+                            bodyRef.current?.parentElement?.querySelector('textarea')?.focus();
                           }}
                         >
-                          {tr('重新分析')}
+                          {tr(q)}
                         </Button>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </article>
-              ))}
-              {!busy && turns.some(t => t.status === 'running') && (
-                <p role="status">{tr('这段对话正在后台处理，完成后自动显示。')}</p>
-              )}
-              {busy && (
-                <p className={styles.financeProgress} role="status">
-                  {status || tr('正在连接助手…')}
-                </p>
-              )}
-            </>
-          )}
+                )}
+                {turns.map((t, index) => (
+                  <article className={styles.financeTurn} key={t.id}>
+                    <div className={styles.financeQuestion}>
+                      <QueryScope books={t.artifacts.analysisBooks} />
+                      <span>{t.question}</span>
+                      {!!t.artifacts.images?.length && (
+                        <small className={styles.financeQuestionAttachments}>
+                          <Images size={15} />
+                          {tr('已附 {0} 张图片').replace('{0}', String(t.artifacts.images.length))}
+                        </small>
+                      )}
+                    </div>
+                    <div className={styles.financeAnswer}>
+                      {index === 0 && <img src={themes[theme].icon} width={32} height={32} alt="" />}
+                      {t.artifacts.tools?.length > 0 && (
+                        <details className={styles.toolTraces}>
+                          <summary>
+                            {tr('已执行')}
+                            {t.artifacts.tools.length} {tr('次工具查询')}
+                          </summary>
+                          {t.artifacts.tools.map((tool, i) => (
+                            <div key={i}>
+                              <strong>{tool.label}</strong>
+                              <small>{toolScope(tool.args)}</small>
+                              {(tool.result as any)?.error && (
+                                <p className={styles.error}>{(tool.result as any).error}</p>
+                              )}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      <FinanceNarrative book={book} text={t.answer} artifacts={t.artifacts} />
+                      {t.error && <p className={styles.error}>{t.error}</p>}
+                      {!t.artifacts.actions?.length && t.artifacts.drafts?.length > 0 && (
+                        <div className={styles.draftChatCard}>
+                          <strong>
+                            {tr('整理出')}
+                            {t.artifacts.drafts.length} {tr('笔待确认草稿')}
+                          </strong>
+                          <></>
+                          <Button
+                            variant="primary"
+                            disabled={busy || !canWrite}
+                            onClick={() => onDrafts(t.artifacts.drafts)}
+                          >
+                            {tr('送到记账草稿核对')}
+                          </Button>
+                        </div>
+                      )}
+                      {!!t.artifacts.links?.length && (
+                        <div className={styles.assistantLinks}>
+                          {t.artifacts.links.map((link, i) =>
+                            link.page ? (
+                              <Button
+                                key={i}
+                                onClick={() => {
+                                  if (link.helpId) sessionStorage.setItem('help-article', link.helpId);
+                                  onNavigate?.(link.page!);
+                                }}
+                              >
+                                {tr('打开')} · {tr(link.title)}
+                              </Button>
+                            ) : link.downloadUrl?.startsWith('/api/books/') ? (
+                              <a className={styles.button} key={i} href={link.downloadUrl} download>
+                                {tr(link.title)}
+                              </a>
+                            ) : null,
+                          )}
+                        </div>
+                      )}
+                      {!!cardsByTurn.get(t.id)?.length && (
+                        <ChatActionCards
+                          onUndo={setUndoId}
+                          undone={undone}
+                          onEdit={async (actionId, data) => {
+                            await api(book, {
+                              operation: 'edit_action',
+                              id,
+                              turnId: latestTurn!.id,
+                              actionId,
+                              data,
+                            });
+                            await load(id);
+                          }}
+                          actions={cardsByTurn.get(t.id)!}
+                          confirmable={latestTurn?.status === 'complete'}
+                          disabled={busy || latestTurn?.status === 'running'}
+                          onConfirm={async (actionId, acknowledgeWarnings) => {
+                            await api(book, {
+                              operation: 'confirm_action',
+                              id,
+                              turnId: latestTurn!.id,
+                              actionId,
+                              acknowledgeWarnings,
+                            });
+                            await load(id);
+                            setRevision(n => n + 1);
+                            await onChanged?.();
+                            setNotice('已保存，可继续描述下一项操作。');
+                          }}
+                          onCancel={async actionId => {
+                            await api(book, {
+                              operation: 'cancel_action',
+                              id,
+                              turnId: latestTurn!.id,
+                              actionId,
+                            });
+                            await load(id);
+                          }}
+                          onRevise={a => {
+                            setReplyAction(a);
+                            setText('');
+                            bodyRef.current?.parentElement?.querySelector('textarea')?.focus();
+                          }}
+                        />
+                      )}
+                      {t.status === 'complete' && (
+                        <div className={styles.answerActions}>
+                          <small>{t.model}</small>
+                          <Button variant="ghost" onClick={() => saveReport(t)}>
+                            <FileText size={15} />
+                            {tr('保存为报告')}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setText('请基于最新账目重新生成：' + t.question);
+                            }}
+                          >
+                            {tr('重新分析')}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+                {!busy && turns.some(t => t.status === 'running') && (
+                  <p role="status">{tr('这段对话正在后台处理，完成后自动显示。')}</p>
+                )}
+                {busy && (
+                  <p className={styles.financeProgress} role="status">
+                    {status || tr('正在连接助手…')}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
         {showLatest && (
           <Button
@@ -971,6 +990,7 @@ export function FinanceChat({
           }}
         >
           <form
+            className={styles.sheetForm}
             onSubmit={async e => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);

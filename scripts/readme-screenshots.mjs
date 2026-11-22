@@ -1019,7 +1019,7 @@ try {
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('assistant-book-updated');
         await navigate('个人资料');
-        await page.getByRole('button', { name: t('个人画像'), exact: true }).click();
+        await page.getByRole('tab', { name: t('个人画像'), exact: true }).click();
         await portraitSection('场景与规则', 'Habits & rules');
         await settle();
         await page
@@ -1649,18 +1649,32 @@ try {
       await page.getByText(lang === 'en' ? 'Home internet' : '家庭网络', { exact: true }).waitFor();
       await shot('cost-plans');
       await navigate('个人资料');
+      const accountRow = page.getByRole('button', { name: new RegExp(t('我在账本里的样子')) });
+      await accountRow.getByText('alex.demo', { exact: true }).waitFor();
       await shot('profile');
-      await page.getByRole('button', { name: new RegExp(t('我在账本里的样子')) }).click();
+      await accountRow.click();
       await page
         .getByRole('dialog')
         .getByRole('textbox', { name: t('显示名称') })
         .waitFor();
+      const fieldSpacing = await page.getByRole('dialog').evaluate(dialog => {
+        const [account, name] = Array.from(dialog.querySelectorAll('label[for]')).map(label => ({
+          label: label.getBoundingClientRect(),
+          input: label.control.getBoundingClientRect(),
+        }));
+        return [
+          account.input.top - account.label.bottom,
+          name.label.top - account.input.bottom,
+          name.input.top - name.label.bottom,
+        ].map(Math.round);
+      });
+      assert.deepEqual(fieldSpacing, [6, 16, 6]);
       await shot('profile-edit');
       await page
         .getByRole('dialog')
         .getByRole('button', { name: t('关闭'), exact: true })
         .click();
-      await page.getByRole('button', { name: t('外观主题'), exact: true }).click();
+      await page.getByRole('tab', { name: t('外观主题'), exact: true }).click();
       const themeOptions = page.getByRole('group', { name: t('外观主题') });
       await themeOptions.getByRole('button', { name: t('极简清爽') }).click();
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'minimal');
@@ -1676,26 +1690,31 @@ try {
         .getByRole('dialog', { name: t('后台任务') })
         .getByRole('button', { name: t('关闭弹窗') })
         .click();
-      await page.getByRole('button', { name: t('个人画像'), exact: true }).click();
+      await page.getByRole('tab', { name: t('个人画像'), exact: true }).click();
       await page.getByRole('heading', { name: t('个人画像'), exact: true }).waitFor();
+      const statusFilter = page.getByRole('button', {
+        name: new RegExp(lang === 'en' ? '^Habit status:' : '^习惯状态:'),
+      });
+      await statusFilter.waitFor();
+      const searchBox = await page
+        .getByRole('textbox', { name: lang === 'en' ? 'Search profile' : '搜索画像' })
+        .boundingBox();
+      const statusBox = await statusFilter.boundingBox();
+      assert.ok(searchBox.y < statusBox.y + statusBox.height && statusBox.y < searchBox.y + searchBox.height);
       await shot('memory');
       await portraitSection('商品与服务', 'Products & services');
-      await page.locator('.memory-row').first().waitFor();
+      const product = page.getByRole('button', {
+        name: new RegExp(lang === 'en' ? 'Fresh milk 1L' : '鲜牛奶 1L'),
+      });
+      await product.waitFor();
       await shot('memory-products');
-      await page
-        .locator('.memory-row')
-        .filter({ hasText: lang === 'en' ? 'Fresh milk 1L' : '鲜牛奶 1L' })
-        .getByRole('button')
-        .first()
-        .click();
-      await page.locator('.memory-detail form').waitFor();
+      await product.click();
+      const memoryEditor = page.getByRole('dialog', { name: t('编辑记忆') });
+      await memoryEditor.getByRole('textbox', { name: t('名称'), exact: true }).waitFor();
       await shot('memory-detail');
-      for (const summary of await page.locator('.memory-detail summary').all()) await summary.click();
+      for (const summary of await memoryEditor.locator('summary').all()) await summary.click();
       await audit('memory-detail-expanded');
-      await page
-        .getByRole('dialog', { name: t('编辑记忆') })
-        .getByRole('button', { name: t('← 返回记忆列表') })
-        .click();
+      await memoryEditor.getByRole('button', { name: t('关闭'), exact: true }).click();
       await portraitSection('学习记录', 'History');
       await audit('memory-history');
       await portraitSection('学习与隐私', 'Learning & privacy');
@@ -1831,6 +1850,19 @@ try {
             .evaluate(el => el.getBoundingClientRect().bottom <= innerHeight),
           'Composer must stay in the viewport',
         );
+      }
+      const messages = page.getByRole('region', { name: t('财务对话') });
+      assert.equal(await messages.getByText(new RegExp('^' + t('查询范围') + '[：:]\\s*$')).count(), 0);
+      const jump = page.getByRole('button', { name: new RegExp(t('回到最新消息')) });
+      const shouldJump = await messages.evaluate(
+        el => el.scrollHeight - el.scrollTop - el.clientHeight > el.clientHeight,
+      );
+      assert.equal(await jump.isVisible(), shouldJump);
+      if (shouldJump) {
+        const box = await jump.boundingBox(),
+          list = await messages.boundingBox();
+        assert.ok(box.y >= list.y + list.height - 1);
+        assert.ok(Math.abs(box.x + box.width / 2 - list.x - list.width / 2) < 2);
       }
       await shot('assistant');
       await navigate('我的账本');

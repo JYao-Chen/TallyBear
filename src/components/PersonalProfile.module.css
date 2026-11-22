@@ -3,6 +3,9 @@
   max-width: 1240px;
   margin: auto;
 }
+.personalPortrait h3 {
+  font-size: var(--text-lg);
+}
 .personalPortrait h3,
 .personalPortrait h4 {
   margin: 0 0 10px;
@@ -20,7 +23,7 @@
   gap: 24px;
 }
 .portraitHeading h2 {
-  font-size: 30px;
+  font-size: var(--text-lg);
   margin: 9px 0 12px;
 }
 .portraitHeading p {
@@ -81,6 +84,7 @@
   margin-bottom: 20px;
 }
 .portraitSearch {
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: row;
@@ -97,8 +101,9 @@
   border: 0;
   background: none;
 }
-.portraitFilters > select {
-  flex: 0 0 170px;
+.portraitFilters > div {
+  flex: 0 1 38%;
+  max-width: 170px;
   background: var(--surface);
 }
 .portraitState {
@@ -250,6 +255,8 @@
   text-align: right;
 }
 .portraitRuleEditor fieldset {
+  display: grid;
+  gap: var(--space-4);
   border: 0;
   border-bottom: 1px solid var(--line);
   padding: 18px 0 10px;
@@ -261,7 +268,8 @@
   font-size: var(--text-md);
 }
 .portraitRuleEditor label {
-  margin: 12px 0;
+  margin: 0;
+  gap: 6px;
 }
 .portraitFormGrid {
   display: grid;
@@ -408,9 +416,7 @@
     display: block;
     min-height: 0;
   }
-  .portraitHeading h2 {
-    font-size: 25px;
-  }
+
   .portraitHeading p {
     font-size: var(--text-sm);
   }
@@ -437,16 +443,9 @@
   .portraitSectionHeading > button {
     margin-top: 8px;
   }
-  .portraitSectionHeading h3 {
-    font-size: 18px;
-  }
+
   .portraitFilters {
-    gap: 10px;
-    flex-direction: column;
-  }
-  .portraitFilters > select {
-    flex: auto;
-    width: 100%;
+    gap: var(--space-2);
   }
   .portraitRules > article {
     align-items: flex-start;
@@ -467,7 +466,7 @@
   }
   .portraitFormGrid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
+    gap: var(--space-4);
   }
   .portraitSources li {
     align-items: flex-start;

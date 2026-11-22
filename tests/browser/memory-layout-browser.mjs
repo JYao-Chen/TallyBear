@@ -49,14 +49,23 @@ try {
   await page
     .context()
     .addCookies([{ name: 'bubu_session', value: token, domain: new URL(origin).hostname, path: '/' }]);
-  await page.goto(origin);
-  await page.getByRole('button', { name: '个人资料', exact: true }).click();
-  await page.getByRole('button', { name: '记忆中心', exact: true }).click();
+  await page.goto(origin + '/me');
+  await page.getByRole('tab', { name: '个人画像', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '个人画像栏目' })
+    .getByRole('button', { name: '商品与服务' })
+    .click();
   await page.getByText('共 25 条', { exact: false }).waitFor();
   assert.equal(await page.getByRole('dialog').count(), 0);
-  await page.locator('.memory-collection').getByRole('button', { name: '下一页', exact: true }).click();
+  await page
+    .getByRole('region', { name: '我的记忆' })
+    .getByRole('button', { name: '下一页', exact: true })
+    .click();
   await page.getByText('2 / 2 · 共 25 条').waitFor();
-  await page.locator('.memory-collection').getByRole('button', { name: '上一页', exact: true }).click();
+  await page
+    .getByRole('region', { name: '我的记忆' })
+    .getByRole('button', { name: '上一页', exact: true })
+    .click();
   await page.getByText('1 / 2 · 共 25 条').waitFor();
   await mkdir(process.env.TEST_ARTIFACT_DIR, { recursive: true });
   for (const width of [1440, 390, 360]) {
@@ -76,20 +85,34 @@ try {
       false,
       'detail overflow ' + width,
     );
-    await page.getByRole('button', { name: '← 返回记忆列表' }).click();
+    await page
+      .getByRole('dialog', { name: '编辑记忆' })
+      .getByRole('button', { name: '关闭', exact: true })
+      .click();
   }
   await page.getByRole('button', { name: '新增明确偏好' }).click();
   await page.getByLabel('名称', { exact: true }).fill('会员服务分类');
   await page.getByLabel('描述', { exact: true }).fill('云空间归为会员订阅');
   await page.getByLabel('匹配的商品／商家名称').fill('iCloud');
   await page.getByLabel('分类偏好').fill('会员订阅');
-  await page.locator('.memory-detail').getByRole('button', { name: '保存', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '新增偏好' })
+    .getByRole('button', { name: '保存', exact: true })
+    .click();
   await page.getByText('已保存', { exact: true }).waitFor();
-  await page.getByRole('button', { name: '学习与设置', exact: true }).click();
+  async function section(name) {
+    const nav = page.getByRole('navigation', { name: '个人画像栏目' });
+    if (await nav.isVisible()) await nav.getByRole('button', { name, exact: true }).click();
+    else {
+      await page.getByRole('button', { name: /^画像栏目:/ }).click();
+      await page.getByRole('dialog', { name: '画像栏目' }).getByRole('button', { name, exact: true }).click();
+    }
+  }
+  await section('学习与隐私');
   await page.getByText('启用个人记忆学习', { exact: true }).waitFor();
   assert.equal(await page.getByLabel('搜索记忆', { exact: true }).count(), 0);
   await page.screenshot({ path: process.env.TEST_ARTIFACT_DIR + '/settings-mobile.png', fullPage: true });
-  await page.getByRole('button', { name: '变更记录', exact: true }).click();
+  await section('学习记录');
   await page.getByRole('heading', { name: '变更记录', exact: true }).waitFor();
   await page.getByText('还没有变更记录', { exact: true }).waitFor();
   for (let i = 0; i < 24; i++) {
@@ -111,12 +134,14 @@ try {
     user,
     ids[0],
   ]);
-  await page.getByRole('button', { name: '我的记忆', exact: true }).click();
-  await page.getByRole('button', { name: '变更记录', exact: true }).click();
+  await section('商品与服务');
+  await section('学习记录');
   await page.getByText('共 25 条记录', { exact: true }).waitFor();
-  assert.equal(await page.locator('.memory-history-row').count(), 20);
-  assert.equal(await page.locator('.memory-history-row').first().locator('button').count(), 0);
-  assert.equal(await page.locator('.memory-history-row').first().getByText('不再展示记忆内容').count(), 1);
+  const history = page.getByRole('region', { name: '变更记录' });
+  const rows = history.getByRole('listitem');
+  assert.equal(await rows.count(), 20);
+  assert.equal(await rows.first().locator('button').count(), 0);
+  assert.equal(await rows.first().getByText('不再展示记忆内容').count(), 1);
   for (const width of [1440, 768, 390, 360]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.screenshot({
@@ -129,31 +154,24 @@ try {
       'history overflow ' + width,
     );
     assert.equal(
-      await page.locator('.memory-history').evaluate(el => el.scrollWidth > el.clientWidth + 1),
+      await history.evaluate(el => el.scrollWidth > el.clientWidth + 1),
       false,
       'history panel overflow ' + width,
     );
   }
   await page.getByRole('button', { name: '下一页记录', exact: true }).click();
   await page.getByText('21–25 / 25 条', { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelectorAll('.memory-history-row').length === 5);
-  assert.equal(await page.locator('.memory-history-row').count(), 5);
+  await rows.nth(4).waitFor();
+  assert.equal(await rows.count(), 5);
   await page.getByRole('button', { name: '上一页记录', exact: true }).click();
   await page.getByText('1–20 / 25 条', { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelectorAll('.memory-history-row').length === 20);
+  await rows.nth(19).waitFor();
   await page.getByRole('button', { name: '撤销变更', exact: true }).first().click();
   await page.getByRole('dialog', { name: '确认' }).getByRole('button', { name: '确认', exact: true }).click();
   await page.getByText('已撤销，记忆已恢复到此次变更前。', { exact: true }).waitFor();
   await page.getByText('共 26 条记录', { exact: true }).waitFor();
-  await page.locator('.memory-history-row').first().getByText('已撤销', { exact: true }).waitFor();
-  assert.equal(
-    await page
-      .locator('.memory-history-row')
-      .filter({ hasText: '变更前的商品 23' })
-      .getByRole('button')
-      .count(),
-    0,
-  );
+  await rows.first().getByText('已撤销', { exact: true }).waitFor();
+  assert.equal(await rows.filter({ hasText: '变更前的商品 23' }).getByRole('button').count(), 0);
   await page.evaluate(
     id => window.dispatchEvent(new CustomEvent('tallybear:memory', { detail: id })),
     ids[24],

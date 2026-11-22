@@ -1,5 +1,5 @@
 'use client';
-import { Button, Card, ConfirmDialog, Input, Sheet } from '@/ui';
+import { Button, Card, ConfirmDialog, IconButton, Input, Sheet } from '@/ui';
 import styles from './CategoryPanel.module.css';
 import { useConfirmation } from '@/ui/useConfirmation';
 import { PagedList } from './PagedList';
@@ -147,10 +147,10 @@ export function CategoryPanel({
                 >
                   <SymbolIcon icon={c.icon} size={52} />
                   <strong>{c.name}</strong>
-                  <small>{c.archived ? tr('已停用') : order ? tr('拖动排序') : tr('点击编辑')}</small>
+                  {(c.archived || order) && <small>{c.archived ? tr('已停用') : tr('拖动排序')}</small>}
                 </Button>
                 {canWrite && (
-                  <div className={styles.categoryCardActions}>
+                  <div className={order ? styles.categoryCardActions : undefined}>
                     {order ? (
                       <>
                         <Button
@@ -173,18 +173,16 @@ export function CategoryPanel({
                         </Button>
                       </>
                     ) : (
-                      <Button
-                        variant="primary"
-                        type="button"
-                        aria-label={tr('删除分类 {0}', [c.name])}
+                      <IconButton
+                        className={styles.deleteCategory}
+                        label={tr('删除分类 {0}', [c.name])}
                         onClick={() => {
                           setDeleting(c);
                           setError('');
                         }}
                       >
                         <Trash2 size={16} />
-                        {tr('删除')}
-                      </Button>
+                      </IconButton>
                     )}
                   </div>
                 )}
@@ -227,6 +225,7 @@ export function CategoryPanel({
           }}
         >
           <form
+            className={styles.sheetForm}
             onSubmit={e => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);

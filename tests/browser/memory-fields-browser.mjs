@@ -49,16 +49,17 @@ try {
   await page
     .context()
     .addCookies([{ name: 'bubu_session', value: token, domain: new URL(origin).hostname, path: '/' }]);
-  await page.goto(origin);
-  await page.getByRole('navigation').getByRole('button', { name: '记一笔', exact: true }).click();
+  await page.goto(origin + '/entry');
+  const editor = page.getByRole('region', { name: '核对草稿' });
+  await editor.getByRole('button', { name: new RegExp(draft.title) }).click();
   await page.getByText('商品记忆 · 已匹配历史商品', { exact: true }).click();
-  const merchant = page.locator('.memory-field-change').filter({ hasText: '商家：' });
+  const merchant = page.getByRole('group', { name: '商家', exact: true });
   await merchant.getByRole('button', { name: '撤回填充', exact: true }).click();
   await page.getByText('商家、商品与订单详情', { exact: true }).click();
-  assert.equal(await page.getByLabel('交易对方', { exact: true }).inputValue(), '');
+  assert.equal(await editor.getByRole('textbox', { name: /^交易对方/ }).inputValue(), '');
   await merchant.getByRole('button', { name: '采用此字段', exact: true }).click();
-  assert.equal(await page.getByLabel('交易对方', { exact: true }).inputValue(), '生活超市');
-  assert.equal(await page.getByLabel('金额（元）', { exact: true }).inputValue(), '2.2');
+  assert.equal(await editor.getByRole('textbox', { name: /^交易对方/ }).inputValue(), '生活超市');
+  assert.equal(await editor.getByPlaceholder('请补充金额').inputValue(), '2.2');
   await mkdir(process.env.TEST_ARTIFACT_DIR, { recursive: true });
   for (const width of [360, 390, 844, 1280]) {
     await page.setViewportSize({ width, height: width === 844 ? 390 : 900 });

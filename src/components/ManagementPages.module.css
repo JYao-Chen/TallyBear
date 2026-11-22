@@ -6,7 +6,6 @@
   display: grid;
   gap: var(--space-4);
 }
-.profileTabs,
 .sheetActions,
 .panelTitle,
 .memberRow,
@@ -20,15 +19,69 @@
 .profileTabs {
   margin-block: var(--space-4);
 }
-.profileTabs button[aria-pressed='true'] {
+.profileTabs [role='tablist'] {
+  display: flex;
+  padding: 0;
+  gap: var(--space-1);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.profileTabs button[role='tab'] {
+  min-height: var(--touch);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  font-size: var(--text-md);
+}
+.profileTabs button[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+}
+.accountRows > button:last-of-type {
+  border-bottom: 0;
+}
+.accountRows > button:active {
   background: var(--accent-soft);
-  color: var(--accent);
+}
+.accountRows > button > span:first-child {
+  width: 40px;
+  display: grid;
+  place-items: center;
+}
+.passwordTitle {
+  white-space: normal;
+}
+.rowAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.sheetForm,
+.sheetForm > fieldset {
+  display: grid;
+  gap: var(--space-4);
+}
+.sheetForm label {
+  gap: 6px;
+  margin: 0;
+}
+.sheetForm > button,
+.sheetForm > fieldset > button {
+  justify-self: start;
+}
+.sheetForm .avatarEdit,
+.sheetForm .sheetActions {
+  margin: 0;
 }
 .panelTitle,
 .memberRow {
   justify-content: space-between;
 }
+.settingsSection h3,
 .panelTitle h2 {
+  font-size: var(--text-lg);
   margin: 0;
 }
 .settingsSection,
@@ -60,7 +113,6 @@
 .bookSwitchList small {
   display: block;
 }
-.settingsForm,
 .avatarEdit,
 .search,
 .sheetActions {

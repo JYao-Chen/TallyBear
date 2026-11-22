@@ -12,7 +12,16 @@ import { compressAvatar } from '@/lib/avatar-image';
 import { useTheme } from './ThemeProvider';
 import { themes, type Theme } from '@/lib/themes';
 import { useEffect, useState } from 'react';
-import { ChevronDown, Check, Settings2, MessagesSquare, ScanLine, UserRound } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  LockKeyhole,
+  Check,
+  Settings2,
+  MessagesSquare,
+  ScanLine,
+  UserRound,
+} from 'lucide-react';
 import { SymbolIcon, StickerPicker } from './VisualSelect';
 export type ManagedUser = {
   id: string;
@@ -231,15 +240,17 @@ export function ProfilePage({
     <>
       <h1>{tr('个人资料')}</h1>
       <nav className={styles.profileTabs} aria-label={tr('个人资料栏目')}>
-        {[
-          ['account', '账号资料'],
-          ['theme', '外观主题'],
-          ['memory', '个人画像'],
-        ].map(([key, label]) => (
-          <Button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
-            {tr(label)}
-          </Button>
-        ))}
+        <Segmented
+          tabs
+          label={tr('个人资料栏目')}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'account', label: tr('账号资料') },
+            { value: 'theme', label: tr('外观主题') },
+            { value: 'memory', label: tr('个人画像') },
+          ]}
+        />
       </nav>
       {tab === 'memory' && (
         <PersonalProfile
@@ -249,8 +260,7 @@ export function ProfilePage({
         />
       )}{' '}
       {tab === 'theme' && (
-        <Card>
-          <h2>{tr('外观主题')}</h2>
+        <Card title={tr('外观主题')}>
           <Segmented
             className={styles.themePicker}
             label={tr('外观主题')}
@@ -278,10 +288,13 @@ export function ProfilePage({
       )}
       {tab === 'account' && (
         <div className={styles.settingsGrid}>
-          <Card>
+          <Card className={styles.accountRows}>
             <ListRow
-              title={tr('我在账本里的样子')}
-              end={<>{user.name} ›</>}
+              aria-label={tr('我在账本里的样子') + ' · ' + user.name}
+              leading={<Avatar value={user.avatar} />}
+              title={user.name}
+              meta={user.username}
+              end={<ChevronRight size={18} aria-hidden="true" />}
               onClick={() => {
                 setMessage('');
                 setAvatar(user.avatar);
@@ -296,6 +309,7 @@ export function ProfilePage({
               }}
             >
               <form
+                className={styles.sheetForm}
                 onSubmit={e => {
                   e.preventDefault();
                   if (uploading) return;
@@ -321,11 +335,14 @@ export function ProfilePage({
               </form>
               {message && <p role="status">{tr(message)}</p>}
             </Sheet>
-          </Card>
-          <Card>
             <ListRow
-              title={tr('登录与密码')}
-              end={<>{tr('修改密码')} ›</>}
+              leading={<LockKeyhole size={20} aria-hidden="true" />}
+              title={<span className={styles.passwordTitle}>{tr('登录与密码')}</span>}
+              end={
+                <span className={styles.rowAction}>
+                  {tr('修改密码')} <ChevronRight size={18} aria-hidden="true" />
+                </span>
+              }
               onClick={() => {
                 setMessage('');
                 setAvatar(user.avatar);
@@ -340,6 +357,7 @@ export function ProfilePage({
               }}
             >
               <form
+                className={styles.sheetForm}
                 onSubmit={e => {
                   e.preventDefault();
                   const f = new FormData(e.currentTarget);
@@ -456,6 +474,7 @@ export function UsersPage() {
           }}
         >
           <form
+            className={styles.sheetForm}
             onSubmit={async e => {
               e.preventDefault();
               if (uploading) return;
@@ -630,6 +649,7 @@ export function BooksPage({
         >
           {error && <p className={styles.error}>{tr(error)}</p>}
           <form
+            className={styles.sheetForm}
             onSubmit={e => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
@@ -712,7 +732,7 @@ export function BooksPage({
               }
               {selected.role === 'owner' && selected.kind === 'shared' && (
                 <form
-                  className={styles.settingsForm}
+                  className={styles.sheetForm}
                   onSubmit={e => {
                     e.preventDefault();
                     const f = new FormData(e.currentTarget);
@@ -835,6 +855,7 @@ export function ModelSettingsPanel({
             )}
           </p>
           <form
+            className={styles.sheetForm}
             onSubmit={e => {
               e.preventDefault();
               void submit(() => onSave(draft), true);

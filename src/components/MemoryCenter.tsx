@@ -5,7 +5,7 @@ import { useConfirmation } from '@/ui/useConfirmation';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@/lib/deployment';
-import { Brain, BookOpen, Clock3, History, Settings2, LockKeyhole } from 'lucide-react';
+import { ChevronDown, Brain, BookOpen, Clock3, History, Settings2, LockKeyhole } from 'lucide-react';
 import { MemoryHistory } from './MemoryHistory';
 
 import type { Memory } from '@/lib/memory';
@@ -236,7 +236,7 @@ export function MemoryWorkspace({
         .catch(e => setError(e.message));
   }, [initialId]);
   return (
-    <div className={`memory-center ${styles.memoryCenter} ${styles.memoryWorkspace}`}>
+    <div role="region" aria-label={tr('记忆中心')} className={styles.memoryWorkspace}>
       {confirmation}
       {!view && (
         <div className={styles.memoryHeading}>
@@ -366,7 +366,7 @@ export function MemoryWorkspace({
       {section === 'events' && <MemoryHistory />}
       {(section === 'collection' || section === 'pending') && (
         <div className={styles.memoryWorkbench}>
-          <section className={`memory-collection ${styles.memoryCollection}`}>
+          <section aria-label={tr('我的记忆')} className={styles.memoryCollection}>
             <div className={styles.memoryFilters}>
               <label>
                 {tr('搜索记忆')}
@@ -448,7 +448,7 @@ export function MemoryWorkspace({
               <p className={styles.muted}>{tr('暂无符合条件的记忆。可以先整理历史，或记下一条明确偏好。')}</p>
             )}
             {items.map(m => (
-              <article className={`memory-row ${styles.memoryRow}`} key={m.id}>
+              <article className={styles.memoryRow} key={m.id}>
                 <ListRow
                   title={m.title}
                   meta={
@@ -491,19 +491,19 @@ export function MemoryWorkspace({
               title={selected.id ? tr('编辑记忆') : tr('新增偏好')}
               onClose={() => setSelected(null)}
             >
-              <section className={`memory-detail ${styles.memoryDetail}`} key={selected.id}>
+              <section className={styles.memoryDetail} key={selected.id}>
                 {error && (
                   <p role="alert" className={styles.error}>
                     {error}
                   </p>
                 )}
-                <Button variant="ghost" type="button" onClick={() => setSelected(null)}>
-                  {tr('← 返回记忆列表')}
-                </Button>
 
                 {selected.kind === 'product' && (
                   <details>
-                    <summary>{tr('自动提炼的商品属性与依据')}</summary>
+                    <summary className={styles.disclosure}>
+                      {tr('自动提炼的商品属性与依据')}
+                      <ChevronDown size={18} aria-hidden="true" />
+                    </summary>
                     <p>
                       {tr('规范名称：')}
                       {selected.attributes.canonicalName || tr('未提炼')} {tr(' · 型号：')}
@@ -536,6 +536,7 @@ export function MemoryWorkspace({
                   </label>
                 )}
                 <form
+                  className={styles.sheetForm}
                   onSubmit={e => {
                     e.preventDefault();
                     run({
@@ -613,7 +614,10 @@ export function MemoryWorkspace({
                     </>
                   )}
                   <details>
-                    <summary>{tr('关联已有活动或计划')}</summary>
+                    <summary className={styles.disclosure}>
+                      {tr('关联已有活动或计划')}
+                      <ChevronDown size={18} aria-hidden="true" />
+                    </summary>
                     <label>
                       {tr('对象类型')}
                       <select
@@ -715,7 +719,10 @@ export function MemoryWorkspace({
                 </form>
                 {detail && (
                   <details>
-                    <summary>{tr('来源依据与购买记录')}</summary>
+                    <summary className={styles.disclosure}>
+                      {tr('来源依据与购买记录')}
+                      <ChevronDown size={18} aria-hidden="true" />
+                    </summary>
                     {detail.stats && (
                       <p>
                         {tr('共 ')}
@@ -730,10 +737,7 @@ export function MemoryWorkspace({
                         : null;
                       const amount = source.item_id ? item?.amount : source.amount;
                       return (
-                        <div
-                          className={`memory-row ${styles.memoryRow}`}
-                          key={source.source_id + source.item_id}
-                        >
+                        <div className={styles.memoryRow} key={source.source_id + source.item_id}>
                           <div>
                             <strong>{source.title || source.source_type}</strong>
                             <p>
@@ -804,7 +808,10 @@ export function MemoryWorkspace({
                 )}
                 {selected.id && (
                   <details>
-                    <summary>{tr('合并与家庭分享')}</summary>
+                    <summary className={styles.disclosure}>
+                      {tr('合并与家庭分享')}
+                      <ChevronDown size={18} aria-hidden="true" />
+                    </summary>
                     {selected.kind === 'product' && (
                       <>
                         <label>

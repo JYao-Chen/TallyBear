@@ -1,4 +1,3 @@
-.memoryCenter,
 .memoryWorkspace,
 .memoryWorkbench,
 .memoryCollection,
@@ -47,14 +46,39 @@
 }
 .memoryDetail details {
   margin-block: var(--space-3);
-  padding: var(--space-3);
+  padding-inline: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
 }
-.memoryDetail summary {
+.disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   min-height: var(--touch);
-  align-content: center;
+  list-style: none;
   cursor: pointer;
+  font-weight: 600;
+}
+.disclosure::-webkit-details-marker {
+  display: none;
+}
+.disclosure svg {
+  flex: none;
+}
+details[open] > .disclosure svg {
+  transform: rotate(180deg);
+}
+.sheetForm {
+  composes: sheetForm from './ManagementPages.module.css';
+}
+.memoryDetail form h4,
+.memoryDetail form details,
+.memoryDetail form .memoryActions {
+  margin: 0;
+}
+.memoryDetail form details > label {
+  margin-block: var(--space-4);
 }
 .check {
   flex-direction: row;

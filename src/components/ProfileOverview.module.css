@@ -119,7 +119,7 @@
   min-width: 0;
 }
 .portraitStoryCopy h3 {
-  font-size: 24px;
+  font-size: var(--text-lg);
   line-height: 1.4;
   text-wrap: balance;
 }
@@ -239,7 +239,7 @@
   flex-shrink: 0;
 }
 .portraitSceneHeading h4 {
-  font-size: 16px;
+  font-size: var(--text-lg);
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -416,7 +416,7 @@
     flex-basis: 72px;
   }
   .portraitStoryCopy h3 {
-    font-size: 21px;
+    font-size: var(--text-lg);
   }
   .portraitStoryCopy p {
     font-size: var(--text-xs);

@@ -88,7 +88,7 @@ export function MemorySuggestions({
         {tr('只关联商品，不复用旧价格、日期、数量或订单号。关联依据不代表本次付款信息。')}
       </p>
       {suggestions.slice((current - 1) * 6, current * 6).map(s => (
-        <div className={`memory-row ${styles.memoryRow}`} key={s.id + (s.itemId || '')}>
+        <div className={styles.memoryRow} key={s.id + (s.itemId || '')}>
           <div>
             <strong>{s.title}</strong>
             <p>{tr(s.reason)}</p>
@@ -98,7 +98,12 @@ export function MemorySuggestions({
               </p>
             ))}
             {s.fieldChanges?.map(c => (
-              <div key={c.field} className={`memory-field-change ${styles.memoryFieldChange}`}>
+              <div
+                key={c.field}
+                role="group"
+                aria-label={tr(memoryFieldLabels[c.field])}
+                className={styles.memoryFieldChange}
+              >
                 <span>
                   {tr(memoryFieldLabels[c.field])}：{c.before || tr('未填写')} → {c.after} ·{' '}
                   {

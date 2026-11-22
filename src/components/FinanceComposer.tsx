@@ -72,9 +72,6 @@ export function FinanceComposer({
       el.style.height = Math.min(cap, Math.max(40, natural)) + 'px';
       el.style.overflowY = natural > cap ? 'auto' : 'hidden';
       setLong(natural > 96);
-      box.current
-        ?.closest<HTMLElement>('[data-conversation]')
-        ?.style.setProperty('--composer-height', `${box.current.parentElement?.offsetHeight || 120}px`);
     };
     resize();
     const observer = new ResizeObserver(resize);
@@ -215,7 +212,6 @@ export function FinanceComposer({
             <details className={styles.composerOptions}>
               <summary title={tr('对话偏好')} aria-label={tr('对话偏好')}>
                 <SlidersHorizontal size={18} />
-                {useHistory && <i />}
               </summary>
               <div>
                 <label className={styles.check}>

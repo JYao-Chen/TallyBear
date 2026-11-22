@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 const out = process.env.TEST_ARTIFACT_DIR;
-assert.ok(out?.startsWith('/home/yao/artifacts/tallybear/'));
+assert.ok(out?.startsWith(process.cwd() + '/output/') || out?.startsWith('/home/yao/artifacts/tallybear/'));
 await mkdir(out, { recursive: true });
 const result = await build({
   stdin: {
@@ -231,7 +231,12 @@ try {
         n => document.querySelectorAll('section[data-wide] button[aria-pressed]').length === n,
         1,
       );
-      assert.equal(await page.getByLabel(t('习惯状态', 'Habit status')).inputValue(), 'changed');
+      await page
+        .getByRole('button', {
+          name: t('习惯状态: 近期有变化', 'Habit status: Recently changed'),
+          exact: true,
+        })
+        .waitFor();
       await page.locator('button[data-state=changed]').click();
       await page.waitForFunction(
         n => document.querySelectorAll('section[data-wide] button[aria-pressed]').length === n,
@@ -291,7 +296,10 @@ try {
         .waitFor();
       assert.equal(requests.at(-1).rule.value, '');
       await navigateSection('商品与服务', 'Products & services');
-      await page.locator('.memory-row').first().waitFor();
+      await page
+        .getByRole('button', { name: /日常咖啡|Everyday coffee/ })
+        .first()
+        .waitFor();
       await capture('products');
       await navigateSection('学习与隐私', 'Learning & privacy');
       await page.getByRole('checkbox', { name: t('开启位置辅助', 'Enable location assistance') }).waitFor();

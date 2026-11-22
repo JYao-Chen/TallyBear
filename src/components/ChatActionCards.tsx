@@ -9,6 +9,7 @@ import { LineItemsView } from './LineItems';
 import { Button, Money, Chip, Card } from '@/ui';
 import { useState } from 'react';
 import {
+  ChevronDown,
   Check,
   CalendarClock,
   NotebookPen,
@@ -148,7 +149,10 @@ export function ChatActionCards({
             )}
             {editing !== a.id && (
               <details className={styles.receiptCardContent}>
-                <summary>{tr('查看卡片详情')}</summary>
+                <summary className={styles.disclosure}>
+                  {tr('查看卡片详情')}
+                  <ChevronDown size={18} aria-hidden="true" />
+                </summary>
                 <dl className={styles.receiptFacts}>
                   {a.summary
                     .filter(s => !(typeof a.data.amount === 'number' && s.label === '金额'))

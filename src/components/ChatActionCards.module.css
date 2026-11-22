@@ -25,6 +25,7 @@
   min-width: 0;
 }
 .receiptCardHeading h3 {
+  font-size: var(--text-lg);
   margin: 0;
 }
 .chatActionIcon {
@@ -90,4 +91,8 @@
 }
 .error {
   color: var(--danger);
+}
+
+.disclosure {
+  composes: disclosure from './MemoryCenter.module.css';
 }

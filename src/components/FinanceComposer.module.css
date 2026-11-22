@@ -66,15 +66,6 @@
 .composerOptions summary {
   list-style: none;
 }
-.composerOptions summary i {
-  background: var(--accent);
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
 .composerOptions > div {
   position: absolute;
   bottom: 100%;

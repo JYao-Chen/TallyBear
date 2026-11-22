@@ -27,15 +27,25 @@ try {
   await page
     .context()
     .addCookies([{ name: 'bubu_session', value: token, domain: new URL(origin).hostname, path: '/' }]);
-  await page.goto(origin);
-  await page.getByRole('button', { name: '个人资料', exact: true }).click();
-  await page.getByRole('button', { name: '记忆中心', exact: true }).click();
+  await page.goto(origin + '/me');
+  await page.getByRole('tab', { name: '个人画像', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '个人画像栏目' })
+    .getByRole('button', { name: '商品与服务' })
+    .click();
   await page.getByLabel('搜索记忆', { exact: true }).waitFor();
   await page.getByRole('button', { name: '新增明确偏好' }).click();
   const label = '浏览器验证偏好 ' + randomUUID().slice(0, 8);
   await page.getByLabel('名称', { exact: true }).fill(label);
   await page.getByLabel('描述', { exact: true }).fill('订阅使用会员订阅分类');
-  await page.locator('.memory-center').getByRole('button', { name: '保存', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '新增偏好' })
+    .getByRole('button', { name: '保存', exact: true })
+    .click();
+  await page
+    .getByRole('region', { name: '我的记忆' })
+    .getByRole('combobox', { name: /^类型/ })
+    .selectOption('preference');
   await page.getByText(label, { exact: true }).waitFor();
   await mkdir(process.env.TEST_ARTIFACT_DIR, { recursive: true });
   for (const width of [360, 390, 1280]) {
@@ -44,7 +54,9 @@ try {
       path: process.env.TEST_ARTIFACT_DIR + '/memory-' + width + '.png',
       fullPage: true,
     });
-    const overflow = await page.locator('.memory-center').evaluate(el => el.scrollWidth > el.clientWidth + 1);
+    const overflow = await page
+      .getByRole('region', { name: '记忆中心', exact: true })
+      .evaluate(el => el.scrollWidth > el.clientWidth + 1);
     assert.equal(overflow, false, `overflow ${width}`);
   }
   assert.deepEqual(errors, []);

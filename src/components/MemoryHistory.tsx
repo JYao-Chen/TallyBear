@@ -97,11 +97,7 @@ export function MemoryHistory() {
     }
   }
   return (
-    <section
-      className={`memory-history ${styles.memoryHistory}`}
-      aria-labelledby="memory-history-title"
-      aria-busy={loading}
-    >
+    <section className={styles.memoryHistory} aria-labelledby="memory-history-title" aria-busy={loading}>
       {confirmation}
       <header className={styles.memoryHistoryHeading}>
         <div>
@@ -155,7 +151,7 @@ export function MemoryHistory() {
               const Icon = op.icon;
               const date = new Date(event.created_at);
               return (
-                <li key={event.id} className={`memory-history-row ${styles.memoryHistoryRow}`}>
+                <li key={event.id} className={styles.memoryHistoryRow}>
                   <div className={styles.memoryHistoryObject}>
                     <span className={styles.memoryEventIcon} data-forgotten={event.operation === 'forget'}>
                       <Icon size={18} aria-hidden="true" />

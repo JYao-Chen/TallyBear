@@ -212,7 +212,7 @@ export function HelpPage({
                     }}
                   >
                     <span>{String(articles.indexOf(a) + 1).padStart(2, '0')}</span>
-                    {a.title}
+                    <span>{a.title}</span>
                   </Button>
                 ))}
             </div>

@@ -107,7 +107,7 @@
 }
 .financeEmpty h2 {
   display: block;
-  font-family: var(--font-title);
+  font-size: var(--text-lg);
 }
 .financeSuggestions {
   display: grid;
@@ -144,10 +144,12 @@
   color: var(--danger);
 }
 .financeJump {
-  position: absolute;
-  right: var(--space-3);
-  bottom: calc(var(--composer-height, 120px) + var(--space-2));
-  z-index: 1;
+  align-self: center;
+  flex: none;
+  margin-block: var(--space-1);
+}
+.sheetForm {
+  composes: sheetForm from './ManagementPages.module.css';
 }
 @media (max-width: 730px) {
   .financeToolbar .financeLibraryToggle {

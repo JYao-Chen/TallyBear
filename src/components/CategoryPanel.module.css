@@ -11,6 +11,7 @@
   justify-content: space-between;
 }
 .categoryToolbar h2 {
+  font-size: var(--text-lg);
   margin: 0;
 }
 .categoryManager {
@@ -23,6 +24,7 @@
   grid-column: 1/-1;
 }
 .categoryCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -39,6 +41,7 @@
   background: var(--surface);
   color: var(--ink);
   padding: var(--space-3);
+  padding-top: var(--touch);
   overflow-wrap: anywhere;
 }
 .categoryCardActions {
@@ -58,4 +61,23 @@
 }
 .error {
   color: var(--danger);
+}
+
+.categoryCard .deleteCategory {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  color: var(--danger);
+  background: transparent;
+  border: 0;
+}
+.categoryEdit:enabled:hover,
+.categoryEdit:enabled:active {
+  background: var(--surface-sunk);
+}
+.categoryCard button:focus-visible {
+  outline-offset: -3px;
+}
+.sheetForm {
+  composes: sheetForm from './ManagementPages.module.css';
 }
