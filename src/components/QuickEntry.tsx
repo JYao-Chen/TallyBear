@@ -617,6 +617,15 @@ export function QuickEntry({
             onAmountChange={cents => setAmount(String(cents / 100))}
           />
         )}
+        {kind === 'expense' &&
+          (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
+            <ClaimRecipientSelect
+              familyId={accounts.find(a => a.id === account)?.family_id}
+              value={claimRecipient}
+              onChange={setClaimRecipient}
+              disabled={busy}
+            />
+          )}
       </div>
       {destination !== book && (
         <p className={styles.muted}>
@@ -632,15 +641,7 @@ export function QuickEntry({
           )}
         </p>
       )}
-      {kind === 'expense' &&
-        (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
-          <ClaimRecipientSelect
-            familyId={accounts.find(a => a.id === account)?.family_id}
-            value={claimRecipient}
-            onChange={setClaimRecipient}
-            disabled={busy}
-          />
-        )}{' '}
+
       {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
         <p className={styles.muted}>
           {tr('这笔消费已由{0}认领。如需更换对象，请先在账单详情中撤回认领邀请。', [

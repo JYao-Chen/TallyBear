@@ -1,17 +1,6 @@
 'use client';
-import {
-  Button,
-  Card,
-  Field,
-  Input,
-  Select,
-  Sheet,
-  Money,
-  Stat,
-  ListRow,
-  ConfirmDialog,
-  EmptyState,
-} from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Card, Field, Input, Sheet, Money, Stat, ListRow, ConfirmDialog, EmptyState } from '@/ui';
 import styles from './AccountsPanel.module.css';
 import shared from './WorkspacePlans.module.css';
 import { recordingDate } from '@/lib/entry-time';
@@ -176,105 +165,18 @@ export function AccountsPanel({
     <>
       <div className={shared.heading}>
         <h1>{tr('资金资产')}</h1>
-        <VisualSelect
-          label={tr('资产归属')}
-          value={scope}
-          onChange={setScope}
-          options={[
-            { value: 'personal', label: tr('我的资产'), icon: '👤' },
-            ...families.map(f => ({ value: f.id, label: f.name + ' · ' + tr('家庭资产'), icon: '🏡' })),
-          ]}
-        />
+        <div className={styles.scope}>
+          <FormSelect aria-label={tr('资产归属')} value={scope} onChange={setScope}>
+            <option value="personal">{tr('我的资产')}</option>
+            {families.map(f => (
+              <option key={f.id} value={f.id}>
+                {f.name} · {tr('家庭资产')}
+              </option>
+            ))}
+          </FormSelect>
+        </div>
       </div>
       {error && !open && <p className={shared.error}>{tr(error)}</p>}
-      {!loading && !error && (
-        <Card className={styles.stats} aria-label={scopeLabel}>
-          <Stat label={tr('资产')}>
-            <Money value={assets} />
-          </Stat>
-          <Stat label={tr('负债')}>
-            <Money value={assets - total} />
-          </Stat>
-          <Stat label={tr('当前资产净值')}>
-            <Money value={total} />
-          </Stat>
-        </Card>
-      )}
-      <Card className={shared.panel}>
-        <div className={shared.heading}>
-          <h2>{tr('资金钱包')}</h2>
-          {canWrite && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSelected(null);
-                setMode('new');
-                setError('');
-                setOpen(true);
-              }}
-            >
-              <Plus size={18} />
-              {tr('添加')}
-            </Button>
-          )}
-        </div>
-        {groups.map(group => {
-          const wallets = visible.filter(a => (a.family_id || 'personal') === group.id);
-          if (!wallets.length) return null;
-          return (
-            <section key={group.id} className={styles.group}>
-              <h3>{group.label}</h3>
-              <PagedList
-                items={wallets}
-                resetKey={group.id}
-                container={rows => <div className={styles.walletGrid}>{rows}</div>}
-              >
-                {a => (
-                  <ListRow
-                    className={styles.wallet}
-                    onClick={() => show(a)}
-                    leading={
-                      <AccountIcon
-                        name={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
-                        size={32}
-                      />
-                    }
-                    title={accountLabel({ ...a, suffix: '' }, locale)}
-                    meta={[
-                      a.suffix && tr('尾号 {0}', [a.suffix]),
-                      a.archived && tr('已归档 · 历史流水保留'),
-                      a.type === 'credit' && tr('账单日未记录'),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                    end={<Money value={a.balance} />}
-                    endMeta={
-                      a.type === 'credit' && (
-                        <>
-                          {tr('欠款')} <Money value={Math.max(0, -a.balance)} />
-                        </>
-                      )
-                    }
-                  />
-                )}
-              </PagedList>
-            </section>
-          );
-        })}
-        {loading && (
-          <p role="status" className={shared.muted}>
-            {tr('正在读取钱包…')}
-          </p>
-        )}
-        {!loading && !error && !visible.length && (
-          <EmptyState title={tr('还没有可用账户，添加或恢复一个账户即可开始记账。')} />
-        )}
-        {allAccounts.some(a => a.archived) && (
-          <Button variant="ghost" onClick={() => setShowArchived(s => !s)}>
-            {showArchived ? tr('隐藏已归档账户') : tr('查看已归档账户')}
-          </Button>
-        )}
-      </Card>
       <AccountStatistics
         book={book}
         month={month}
@@ -285,7 +187,106 @@ export function AccountsPanel({
           await reload();
           await onChanged();
         }}
-      />
+      >
+        {summary => (
+          <>
+            {!loading && !error && (
+              <Card className={styles.stats} aria-label={scopeLabel}>
+                <Stat label={tr('资产')}>
+                  <Money value={assets} />
+                </Stat>
+                <Stat label={tr('负债')}>
+                  <Money value={assets - total} />
+                </Stat>
+                <Stat label={tr('当前资产净值')}>
+                  <Money value={total} />
+                </Stat>
+                {summary && (
+                  <small className={styles.composition}>
+                    {tr('银行存款')} {yuan(summary.bankDeposits)} · {tr('零钱与现金')}{' '}
+                    {yuan(summary.walletAndCash)}
+                  </small>
+                )}
+              </Card>
+            )}
+            <Card className={shared.panel}>
+              <div className={shared.heading}>
+                <h2>{tr('资金钱包')}</h2>
+                {canWrite && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSelected(null);
+                      setMode('new');
+                      setError('');
+                      setOpen(true);
+                    }}
+                  >
+                    <Plus size={18} />
+                    {tr('添加')}
+                  </Button>
+                )}
+              </div>
+              {groups.map(group => {
+                const wallets = visible.filter(a => (a.family_id || 'personal') === group.id);
+                if (!wallets.length) return null;
+                return (
+                  <section key={group.id} className={styles.group}>
+                    <h3>{group.label}</h3>
+                    <PagedList
+                      items={wallets}
+                      resetKey={group.id}
+                      container={rows => <div className={styles.walletGrid}>{rows}</div>}
+                    >
+                      {a => (
+                        <ListRow
+                          className={styles.wallet}
+                          onClick={() => show(a)}
+                          leading={
+                            <AccountIcon
+                              name={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                              size={32}
+                            />
+                          }
+                          title={accountLabel({ ...a, suffix: '' }, locale)}
+                          meta={[
+                            a.suffix && tr('尾号 {0}', [a.suffix]),
+                            a.archived && tr('已归档 · 历史流水保留'),
+                            a.type === 'credit' && tr('账单日未记录'),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                          end={<Money value={a.balance} />}
+                          endMeta={
+                            a.type === 'credit' && (
+                              <>
+                                {tr('欠款')} <Money value={Math.max(0, -a.balance)} />
+                              </>
+                            )
+                          }
+                        />
+                      )}
+                    </PagedList>
+                  </section>
+                );
+              })}
+              {loading && (
+                <p role="status" className={shared.muted}>
+                  {tr('正在读取钱包…')}
+                </p>
+              )}
+              {!loading && !error && !visible.length && (
+                <EmptyState title={tr('还没有可用账户，添加或恢复一个账户即可开始记账。')} />
+              )}
+              {allAccounts.some(a => a.archived) && (
+                <Button variant="ghost" onClick={() => setShowArchived(s => !s)}>
+                  {showArchived ? tr('隐藏已归档账户') : tr('查看已归档账户')}
+                </Button>
+              )}
+            </Card>
+          </>
+        )}
+      </AccountStatistics>
       {open && (
         <Sheet
           open
@@ -440,14 +441,14 @@ export function AccountsPanel({
                   : tr('归属家庭：') + families.find(f => f.id === formScope)?.name}
               </p>
               <Field label={tr('账户类型')}>
-                {control => (
-                  <Select {...control} name="type" defaultValue={selected?.type || 'bank'}>
+                {() => (
+                  <FormSelect aria-label={tr('账户类型')} name="type" defaultValue={selected?.type || 'bank'}>
                     {Object.entries(accountTypes).map(([value, label]) => (
                       <option key={value} value={value} data-account={value}>
                         {tr(label)}
                       </option>
                     ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               <Field label={tr('账户名称')}>
@@ -594,16 +595,8 @@ export function AccountsPanel({
                   <small>{tr('当前余额')}</small>
                   <strong>{yuan(selected.balance)}</strong>
                 </div>
-                <div className={styles.detailFields}>
-                  <div>
-                    <dt>{tr('期初余额')}</dt>
-                    <dd>{yuan(selected.opening)}</dd>
-                  </div>
-                  <div>
-                    <dt>{tr('账户状态')}</dt>
-                    <dd>{selected.archived ? tr('已归档') : tr('使用中')}</dd>
-                  </div>
-                </div>
+                <ListRow title={tr('期初余额')} end={yuan(selected.opening)} />
+                <ListRow title={tr('账户状态')} end={selected.archived ? tr('已归档') : tr('使用中')} />
                 {canWrite && (
                   <div className={shared.actions}>
                     <Button variant="primary" onClick={() => setMode('edit')}>
@@ -623,8 +616,29 @@ export function AccountsPanel({
                     >
                       {tr('合并钱包')}
                     </Button>
+
                     <Button
                       variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        setConfirmation({
+                          label: selected.archived ? tr('恢复使用') : tr('归档账户'),
+                          detail: accountLabel(selected),
+                          action: () =>
+                            submit({
+                              operation: 'archive',
+                              id: selected.id,
+                              version: selected.version,
+                              archived: !selected.archived,
+                            }),
+                        })
+                      }
+                    >
+                      {selected.archived ? <RotateCcw size={17} /> : <Archive size={17} />}{' '}
+                      {selected.archived ? tr('恢复使用') : tr('归档账户')}
+                    </Button>
+                    <Button
+                      variant="danger"
                       disabled={busy}
                       onClick={() =>
                         setConfirmation({
@@ -650,26 +664,6 @@ export function AccountsPanel({
                       }
                     >
                       {tr('删除钱包')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() =>
-                        setConfirmation({
-                          label: selected.archived ? tr('恢复使用') : tr('归档账户'),
-                          detail: accountLabel(selected),
-                          action: () =>
-                            submit({
-                              operation: 'archive',
-                              id: selected.id,
-                              version: selected.version,
-                              archived: !selected.archived,
-                            }),
-                        })
-                      }
-                    >
-                      {selected.archived ? <RotateCcw size={17} /> : <Archive size={17} />}{' '}
-                      {selected.archived ? tr('恢复使用') : tr('归档账户')}
                     </Button>
                   </div>
                 )}

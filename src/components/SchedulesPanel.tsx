@@ -1,5 +1,6 @@
 'use client';
-import { Button, Card, Field, Input, Select, Sheet, Money, ListRow, ConfirmDialog, EmptyState } from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Card, Field, Input, Sheet, Money, ListRow, ConfirmDialog, EmptyState } from '@/ui';
 import styles from './SchedulesPanel.module.css';
 import shared from './WorkspacePlans.module.css';
 import { PagedList } from './PagedList';
@@ -10,7 +11,7 @@ import { useI18n } from './LanguageProvider';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { VisualSelect } from './VisualSelect';
 import { useState } from 'react';
-import { Plus, CalendarDays } from 'lucide-react';
+import { ChevronRight, Plus, CalendarDays } from 'lucide-react';
 import { amountToCents } from '@/server/model';
 import type { Draft } from './DraftReview';
 export type Schedule = {
@@ -86,6 +87,8 @@ export function SchedulesPanel({
           {s => (
             <article className={styles.scheduleCard} key={s.id}>
               <ListRow
+                onClick={canWrite ? () => open(s, 'edit') : undefined}
+                disabled={busy}
                 title={s.name}
                 meta={
                   <>
@@ -102,25 +105,25 @@ export function SchedulesPanel({
                   </>
                 }
                 end={
-                  <Money
-                    value={s.value.amount}
-                    tone={
-                      s.value.kind === 'expense' ? 'expense' : s.value.kind === 'income' ? 'income' : 'plain'
-                    }
-                  />
+                  <span className={styles.rowEnd}>
+                    <Money
+                      value={s.value.amount}
+                      tone={
+                        s.value.kind === 'expense'
+                          ? 'expense'
+                          : s.value.kind === 'income'
+                            ? 'income'
+                            : 'plain'
+                      }
+                    />
+                    {canWrite && <ChevronRight size={16} />}{' '}
+                  </span>
                 }
               />
-              {canWrite && (
-                <div className={shared.actions}>
-                  <Button variant="ghost" disabled={busy} onClick={() => open(s, 'edit')}>
-                    {tr('管理')}
-                  </Button>
-                  {!s.paused && s.next_date <= today() && (
-                    <Button variant="primary" disabled={busy} onClick={() => open(s, 'confirm')}>
-                      {tr('核对本期')}
-                    </Button>
-                  )}
-                </div>
+              {canWrite && !s.paused && s.next_date <= today() && (
+                <Button variant="primary" disabled={busy} onClick={() => open(s, 'confirm')}>
+                  {tr('核对本期')}
+                </Button>
               )}
             </article>
           )}
@@ -264,11 +267,11 @@ export function SchedulesPanel({
               </Field>
               <div className={shared.grid}>
                 <Field label={tr('类型')}>
-                  {control => (
-                    <Select {...control} name="kind" defaultValue={selected?.value.kind}>
+                  {() => (
+                    <FormSelect aria-label={tr('类型')} name="kind" defaultValue={selected?.value.kind}>
                       <option value="expense">{tr('支出')}</option>
                       <option value="income">{tr('收入')}</option>
-                    </Select>
+                    </FormSelect>
                   )}
                 </Field>
                 <Field label={tr('预计金额（元）')}>
@@ -284,18 +287,18 @@ export function SchedulesPanel({
                   )}
                 </Field>
                 <Field label={tr('重复周期')}>
-                  {control => (
-                    <Select
-                      {...control}
+                  {() => (
+                    <FormSelect
+                      aria-label={tr('重复周期')}
                       name="frequency"
                       value={frequency}
-                      onChange={e => setFrequency(e.target.value)}
+                      onChange={next => setFrequency(next)}
                     >
                       <option value="daily">{tr('天')}</option>
                       <option value="weekly">{tr('周')}</option>
                       <option value="monthly">{tr('月')}</option>
                       <option value="yearly">{tr('年')}</option>
-                    </Select>
+                    </FormSelect>
                   )}
                 </Field>
                 <Field label={tr('周期数量')}>

@@ -1,12 +1,13 @@
 'use client';
+import { FormSelect } from './FormSelect';
 import {
   Button,
   Card,
   Field,
   Input,
-  Select,
   Sheet,
   Money,
+  Stat,
   Segmented,
   ListRow,
   ConfirmDialog,
@@ -17,7 +18,7 @@ import shared from './WorkspacePlans.module.css';
 import { PagedList } from './PagedList';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, CalendarDays, CheckCircle2, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, CreditCard, Plus, CalendarDays, CheckCircle2, ArrowRightLeft } from 'lucide-react';
 import { DateField } from './DateField';
 import { useI18n } from './LanguageProvider';
 import { formatMoney } from '@/lib/deployment';
@@ -203,6 +204,31 @@ export function InstallmentsPanel({
           <CreditCard size={22} />
           {tr('分期与还款')}
         </h2>
+        <Button variant="ghost" onClick={onAccounts}>
+          {tr('管理负债账户')}
+        </Button>
+      </div>
+      <div className={styles.installmentSummary}>
+        {[
+          ['剩余本金', active.reduce((n, p) => n + p.remaining, 0)],
+          ['已还本金', active.reduce((n, p) => n + p.paid, 0)],
+          ['已付利息与手续费', active.reduce((n, p) => n + p.paid_fees, 0)],
+        ].map(([label, value]) => (
+          <Stat key={label} label={tr(String(label))}>
+            {formatMoney(Number(value))}
+          </Stat>
+        ))}
+      </div>
+      <div className={styles.actions}>
+        <Segmented
+          value={scope}
+          onChange={setScope}
+          label={tr('资产归属')}
+          options={['all', 'personal', 'family'].map((value, i) => ({
+            value,
+            label: tr(['全部', '个人', '家庭共有'][i]),
+          }))}
+        />
         <Button
           variant="primary"
           onClick={() => {
@@ -220,32 +246,6 @@ export function InstallmentsPanel({
         >
           <Plus size={18} />
           {tr('新增分期')}
-        </Button>
-      </div>
-      <div className={styles.installmentSummary}>
-        {[
-          ['剩余本金', active.reduce((n, p) => n + p.remaining, 0)],
-          ['已还本金', active.reduce((n, p) => n + p.paid, 0)],
-          ['已付利息与手续费', active.reduce((n, p) => n + p.paid_fees, 0)],
-        ].map(([label, value]) => (
-          <div key={label}>
-            <small>{tr(String(label))}</small>
-            <strong>{formatMoney(Number(value))}</strong>
-          </div>
-        ))}
-      </div>
-      <div className={styles.actions}>
-        <Segmented
-          value={scope}
-          onChange={setScope}
-          label={tr('资产归属')}
-          options={['all', 'personal', 'family'].map((value, i) => ({
-            value,
-            label: tr(['全部', '个人', '家庭共有'][i]),
-          }))}
-        />
-        <Button variant="primary" onClick={onAccounts}>
-          {tr('管理负债账户')}
         </Button>
       </div>
       {error && !mode && (
@@ -310,7 +310,10 @@ export function InstallmentsPanel({
                       )}
                     </div>
                     <details>
-                      <summary>{tr('查看还款计划')}</summary>
+                      <summary>
+                        <ChevronDown size={16} aria-hidden />
+                        {tr('查看还款计划')}
+                      </summary>
                       <div className={styles.installmentDues}>
                         {
                           <PagedList items={p.dues.filter(d => d.remaining > 0)}>
@@ -341,7 +344,10 @@ export function InstallmentsPanel({
                       </div>
                     </details>
                     <details>
-                      <summary>{tr('实际还款记录')}</summary>
+                      <summary>
+                        <ChevronDown size={16} aria-hidden />
+                        {tr('实际还款记录')}
+                      </summary>
                       {p.payments.length ? (
                         <PagedList items={p.payments}>
                           {r => (
@@ -381,7 +387,10 @@ export function InstallmentsPanel({
                       )}
                     </details>
                     <details className={styles.contextDetails}>
-                      <summary>{tr('更多操作')}</summary>
+                      <summary>
+                        <ChevronDown size={16} aria-hidden />
+                        {tr('更多操作')}
+                      </summary>
                       <Button
                         variant="ghost"
                         disabled={busy}
@@ -533,11 +542,11 @@ export function InstallmentsPanel({
                           <DateField type="date" value={purchaseDate} onChange={setPurchaseDate} />
                         </label>
                         <Field label={tr('负债账户')}>
-                          {control => (
-                            <Select
-                              {...control}
+                          {() => (
+                            <FormSelect
+                              aria-label={tr('负债账户')}
                               value={account}
-                              onChange={e => setAccount(e.target.value)}
+                              onChange={next => setAccount(next)}
                               required
                             >
                               <option value="">{tr('请选择')}</option>
@@ -550,12 +559,16 @@ export function InstallmentsPanel({
                                   {accountLabel(a)}
                                 </option>
                               ))}
-                            </Select>
+                            </FormSelect>
                           )}
                         </Field>
                         <Field label={tr('消费分类')}>
-                          {control => (
-                            <Select {...control} value={category} onChange={e => setCategory(e.target.value)}>
+                          {() => (
+                            <FormSelect
+                              aria-label={tr('消费分类')}
+                              value={category}
+                              onChange={next => setCategory(next)}
+                            >
                               {formCategories
                                 .filter(c => !c.archived)
                                 .map(c => (
@@ -563,7 +576,7 @@ export function InstallmentsPanel({
                                     {c.name}
                                   </option>
                                 ))}
-                            </Select>
+                            </FormSelect>
                           )}
                         </Field>
                       </div>
@@ -619,7 +632,10 @@ export function InstallmentsPanel({
                   </Field>
                 </div>
                 <details open={mode === 'schedule'}>
-                  <summary>{tr('各期本金与费用预览')}</summary>
+                  <summary>
+                    <ChevronDown size={16} aria-hidden />
+                    {tr('各期本金与费用预览')}
+                  </summary>
                   <div className={styles.installmentPreview}>
                     {
                       <PagedList items={preview}>
@@ -700,7 +716,10 @@ export function InstallmentsPanel({
                 </details>
                 {mode === 'create' && (
                   <details className={styles.contextDetails}>
-                    <summary>{tr('费用分摊（独立设置）')}</summary>
+                    <summary>
+                      <ChevronDown size={16} aria-hidden />
+                      {tr('费用分摊（独立设置）')}
+                    </summary>
                     <label className={shared.check}>
                       <input
                         type="checkbox"
@@ -783,8 +802,13 @@ export function InstallmentsPanel({
                     <DateField type="date" value={paidDate} onChange={setPaidDate} />
                   </label>
                   <Field label={tr('付款钱包')}>
-                    {control => (
-                      <Select {...control} required value={payer} onChange={e => setPayer(e.target.value)}>
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('付款钱包')}
+                        required
+                        value={payer}
+                        onChange={next => setPayer(next)}
+                      >
                         <option value="">{tr('请选择')}</option>
                         {accounts
                           .filter(a => !a.archived && a.usable !== false && a.id !== selected?.account_id)
@@ -797,12 +821,16 @@ export function InstallmentsPanel({
                               {accountLabel(a)}
                             </option>
                           ))}
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                   <Field label={tr('费用分类')}>
-                    {control => (
-                      <Select {...control} value={category} onChange={e => setCategory(e.target.value)}>
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('费用分类')}
+                        value={category}
+                        onChange={next => setCategory(next)}
+                      >
                         {formCategories
                           .filter(c => !c.archived)
                           .map(c => (
@@ -810,7 +838,7 @@ export function InstallmentsPanel({
                               {c.name}
                             </option>
                           ))}
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                 </div>
@@ -828,12 +856,12 @@ export function InstallmentsPanel({
             )}
             {mode !== 'schedule' && (
               <Field label={tr(mode === 'pay' ? '还款与费用记入账本' : '消费记入账本')}>
-                {control => (
-                  <Select
-                    {...control}
+                {() => (
+                  <FormSelect
+                    aria-label={tr(mode === 'pay' ? '还款与费用记入账本' : '消费记入账本')}
                     disabled={!!seed && mode === 'create'}
                     value={destination}
-                    onChange={e => setDestination(e.target.value)}
+                    onChange={next => setDestination(next)}
                   >
                     {books
                       .filter(b => b.role !== 'viewer')
@@ -842,7 +870,7 @@ export function InstallmentsPanel({
                           {b.name}
                         </option>
                       ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
             )}

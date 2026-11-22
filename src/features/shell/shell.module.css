@@ -275,3 +275,9 @@
   font-size: var(--text-md);
   font-weight: 600;
 }
+
+.mobilePageTitle {
+  order: -1;
+  margin-inline-end: auto;
+  font-size: var(--text-lg);
+}

@@ -22,3 +22,9 @@
     border-bottom: 0;
   }
 }
+
+.rowEnd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

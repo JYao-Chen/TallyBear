@@ -1,5 +1,6 @@
 'use client';
-import { Button, Card, Field, Input, Select, ListRow, ConfirmDialog } from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Card, Field, Input, ListRow, ConfirmDialog } from '@/ui';
 import styles from './CostProjects.module.css';
 import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
@@ -695,16 +696,16 @@ export function CostProjects({
                     )}
                   </Field>
                   <Field label={tr('分摊方式')}>
-                    {control => (
-                      <Select
-                        {...control}
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('分摊方式')}
                         value={plan.mode}
-                        onChange={e => set({ mode: e.target.value as CostPlan['mode'] })}
+                        onChange={next => set({ mode: next as CostPlan['mode'] })}
                       >
                         <option value="monthly">{tr('指定自然月等额')}</option>
                         <option value="daily">{tr('真实覆盖期按天')}</option>
                         <option value="custom">{tr('自定义期间金额')}</option>
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                   {plan.mode === 'monthly' && (
@@ -823,14 +824,14 @@ export function CostProjects({
               <div className={shared.section}>
                 <h3>{tr('成员承担')}</h3>
                 <Field label={tr('选人范围（不改变记入账本）')}>
-                  {control => (
-                    <Select
-                      {...control}
+                  {() => (
+                    <FormSelect
+                      aria-label={tr('选人范围（不改变记入账本）')}
                       disabled={!!selected}
                       value={plan.familyId || ''}
-                      onChange={e =>
+                      onChange={next =>
                         set({
-                          familyId: e.target.value || null,
+                          familyId: next || null,
                           shares: [{ userId: options!.userId, amount: total }],
                         })
                       }
@@ -843,7 +844,7 @@ export function CostProjects({
                           </option>
                         ),
                       )}
-                    </Select>
+                    </FormSelect>
                   )}
                 </Field>
                 {!selected &&
@@ -951,18 +952,18 @@ export function CostProjects({
                           )}
                         </Field>
                         <Field label={tr('受益人')}>
-                          {control => (
-                            <Select
-                              {...control}
+                          {() => (
+                            <FormSelect
+                              aria-label={tr('受益人')}
                               value={o.userId}
-                              onChange={e =>
+                              onChange={next =>
                                 set({
                                   offsets: plan.offsets.map((v, j) =>
                                     j === i
                                       ? {
                                           ...v,
-                                          userId: e.target.value,
-                                          shared: e.target.value !== options?.userId || v.shared,
+                                          userId: next,
+                                          shared: next !== options?.userId || v.shared,
                                         }
                                       : v,
                                   ),
@@ -974,7 +975,7 @@ export function CostProjects({
                                   {person(s.userId)}
                                 </option>
                               ))}
-                            </Select>
+                            </FormSelect>
                           )}
                         </Field>
                       </div>
@@ -1281,13 +1282,13 @@ export function CostProjects({
             <p className={shared.muted}>{tr('只关联参与人之间已经确认的真实转账，不再次扣款。')}</p>
             <div className={shared.grid}>
               <Field label={tr('已确认的家庭转账')}>
-                {control => (
-                  <Select
-                    {...control}
+                {() => (
+                  <FormSelect
+                    aria-label={tr('已确认的家庭转账')}
                     value={movement}
-                    onChange={e => {
-                      setMovement(e.target.value);
-                      const m = movements.find(m => m.id === e.target.value);
+                    onChange={next => {
+                      setMovement(next);
+                      const m = movements.find(m => m.id === next);
                       setSettlementAmount(m ? String(m.amount / 100) : '');
                     }}
                   >
@@ -1297,7 +1298,7 @@ export function CostProjects({
                         {String(m.date).slice(0, 10)} · {m.sender} → {m.recipient} · {formatMoney(m.amount)}
                       </option>
                     ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               <Field label={tr('用于本项目的金额')}>

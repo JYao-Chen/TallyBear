@@ -1,5 +1,6 @@
 'use client';
-import { Button, Field, Input, TextArea, Select } from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Field, Input, TextArea } from '@/ui';
 import styles from './CostSettlementTransfer.module.css';
 import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
@@ -184,12 +185,12 @@ export function CostSettlementTransfer({
             <legend>{tr('记录已发生的转款')}</legend>
             <div className={shared.grid}>
               <Field label={tr('收款成员')}>
-                {control => (
-                  <Select
-                    {...control}
+                {() => (
+                  <FormSelect
+                    aria-label={tr('收款成员')}
                     required
                     value={recipient}
-                    onChange={e => setRecipient(e.target.value)}
+                    onChange={next => setRecipient(next)}
                   >
                     <option value="">{tr('选择成员')}</option>
                     {project.members
@@ -199,19 +200,24 @@ export function CostSettlementTransfer({
                           {m.name}
                         </option>
                       ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               <Field label={tr('我的付款钱包')}>
-                {control => (
-                  <Select {...control} required value={source} onChange={e => setSource(e.target.value)}>
+                {() => (
+                  <FormSelect
+                    aria-label={tr('我的付款钱包')}
+                    required
+                    value={source}
+                    onChange={next => setSource(next)}
+                  >
                     <option value="">{tr('选择钱包')}</option>
                     {wallets.map(w => (
                       <option key={w.id} value={w.id}>
                         {w.name}
                       </option>
                     ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               <Field label={tr('实际转款金额')}>
@@ -342,15 +348,20 @@ export function CostSettlementTransfer({
               >
                 <fieldset disabled={busy}>
                   <Field label={tr('我的到账钱包')}>
-                    {control => (
-                      <Select {...control} required value={target} onChange={e => setTarget(e.target.value)}>
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('我的到账钱包')}
+                        required
+                        value={target}
+                        onChange={next => setTarget(next)}
+                      >
                         <option value="">{tr('选择实际到账钱包')}</option>
                         {wallets.map(w => (
                           <option key={w.id} value={w.id}>
                             {w.name}
                           </option>
                         ))}
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                   <Field label={tr('回复转账人（选填，对方可见）')}>

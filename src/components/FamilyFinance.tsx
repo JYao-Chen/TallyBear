@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from './FormSelect';
 import { participantAvatar } from '@/ui/participantAvatar';
 import {
   Button,
@@ -10,7 +11,6 @@ import {
   ListRow,
   Money,
   Segmented,
-  Select,
   Stat,
   TextArea,
 } from '@/ui';
@@ -19,7 +19,7 @@ import { DetailSortSelect } from './DetailSortSelect';
 import { sortDetails, type DetailSort } from '@/lib/detail-sort';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Plus, Check, Gift } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, Plus, Check, Gift } from 'lucide-react';
 import { VisualSelect } from './VisualSelect';
 import { FamilyMovementDetails } from './FamilyMovementDetails';
 import type { ReactNode } from 'react';
@@ -287,32 +287,25 @@ export function FamilyFinance({
           )}
           {view === 'records' && (
             <>
-              <div className={s.filters}>
-                <Field label={tr('搜索往来')}>
-                  {control => (
-                    <Input
-                      {...control}
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                      placeholder={tr('成员、备注、用途、流水号…')}
-                    />
-                  )}
-                </Field>
-                <label>
-                  {tr('往来状态')}
-                  <Select value={filter} onChange={e => setFilter(e.target.value)}>
-                    <option value="">{tr('全部状态')}</option>
-                    <option value="pending">{tr('待收款人确认')}</option>
-                    <option value="confirmed">{tr('已确认')}</option>
-                    <option value="cancelled">{tr('已取消')}</option>
-                  </Select>
-                </label>
+              <div className={s.toolbar}>
+                <Input
+                  aria-label={tr('搜索往来')}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder={tr('成员、备注、用途、流水号…')}
+                />
+                <FormSelect aria-label={tr('往来状态')} value={filter} onChange={next => setFilter(next)}>
+                  <option value="">{tr('全部状态')}</option>
+                  <option value="pending">{tr('待收款人确认')}</option>
+                  <option value="confirmed">{tr('已确认')}</option>
+                  <option value="cancelled">{tr('已取消')}</option>
+                </FormSelect>
+                <DetailSortSelect picker value={sort} onChange={setSort} />
               </div>
               <p className={s.muted}>
                 {tr('共 ')}
                 {filtered.length} {tr(' 笔往来 · 内部资金流动不计家庭消费')}
               </p>
-              <DetailSortSelect value={sort} onChange={setSort} />
               <PagedList items={filtered} resetKey={query + filter + sort}>
                 {(m: any) => (
                   <article className={s.movement} key={m.id}>
@@ -515,17 +508,17 @@ export function FamilyFinance({
               {kind === 'transfer' && (
                 <label>
                   {tr('收款对象')}
-                  <Select
+                  <FormSelect
                     value={receiverType}
-                    onChange={e => {
-                      setReceiverType(e.target.value);
+                    onChange={next => {
+                      setReceiverType(next);
                       setTarget('');
                       setRecipient('');
                     }}
                   >
                     <option value="member">{tr('家庭成员（由对方确认到账）')}</option>
                     <option value="wallet">{tr('自己的钱包 / 家庭共同钱包')}</option>
-                  </Select>
+                  </FormSelect>
                 </label>
               )}
               {kind !== 'contribution' && receiverType === 'member' && (
@@ -787,7 +780,8 @@ function FamilyPanel({
   return (
     <section className={s.editor}>
       <Button type="button" variant="ghost" onClick={onClose}>
-        {tr('← 返回家庭往来')}
+        <ArrowLeft size={16} aria-hidden />
+        {tr('返回家庭往来')}
       </Button>
       <h2>{title}</h2>
       {children}

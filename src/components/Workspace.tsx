@@ -833,7 +833,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                 />
                 <JobPanel book={book} onDrafts={openDrafts} />
                 <span className={shellStyles.mobileBook}>
-                  {page !== 'accounts' && (
+                  {page === 'accounts' ? (
+                    <strong className={shellStyles.mobilePageTitle}>{tr(pageTitle(page))}</strong>
+                  ) : (
                     <BookSwitcher
                       books={books}
                       current={book}
@@ -1363,7 +1365,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                       onChange={e => setText(e.target.value)}
                                       placeholder={tr('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元')}
                                     />
-                                    <div>
+                                    <div className={entryStyles.row}>
                                       <label className={entryStyles.upload}>
                                         <Upload size={18} />
                                         {tr('添加订单 / 流水图片')}
@@ -1379,6 +1381,11 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                           }}
                                         />
                                       </label>
+                                      {canWrite && (
+                                        <Button variant="secondary" onClick={() => setEntryMode('import')}>
+                                          {tr('微信／支付宝账单')}
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
                                   <small>{tr('自动分批识别 · 支持长截图')}</small>
@@ -1400,22 +1407,23 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                       </figure>
                                     ))}
                                   </div>
-                                  <label className={entryStyles.check}>
-                                    <input
-                                      type="checkbox"
-                                      checked={history}
-                                      onChange={e => setHistory(e.target.checked)}
-                                    />
-                                    {tr('使用我的记账偏好')}
-                                  </label>
-                                  {history && (
-                                    <ProfileLocation
-                                      value={profileContext}
-                                      onChange={setProfileContext}
-                                      disabled={busy}
-                                    />
-                                  )}
-                                  <></>
+                                  <div className={entryStyles.row}>
+                                    <label className={entryStyles.check}>
+                                      <input
+                                        type="checkbox"
+                                        checked={history}
+                                        onChange={e => setHistory(e.target.checked)}
+                                      />
+                                      {tr('使用我的记账偏好')}
+                                    </label>
+                                    {history && (
+                                      <ProfileLocation
+                                        value={profileContext}
+                                        onChange={setProfileContext}
+                                        disabled={busy}
+                                      />
+                                    )}
+                                  </div>
                                   {aiRunning && (
                                     <div className={entryStyles.progress} role="status">
                                       <div className={entryStyles.row}>
@@ -1536,11 +1544,6 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                     onChange={e => run(() => importCSV(e.target.files?.[0]))}
                                   />
                                 </>
-                              )}
-                              {canWrite && entryMode !== 'family' && entryMode !== 'import' && (
-                                <Button variant="ghost" onClick={() => setEntryMode('import')}>
-                                  {tr('微信／支付宝账单')}
-                                </Button>
                               )}
                             </section>
                             {entryMode !== 'family' && drafts.length > 0 && (

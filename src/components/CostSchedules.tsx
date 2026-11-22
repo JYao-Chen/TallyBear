@@ -1,5 +1,6 @@
 'use client';
-import { Button, Field, Input, TextArea, Select, Money, ListRow } from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Field, Input, TextArea, Money, ListRow } from '@/ui';
 import styles from './CostSchedules.module.css';
 import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
@@ -200,15 +201,20 @@ export function CostSchedules({
     selectedRemaining = Math.max(0, selectedExpected - selectedReceived);
   const bookField = (
     <Field label={action === 'pay' ? tr('付款记入账本') : tr('我的归属账本')}>
-      {control => (
-        <Select {...control} required value={book} onChange={e => setBook(e.target.value)}>
+      {() => (
+        <FormSelect
+          aria-label={action === 'pay' ? tr('付款记入账本') : tr('我的归属账本')}
+          required
+          value={book}
+          onChange={next => setBook(next)}
+        >
           <option value="">{tr('选择账本')}</option>
           {books.map(b => (
             <option key={b.id} value={b.id}>
               {b.name}
             </option>
           ))}
-        </Select>
+        </FormSelect>
       )}
     </Field>
   );
@@ -316,20 +322,19 @@ export function CostSchedules({
                 )}
               </Field>
               <Field label={tr('结束规则')}>
-                {control => (
-                  <Select
-                    {...control}
+                {() => (
+                  <FormSelect
+                    aria-label={tr('结束规则')}
                     value={rule.totalCycles == null ? 'unlimited' : 'limited'}
-                    onChange={e =>
+                    onChange={next =>
                       update({
-                        totalCycles:
-                          e.target.value === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
+                        totalCycles: next === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
                       })
                     }
                   >
                     <option value="unlimited">{tr('持续重复')}</option>
                     <option value="limited">{tr('指定总期数')}</option>
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               {rule.totalCycles != null && (
@@ -349,13 +354,13 @@ export function CostSchedules({
               )}
               {bookField}
               <Field label={tr('参与家庭')}>
-                {control => (
-                  <Select
-                    {...control}
+                {() => (
+                  <FormSelect
+                    aria-label={tr('参与家庭')}
                     value={rule.familyId || ''}
-                    onChange={e =>
+                    onChange={next =>
                       update({
-                        familyId: e.target.value || null,
+                        familyId: next || null,
                         shares: [rule.shares.find(s => s.userId === options.userId)!],
                       })
                     }
@@ -370,7 +375,7 @@ export function CostSchedules({
                         {n}
                       </option>
                     ))}
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
             </div>
@@ -478,13 +483,13 @@ export function CostSchedules({
               {selected.receiptMovements?.length ? (
                 <>
                   <Field label={tr('转款记录')}>
-                    {control => (
-                      <Select
-                        {...control}
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('转款记录')}
                         required
                         value={receiptMovement}
-                        onChange={e => {
-                          setReceiptMovement(e.target.value);
+                        onChange={next => {
+                          setReceiptMovement(next);
                           setReceiptWallet('');
                         }}
                       >
@@ -494,7 +499,7 @@ export function CostSchedules({
                             {m.status === 'pending' ? tr('待确认到账') : tr('已到账')}
                           </option>
                         ))}
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                   {selectedMovement?.status === 'pending' && (
@@ -510,12 +515,12 @@ export function CostSchedules({
                         )}
                       </Field>
                       <Field label={tr('我的到账钱包')}>
-                        {control => (
-                          <Select
-                            {...control}
+                        {() => (
+                          <FormSelect
+                            aria-label={tr('我的到账钱包')}
                             required
                             value={receiptWallet}
-                            onChange={e => setReceiptWallet(e.target.value)}
+                            onChange={next => setReceiptWallet(next)}
                           >
                             <option value="">{tr('选择实际到账钱包')}</option>
                             {assets.map(a => (
@@ -523,7 +528,7 @@ export function CostSchedules({
                                 {a.name}
                               </option>
                             ))}
-                          </Select>
+                          </FormSelect>
                         )}
                       </Field>
                       <p className={shared.muted}>
@@ -638,23 +643,27 @@ export function CostSchedules({
                 </strong>
               </p>
               <Field label={tr('付款记录')}>
-                {control => (
-                  <Select {...control} value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
+                {() => (
+                  <FormSelect
+                    aria-label={tr('付款记录')}
+                    value={paymentMode}
+                    onChange={next => setPaymentMode(next)}
+                  >
                     <option value="new">{tr('已付款，尚未记账')}</option>
                     <option value="existing">{tr('关联已记账的付款')}</option>
-                  </Select>
+                  </FormSelect>
                 )}
               </Field>
               {paymentMode === 'new' ? (
                 <div className={shared.grid}>
                   {bookField}
                   <Field label={tr('实际付款钱包')}>
-                    {control => (
-                      <Select
-                        {...control}
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('实际付款钱包')}
                         required
                         value={account}
-                        onChange={e => setAccount(e.target.value)}
+                        onChange={next => setAccount(next)}
                       >
                         <option value="">{tr('请选择')}</option>
                         {assets.map(a => (
@@ -662,7 +671,7 @@ export function CostSchedules({
                             {a.name}
                           </option>
                         ))}
-                      </Select>
+                      </FormSelect>
                     )}
                   </Field>
                   <Field label={tr('实际付款日期')}>

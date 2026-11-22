@@ -5,7 +5,7 @@
   background: var(--surface-sunk);
   font-variant-numeric: tabular-nums;
 }
-.stats > div:last-child {
+.stats > div:last-of-type {
   color: var(--accent);
 }
 .group {
@@ -36,14 +36,10 @@
 .detailAmount strong {
   font-size: var(--text-money);
 }
-.detailFields > div,
 .actions {
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
-}
-.detailFields dd {
-  margin: 0;
 }
 .adjustment {
   padding: var(--space-3);
@@ -53,7 +49,20 @@
   .stats {
     grid-template-columns: 1fr 1fr;
   }
-  .stats > div:last-child {
+  .stats > div:last-of-type {
     grid-column: 1/-1;
   }
+}
+
+.composition {
+  grid-column: 1/-1;
+  color: var(--muted);
+}
+.scope {
+  max-width: 55%;
+  min-width: 0;
+  margin-inline-start: auto;
+}
+.scope button {
+  max-width: 100%;
 }

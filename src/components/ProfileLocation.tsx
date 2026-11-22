@@ -1,4 +1,7 @@
 'use client';
+import styles from './ProfileLocation.module.css';
+import { Button } from '@/ui/Button';
+import { FormSelect } from './FormSelect';
 import { useState } from 'react';
 import { MapPin, LocateFixed } from 'lucide-react';
 import { coarseLocation, type ProfileContext } from '@/lib/personal-profile';
@@ -48,10 +51,10 @@ export function ProfileLocation({
       ...extra,
     });
   return (
-    <div className="profile-location">
-      <button
+    <div className={styles.location}>
+      <Button
         type="button"
-        className="text-button"
+        variant="ghost"
         disabled={disabled}
         aria-expanded={open}
         onClick={async () => {
@@ -72,9 +75,9 @@ export function ProfileLocation({
       >
         <MapPin size={15} />
         {value?.placeId ? t('已选消费区域', 'Area selected') : t('添加消费区域', 'Add purchase area')}
-      </button>
+      </Button>
       {open && (
-        <div className="profile-location-body">
+        <div className={styles.body}>
           <p>
             {t(
               '仅用于本次场景匹配。不会持续定位，也不会把现在的位置当成历史订单的地点。',
@@ -93,12 +96,10 @@ export function ProfileLocation({
               <>
                 <label>
                   {t('消费发生的区域', 'Purchase area')}
-                  <select
+                  <FormSelect
                     disabled={disabled || busy}
                     value={value?.placeId || ''}
-                    onChange={e =>
-                      update({ placeId: e.target.value || undefined, useAsTransactionPlace: false })
-                    }
+                    onChange={next => update({ placeId: next || undefined, useAsTransactionPlace: false })}
                   >
                     <option value="">{t('不使用地点', 'No area')}</option>
                     {data.places.map((p: any) => (
@@ -106,11 +107,11 @@ export function ProfileLocation({
                         {p.name}
                       </option>
                     ))}
-                  </select>
+                  </FormSelect>
                 </label>
-                <button
+                <Button
                   type="button"
-                  className="secondary"
+                  variant="secondary"
                   disabled={disabled || busy}
                   onClick={async () => {
                     setBusy(true);
@@ -148,9 +149,9 @@ export function ProfileLocation({
                 >
                   <LocateFixed size={15} />
                   {busy ? t('正在定位…', 'Locating…') : t('定位并匹配常用区域', 'Locate a saved area')}
-                </button>
+                </Button>
                 {!!value?.placeId && (
-                  <label className="check">
+                  <label className={styles.check}>
                     <input
                       type="checkbox"
                       disabled={disabled}
@@ -164,7 +165,7 @@ export function ProfileLocation({
             )
           )}
           {error && (
-            <p className="muted" role="status">
+            <p className={styles.muted} role="status">
               {error}
             </p>
           )}

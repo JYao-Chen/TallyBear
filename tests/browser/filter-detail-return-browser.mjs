@@ -443,19 +443,25 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/analysis`);
   await page.getByRole('button', { name: '钱包资金流' }).click();
   await page.getByRole('searchbox', { name: '搜索资金明细', exact: true }).fill('Filter test');
-  await page.getByRole('combobox', { name: '资金流动类型', exact: true }).selectOption('out');
-  await page.locator('.funds-list button').first().waitFor();
-  await page.locator('.funds-pagination').getByRole('button', { name: '下一页', exact: true }).click();
-  await page.locator('.funds-list button').first().waitFor();
-  const fundsPage = await page.locator('.funds-pagination').innerText();
-  await page.locator('.funds-list button').first().click();
+  await page.getByRole('button', { name: /^资金流动类型:/ }).click();
+  await page
+    .getByRole('dialog', { name: '资金流动类型', exact: true })
+    .getByRole('button', { name: '资金流出', exact: true })
+    .click();
+  const firstFund = page.getByRole('group', { name: '资金明细', exact: true }).getByRole('button').first();
+  const fundsPagination = page.getByRole('navigation', { name: '资金明细分页', exact: true });
+  await firstFund.waitFor();
+  await fundsPagination.getByRole('button', { name: '下一页', exact: true }).click();
+  await firstFund.waitFor();
+  const fundsPage = await fundsPagination.innerText();
+  await firstFund.click();
   await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
   assert.equal(
     await page.getByRole('searchbox', { name: '搜索资金明细', exact: true }).inputValue(),
     'Filter test',
   );
-  assert.equal(await page.getByRole('combobox', { name: '资金流动类型', exact: true }).inputValue(), 'out');
-  assert.equal(await page.locator('.funds-pagination').innerText(), fundsPage);
+  assert.ok(await page.getByRole('button', { name: '资金流动类型: 资金流出', exact: true }).isVisible());
+  assert.equal(await fundsPagination.innerText(), fundsPage);
   // Keeping the current book must not grant its write permission to a foreign read-only book.
   books[1].role = 'viewer';
   cross = true;

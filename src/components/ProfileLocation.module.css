@@ -1,0 +1,24 @@
+.location {
+  min-width: 0;
+}
+.body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+}
+.body p {
+  margin: 0;
+}
+.body .check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.check input {
+  width: auto;
+}
+.muted {
+  color: var(--muted);
+}

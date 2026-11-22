@@ -1,5 +1,6 @@
 'use client';
-import { Button, Card, Field, Input, Select, Sheet, Money } from '@/ui';
+import { FormSelect } from './FormSelect';
+import { Button, Card, Field, Input, Sheet, Money } from '@/ui';
 import styles from './WalletFundsPanel.module.css';
 import shared from './WorkspacePlans.module.css';
 import { WalletEntryActions } from './WalletEntryActions';
@@ -162,9 +163,13 @@ export function WalletFundsPanel({
               : r.kind === 'refund'
                 ? tr('退款到账')
                 : tr('消费支付');
+  const counterpartyLabel = (r: FundRow) =>
+    r.origin === 'family' && (!r.counterparty || r.counterparty === '共同钱包')
+      ? tr('共同钱包')
+      : r.counterparty;
   const title = (r: FundRow) =>
     r.origin === 'family'
-      ? `${r.costTitle ? r.costTitle + ' · ' : ''}${label(r)} · ${r.counterparty || tr('共同钱包')}`
+      ? `${r.costTitle ? r.costTitle + ' · ' : ''}${label(r)} · ${counterpartyLabel(r)}`
       : r.origin === 'adjustment'
         ? label(r)
         : r.title;
@@ -197,12 +202,12 @@ export function WalletFundsPanel({
       </header>
       {!walletId && (
         <Field className={styles.fundsWalletChoice} label={tr('资金钱包')}>
-          {control => (
-            <Select
-              {...control}
+          {() => (
+            <FormSelect
+              aria-label={tr('资金钱包')}
               value={account}
-              onChange={e => {
-                setAccount(e.target.value);
+              onChange={next => {
+                setAccount(next);
                 setOffset(0);
               }}
             >
@@ -212,7 +217,7 @@ export function WalletFundsPanel({
                   {accountLabel(a, locale)}
                 </option>
               ))}
-            </Select>
+            </FormSelect>
           )}
         </Field>
       )}
@@ -333,7 +338,7 @@ export function WalletFundsPanel({
             />
           )}
         </Field>
-        <Select aria-label={tr('资金流动类型')} value={flow} onChange={e => filter(e.target.value)}>
+        <FormSelect aria-label={tr('资金流动类型')} value={flow} onChange={next => filter(next)}>
           {[
             ['all', '全部流水'],
             ['in', '资金流入'],
@@ -347,9 +352,10 @@ export function WalletFundsPanel({
               {tr(zh)}
             </option>
           ))}
-        </Select>
+        </FormSelect>
       </div>
       <DetailSortSelect
+        picker
         value={sort}
         onChange={v => {
           setSort(v);
@@ -382,7 +388,7 @@ export function WalletFundsPanel({
           {!data.rows.length && <p className={shared.empty}>{tr('没有匹配的资金流水')}</p>}
           <nav className={styles.fundsPagination} aria-label={tr('资金明细分页')}>
             <Button
-              variant="primary"
+              variant="secondary"
               type="button"
               disabled={!offset}
               onClick={() => setOffset(v => Math.max(0, v - 20))}
@@ -390,11 +396,14 @@ export function WalletFundsPanel({
               {tr('上一页')}
             </Button>
             <small>
-              {data.count ? `${offset + 1}–${Math.min(offset + 20, data.count)}` : '0'} {tr('／')}{' '}
-              {data.count} · {Math.floor(offset / 20) + 1} / {Math.max(1, Math.ceil(data.count / 20))}
+              {tr('第 {0} / {1} 页 · 共 {2} 笔', [
+                Math.floor(offset / 20) + 1,
+                Math.max(1, Math.ceil(data.count / 20)),
+                data.count,
+              ])}
             </small>
             <Button
-              variant="primary"
+              variant="secondary"
               type="button"
               disabled={!data.hasMore}
               onClick={() => setOffset(v => v + 20)}
@@ -431,7 +440,7 @@ export function WalletFundsPanel({
                     [tr('交易日期'), detail.date],
                     [tr('资金账户'), detail.sourceName],
                     [tr('转入钱包'), detail.targetName],
-                    [tr('交易对方'), detail.counterparty],
+                    [tr('交易对方'), counterpartyLabel(detail)],
                     [tr('实际资金流出'), money(detail.outflow)],
                     [tr('实际资金流入'), money(detail.inflow)],
                     [tr('合计余额变化'), money(detail.balanceDelta)],
@@ -460,6 +469,7 @@ export function WalletFundsPanel({
                 {tr('当天实际资金流水，与所选钱包和图表口径一致；包含收入、消费、退款和家庭往来。')}
               </p>
               <DetailSortSelect
+                picker
                 value={daySort}
                 onChange={v => {
                   setDaySort(v);
@@ -525,7 +535,7 @@ export function WalletFundsPanel({
                     {!dayData.rows.length && <p className={shared.empty}>{tr('当天没有资金流水')}</p>}
                     <nav className={styles.fundsPagination} aria-label={tr('当天资金明细分页')}>
                       <Button
-                        variant="primary"
+                        variant="secondary"
                         type="button"
                         disabled={!dayOffset}
                         onClick={() => setDayOffset(v => Math.max(0, v - 20))}
@@ -533,10 +543,14 @@ export function WalletFundsPanel({
                         {tr('上一页')}
                       </Button>
                       <small>
-                        {Math.floor(dayOffset / 20) + 1} / {Math.max(1, Math.ceil(dayData.count / 20))}
+                        {tr('第 {0} / {1} 页 · 共 {2} 笔', [
+                          Math.floor(dayOffset / 20) + 1,
+                          Math.max(1, Math.ceil(dayData.count / 20)),
+                          dayData.count,
+                        ])}
                       </small>
                       <Button
-                        variant="primary"
+                        variant="secondary"
                         type="button"
                         disabled={!dayData.hasMore}
                         onClick={() => setDayOffset(v => v + 20)}

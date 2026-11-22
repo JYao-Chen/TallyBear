@@ -68,8 +68,16 @@ try {
     }
     const s = await open(sender);
     await s.surface.getByRole('button', { name: '向成员结算', exact: true }).click();
-    await s.surface.getByLabel(/^收款成员/).selectOption(project.owner_id);
-    await s.surface.getByLabel(/^我的付款钱包/).selectOption({ label: '付款微信' });
+    await s.surface.getByRole('button', { name: /^收款成员:/ }).click();
+    await s.page
+      .getByRole('dialog', { name: '收款成员', exact: true })
+      .getByRole('button', { name: '付款测试成员', exact: true })
+      .click();
+    await s.surface.getByRole('button', { name: /^我的付款钱包:/ }).click();
+    await s.page
+      .getByRole('dialog', { name: '我的付款钱包', exact: true })
+      .getByRole('button', { name: '付款微信', exact: true })
+      .click();
     await s.surface.getByLabel('实际转款金额', { exact: true }).fill(device === 'desktop' ? '101' : '102');
     await s.surface.getByLabel('转款备注（选填）', { exact: true }).fill('浏览器合成结算测试 ' + device);
     await capture(s.page, s.surface.locator('legend'), 'send');
@@ -85,7 +93,11 @@ try {
     const r = await open(project.owner_id),
       row = r.surface.locator('.cost-offset').filter({ hasText: '浏览器合成结算测试 ' + device });
     await row.getByRole('button', { name: '确认到账', exact: true }).click();
-    await row.getByLabel(/^我的到账钱包/).selectOption({ label: '收款银行卡' });
+    await row.getByRole('button', { name: /^我的到账钱包:/ }).click();
+    await r.page
+      .getByRole('dialog', { name: '我的到账钱包', exact: true })
+      .getByRole('button', { name: '收款银行卡', exact: true })
+      .click();
     await capture(r.page, row, 'receive');
     await row.getByRole('button', { name: '确已到账，确认结算', exact: true }).click();
     await r.surface.getByRole('status').waitFor();

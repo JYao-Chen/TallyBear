@@ -739,6 +739,13 @@ try {
       });
       await page.goto(origin);
       await page.locator('#primary-navigation').waitFor({ state: 'attached' });
+      async function chooseOption(scope, label, option) {
+        await scope.getByRole('button', { name: new RegExp('^' + t(label) + ':') }).click();
+        await page
+          .getByRole('dialog', { name: t(label), exact: true })
+          .getByRole('button', { name: option, exact: true })
+          .click();
+      }
       async function settle() {
         await page.waitForLoadState('networkidle');
         await page.evaluate(async () => {
@@ -938,7 +945,7 @@ try {
         assert.equal(await page.getByRole('region', { name: t('收支明细') }).count(), 0);
         assert.equal(await page.getByLabel(t('筛选结果汇总')).count(), 0);
         await shot('analysis-wallets');
-        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('transfer');
+        await chooseOption(page, '资金流动类型', t('转账往来'));
         await settle();
         assert.equal(
           await page
@@ -958,9 +965,7 @@ try {
           .getByRole('dialog')
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
-        await page
-          .getByRole('combobox', { name: t('资金钱包'), exact: true })
-          .selectOption({ index: 1 }, { force: true });
+        await chooseOption(page, '资金钱包', lang === 'en' ? 'Daily wallet' : '微信钱包');
         await settle();
         await shot('analysis-single-wallet');
         await page.getByRole('button', { name: /^Wallet owner:|^钱包归属:/ }).click();
@@ -1062,7 +1067,7 @@ try {
           .getByRole('region', { name: t('钱包资金流动') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('funds-summary');
-        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('transfer');
+        await chooseOption(page, '资金流动类型', t('转账往来'));
         await settle();
         assert.equal(
           await page
@@ -1071,7 +1076,9 @@ try {
             .count(),
           2,
         );
-        await page.getByRole('combobox', { name: t('资金流动类型') }).scrollIntoViewIfNeeded();
+        await page
+          .getByRole('button', { name: new RegExp('^' + t('资金流动类型') + ':') })
+          .scrollIntoViewIfNeeded();
         await shot('funds-transfers');
         await page
           .getByRole('group', { name: t('资金明细') })
@@ -1087,11 +1094,15 @@ try {
           await scope.getByRole('combobox', { name: t('明细排序') }).selectOption(value, { force: true });
           await settle();
         };
-        await page.getByRole('combobox', { name: t('资金流动类型') }).selectOption('all');
-        await chooseSort(page.getByRole('region', { name: t('钱包资金流动') }), 'amount_desc');
+        await chooseOption(page, '资金流动类型', t('全部流水'));
+        await chooseOption(
+          page.getByRole('region', { name: t('钱包资金流动') }),
+          '明细排序',
+          t('金额') + t(' · 从高到低'),
+        );
         await page
           .getByRole('region', { name: t('钱包资金流动') })
-          .getByRole('combobox', { name: t('明细排序') })
+          .getByRole('button', { name: new RegExp('^' + t('明细排序') + ':') })
           .scrollIntoViewIfNeeded();
         await shot('funds-sorted');
         await page.getByRole('region', { name: t('收支明细') }).scrollIntoViewIfNeeded();
@@ -1126,17 +1137,19 @@ try {
         await page.getByRole('button', { name: t('家庭往来'), exact: true }).click();
         await settle();
         await page.getByRole('region', { name: t('家庭资金往来'), exact: true }).waitFor();
-        await chooseSort(page.getByRole('region', { name: t('家庭资金往来'), exact: true }), 'amount_desc');
+        await chooseOption(
+          page.getByRole('region', { name: t('家庭资金往来'), exact: true }),
+          '明细排序',
+          t('金额') + t(' · 从高到低'),
+        );
         await page
           .getByRole('region', { name: t('家庭资金往来'), exact: true })
-          .getByRole('combobox', { name: t('明细排序') })
+          .getByRole('button', { name: new RegExp('^' + t('明细排序') + ':') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('family-sorted');
         await page.getByRole('button', { name: t('搜索整个账本系统'), exact: true }).click();
         await settle();
-        await page
-          .getByRole('combobox', { name: t('搜索结果排序') })
-          .selectOption('amount_desc', { force: true });
+        await chooseOption(page, '搜索结果排序', t('金额 · 从高到低'));
         await settle();
         await shot('search-sorted');
         await page
@@ -1167,6 +1180,7 @@ try {
         await page.getByRole('button', { name: t('退款'), exact: true }).click();
         await page.locator('.refund-picker').scrollIntoViewIfNeeded();
         await shot('refund');
+        await page.getByRole('button', { name: t('交给小熊'), exact: true }).click();
         await page.getByRole('button', { name: t('微信／支付宝账单'), exact: true }).click();
         await page
           .getByRole('group', { name: t('录入方式') })
@@ -1598,6 +1612,11 @@ try {
       await navigate('计划与分摊');
       await page.getByRole('tab', { name: t('周期收支'), exact: true }).click();
       await shot('plans');
+      await page.getByRole('button', { name: /iCloud 200GB/ }).click();
+      await page
+        .getByRole('dialog', { name: t('管理周期账单') })
+        .getByRole('button', { name: t('关闭弹窗') })
+        .click();
       for (const [label, key] of [
         ['分期与还款', 'installments'],
         ['费用分摊', 'allocations'],
@@ -1683,6 +1702,19 @@ try {
       await page.getByText(t('记忆模型配置与运行统计（管理员）'), { exact: true }).click();
       await audit('memory-settings');
       await navigate('记一笔');
+      const uploadLabel = page.getByText(t('添加订单 / 流水图片'), { exact: true });
+      const importButton = page.getByRole('button', { name: t('微信／支付宝账单'), exact: true });
+      const [uploadBox, importBox] = await Promise.all([
+        uploadLabel.boundingBox(),
+        importButton.boundingBox(),
+      ]);
+      assert.ok(
+        uploadBox &&
+          importBox &&
+          Math.max(uploadBox.y, importBox.y) <
+            Math.min(uploadBox.y + uploadBox.height, importBox.y + importBox.height),
+        'Upload and import controls must share a row',
+      );
       await shot('intake');
       const draftsRegion = page.getByRole('region', { name: t('核对草稿') });
       const itemsEditor = draftsRegion.getByRole('group', { name: t('商品与优惠费用'), exact: true }).first();
@@ -1699,6 +1731,12 @@ try {
           .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
           .first()
           .click();
+      const selectedDraft = draftsRegion.getByRole('button', {
+        pressed: true,
+        name: /Milk & vegetables|牛奶与蔬菜/,
+      });
+      await selectedDraft.evaluate(el => el.closest('article').scrollIntoView({ block: 'center' }));
+      await shot('draft-selected');
       await itemsEditor.scrollIntoViewIfNeeded();
       await itemsEditor.evaluate(el => el.scrollIntoView({ block: 'start' }));
       await shot('line-items');
@@ -1711,6 +1749,7 @@ try {
       );
       await draftsRegion.getByRole('button', { name: t('← 返回草稿列表'), exact: true }).click();
       await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
+      assert.equal(await draftsRegion.getByText(t('选择一笔草稿，核对或补充完整信息')).count(), 0);
       await shot('draft-missing');
       await draftsRegion
         .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
@@ -1725,6 +1764,7 @@ try {
       await page
         .getByRole('group', { name: t('录入方式') })
         .evaluate(el => el.scrollIntoView({ block: 'start' }));
+      assert.equal(await page.getByRole('button', { name: t('微信／支付宝账单'), exact: true }).count(), 0);
       await shot('manual');
       const manualForm = page.getByRole('form', { name: t('手动记账') });
       await manualForm
@@ -1742,6 +1782,17 @@ try {
       assert.equal((await undoResponse).ok(), true);
       await navigate('记一笔');
       await page.getByRole('button', { name: t('家庭往来'), exact: true }).click();
+      const familySearch = page.getByRole('textbox', { name: t('搜索往来') });
+      const status = page.getByRole('button', { name: new RegExp('^' + t('往来状态') + ':') });
+      const sort = page.getByRole('button', { name: new RegExp('^' + t('明细排序') + ':') });
+      if (device === 'desktop') {
+        const boxes = await Promise.all([familySearch, status, sort].map(control => control.boundingBox()));
+        assert.ok(
+          boxes.every(box => Math.abs(box.y - boxes[0].y) < 5),
+          'Family toolbar controls must share a row',
+        );
+      }
+      await chooseOption(page, '往来状态', t('全部状态'));
       await shot('family-entry');
       await page
         .getByRole('button', { name: t('查看详情'), exact: true })
@@ -1754,7 +1805,7 @@ try {
         'Family movement amount clipped',
       );
       await shot('family-movement-detail');
-      await page.getByRole('button', { name: t('← 返回往来记录') }).click();
+      await page.getByRole('button', { name: t('返回往来记录') }).click();
       await page.getByRole('button', { name: t('记一笔往来'), exact: true }).click();
       await shot('family-entry-form');
       await navigate('小熊对话');
@@ -1788,6 +1839,9 @@ try {
         .getByRole('textbox', { name: t('搜索关键词'), exact: true })
         .fill(lang === 'en' ? 'milk' : '牛奶');
       await settle();
+      const transactionTotals = page.getByText(t('交易结果合计'), { exact: false });
+      await transactionTotals.waitFor();
+      await chooseOption(page, '搜索结果排序', t('金额 · 从高到低'));
       await shot('search');
       const keyword = page.getByRole('textbox', { name: t('搜索关键词') });
       await keyword.press('ArrowDown');
@@ -1798,6 +1852,11 @@ try {
       await first.press('ArrowDown');
       await page.keyboard.press('ArrowUp');
       assert.equal(await page.locator('summary:focus').evaluate(el => el.parentElement.open), true);
+      await page.getByText(t('筛选条件'), { exact: true }).click();
+      await chooseOption(page, '内容类型', t('商品与记忆'));
+      await settle();
+      await page.getByRole('heading', { name: t('商品与记忆'), exact: true }).waitFor();
+      assert.equal(await transactionTotals.count(), 0);
       await context.close();
     }
   }

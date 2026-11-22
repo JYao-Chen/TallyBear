@@ -9,6 +9,7 @@ const result = await build({
   },
   bundle: true,
   write: false,
+  outfile: 'profile-location.js',
   format: 'iife',
   platform: 'browser',
   jsx: 'automatic',
@@ -61,6 +62,9 @@ try {
     }
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(data) });
   });
+  page.on('pageerror', error => {
+    throw error;
+  });
   await page.goto('http://profile.test/');
   await page.addScriptTag({ content: result.outputFiles[0].text });
   await page.getByRole('button', { name: 'Add purchase area' }).click();
@@ -70,7 +74,11 @@ try {
   await page.locator('p[role=status]').waitFor();
   assert.equal(await page.evaluate(() => window.calls), 1);
   assert.equal(requests.length, 0);
-  await page.getByRole('combobox').selectOption('00000000-0000-4000-8000-000000000001');
+  await page.getByRole('button', { name: /^Purchase area:/ }).click();
+  await page
+    .getByRole('dialog', { name: 'Purchase area', exact: true })
+    .getByRole('button', { name: 'Office area', exact: true })
+    .click();
   await page.getByRole('checkbox').check();
   assert.equal(JSON.parse(await page.locator('output').innerText()).useAsTransactionPlace, true);
   await page.evaluate(() => {

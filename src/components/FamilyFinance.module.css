@@ -178,3 +178,24 @@
   width: 18px;
   flex: 0 0 18px;
 }
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(8rem, auto) minmax(10rem, auto);
+  align-items: center;
+  gap: var(--space-2);
+}
+.toolbar > * {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .toolbar > input {
+    grid-column: 1/-1;
+  }
+}
+.editor > button:first-child {
+  justify-self: start;
+}

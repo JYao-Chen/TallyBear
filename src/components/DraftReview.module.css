@@ -128,3 +128,9 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+.card:has(.draft[aria-pressed='true']),
+.attention:has(.draft[aria-pressed='true']) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}

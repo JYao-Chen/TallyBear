@@ -2805,5 +2805,17 @@
   "分类管理": "Categories",
   "AI 配置": "AI models",
   "任务队列": "Task queue",
-  "网络连接失败，请重试。": "Network connection failed. Please try again."
+  "网络连接失败，请重试。": "Network connection failed. Please try again.",
+  "交易结果合计": "Transaction totals",
+  "第 {0} / {1} 页 · 共 {2} 笔": "Page {0} of {1} · {2} items",
+  "返回往来记录": "Back to movements",
+  "返回家庭往来": "Back to family movements",
+  "这笔消费给谁": "Who is this purchase for?",
+  "消费对象": "Purchase recipient",
+  "家庭共同费用": "Shared family expense",
+  "自己": "Myself",
+  "这笔算我的": "Count this as mine",
+  "保存后，这笔支出直接计入你的费用。": "This expense will count as yours immediately.",
+  "成员接受后，这笔支出从家庭共同费用转入其个人费用。": "The expense stays shared until the member accepts.",
+  "对方将收到待认领消息，确认后自己选择账本。付款仍记在你的钱包；只分享这笔账的信息，不分享私人附图或其他账目。": "The member receives an invitation and chooses their own book. Payment stays in your wallet. Only this bill’s details are shared; private photos and other records stay private."
 }

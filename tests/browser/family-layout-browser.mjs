@@ -95,12 +95,12 @@ try {
     await page.getByRole('button', { name: '查看详情', exact: true }).click();
     await page.getByRole('heading', { name: '周末旅行车费', exact: true }).waitFor();
     await screenshot('detail-' + width);
-    await page.getByRole('button', { name: '← 返回往来记录' }).click();
+    await page.getByRole('button', { name: '返回往来记录' }).click();
     await page.getByRole('button', { name: '记一笔往来', exact: true }).click();
     await page.getByRole('heading', { name: '记一笔家庭往来', exact: true }).waitFor();
     await screenshot('create-' + width);
     assert.equal(await page.getByRole('dialog').count(), 0);
-    await page.getByRole('button', { name: '← 返回家庭往来' }).click();
+    await page.getByRole('button', { name: '返回家庭往来' }).click();
   }
   await page.getByRole('button', { name: '确认到账', exact: true }).click();
   await page.getByRole('heading', { name: '确认到账', exact: true }).waitFor();

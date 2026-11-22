@@ -4,7 +4,7 @@ import { Discussion } from './Discussion';
 import { TransactionBalance } from './TransactionBalance';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
-import { ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, ImagePlus, X } from 'lucide-react';
 import { Button, ConfirmDialog, Input, ListRow, Money, Sheet, TextArea } from '@/ui';
 import s from './FamilyMovementDetails.module.css';
 import { VisualSelect } from './VisualSelect';
@@ -618,7 +618,8 @@ export function FamilyMovementDetails({
   return embedded ? (
     <div className={s.page}>
       <Button variant="ghost" disabled={busy} onClick={onClose}>
-        {tr('← 返回往来记录')}
+        <ArrowLeft size={16} aria-hidden />
+        {tr('返回往来记录')}
       </Button>
       {content}
       <div className={s.footer}>{footer}</div>

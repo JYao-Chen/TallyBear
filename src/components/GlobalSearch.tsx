@@ -1,4 +1,5 @@
 'use client';
+import { FormSelect } from './FormSelect';
 import { MemoryCenter } from './MemoryCenter';
 import { DateField } from './DateField';
 import { formatMoney } from '@/lib/deployment';
@@ -21,7 +22,7 @@ import {
   ChevronRight,
   FolderHeart,
 } from 'lucide-react';
-import { Button, Input, ListRow, Money, Select, Sheet } from '@/ui';
+import { Button, Input, ListRow, Money, Sheet } from '@/ui';
 import { usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import s from './GlobalSearch.module.css';
@@ -293,200 +294,202 @@ export function GlobalSearch({
                     {tr('搜索')}
                   </Button>
                 </div>
-                <details className={s.filters}>
-                  <summary>
-                    <SlidersHorizontal size={16} /> {tr('筛选条件')}
-                  </summary>
-                  <div className={s.fields}>
-                    <label>
-                      {tr('搜索范围')}
-                      <Select
-                        value={scope}
-                        onChange={e => {
-                          setScope(e.target.value);
-                          setData(null);
-                        }}
-                      >
-                        <option value="all">{tr('全部可访问账本')}</option>
-                        {books.map(b => (
-                          <option value={b.id} key={b.id} data-icon={b.icon || '📒'}>
-                            {b.name}
-                            {b.id === book ? tr('（当前）') : ''}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label>
-                      {tr('内容类型')}
-                      <Select
-                        disabled={!!selection}
-                        value={filter.entity}
-                        onChange={e => set('entity', e.target.value)}
-                      >
-                        {Object.entries(kinds).map(([v, n]) => (
-                          <option key={v} value={v}>
-                            {tr(n)}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                  </div>
-                  <div className={s.fields}>
-                    <label>
-                      {tr('订单搜索字段')}
-                      <Select value={filter.field} onChange={e => set('field', e.target.value)}>
-                        {Object.entries({
-                          all: '全部字段',
-                          payee: '商家',
-                          product: '商品摘要',
-                          item: '商品 / 菜品明细',
-                          order: '订单号 / 流水号',
-                          note: '备注',
-                          platform: '商城 / 平台',
-                        }).map(([v, n]) => (
-                          <option key={v} value={v}>
-                            {n}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label>
-                      {tr('分类')}
-                      <Select value={filter.category} onChange={e => set('category', e.target.value)}>
-                        <option value="">{tr('全部分类')}</option>
-                        {categories.map(c => (
-                          <option key={c.name} value={c.name} data-icon={c.icon}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label>
-                      {tr('收支类型')}
-                      <Select
-                        disabled={!!selection}
-                        value={filter.kind}
-                        onChange={e => set('kind', e.target.value)}
-                      >
-                        {Object.entries({
-                          all: '全部',
-                          expense: '消费支出',
-                          income: '收入',
-                          refund: '退款',
-                          transfer: '转账',
-                        }).map(([v, n]) => (
-                          <option key={v} value={v}>
-                            {n}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label>
-                      {tr('开始日期')}
-                      <DateField type="date" value={filter.from} onChange={v => set('from', v)} />
-                    </label>
-                    <label>
-                      {tr('结束日期')}
-                      <DateField type="date" value={filter.to} onChange={v => set('to', v)} />
-                    </label>
-                    <label>
-                      {tr('最低金额（元）')}
-                      <Input
-                        inputMode="decimal"
-                        value={filter.min}
-                        onChange={e => set('min', e.target.value)}
-                        placeholder={tr('不限')}
-                      />
-                    </label>
-                    <label>
-                      {tr('最高金额（元）')}
-                      <Input
-                        inputMode="decimal"
-                        value={filter.max}
-                        onChange={e => set('max', e.target.value)}
-                        placeholder={tr('不限')}
-                      />
-                    </label>
-                    <label>
-                      {tr('金额匹配位置')}
-                      <Select value={filter.amountScope} onChange={e => set('amountScope', e.target.value)}>
-                        <option value="order">{tr('整笔金额')}</option>
-                        <option value="item">{tr('明细小计')}</option>
-                        <option value="either">{tr('整笔或明细')}</option>
-                      </Select>
-                    </label>
-                    <label>
-                      {tr('记录状态')}
-                      <Select
-                        disabled={!!selection}
-                        value={filter.state}
-                        onChange={e => set('state', e.target.value)}
-                      >
-                        <option value="active">{tr('正常记录')}</option>
-                        <option value="trash">{tr('已删除的交易')}</option>
-                        <option value="all">{tr('包含已删除交易')}</option>
-                      </Select>
-                    </label>
-                    {
+                <div className={s.toolbar}>
+                  <details className={s.filters}>
+                    <summary>
+                      <SlidersHorizontal size={16} /> {tr('筛选条件')}
+                    </summary>
+                    <div className={s.fields}>
                       <label>
-                        {tr('资金账户')}
-                        <Select value={account} onChange={e => setAccount(e.target.value)}>
-                          <option value="all">{tr('全部账户')}</option>
-                          {accounts.map(a => (
-                            <option
-                              key={a.id}
-                              value={a.id}
-                              data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
-                            >
-                              {a.book_name} · {a.name}
-                              {a.holder ? ' · ' + a.holder : ''}
-                              {a.suffix ? ' · ' + a.suffix : ''}
+                        {tr('搜索范围')}
+                        <FormSelect
+                          value={scope}
+                          onChange={next => {
+                            setScope(next);
+                            setData(null);
+                          }}
+                        >
+                          <option value="all">{tr('全部可访问账本')}</option>
+                          {books.map(b => (
+                            <option value={b.id} key={b.id} data-icon={b.icon || '📒'}>
+                              {b.name}
+                              {b.id === book ? tr('（当前）') : ''}
                             </option>
                           ))}
-                        </Select>
+                        </FormSelect>
                       </label>
-                    }
-                  </div>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    onClick={() => {
-                      setFilter({
-                        ...initial,
-                        ...(selection ? { entity: 'transaction', kind: selection.kind || 'expense' } : {}),
-                      });
-                      setScope('all');
-                      setAccount('all');
-                      setQuery('');
-                      setData(null);
-                      setError('');
-                    }}
+                      <label>
+                        {tr('内容类型')}
+                        <FormSelect
+                          disabled={!!selection}
+                          value={filter.entity}
+                          onChange={next => set('entity', next)}
+                        >
+                          {Object.entries(kinds).map(([v, n]) => (
+                            <option key={v} value={v}>
+                              {tr(n)}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </label>
+                    </div>
+                    <div className={s.fields}>
+                      <label>
+                        {tr('订单搜索字段')}
+                        <FormSelect value={filter.field} onChange={next => set('field', next)}>
+                          {Object.entries({
+                            all: '全部字段',
+                            payee: '商家',
+                            product: '商品摘要',
+                            item: '商品 / 菜品明细',
+                            order: '订单号 / 流水号',
+                            note: '备注',
+                            platform: '商城 / 平台',
+                          }).map(([v, n]) => (
+                            <option key={v} value={v}>
+                              {n}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </label>
+                      <label>
+                        {tr('分类')}
+                        <FormSelect value={filter.category} onChange={next => set('category', next)}>
+                          <option value="">{tr('全部分类')}</option>
+                          {categories.map(c => (
+                            <option key={c.name} value={c.name} data-icon={c.icon}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </label>
+                      <label>
+                        {tr('收支类型')}
+                        <FormSelect
+                          disabled={!!selection}
+                          value={filter.kind}
+                          onChange={next => set('kind', next)}
+                        >
+                          {Object.entries({
+                            all: '全部',
+                            expense: '消费支出',
+                            income: '收入',
+                            refund: '退款',
+                            transfer: '转账',
+                          }).map(([v, n]) => (
+                            <option key={v} value={v}>
+                              {n}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </label>
+                      <label>
+                        {tr('开始日期')}
+                        <DateField type="date" value={filter.from} onChange={v => set('from', v)} />
+                      </label>
+                      <label>
+                        {tr('结束日期')}
+                        <DateField type="date" value={filter.to} onChange={v => set('to', v)} />
+                      </label>
+                      <label>
+                        {tr('最低金额（元）')}
+                        <Input
+                          inputMode="decimal"
+                          value={filter.min}
+                          onChange={e => set('min', e.target.value)}
+                          placeholder={tr('不限')}
+                        />
+                      </label>
+                      <label>
+                        {tr('最高金额（元）')}
+                        <Input
+                          inputMode="decimal"
+                          value={filter.max}
+                          onChange={e => set('max', e.target.value)}
+                          placeholder={tr('不限')}
+                        />
+                      </label>
+                      <label>
+                        {tr('金额匹配位置')}
+                        <FormSelect value={filter.amountScope} onChange={next => set('amountScope', next)}>
+                          <option value="order">{tr('整笔金额')}</option>
+                          <option value="item">{tr('明细小计')}</option>
+                          <option value="either">{tr('整笔或明细')}</option>
+                        </FormSelect>
+                      </label>
+                      <label>
+                        {tr('记录状态')}
+                        <FormSelect
+                          disabled={!!selection}
+                          value={filter.state}
+                          onChange={next => set('state', next)}
+                        >
+                          <option value="active">{tr('正常记录')}</option>
+                          <option value="trash">{tr('已删除的交易')}</option>
+                          <option value="all">{tr('包含已删除交易')}</option>
+                        </FormSelect>
+                      </label>
+                      {
+                        <label>
+                          {tr('资金账户')}
+                          <FormSelect value={account} onChange={next => setAccount(next)}>
+                            <option value="all">{tr('全部账户')}</option>
+                            {accounts.map(a => (
+                              <option
+                                key={a.id}
+                                value={a.id}
+                                data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                              >
+                                {a.book_name} · {a.name}
+                                {a.holder ? ' · ' + a.holder : ''}
+                                {a.suffix ? ' · ' + a.suffix : ''}
+                              </option>
+                            ))}
+                          </FormSelect>
+                        </label>
+                      }
+                    </div>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      onClick={() => {
+                        setFilter({
+                          ...initial,
+                          ...(selection ? { entity: 'transaction', kind: selection.kind || 'expense' } : {}),
+                        });
+                        setScope('all');
+                        setAccount('all');
+                        setQuery('');
+                        setData(null);
+                        setError('');
+                      }}
+                    >
+                      {tr('清空条件')}
+                    </Button>
+                    <p className={s.muted}>
+                      {tr(
+                        '空格分隔多个关键词时须全部命中；精确匹配不区分英文字母大小写。日期、金额等条件只返回具有对应字段的内容。明细展示在所属订单下，不重复统计为一笔交易。',
+                      )}
+                    </p>
+                  </details>
+                  <FormSelect
+                    aria-label={tr('搜索结果排序')}
+                    value={filter.sort}
+                    onChange={next => set('sort', next)}
                   >
-                    {tr('清空条件')}
-                  </Button>
-                  <p className={s.muted}>
-                    {tr(
-                      '空格分隔多个关键词时须全部命中；精确匹配不区分英文字母大小写。日期、金额等条件只返回具有对应字段的内容。明细展示在所属订单下，不重复统计为一笔交易。',
-                    )}
-                  </p>
-                </details>
-                <Select
-                  aria-label={tr('搜索结果排序')}
-                  value={filter.sort}
-                  onChange={e => set('sort', e.target.value)}
-                >
-                  {[
-                    ['relevance', '相关结果优先'],
-                    ['date_desc', '时间 · 从新到旧'],
-                    ['date_asc', '时间 · 从旧到新'],
-                    ['amount_desc', '金额 · 从高到低'],
-                    ['amount_asc', '金额 · 从低到高'],
-                  ].map(([value, zh]) => (
-                    <option key={value} value={value}>
-                      {tr(zh)}
-                    </option>
-                  ))}
-                </Select>
+                    {[
+                      ['relevance', '相关结果优先'],
+                      ['date_desc', '时间 · 从新到旧'],
+                      ['date_asc', '时间 · 从旧到新'],
+                      ['amount_desc', '金额 · 从高到低'],
+                      ['amount_asc', '金额 · 从低到高'],
+                    ].map(([value, zh]) => (
+                      <option key={value} value={value}>
+                        {tr(zh)}
+                      </option>
+                    ))}
+                  </FormSelect>
+                </div>
               </form>
               <p className={s.muted}>
                 {tr('当前范围：')}
@@ -517,10 +520,10 @@ export function GlobalSearch({
                       </small>
                     ))}
                   </p>
-                  {data.totals && (
+                  {data.groups.transaction > 0 && data.totals && (
                     <p className={s.muted}>
-                      {tr('匹配支出')} {formatMoney(data.totals.expense)} · {tr('退款 / 返现')}{' '}
-                      {formatMoney(data.totals.refund)} · {tr('净支出')}{' '}
+                      {tr('交易结果合计')} · {tr('匹配支出')} {formatMoney(data.totals.expense)} ·{' '}
+                      {tr('退款 / 返现')} {formatMoney(data.totals.refund)} · {tr('净支出')}{' '}
                       {formatMoney(data.totals.expense - data.totals.refund)}
                     </p>
                   )}

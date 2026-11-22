@@ -282,7 +282,7 @@ export function DraftReview({
               {tr('← 返回草稿列表')}
             </button>
           ) : (
-            <p className={styles.muted}>{tr('选择一笔草稿，核对或补充完整信息')}</p>
+            !incomplete.length && <p className={styles.muted}>{tr('选择一笔草稿，核对或补充完整信息')}</p>
           )}
           {(current ? [current] : []).map(d => {
             const i = drafts.findIndex(r => r.id === d.id);

@@ -1,0 +1,17 @@
+.recipient {
+  min-width: 0;
+}
+.recipient label {
+  margin: 0;
+}
+.hint,
+.error {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+.hint {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}

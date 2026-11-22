@@ -22,7 +22,6 @@
   color: var(--danger);
 }
 
-.accountMetrics,
 .filteredSummary,
 .accountSourceGrid,
 .assetChartGrid {
@@ -31,17 +30,14 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   margin-block: var(--space-4);
 }
-.accountMetrics,
 .filteredSummary {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
 }
-.accountMetrics small,
 .filteredSummary span {
   display: grid;
   gap: var(--space-2);
   color: var(--muted);
 }
-.accountMetrics h2,
 .filteredSummary strong {
   text-align: end;
   font-variant-numeric: tabular-nums;

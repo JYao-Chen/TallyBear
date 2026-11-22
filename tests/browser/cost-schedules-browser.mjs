@@ -66,7 +66,11 @@ try {
     await surface.getByRole('button', { name: '新建周期计划', exact: true }).click();
     await surface.getByLabel('名称', { exact: true }).fill('季度房租');
     await surface.getByLabel('首次付款日').fill('2026-10-15');
-    await surface.getByLabel('参与家庭').selectOption(s.family_id);
+    await surface.getByRole('button', { name: /^参与家庭:/ }).click();
+    await page
+      .getByRole('dialog', { name: '参与家庭', exact: true })
+      .getByRole('button', { name: '周期测试家庭', exact: true })
+      .click();
     await surface.getByLabel('参与人', { exact: true }).check();
     await surface.getByLabel('付款人', { exact: true }).fill('2900');
     await surface.locator('input[type=number]').last().fill('1400');

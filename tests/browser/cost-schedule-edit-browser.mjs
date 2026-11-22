@@ -48,10 +48,14 @@ try {
       .getByRole('button', { name: '编辑计划', exact: true })
       .click();
     await surface.getByLabel('首次付款日').fill('2026-10-15');
-    await surface.getByLabel('结束规则').selectOption('limited');
+    await surface.getByRole('button', { name: /^结束规则:/ }).click();
+    await page
+      .getByRole('dialog', { name: '结束规则', exact: true })
+      .getByRole('button', { name: '指定总期数', exact: true })
+      .click();
     await surface.getByLabel('总期数（含已处理）').fill('5');
     await surface.getByText(/覆盖结束日（不含当天）：2028-01-15/).waitFor();
-    await surface.getByLabel('结束规则').scrollIntoViewIfNeeded();
+    await surface.getByRole('button', { name: /^结束规则:/ }).scrollIntoViewIfNeeded();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
     await page.screenshot({ path: `${output}/${width}-edit.png`, animations: 'disabled' });
     await surface.getByRole('button', { name: '保存计划修改', exact: true }).click();

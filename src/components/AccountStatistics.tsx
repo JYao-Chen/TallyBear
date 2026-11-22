@@ -1,8 +1,7 @@
 'use client';
 import s from './AccountStatistics.module.css';
-import { Card, EmptyState, Money } from '@/ui';
-import { useEffect, useState } from 'react';
-import { Landmark, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Card, EmptyState } from '@/ui';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PagedList } from './PagedList';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 import { FinanceChart } from './InteractiveFinanceChart';
@@ -53,7 +52,9 @@ export function AccountStatistics({
   scopeLabel,
   book,
   onChanged,
+  children,
 }: {
+  children: (summary: Data['summary'] | undefined) => ReactNode;
   month: string;
   revision: unknown;
   scope: string;
@@ -97,37 +98,11 @@ export function AccountStatistics({
     drill = personal && book ? { books: [book], scope: 'personal_wallet' as const } : {};
   return (
     <>
-      <div className={s.panelTitle}>
-        <h2>{scopeLabel}</h2>
-        <small>{personal ? tr('跨全部账本') : tr('家庭共同资产')}</small>
-      </div>
+      {children(data?.summary)}
       {error && (
         <p className={s.error} role="alert">
           {tr(error)}
         </p>
-      )}
-      {data && (
-        <section className={s.accountMetrics}>
-          {[
-            [Landmark, '银行存款', data.summary.bankDeposits],
-            [Wallet, '零钱与现金', data.summary.walletAndCash],
-            [ArrowUpRight, '负债', data.summary.liabilities],
-            [ArrowDownLeft, '当前资产净值', data.summary.netAssets],
-          ].map(([Icon, label, value]) => {
-            const I = Icon as typeof Wallet;
-            return (
-              <Card as="article" key={tr(String(label))}>
-                <small>
-                  <I size={18} />
-                  {tr(String(label))}
-                </small>
-                <h2>
-                  <Money value={Number(value)} />
-                </h2>
-              </Card>
-            );
-          })}
-        </section>
       )}
       <Card className={s.assetAnalysis}>
         <div className={s.panelTitle}>

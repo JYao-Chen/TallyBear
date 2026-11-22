@@ -1,16 +1,26 @@
-.installmentSummary,
 .dueEdit {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: var(--space-3);
 }
-.installmentSummary > div {
+.installmentSummary {
   display: grid;
-  gap: var(--space-1);
-  text-align: right;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
   padding: var(--space-3);
   background: var(--surface-sunk);
   border-radius: var(--radius-control);
+}
+@media (max-width: 600px) {
+  .installmentSummary {
+    grid-template-columns: 1fr;
+  }
+  .installmentSummary > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
 }
 .actions,
 .progressLabel,
@@ -61,4 +71,22 @@
   min-height: var(--touch);
   align-content: center;
   cursor: pointer;
+}
+
+.installmentCard summary,
+.installmentForm summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  list-style: none;
+  cursor: pointer;
+}
+.installmentCard summary::-webkit-details-marker,
+.installmentForm summary::-webkit-details-marker {
+  display: none;
+}
+.installmentCard details:not([open]) > summary svg,
+.installmentForm details:not([open]) > summary svg {
+  transform: rotate(-90deg);
 }
