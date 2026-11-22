@@ -25,3 +25,21 @@
 - Web API 与助手操作共用 `src/server/http/router.ts` 的 `dispatch(req, path, actor?)`。业务路由在 `src/server/http/routes/` 声明方法、路径和访问级别，按注册顺序匹配。账本成员、写入和所有者权限继续按资源检查。
 - `handler.ts` 统一检查部署币种、Origin、身份和请求体。普通 JSON 按实际读取的字节数限 35,000,000 字节。助手、对话和草稿的图片 JSON 允许更大请求，收据上传保留原始流。
 - `errors.ts` 保留原有错误文案和 HTTP 状态，并返回 `code`。401、403、404、409、400、413、429、500 分别对应 `unauthorized`、`forbidden`、`not_found`、`conflict`、`validation`、`too_large`、`rate_limited`、`internal`。现有 410 附件过期响应使用 `not_found`，上游 502、503 使用 `internal`。
+
+## 2026-11-22 第二轮合入与助手分级
+
+- 第二轮三项 Codex 任务（`api-split`、`stats-domain`、`fixes-a`）分三个提交合入（555052e、cd0b674、76b36ed）。合并冲突在 `scripts/test-db.mjs`（测试键合并）与 `tests/stats-family-db.test.ts`（改用 `dispatch`）。
+- `stats-domain` 的统计金额改为整数分。其余接口里的 `amount::float8` 是 bigint 分转 float8，2^53 以内无精度损失，保留不改。
+- 迁移 0004：空库路径补 `ai_queue_settings(1,2)` 默认行（旧 `schema.sql` 有插入，schema-only baseline 带不过来；后台任务设置页在空库上 500）。
+- `tb-assistant-risk`（迁移 0006）：146 个助手操作分 read 51 / write 37 / confirm 58；confirm 级由服务端拦截，模型调用 `execute_action` 只会留下待确认卡片。`assistant_action_log` 记录成功与失败（参数过滤密钥类字段），新记账、修改、删除可撤销，账目已变动时 409。顺带修正第二轮遗留：助手取消/重试任务返回 404。
+- 测试与浏览器脚本插入会话改存 sha256 摘要；截图脚本按新界面（个人资料页签、个人画像栏目、草稿先选中）更新，中英文 × 电脑/手机 84 张全部跑通。
+- 首页记录区去掉周期与排序（留在流水页），顶栏栏目名与标题相同时只显示一个。
+
+验证（dev-linux 工作区快照）：tsc、eslint、prettier 通过；`npm test` 398 通过 17 跳过；`test:db` 19 通过 2 跳过；`test:smoke` 34 通过 30 跳过；构建通过；截图脚本退出 0。
+
+## 2026-11-22 上线前演练（生产备份副本）
+
+- 03:30 生产备份恢复为两份：旧库保持原结构给 main `4487483` 的构建用，新库跑 `migrate.mjs`（0001 legacy，0002–0006 applied）给 `1f0e61b` 的构建用。
+- 两个构建同时运行，按每位用户 × 2026 年各月及全年区间请求账本报表（默认、按付款日、个人消费、个人钱包）、资产报表、活动、家庭总览，共 242 个请求逐字段比较。
+- 差异全部可解释：①资金流 `transferOut` 不再包含家庭钱包缴款（缴款单列，阶段 1 的口径调整）；②个人消费不再计入家庭钱包付款的分摊支出（家庭钱包支出归家庭共同费用）；③家庭总览为新接口；④资产报表来源列表排序和代表对方名称变化，按类别、金额、笔数比较完全一致。其余请求结果一致。
+- 比较脚本与结果留在开发机临时目录（含真实数据，不入库），上线后删除。
