@@ -1,4 +1,10 @@
-import { categoryPartsSql, periodCategoryPartsSql } from './item-category-sql';
+import {
+  consumptionRows,
+  claimRecipient,
+  publicPageRow,
+  signedCategoryAmount,
+} from './domain/stats/projection';
+import { categoryPartsSql } from './item-category-sql';
 import { claimBookVisibility } from './claim-visibility';
 import { detailOrder, detailSorts } from '@/lib/detail-sort';
 import { unifiedExpenseSource } from './unified-expenses';
@@ -10,7 +16,7 @@ import { textMatch } from './search-match';
 import { accountLabel } from '@/lib/accounts';
 import { z } from 'zod';
 import { walletFunds } from './wallet-funds';
-import { db } from './db';
+import { db, transaction } from './db';
 import { Failure } from './access';
 const date = z
   .string()
@@ -135,9 +141,8 @@ export function reportFilter(
   if (params.get('view') === 'expenses') where += " AND t.kind<>'transfer'";
   return { input, values, where, categoryPredicate };
 }
-const signedCategoryAmount = "CASE WHEN kind='refund' THEN -1 ELSE 1 END*(p->>'amount')::numeric";
 const projection =
-  "t.family_movement_id,t.movement_family_id,t.movement_status,t.book_id,b.name AS book_name,t.scene,t.title,t.id,t.event_id,t.account_id,t.target_id,t.kind,t.amount::float8 AS amount,t.date,t.payee,t.category,t.note,t.external_id,t.created_at,t.updated_at,t.version,t.verification_reason,t.line_items,t.product,t.platform,t.order_id,t.occurred_at,t.refund_of,a.name AS account_name,a.type AS account_type,a.holder AS account_holder,a.institution AS account_institution,a.suffix AS account_suffix,a.ownership AS account_ownership,(SELECT json_build_object('name',dest.name,'type',dest.type,'holder',dest.holder,'institution',dest.institution,'suffix',dest.suffix,'ownership',dest.ownership) FROM accounts dest WHERE dest.id=t.target_id) AS target_account,(SELECT name FROM accounts dest WHERE dest.id=t.target_id) AS target_name,u.name AS creator_name" +
+  "t.family_movement_id,t.movement_family_id,t.movement_status,t.book_id,b.name AS book_name,t.scene,t.title,t.id,t.event_id,t.account_id,t.target_id,t.kind,t.amount::bigint AS amount,t.date,t.payee,t.category,t.note,t.external_id,t.created_at,t.updated_at,t.version,t.verification_reason,t.line_items,t.product,t.platform,t.order_id,t.occurred_at,t.refund_of,a.name AS account_name,a.type AS account_type,a.holder AS account_holder,a.institution AS account_institution,a.suffix AS account_suffix,a.ownership AS account_ownership,(SELECT json_build_object('name',dest.name,'type',dest.type,'holder',dest.holder,'institution',dest.institution,'suffix',dest.suffix,'ownership',dest.ownership) FROM accounts dest WHERE dest.id=t.target_id) AS target_account,(SELECT name FROM accounts dest WHERE dest.id=t.target_id) AS target_name,u.name AS creator_name" +
   `,(SELECT u.name FROM expense_claims ec JOIN users u ON u.id=ec.sender_id WHERE ec.event_id=COALESCE(t.event_id,t.id) AND ec.status='accepted' LIMIT 1) AS claim_sender_name,(SELECT u.name FROM expense_claims ec JOIN users u ON u.id=ec.recipient_id WHERE ec.event_id=COALESCE(t.event_id,t.id) AND ec.status='accepted' LIMIT 1) AS claim_recipient_name`;
 const joins =
   'ledger_source t JOIN books b ON b.id=t.book_id LEFT JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by';
@@ -159,26 +164,31 @@ async function reportResult(
   source = movementReportSource,
   user?: string,
   unified = true,
+  owner?: string,
 ) {
   const costs = unified
     ? await unifiedExpenseSource(values[0] as string[], input.from, input.to, values, source)
     : null;
   if (costs) source = costs.source;
-  const categoryFields = `,classification.parts AS category_parts,classification.matched_amount AS matched_amount`;
-  const partsSql = costs ? periodCategoryPartsSql() : categoryPartsSql();
-  const fields =
-    (costs
-      ? projection +
-        ',t.cost_project_id,t.cost_period_end,t.cost_row_key,t.cost_basis_amount,t.cost_basis_start,t.cost_basis_end,t.actual_amount::float8 AS actual_amount'
-      : projection) + categoryFields;
-  const key = costs
-    ? 'COALESCE(t.cost_row_key,COALESCE(t.event_id,t.id)::text)'
-    : 'COALESCE(t.event_id,t.id)::text';
+  const fields = costs
+    ? projection +
+      ',t.cost_project_id,t.cost_period_end,t.cost_row_key,t.cost_basis_amount,t.cost_basis_start,t.cost_basis_end,t.actual_amount'
+    : projection;
+  const rows = consumptionRows({ fields, joins, where, categoryPredicate, period: !!costs, owner });
   values.push(input.limit, input.offset);
-  const result = await db.query(
-    `${source}, filtered AS MATERIALIZED (SELECT DISTINCT ON (${key}) ${fields} FROM ${joins} CROSS JOIN LATERAL (SELECT COALESCE(jsonb_agg(p),'[]'::jsonb) AS parts,COALESCE(sum((p->>'amount')::numeric),0) AS matched_amount FROM jsonb_array_elements(${partsSql}) p WHERE ${categoryPredicate}) classification WHERE ${where} ORDER BY ${key},t.created_at,t.id), page AS (SELECT * FROM filtered ORDER BY ${detailOrder(input.sort, 'matched_amount', 'id', true, '', !!costs)}${costs ? ',cost_row_key' : ''} LIMIT $${values.length - 1} OFFSET $${values.length}), categories AS (SELECT p->>'category' AS name,sum(${signedCategoryAmount})::float8 AS value FROM filtered CROSS JOIN LATERAL jsonb_array_elements(category_parts) p WHERE kind IN ('expense','refund') GROUP BY 1), daily_entries AS (SELECT f.kind,d.day::date AS date,${costs ? "CASE WHEN f.cost_row_key IS NOT NULL THEN (SELECT sum(floor((p->>'basis_amount')::numeric/(f.cost_basis_end-f.cost_basis_start))+CASE WHEN d.day::date-f.cost_basis_start<mod((p->>'basis_amount')::numeric,(f.cost_basis_end-f.cost_basis_start)::numeric) THEN 1 ELSE 0 END) FROM jsonb_array_elements(f.category_parts) p) ELSE f.matched_amount END" : 'f.matched_amount'} AS amount FROM filtered f CROSS JOIN LATERAL generate_series(f.date::timestamp,${costs ? 'COALESCE(f.cost_period_end-1,f.date)::timestamp' : 'f.date::timestamp'},interval '1 day') d(day)), daily AS (SELECT to_char(date,'YYYY-MM-DD') AS date,COALESCE(sum(amount) FILTER(WHERE kind='income'),0)::float8 AS income,COALESCE(sum(CASE WHEN kind='refund' THEN -amount ELSE amount END) FILTER(WHERE kind IN ('expense','refund')),0)::float8 AS expense FROM daily_entries GROUP BY date) SELECT json_build_object('accountingScope',(SELECT CASE WHEN personal THEN 'personal' ELSE 'consolidated' END FROM personal_scope),'rows',(SELECT COALESCE(json_agg(page),'[]'::json) FROM page),'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(matched_amount) FILTER(WHERE kind='income'),0),'expense',COALESCE(sum(matched_amount) FILTER(WHERE kind='expense'),0),'refund',COALESCE(sum(matched_amount) FILTER(WHERE kind='refund'),0)) FROM filtered),'categories',(SELECT COALESCE(json_agg(categories ORDER BY value DESC),'[]'::json) FROM categories),'daily',(SELECT COALESCE(json_agg(daily ORDER BY date),'[]'::json) FROM daily),'groups',(SELECT COALESCE(json_agg(g),'[]'::json) FROM (SELECT dimension,name,sum(CASE WHEN kind='income' THEN matched_amount ELSE 0 END)::float8 AS income,sum(CASE WHEN kind='expense' THEN matched_amount WHEN kind='refund' THEN -matched_amount ELSE 0 END)::float8 AS expense FROM filtered CROSS JOIN LATERAL (VALUES ('payee',payee),('product',product),('account',COALESCE(account_name,'')),('platform',platform)) v(dimension,name) GROUP BY dimension,name UNION ALL SELECT 'category',p->>'category',sum(CASE WHEN kind='income' THEN (p->>'amount')::numeric ELSE 0 END)::float8,sum(CASE WHEN kind='expense' THEN 1 WHEN kind='refund' THEN -1 ELSE 0 END*(p->>'amount')::numeric)::float8 FROM filtered CROSS JOIN LATERAL jsonb_array_elements(category_parts) p GROUP BY 2 ORDER BY dimension,expense DESC,name) g)) AS result`,
-    values,
-  );
+  const sql = `${source}, filtered AS MATERIALIZED (${rows}), page AS (SELECT * FROM filtered ORDER BY ${detailOrder(input.sort, 'matched_amount', 'id', true, '', !!costs)}${costs ? ',cost_row_key' : ''} LIMIT $${values.length - 1} OFFSET $${values.length}), categories AS (SELECT p->>'category' AS name,sum(${signedCategoryAmount})::bigint AS value FROM filtered CROSS JOIN LATERAL jsonb_array_elements(category_parts) p WHERE kind IN ('expense','refund') GROUP BY 1), daily_entries AS (SELECT f.kind,d.day::date AS date,${costs ? "CASE WHEN f.cost_row_key IS NOT NULL THEN (SELECT sum(floor((p->>'basis_amount')::numeric/(f.cost_basis_end-f.cost_basis_start))+CASE WHEN d.day::date-f.cost_basis_start<mod((p->>'basis_amount')::numeric,(f.cost_basis_end-f.cost_basis_start)::numeric) THEN 1 ELSE 0 END) FROM jsonb_array_elements(f.category_parts) p) ELSE f.matched_amount END" : 'f.matched_amount'} AS amount FROM filtered f CROSS JOIN LATERAL generate_series(f.date::timestamp,${costs ? 'COALESCE(f.cost_period_end-1,f.date)::timestamp' : 'f.date::timestamp'},interval '1 day') d(day)), daily AS (SELECT to_char(date,'YYYY-MM-DD') AS date,COALESCE(sum(amount) FILTER(WHERE kind='income'),0)::bigint AS income,COALESCE(sum(CASE WHEN kind='refund' THEN -amount ELSE amount END) FILTER(WHERE kind IN ('expense','refund')),0)::bigint AS expense FROM daily_entries GROUP BY date) SELECT json_build_object('accountingScope',(SELECT CASE WHEN personal THEN 'personal' ELSE 'consolidated' END FROM personal_scope),'rows',(SELECT COALESCE(json_agg(${publicPageRow}),'[]'::json) FROM page),'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(matched_amount) FILTER(WHERE kind='income'),0),'expense',COALESCE(sum(matched_amount) FILTER(WHERE kind='expense'),0),'refund',COALESCE(sum(matched_amount) FILTER(WHERE kind='refund'),0)) FROM filtered),'categories',(SELECT COALESCE(json_agg(categories ORDER BY value DESC),'[]'::json) FROM categories),'daily',(SELECT COALESCE(json_agg(daily ORDER BY date),'[]'::json) FROM daily),'groups',(SELECT COALESCE(json_agg(g),'[]'::json) FROM (SELECT dimension,name,sum(CASE WHEN kind='income' THEN matched_amount ELSE 0 END)::bigint AS income,sum(CASE WHEN kind='expense' THEN matched_amount WHEN kind='refund' THEN -matched_amount ELSE 0 END)::bigint AS expense FROM filtered CROSS JOIN LATERAL (VALUES ('payee',payee),('product',product),('account',COALESCE(account_name,'')),('platform',platform)) v(dimension,name) GROUP BY dimension,name UNION ALL SELECT 'category',p->>'category',sum(CASE WHEN kind='income' THEN (p->>'amount')::numeric ELSE 0 END)::bigint,sum(CASE WHEN kind='expense' THEN 1 WHEN kind='refund' THEN -1 ELSE 0 END*(p->>'amount')::numeric)::bigint FROM filtered CROSS JOIN LATERAL jsonb_array_elements(category_parts) p GROUP BY 2 ORDER BY dimension,expense DESC,name) g)) AS result`;
+  // PostgreSQL overestimates the JSON and day expansions. Compiling this
+  // interactive aggregate takes longer than executing it for a full month.
+  const result = await transaction(async c => {
+    const {
+      rows: [previous],
+    } = await c.query('SHOW jit');
+    await c.query('SET LOCAL jit = off');
+    const aggregate = await c.query(sql, values);
+    await c.query("SELECT set_config('jit',$1,true)", [previous.jit]);
+    return aggregate;
+  });
+
   const data = result.rows[0].result;
   if (costs) {
     data.basis = 'period_expense';
@@ -204,7 +214,6 @@ export async function report(book: string | string[], params: URLSearchParams, u
 export async function personalWalletReport(user: string, params: URLSearchParams) {
   return reportResult(await personalWalletFilter(user, params), personalMovementReportSource, user, false);
 }
-const claimRecipient = `COALESCE((SELECT ec.recipient_id FROM expense_claims ec WHERE ec.event_id=COALESCE(t.event_id,t.id) AND ec.status='accepted' LIMIT 1),(SELECT ec.recipient_id FROM expense_claim_links el JOIN expense_claims ec ON ec.id=el.claim_id WHERE el.active AND ec.status='accepted' AND (el.target_id=t.id OR el.source_id=t.id) LIMIT 1))`;
 export async function personalExpenseReport(user: string, params: URLSearchParams, bookIds?: string[]) {
   const accessible = (
     await db.query('SELECT book_id FROM members WHERE user_id=$1 ORDER BY book_id', [user])
@@ -214,8 +223,8 @@ export async function personalExpenseReport(user: string, params: URLSearchParam
   const filter = reportFilter(selected, params, true, true);
   filter.values.push(user);
   const owner = '$' + filter.values.length;
-  filter.where += ` AND t.kind<>'transfer' AND (CASE WHEN t.cost_row_key IS NOT NULL THEN t.cost_owner_id=${owner} ELSE COALESCE(${claimRecipient},a.owner_id,CASE WHEN t.account_id IS NULL THEN t.created_by END)=${owner} END)`;
-  const result = await reportResult(filter, personalMovementReportSource, user, true);
+  filter.where += " AND t.kind<>'transfer'";
+  const result = await reportResult(filter, personalMovementReportSource, user, true, owner);
   const contribution = await db.query(
     'SELECT COALESCE(sum(amount),0) AS total FROM family_contributions WHERE member_id=$1 AND date BETWEEN $2 AND $3',
     [user, filter.input.from, filter.input.to],

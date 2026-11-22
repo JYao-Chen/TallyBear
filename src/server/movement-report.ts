@@ -1,3 +1,4 @@
+import { movementKindSql } from './domain/stats/gift';
 import { deployment } from '@/lib/deployment';
 const sharedNoteLabel = deployment().language === 'en' ? 'Transfer note: ' : '转账留言：',
   privateNoteLabel = deployment().language === 'en' ? 'Private note: ' : '私人备注：';
@@ -7,7 +8,7 @@ const ledgerSource = `ledger_source AS (
  UNION ALL
  SELECT (jsonb_populate_record(NULL::transactions,jsonb_build_object(
  'id',v.id,'book_id',l.book_id,'created_by',l.user_id,'account_id',CASE WHEN v.sender_id=l.user_id THEN v.source_id ELSE v.target_id END,
- 'kind',CASE WHEN v.status='confirmed' AND v.kind='gift' AND (SELECT personal FROM personal_scope) THEN CASE WHEN v.sender_id=l.user_id THEN 'expense' ELSE 'income' END ELSE 'transfer' END,
+ 'kind',${movementKindSql('ledger')},
  'amount',v.amount,'date',v.date,'title',COALESCE((c.rule->>'title')||' · ','')||COALESCE(NULLIF(d.title,''),CASE WHEN v.sender_id=l.user_id THEN '转给 '||COALESCE(r.name,'共同钱包') ELSE '收到 '||s.name||'的转账' END),
  'payee',CASE WHEN v.sender_id=l.user_id THEN COALESCE(r.name,'共同钱包') ELSE s.name END,
  'category',COALESCE(c.rule->>'category',CASE WHEN v.kind='gift' THEN '人情往来' ELSE '家庭转账' END),'note',concat_ws(E'\\n',CASE WHEN NULLIF(v.note,'') IS NOT NULL THEN '${sharedNoteLabel}'||v.note END,CASE WHEN NULLIF(d.note,'') IS NOT NULL AND d.note IS DISTINCT FROM v.note THEN '${privateNoteLabel}'||d.note END),'platform',COALESCE(d.platform,v.platform),'external_id',COALESCE(d.external_id,v.external_id),

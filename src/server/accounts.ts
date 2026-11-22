@@ -1,11 +1,9 @@
+import { balanceCentsSql, walletIdentity } from './domain/stats/wallets';
 import { recordingDate, validEntryDate } from '@/lib/entry-time';
-import { categoryAmounts } from '@/lib/item-categories';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { PoolClient } from 'pg';
 import { db, transaction } from './db';
-import { walletFunds } from './wallet-funds';
-import { fundRowsPage } from '@/lib/wallet-funds';
 import { Failure } from './access';
 import type { Entry } from './ledger';
 export const accountMetadata = {
@@ -26,12 +24,11 @@ const amount = z.number().int().min(-100000000000).max(100000000000);
 export const accountAccess = (userParam: string) =>
   `(a.owner_id=${userParam} OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=${userParam}))`;
 // A reused transaction has several book appearances, but only one asset movement.
-export const accountBalance = `(a.opening+COALESCE((SELECT sum(CASE WHEN v.target_id=a.id THEN v.amount ELSE -v.amount END) FROM family_movements v WHERE v.status='confirmed' AND (v.source_id=a.id OR v.target_id=a.id)),0)+COALESCE((SELECT sum(flow) FROM (SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) CASE WHEN t.kind IN ('income','refund') THEN t.amount ELSE -t.amount END AS flow FROM transactions t WHERE t.account_id=a.id AND NOT t.deleted ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id) outgoing),0)+COALESCE((SELECT sum(amount) FROM (SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.amount FROM transactions t WHERE t.target_id=a.id AND NOT t.deleted ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id) incoming),0)+COALESCE((SELECT sum(j.amount) FROM account_adjustments j WHERE j.account_id=a.id),0))::float8`;
-const identity = `a.id,a.name,a.type,a.holder,a.institution,a.suffix,a.ownership,a.archived,a.version,a.owner_id,a.family_id,COALESCE(f.name,u.name) AS owner_name`;
+export const accountBalance = `to_json(${balanceCentsSql})`;
 export async function listAssets(user: string) {
   return (
     await db.query(
-      `SELECT ${identity},a.opening::float8 AS opening,${accountBalance} AS balance,true AS usable FROM accounts a LEFT JOIN users u ON u.id=a.owner_id LEFT JOIN families f ON f.id=a.family_id WHERE ${accountAccess('$1')} ORDER BY a.archived,a.family_id NULLS FIRST,a.name,a.id`,
+      `SELECT ${walletIdentity},to_json(a.opening) AS opening,${accountBalance} AS balance,true AS usable FROM accounts a LEFT JOIN users u ON u.id=a.owner_id LEFT JOIN families f ON f.id=a.family_id WHERE ${accountAccess('$1')} ORDER BY a.archived,a.family_id NULLS FIRST,a.name,a.id`,
       [user],
     )
   ).rows;
@@ -46,7 +43,7 @@ export function selectFamilyAssets<T extends { family_id?: string | null }>(acco
 export async function listAccounts(book: string, user: string) {
   return (
     await db.query(
-      `SELECT ${identity},${accountAccess('$2')} AS usable,CASE WHEN ${accountAccess('$2')} THEN a.opening::float8 END AS opening,CASE WHEN ${accountAccess('$2')} THEN ${accountBalance} END AS balance FROM accounts a LEFT JOIN users u ON u.id=a.owner_id LEFT JOIN families f ON f.id=a.family_id WHERE ${accountAccess('$2')} OR EXISTS(SELECT 1 FROM transactions t WHERE t.book_id=$1 AND (t.account_id=a.id OR t.target_id=a.id)) ORDER BY a.archived,a.name,a.id`,
+      `SELECT ${walletIdentity},${accountAccess('$2')} AS usable,CASE WHEN ${accountAccess('$2')} THEN to_json(a.opening) END AS opening,CASE WHEN ${accountAccess('$2')} THEN ${accountBalance} END AS balance FROM accounts a LEFT JOIN users u ON u.id=a.owner_id LEFT JOIN families f ON f.id=a.family_id WHERE ${accountAccess('$2')} OR EXISTS(SELECT 1 FROM transactions t WHERE t.book_id=$1 AND (t.account_id=a.id OR t.target_id=a.id)) ORDER BY a.archived,a.name,a.id`,
       [book, user],
     )
   ).rows;
@@ -201,7 +198,7 @@ export async function accountHistory(user: string, id: string) {
       throw new Failure('没有此资产的管理权限', 403);
     return (
       await c.query(
-        'SELECT j.id,j.amount::float8 AS amount,j.note,j.created_at,j.effective_date::text,u.name AS creator FROM account_adjustments j JOIN users u ON u.id=j.created_by WHERE j.account_id=$1 ORDER BY j.effective_date DESC,j.created_at DESC LIMIT 100',
+        'SELECT j.id,to_json(j.amount) AS amount,j.note,j.created_at,j.effective_date::text,u.name AS creator FROM account_adjustments j JOIN users u ON u.id=j.created_by WHERE j.account_id=$1 ORDER BY j.effective_date DESC,j.created_at DESC LIMIT 100',
         [id],
       )
     ).rows;
@@ -229,153 +226,4 @@ export async function validateActiveAccounts(
     if (a.archived && !unchanged.includes(id)) throw new Failure('这个账户已归档，请恢复账户或选择其他账户');
   }
 }
-export async function accountReport(user: string, params: URLSearchParams) {
-  const date = z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .refine(v => !Number.isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v);
-  const p = z
-    .object({
-      from: date,
-      to: date,
-      owner: z.union([z.literal('personal'), z.string().uuid()]).default('personal'),
-      account: z.union([z.literal('all'), z.string().uuid()]).default('all'),
-    })
-    .parse(Object.fromEntries(params));
-  if (p.to < p.from) throw new Failure('结束日期不能早于开始日期');
-  if (
-    p.owner !== 'personal' &&
-    !(await db.query('SELECT 1 FROM family_members WHERE family_id=$1 AND user_id=$2', [p.owner, user]))
-      .rowCount
-  )
-    throw new Failure('只有家庭成员可以查看家庭资产', 403);
-  const accessible = await listAssets(user);
-  const ownerAccounts =
-    p.owner === 'personal' ? selectPersonalAssets(accessible, user) : selectFamilyAssets(accessible, p.owner);
-  if (p.account !== 'all' && !ownerAccounts.some(a => a.id === p.account))
-    throw new Failure('没有此资产的查看权限', 403);
-  const accounts = p.account === 'all' ? ownerAccounts : ownerAccounts.filter(a => a.id === p.account);
-  const ids = accounts.map(a => a.id);
-  const flows = (
-    await db.query(
-      `WITH unique_entries AS(SELECT DISTINCT ON(COALESCE(event_id,id)) * FROM transactions WHERE NOT deleted AND (account_id=ANY($1::uuid[]) OR target_id=ANY($1::uuid[])) ORDER BY COALESCE(event_id,id),created_at,id) SELECT account_id,target_id,kind,amount::float8 AS amount,to_char(date,'YYYY-MM-DD') AS date,category,payee,line_items FROM unique_entries WHERE date BETWEEN $2::date AND $3::date`,
-      [ids, p.from, p.to],
-    )
-  ).rows;
-  const movements = (
-    await db.query(
-      "SELECT v.source_id,v.target_id,v.kind,v.amount::float8 AS amount,to_char(v.date,'YYYY-MM-DD') AS date,s.name AS sender_name,r.name AS recipient_name FROM family_movements v JOIN users s ON s.id=v.sender_id LEFT JOIN users r ON r.id=v.recipient_id WHERE v.status='confirmed' AND (v.source_id=ANY($1::uuid[]) OR v.target_id=ANY($1::uuid[])) AND v.date BETWEEN $2::date AND $3::date",
-      [ids, p.from, p.to],
-    )
-  ).rows;
-  for (const m of movements) {
-    if (m.kind === 'gift' && !(ids.includes(m.source_id) && ids.includes(m.target_id))) {
-      const outgoing = ids.includes(m.source_id);
-      flows.push({
-        account_id: outgoing ? m.source_id : m.target_id,
-        target_id: null,
-        kind: outgoing ? 'expense' : 'income',
-        amount: m.amount,
-        date: m.date,
-        category: '人情往来',
-        payee: outgoing ? m.recipient_name : m.sender_name,
-      });
-    } else
-      flows.push({
-        account_id: m.source_id,
-        target_id: m.target_id,
-        kind: 'transfer',
-        amount: m.amount,
-        date: m.date,
-        category: '',
-        payee: '',
-      });
-  }
-  for (const a of accounts) {
-    Object.assign(a, { income: 0, expense: 0, refund: 0, transferIn: 0, transferOut: 0 });
-    for (const t of flows) {
-      if (t.account_id === a.id) a[t.kind === 'transfer' ? 'transferOut' : t.kind] += t.amount;
-      if (t.target_id === a.id) a.transferIn += t.amount;
-    }
-  }
-  const sourceMap = new Map<string, any>();
-  for (const t of flows) {
-    if (t.kind === 'transfer') continue;
-    for (const part of categoryAmounts(t.line_items || [], t.amount, t.category)) {
-      const key = JSON.stringify([t.kind, part.category, t.payee]);
-      const s = sourceMap.get(key) || {
-        kind: t.kind,
-        category: part.category,
-        counterparty: t.payee || '',
-        amount: 0,
-        count: 0,
-      };
-      s.amount += part.amount;
-      s.count++;
-      sourceMap.set(key, s);
-    }
-  }
-  const dailyMap = new Map<string, { date: string; income: number; expense: number }>(),
-    categoryMap = new Map<string, number>();
-  for (const t of flows) {
-    if (t.kind === 'transfer') continue;
-    const day = dailyMap.get(t.date) || { date: t.date, income: 0, expense: 0 };
-    if (t.kind === 'income') day.income += t.amount;
-    else day.expense += t.kind === 'refund' ? -t.amount : t.amount;
-    dailyMap.set(t.date, day);
-    if (t.kind === 'expense' || t.kind === 'refund')
-      for (const part of categoryAmounts(t.line_items || [], t.amount, t.category))
-        categoryMap.set(
-          part.category,
-          (categoryMap.get(part.category) || 0) + (t.kind === 'refund' ? -part.amount : part.amount),
-        );
-  }
-  const credits = new Set(
-    (await db.query("SELECT id FROM accounts WHERE type='credit'")).rows.map(a => a.id),
-  );
-  const cashPaid = flows
-    .filter(
-      t =>
-        ids.includes(t.account_id) &&
-        !credits.has(t.account_id) &&
-        (t.kind === 'expense' || (t.kind === 'transfer' && credits.has(t.target_id))),
-    )
-    .reduce((n, t) => n + t.amount, 0);
-  const debtPurchases = flows
-    .filter(t => ids.includes(t.account_id) && credits.has(t.account_id) && t.kind === 'expense')
-    .reduce((n, t) => n + t.amount, 0);
-  const summary = {
-    cashPaid,
-    debtPurchases,
-    bankDeposits: accounts.filter(a => a.type === 'bank').reduce((n, a) => n + Math.max(0, a.balance), 0),
-    walletAndCash: accounts
-      .filter(a => ['wechat', 'alipay', 'cash'].includes(a.type))
-      .reduce((n, a) => n + Math.max(0, a.balance), 0),
-    assets: accounts.reduce((n, a) => n + Math.max(0, a.balance), 0),
-    liabilities: accounts.reduce((n, a) => n + Math.max(0, -a.balance), 0),
-    netAssets: accounts.reduce((n, a) => n + a.balance, 0),
-    income: accounts.reduce((n, a) => n + a.income, 0),
-    expense: accounts.reduce((n, a) => n + a.expense, 0),
-    refund: accounts.reduce((n, a) => n + a.refund, 0),
-  };
-  const allFunds = await walletFunds(accounts, p.from, p.to);
-  const funds = { summary: allFunds.summary, daily: allFunds.daily, ...fundRowsPage(allFunds.rows, params) };
-  return {
-    funds,
-    period: { from: p.from, to: p.to },
-    scope: p.owner,
-    accounts,
-    sources: [...sourceMap.values()].sort((a, b) => b.amount - a.amount),
-    daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
-    categories: [...categoryMap].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
-    ownershipGroups: [
-      {
-        ownership: p.owner,
-        count: accounts.length,
-        netAssets: summary.netAssets,
-        expense: summary.expense - summary.refund,
-      },
-    ],
-    summary,
-  };
-}
+export { accountReport } from './domain/stats/wallets';

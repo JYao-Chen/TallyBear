@@ -1,6 +1,9 @@
-// Mirrors categoryAmounts; reads existing JSON item details, never creates wallet movements.
+export function hasItemCategoriesSql(t: string) {
+  return `EXISTS(SELECT 1 FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'kind','item') NOT IN ('discount','fee') AND COALESCE((i->>'amount')::numeric,0)>=0 AND COALESCE(i->>'category','')<>'')`;
+}
+
 export function categoryPartsSql(t = 't', amount = t + '.amount') {
-  return `(SELECT CASE WHEN EXISTS(SELECT 1 FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'kind','item') NOT IN ('discount','fee') AND COALESCE((i->>'amount')::numeric,0)>=0 AND COALESCE(i->>'category','')<>'') THEN (
+  return `(SELECT CASE WHEN ${hasItemCategoriesSql(t)} THEN (
  WITH goods AS (SELECT COALESCE(NULLIF(i->>'category',''),${t}.category) COLLATE "C" AS category,sum(COALESCE((i->>'amount')::numeric,0)) AS weight
  FROM jsonb_array_elements(${t}.line_items) i WHERE COALESCE(i->>'kind','item') NOT IN ('discount','fee') AND COALESCE((i->>'amount')::numeric,0)>=0 GROUP BY 1), weights AS (
  SELECT g.category,g.weight+COALESCE((SELECT sum(COALESCE((i->>'amount')::numeric,0)) FROM jsonb_array_elements(${t}.line_items) i WHERE (COALESCE(i->>'kind','item') IN ('discount','fee') OR COALESCE((i->>'amount')::numeric,0)<0) AND i->>'category'=g.category),0) AS weight FROM goods g), shares AS (

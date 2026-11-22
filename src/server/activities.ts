@@ -1,3 +1,4 @@
+import { consumptionRows, publicPageRow, signedCategoryAmount } from './domain/stats/projection';
 import { categoryPartsSql } from './item-category-sql';
 import { claimBookVisibility } from './claim-visibility';
 import { detailOrder, detailSorts } from '@/lib/detail-sort';
@@ -27,7 +28,7 @@ const details = z
 export async function accessibleActivity(user: string, id: string) {
   const row = (
     await db.query(
-      `SELECT a.id,a.owner_id,a.family_id,a.name,a.category,a.description,to_char(a.starts_on,'YYYY-MM-DD') AS "startsOn",to_char(a.ends_on,'YYYY-MM-DD') AS "endsOn",a.budget::float8 AS budget,a.archived,
+      `SELECT a.id,a.owner_id,a.family_id,a.name,a.category,a.description,to_char(a.starts_on,'YYYY-MM-DD') AS "startsOn",to_char(a.ends_on,'YYYY-MM-DD') AS "endsOn",a.budget::bigint AS budget,a.archived,
  (a.owner_id=$2 OR f.owner_id=$2) AS editable,f.name AS "familyName"
  FROM activities a LEFT JOIN families f ON f.id=a.family_id
  WHERE a.id=$1 AND (a.family_id IS NULL AND a.owner_id=$2 OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=$2))`,
@@ -35,7 +36,7 @@ export async function accessibleActivity(user: string, id: string) {
     )
   ).rows[0];
   if (!row) throw new Failure('活动不存在或没有访问权限', 404);
-  return row;
+  return { ...row, budget: row.budget === null ? null : Number(row.budget) } as typeof row;
 }
 
 async function checkFamily(c: PoolClient, user: string, familyId: string | null) {
@@ -50,14 +51,14 @@ async function checkFamily(c: PoolClient, user: string, familyId: string | null)
 export async function listActivities(user: string) {
   return (
     await db.query(
-      `SELECT a.id,a.name,a.category,a.family_id AS "familyId",f.name AS "familyName",a.owner_id AS "ownerId",(a.owner_id=$1 OR f.owner_id=$1) AS editable,a.description,to_char(a.starts_on,'YYYY-MM-DD') AS "startsOn",to_char(a.ends_on,'YYYY-MM-DD') AS "endsOn",a.budget::float8 AS budget,a.archived,
+      `SELECT a.id,a.name,a.category,a.family_id AS "familyId",f.name AS "familyName",a.owner_id AS "ownerId",(a.owner_id=$1 OR f.owner_id=$1) AS editable,a.description,to_char(a.starts_on,'YYYY-MM-DD') AS "startsOn",to_char(a.ends_on,'YYYY-MM-DD') AS "endsOn",a.budget::bigint AS budget,a.archived,
  (SELECT count(DISTINCT COALESCE(t.event_id,t.id))::int FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$1 WHERE ae.activity_id=a.id AND (a.family_id IS NOT NULL OR ae.owner_id=$1) AND NOT t.deleted AND ${claimBookVisibility()}) AS "entryCount"
  FROM activities a LEFT JOIN families f ON f.id=a.family_id
  WHERE a.family_id IS NULL AND a.owner_id=$1 OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=$1)
  ORDER BY a.archived,a.created_at DESC`,
       [user],
     )
-  ).rows;
+  ).rows.map(row => ({ ...row, budget: row.budget === null ? null : Number(row.budget) }));
 }
 
 export async function changeActivity(user: string, method: string, body: unknown) {
@@ -229,18 +230,22 @@ export async function activityReport(user: string, id: string, params: URLSearch
   values.push(filter.limit, filter.offset);
   const limit = '$' + (values.length - 1),
     offset = '$' + values.length;
+  const rows = consumptionRows({
+    fields:
+      "t.id,t.book_id,b.name AS book_name,t.kind,t.amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at,t.occurred_at,t.line_items",
+    joins:
+      'activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id',
+    where: where.join(' AND '),
+    categoryPredicate,
+  });
   const result = await db.query(
-    `WITH matched AS (
- SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.book_id,b.name AS book_name,t.kind,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,t.title,t.payee,t.category,t.product,t.note,t.account_id,a.name AS account_name,a.owner_id AS account_owner,t.created_at,t.occurred_at,t.line_items,classification.parts AS category_parts,(SELECT sum((p->>'amount')::numeric) FROM jsonb_array_elements(classification.parts) p)::float8 AS matched_amount
- FROM activity_entries ae JOIN transactions t ON t.id=ae.transaction_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 JOIN books b ON b.id=t.book_id JOIN accounts a ON a.id=t.account_id CROSS JOIN LATERAL (SELECT jsonb_agg(p) AS parts FROM jsonb_array_elements(${categoryPartsSql()}) p WHERE ${categoryPredicate}) classification
- WHERE ${where.join(' AND ')} ORDER BY COALESCE(t.event_id,t.id),t.created_at,t.id
- ), page AS (SELECT * FROM matched ORDER BY ${detailOrder(filter.sort, 'matched_amount')} LIMIT ${limit} OFFSET ${offset})
- SELECT json_build_object('rows',(SELECT COALESCE(json_agg(page),'[]'::json) FROM page),
+    `WITH matched AS (${rows} ), page AS (SELECT * FROM matched ORDER BY ${detailOrder(filter.sort, 'matched_amount')} LIMIT ${limit} OFFSET ${offset})
+ SELECT json_build_object('rows',(SELECT COALESCE(json_agg(${publicPageRow}),'[]'::json) FROM page),
  'totals',(SELECT json_build_object('count',count(*),'income',COALESCE(sum(matched_amount) FILTER (WHERE kind='income'),0),'expense',COALESCE(sum(matched_amount) FILTER (WHERE kind='expense'),0),'refund',COALESCE(sum(matched_amount) FILTER (WHERE kind='refund'),0)) FROM matched),
- 'categories',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT p->>'category' AS category,sum(CASE WHEN kind='refund' THEN -1 ELSE 1 END*(p->>'amount')::numeric)::float8 AS amount FROM matched CROSS JOIN LATERAL jsonb_array_elements(category_parts) p WHERE kind IN ('expense','refund') GROUP BY 1) x),
- 'wallets',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT account_id AS id,account_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY account_id,account_name) x),
- 'books',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT book_id AS id,book_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::float8 AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY book_id,book_name) x),
- 'daily',(SELECT COALESCE(json_agg(x ORDER BY x.date),'[]'::json) FROM (SELECT date,sum(CASE WHEN kind='refund' THEN -matched_amount WHEN kind='expense' THEN matched_amount ELSE 0 END)::float8 AS amount FROM matched GROUP BY date) x)) AS report`,
+ 'categories',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT p->>'category' AS category,sum(${signedCategoryAmount})::bigint AS amount FROM matched CROSS JOIN LATERAL jsonb_array_elements(category_parts) p WHERE kind IN ('expense','refund') GROUP BY 1) x),
+ 'wallets',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT account_id AS id,account_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::bigint AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY account_id,account_name) x),
+ 'books',(SELECT COALESCE(json_agg(x ORDER BY x.amount DESC),'[]'::json) FROM (SELECT book_id AS id,book_name AS name,sum(CASE WHEN kind='refund' THEN -matched_amount ELSE matched_amount END)::bigint AS amount FROM matched WHERE kind IN ('expense','refund') GROUP BY book_id,book_name) x),
+ 'daily',(SELECT COALESCE(json_agg(x ORDER BY x.date),'[]'::json) FROM (SELECT date,sum(CASE WHEN kind='refund' THEN -matched_amount WHEN kind='expense' THEN matched_amount ELSE 0 END)::bigint AS amount FROM matched GROUP BY date) x)) AS report`,
     values,
   );
   return { activity, ...result.rows[0].report };
