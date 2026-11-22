@@ -1,65 +1,51 @@
 /* Shared date picker. Native inputs hold form values but never open system UI. */
-.date-field{min-width:0;width:100%}
-.date-field>input[hidden]{display:none}
-.calendar-picker{padding:8px;min-width:0}
-.calendar-navigation{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
-.calendar-year{display:flex;flex-direction:row;align-items:center;gap:6px;margin:0}
-.calendar-year input{width:90px;min-width:0;padding:8px;font-variant-numeric:tabular-nums}
-.calendar-navigation>strong{font-size:14px;min-width:0}
+
 .calendar-months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.calendar-weekdays,.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
-.calendar-weekdays{color:var(--muted);font-size:12px;margin-bottom:8px}
+.calendar-days {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+
 .calendar-days button,.calendar-months button{background:transparent;color:var(--ink);min-width:0;padding:8px 2px;border:1px solid transparent;font-variant-numeric:tabular-nums}
 .calendar-days button:hover,.calendar-months button:hover{background:var(--soft);color:var(--ink)}
-.calendar-days button.adjacent-month{color:var(--muted);opacity:.6}
+
 .calendar-days button[aria-current=date]{border-color:var(--accent)}
 .calendar-days button[aria-pressed=true],.calendar-months button[aria-pressed=true]{background:var(--accent);color:white;opacity:1}
-.calendar-manual{display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-.calendar-manual input{min-width:0;flex:1;width:100%}
-.calendar-manual button{flex:none}
-.calendar-actions{display:flex;justify-content:space-between;gap:12px;margin-top:6px}
+
 html{scrollbar-gutter:stable}
 .sheet-heading h2{overflow-wrap:anywhere}
 .sheet-content form{min-width:0}
 .choice-option:focus-visible{outline-offset:-3px}
 .choice-option:disabled{cursor:not-allowed}
 .choice-search .icon-button{flex:none}
-.visual-trigger>span:not(.symbol-icon){white-space:nowrap;overflow:hidden;overflow-wrap:normal;line-height:1.45;text-overflow:ellipsis}
-.date-field .visual-trigger{font-variant-numeric:tabular-nums;gap:8px;justify-content:flex-start}
-.date-field .visual-trigger>span{flex:1;white-space:nowrap;overflow:visible;text-overflow:clip}
-.date-field .visual-trigger>svg{width:18px;height:18px;flex:none}
+
 .date-range{grid-template-columns:repeat(2,minmax(0,1fr))}
-@media(max-width:730px){.date-range .visual-trigger{padding-inline:10px;font-size:14px}.date-range label{margin-bottom:10px}}
-.visual-trigger{align-items:center}
-.finance-empty .usage-help>summary{margin-inline:auto}
-.finance-empty>img{display:block;margin-inline:auto}
+@media(max-width:730px){.date-range label{margin-bottom:10px}}
+
 @media(min-width:731px){
  /* Header and page tools occupy real rows, including at laptop widths and zoom. */
  .workspace>header{height:auto;min-height:80px;padding:14px clamp(20px,2.4vw,36px);gap:12px 24px;flex-wrap:wrap}
  .workspace>header>div:first-child{min-width:0;flex:1 1 150px;overflow-wrap:anywhere}
  .workspace>header .header-tools{flex:0 1 auto;min-width:0;max-width:100%;gap:8px;justify-content:flex-end}
  .header-tools>button{min-height:44px}
- .header-tools .book-switch-trigger{flex:0 1 250px;min-width:150px}
- .header-tools .profile-trigger{min-width:44px;max-width:160px;flex:0 1 auto}
+ 
+ 
  .workspace main{width:100%;max-width:1600px;padding:28px clamp(20px,2.4vw,36px) 48px}
  .page-heading{flex-wrap:wrap;align-items:flex-start;gap:16px;margin-bottom:24px}
  .page-heading>div:first-child{flex:1 1 220px;min-width:0}
  .page-heading h1{font-size:clamp(24px,2.1vw,30px);overflow-wrap:anywhere}
  .page-heading>.inline{flex:0 1 auto;width:max-content;max-width:100%;gap:10px;align-items:stretch;flex-wrap:nowrap}
- .page-heading>.inline>.date-field{width:190px;min-width:140px;flex:0 1 190px}
+ 
  .page-heading>.inline>button{flex:none;white-space:nowrap}
- .inline>.date-field{flex:1 1 160px;width:auto}
+ 
  .inline>button{max-width:100%;min-width:0;white-space:normal}
- .ledger-sidebar{padding-top:20px;padding-bottom:16px;scrollbar-gutter:stable;overscroll-behavior:contain}
- .ledger-sidebar nav button{line-height:1.5;flex-shrink:0}
- .ledger-sidebar nav button>span{min-width:0;text-align:left}
- .ledger-sidebar .brand strong{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
- .ledger-sidebar .brand>div{min-width:0}
- .sidebar-caption{flex-shrink:0}
+ 
+ 
+ 
+ 
+ 
+ 
  /* Content-driven tracks prevent short cards from stretching or long labels from clipping. */
- .chart-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:20px}
- .chart-grid>.panel{margin-bottom:0}
- .chart-grid{margin-bottom:24px}
+ 
+ 
+ 
  .metrics{gap:16px;margin-bottom:24px}
  .metrics>.metric{margin-bottom:0;min-height:155px}
  .metric>strong{font-size:clamp(24px,2.2vw,34px);line-height:1.35;clear:both}
@@ -74,36 +60,36 @@ html{scrollbar-gutter:stable}
  .form-grid input,.form-grid textarea{min-width:0;width:100%}
  .form-grid>label{align-self:start}
  input[type=checkbox],input[type=radio]{min-height:0;width:18px;height:18px;flex:none;accent-color:var(--accent)}
- .check,.receipt-retention{align-items:flex-start;line-height:1.6}
- .check input,.receipt-retention input{margin-top:2px}
+ .check {align-items:flex-start;line-height:1.6}
+ .check input {margin-top:2px}
  .upload{background:var(--soft);color:var(--accent)}
- .settings-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px}
- .settings-form{grid-template-columns:minmax(0,1fr) minmax(0,.7fr)}
- .book-management-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));align-items:start}
- .book-management-grid .panel>p,.user-management-row small{overflow-wrap:anywhere}
- .book-management-grid .inline{align-items:stretch}
- .user-management-row{flex-wrap:wrap;gap:12px;padding:12px 0}
- .user-management-row>.profile-avatar{flex:0 0 auto}
- .user-management-row>span{flex:1 1 180px;min-width:0}
- .category-manager{grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px}
- .category-manager button{min-height:104px;justify-content:center;background:var(--paper);color:var(--ink)}
- .category-picker{grid-template-columns:repeat(4,minmax(0,1fr))}
- .category-picker button{min-width:0;white-space:normal}
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  .rank{align-items:flex-start;gap:8px 16px}
  .rank>span{flex:1 1 140px}
  .rank>strong{flex:0 1 auto;max-width:100%;text-align:right}
- .transaction>strong,.account-row>strong{flex:0 1 auto;max-width:35%;white-space:normal;overflow-wrap:anywhere;text-align:right;line-height:1.5}
- .transaction-row .transaction-copy{padding-right:8px}
- .account-flow-table{max-width:100%;border:1px solid var(--line);border-radius:12px;overscroll-behavior-x:contain}
- .account-flow-table table{min-width:720px}
- .account-flow-table th{background:var(--paper);font-weight:500}
- .account-source-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:24px}
- .schedule-card>div:first-child{flex:1 1 220px}
- .schedule-actions{margin-left:auto}
- .allocation-totals{grid-template-columns:repeat(3,minmax(0,1fr))}
- .line-item-edit{grid-template-columns:minmax(0,1.7fr) repeat(3,minmax(0,1fr))}
- .line-item-edit input{padding-inline:9px}
- .item-summary-row{align-items:flex-start}
+ .transaction>strong {flex:0 1 auto;max-width:35%;white-space:normal;overflow-wrap:anywhere;text-align:right;line-height:1.5}
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  .search-result>summary{flex-wrap:wrap}
  .search-result>summary>span{flex:1 1 220px}
  .search-result b{max-width:100%;overflow-wrap:anywhere}
@@ -124,71 +110,57 @@ html{scrollbar-gutter:stable}
  .chat-page .workspace>header{flex:none}
  .chat-page .workspace>main{display:flex;flex-direction:column;flex:1;min-height:0;margin:0 auto;padding-bottom:20px}
  .chat-page .page-heading{flex:none;margin-bottom:16px}
- .finance-workspace{flex:1;min-height:0;grid-template-columns:220px minmax(0,1fr);border-color:var(--line);background:var(--surface)}
- .finance-library-desktop{min-height:0;overflow:hidden}
- .finance-library{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--paper);border-color:var(--line)}
- .finance-library>.panel-title,.finance-library>.tabs{flex:none}
- .finance-library .panel-title h2{flex-basis:120px;font-size:17px}
- .finance-history{flex:1;min-height:0;max-height:none;overflow:auto;align-content:start}
- .finance-history button.selected{background:var(--soft)}
- .finance-history button{line-height:1.5}
- .finance-main{min-height:0}
- .finance-toolbar{flex:none;padding:10px 16px}
- .finance-toolbar>div{flex-wrap:wrap;min-width:0}
- .finance-messages{flex:1;height:auto;min-height:0;padding:24px clamp(18px,3vw,48px)}
- .finance-empty{max-width:680px;margin:auto;padding:24px 0}
- .finance-empty>img{display:block;margin:auto}
- .finance-question{background:var(--soft)}
- .finance-suggestions button{background:var(--soft);color:var(--ink);min-height:52px}
- .finance-chart{background:var(--paper);border-color:var(--line)}
- .finance-composer{flex:none;padding:12px 20px 8px;max-height:45%;overflow:auto;background:var(--surface)}
- .finance-composer textarea{background:var(--paper);min-height:64px;max-height:180px}
- .finance-composer .usage-help{margin-bottom:4px}
- .finance-composer .composer-actions{margin-bottom:4px}
- .finance-main>.error,.finance-main>.notice{flex:none;max-height:120px;overflow:auto}
- .finance-attachments{max-height:90px;overflow:auto}
- .finance-attachments button{max-width:260px}
- .theme-option>strong{padding-right:24px}
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 }
 @media(min-width:731px) and (max-width:1100px){
  .workspace main{padding-inline:20px}
  .workspace>header{padding-inline:20px}
- .header-tools .task-label{display:none}
- .header-tools .task-trigger{position:relative;padding:10px;min-width:44px}
- .header-tools .profile-trigger>span:last-child{display:none}
- .header-tools .profile-trigger{padding:4px}
- .chart-grid{grid-template-columns:minmax(0,1fr)}
+ 
+ 
+ 
+ 
+ 
  .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
  .metric{padding:18px 14px}
- .finance-workspace{grid-template-columns:minmax(0,1fr)}
- .finance-library-desktop{display:none}
- .finance-library-toggle{display:inline-flex}
- .detail-sheet .finance-library{height:auto}
- .detail-sheet .finance-history{max-height:55dvh}
+ 
+ 
+ 
+ 
+ 
 }
 @media(min-width:731px) and (max-height:760px){
  .chat-page .page-heading{display:none}
  .chat-page .workspace>main{padding-top:16px}
- .ledger-sidebar nav{margin-top:12px;gap:2px}
- .sidebar-bottom{padding-top:14px}
-}
-@media(max-width:730px){
- .page-heading>.inline>.date-field{flex:1 1 150px;width:auto}
- .calendar-year input{width:82px}
- .calendar-navigation .calendar-year{flex:none}
+ 
+ 
 }
 
 /* Metadata labels remain intact; long values have their own flexible column. */
 .detail-fields>div{grid-template-columns:minmax(100px,max-content) minmax(0,1fr);align-items:baseline}.detail-fields dt{white-space:nowrap;overflow-wrap:normal}
 
-.detail-entity{display:flex;justify-content:flex-end;align-items:center;gap:8px;min-width:0}.detail-entity>.symbol-icon,.detail-entity>.account-logo{flex:none}.visual-trigger>.account-logo{flex:none}.choice-option .symbol-icon{border-radius:8px;overflow:hidden}
-
 /* Conversation proposals remain readable alongside streamed answers. */
-.chat-action-list{display:grid;gap:16px;margin:20px 0;min-width:0}
-.chat-action-card{border:1px solid var(--border,#e5dfd6);border-radius:18px;padding:20px;background:var(--surface,#fffdfa);min-width:0;max-width:680px}
-.chat-action-card header{display:flex;gap:12px;align-items:center;margin-bottom:16px}.chat-action-icon{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:12px;background:var(--accent-soft,#eaf1ed);color:var(--accent,#365f59)}
-.chat-action-card header>div{min-width:0;flex:1}.chat-action-card h3{font:inherit;font-weight:650;margin:3px 0;overflow-wrap:anywhere}.chat-action-card small,.chat-action-status{font-size:12px;color:var(--muted,#80786f)}.chat-action-status{white-space:nowrap;flex:none}
-.chat-action-card dl{margin:0;display:grid;gap:10px}.chat-action-card dl>div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:14px;align-items:start}.chat-action-card dt{font-size:13px;color:var(--muted,#80786f)}.chat-action-card dd{margin:0;display:flex;align-items:center;gap:7px;min-width:0;font-size:14px}.chat-action-card dd>span{min-width:0;overflow-wrap:anywhere}.chat-action-card dd>.symbol-icon,.chat-action-card dd>.account-logo{flex:none}
-.chat-action-card footer{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.chat-action-card footer button{min-height:42px;padding:10px 15px;font-size:14px}.chat-action-card.is-resolved{opacity:.8}.chat-action-missing,.chat-action-warning{font-size:13px;line-height:1.65;margin:14px 0 0;color:var(--muted,#80786f)}.chat-action-missing{color:var(--accent,#365f59)}.chat-action-details{margin-top:14px;font-size:13px}.chat-action-details ul{list-style:none;padding:0}.chat-action-details li{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.chat-action-card .check{font-size:13px;margin-top:14px;align-items:flex-start}
-@media(max-width:600px){.chat-action-card{padding:16px;border-radius:14px}.chat-action-card dl>div{grid-template-columns:82px minmax(0,1fr);gap:10px}.chat-action-card footer>button:first-child{flex:1}.chat-action-card .chat-action-status{font-size:11px}.chat-action-card header{gap:9px}}
-.chat-reply-target{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--accent-soft,#eaf1ed);border-left:3px solid var(--accent,#365f59);border-radius:6px;font-size:12px;margin-bottom:8px;min-width:0}.chat-reply-target>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-reply-target>button{padding:2px 8px;min-height:28px}
+

@@ -1,5 +1,4 @@
 'use client';
-import './spending-analysis.css';
 import s from './SpendingAnalysis.module.css';
 import { Button, IconButton, Money, Segmented, Sheet, Stat } from '@/ui';
 import { useEffect, useState } from 'react';
