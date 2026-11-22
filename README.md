@@ -168,7 +168,7 @@ Keys are encrypted with `ENCRYPTION_KEY`. Keep it with your backups. AI requests
 
 1. Back up the database, receipts and environment configuration together.
 2. Preserve the existing PostgreSQL major version, data volume, encryption key, language and currency.
-3. Stop web and worker; update to the intended code revision and rebuild with Compose. Initialization applies the schema scripts, including account discussions.
+3. Stop web and worker; update to the intended code revision and rebuild with Compose. Initialization runs the numbered migrations in `migrations/`; a database created before migrations existed is brought up to the baseline once and then recorded in `schema_migrations`.
 4. Start web and worker together, check `/api/health`, and verify existing records and attachments.
 5. Configure memory models and pgvector if needed; historical memory organization is a separate background task.
 
@@ -190,8 +190,12 @@ node --env-file=.env --import tsx scripts/worker.ts
 ```sh
 npm test
 npm run typecheck
+# Database tests recreate a local *_test database:
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
 npm run build
 ```
+
+Schema changes go in a new numbered file under `migrations/`; `npm run db:migrate` applies pending ones. Never edit a migration that has been released.
 
 The production build emits `server.js` and `worker.mjs` in `.next/standalone`. Copy `public` and `.next/static` into that release and supply the same environment to both processes. Source, configuration, persistent files and backups should have separate lifecycles.
 

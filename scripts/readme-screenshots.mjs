@@ -1,3 +1,4 @@
+import {migrate,migrateWith} from './migrate.mjs';
 // Real app + disposable PostgreSQL. Never loads production configuration or calls AI.
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID} from 'node:crypto';
@@ -26,8 +27,7 @@ const month=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'}).sl
 async function seed(db,lang){
  const en=lang==='en',label=(zh,enText)=>en?enText:zh;
  const user=randomUUID(),sam=randomUUID(),book=randomUUID(),privateBook=randomUUID(),family=randomUUID(),token=randomUUID();
- await db.query(await readFile('scripts/schema.sql','utf8'));await db.query(await readFile('scripts/memory-schema.sql','utf8'));
- await db.query(await readFile('scripts/profile-schema.sql','utf8'));
+ await migrateWith(db);
  await db.query("INSERT INTO deployment_settings VALUES(1,$1)",[en?'USD':'CNY']);
  for(const [id,name,username] of [[user,label('小悠','Alex'),'alex.demo'],[sam,label('小林','Sam'),'sam.demo']])await db.query('INSERT INTO users(id,username,name,password,admin) VALUES($1,$2,$3,$4,true)',[id,username,name,'demo-login-disabled']);
  await db.query('INSERT INTO families(id,name,owner_id) VALUES($1,$2,$3)',[family,label('我们的家','Our household'),user]);
@@ -104,7 +104,7 @@ try{
   if(process.env.FUNDS_AUDIT_ONLY)console.log(execFileSync(resolve(root,'node_modules/.bin/tsx'),['--test','tests/wallet-funds-db.test.ts'],{cwd:root,env:{...process.env,FUNDS_TEST_DATABASE_URL:databaseUrl,APP_LANGUAGE:lang,APP_CURRENCY:lang==='en'?'USD':'CNY'},encoding:'utf8'}));
   if(process.env.ANALYSIS_AUDIT_ONLY){
    const costDB=lang==='en'?'analysis_en_cost_test':'analysis_zh_cost_test';await admin.query('CREATE DATABASE '+costDB);const costURL=`postgres://postgres:${password}@127.0.0.1:${port}/${costDB}`;
-   const c=new pg.Client({connectionString:costURL});await c.connect();for(const file of ['schema.sql','memory-schema.sql','profile-schema.sql'])await c.query(await readFile('scripts/'+file,'utf8'));await c.end();
+   const c=new pg.Client({connectionString:costURL});await c.connect();await migrate(c);await c.end();
    console.log(execFileSync(resolve(root,'node_modules/.bin/tsx'),['scripts/unified-report-smoke.ts'],{cwd:root,env:{...process.env,DATABASE_URL:costURL,APP_LANGUAGE:lang,APP_CURRENCY:lang==='en'?'USD':'CNY'},encoding:'utf8'}));
   }
   const origin='http://127.0.0.1:'+httpPort;

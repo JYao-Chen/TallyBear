@@ -1,3 +1,4 @@
+import {migrate,migrateWith} from './migrate.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -9,7 +10,7 @@ assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_cost_test'));
 const a=randomUUID(),b=randomUUID(),other=randomUUID(),family=randomUUID(),book=randomUUID(),payment=randomUUID(),project=randomUUID();
 const call=(user:string,path:string[]=[],body?:any):Promise<any>=>costProjects(user,body?'POST':'GET',['cost-projects',project,...path],body,new URLSearchParams());
 try{
- await db.query(readFileSync('scripts/schema.sql','utf8'));await db.query(readFileSync('scripts/memory-schema.sql','utf8'));
+ await migrateWith(db);
  for(const [id,name] of [[a,'付款测试成员'],[b,'结算测试成员'],[other,'其他成员']])await db.query("INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,$2,'not-a-login')",[id,name]);
  await db.query("INSERT INTO families(id,name,owner_id) VALUES($1,'结算测试家庭',$2)",[family,a]);for(const id of [a,b,other])await db.query('INSERT INTO family_members(family_id,user_id) VALUES($1,$2)',[family,id]);
  await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'结算测试账本','private',$2)",[book,a]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,a]);

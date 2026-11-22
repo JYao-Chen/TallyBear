@@ -1,3 +1,4 @@
+import {migrate,migrateWith} from './migrate.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile,mkdir} from 'node:fs/promises';
@@ -9,7 +10,7 @@ assert.ok(['127.0.0.1','localhost'].includes(new URL(origin).hostname));
 const output=process.env.COST_SCREENSHOT_DIR||'/home/yao/artifacts/tallybear/cost-projects-20260927';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const db=new pg.Client({connectionString:url});await db.connect();
-await db.query(await readFile('scripts/memory-schema.sql','utf8'));
+await migrateWith(db);
 await db.query("INSERT INTO deployment_settings VALUES(1,'CNY') ON CONFLICT(id) DO NOTHING");
 const p=(await db.query('SELECT * FROM cost_projects WHERE active_plan IS NOT NULL ORDER BY created_at DESC LIMIT 1')).rows[0];assert.ok(p);
 await db.query("UPDATE users SET name='小悠' WHERE id=$1",[p.owner_id]);

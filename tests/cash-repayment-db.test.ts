@@ -1,12 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {migrate} from '../scripts/migrate.mjs';
 import {randomUUID} from 'node:crypto';
 test('已有信用消费、退款、还款在现金报告与账户余额中分别核算',{skip:!process.env.CASH_TEST_DATABASE_URL},async()=>{
  const url=new URL(process.env.CASH_TEST_DATABASE_URL!);assert.equal(url.hostname,'127.0.0.1');assert.ok(url.pathname.endsWith('_test'));process.env.DATABASE_URL=url.toString();
  const {db,withConnection}=await import('../src/server/db'),{walletFunds}=await import('../src/server/wallet-funds'),{accountBalance}=await import('../src/server/accounts');
  const c=await db.connect();try{
- for(const schema of ['schema','memory-schema','profile-schema','discussions-schema','expense-claims-schema'])await c.query(await readFile('scripts/'+schema+'.sql','utf8'));
+ await migrate(c);
  await c.query('BEGIN');await withConnection(c,async()=>{
  const [user,book,bank,credit]=Array.from({length:4},()=>randomUUID());
  await c.query("INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,'测试','unused')",[user]);

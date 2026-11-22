@@ -9,7 +9,9 @@
     "start": "next start -p 3016",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "test:db": "node scripts/test-db.mjs",
     "db:init": "node scripts/init.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
     "worker": "tsx scripts/worker.ts",
     "setup": "node scripts/setup.mjs"
   },

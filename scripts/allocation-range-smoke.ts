@@ -1,3 +1,4 @@
+import {migrate,migrateWith} from './migrate.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {report} from '../src/server/reports';
 assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_range_test'),'Use an isolated range_test database');
 const user=randomUUID(),book=randomUUID(),expense=randomUUID(),refund=randomUUID();
 try{
- for(const file of ['schema.sql','memory-schema.sql','discussions-schema.sql','expense-claims-schema.sql'])await db.query(readFileSync(new URL(file,import.meta.url),'utf8'));
+ await migrateWith(db);
  await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$2,$2)',[user,user]);
  await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'Range test','private',$2)",[book,user]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,user]);
  const account=(await createAccount(user,{name:'Test cash',opening:100000,type:'cash'})).id;

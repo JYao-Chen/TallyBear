@@ -1,12 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {migrate} from '../scripts/migrate.mjs';
 import {randomUUID} from 'node:crypto';
 test('支出一并建立分期：新消费、旧消费、助手卡、重复提交与事务回滚',{skip:!process.env.INLINE_TEST_DATABASE_URL},async()=>{
  const url=new URL(process.env.INLINE_TEST_DATABASE_URL!);assert.equal(url.hostname,'127.0.0.1');assert.ok(url.pathname.endsWith('_test'));process.env.DATABASE_URL=url.toString();
  const {db,withConnection}=await import('../src/server/db'),{insertEntry}=await import('../src/server/ledger'),{entry}=await import('../src/server/model'),{accountBalance}=await import('../src/server/accounts'),{applyTransactionChange}=await import('../src/server/transaction-changes'),{prepareChatAction,parseAction}=await import('../src/server/chat-actions');
  const c=await db.connect();try{
- for(const schema of ['schema','memory-schema','profile-schema','discussions-schema','expense-claims-schema'])await c.query(await readFile('scripts/'+schema+'.sql','utf8'));
+ await migrate(c);
  await c.query('BEGIN');await withConnection(c,async()=>{
  const [user,book,bank,credit]=Array.from({length:4},()=>randomUUID());
  await c.query("INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,'测试','unused')",[user]);await c.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'测试','private',$2)",[book,user]);await c.query("INSERT INTO members VALUES($1,$2,'owner')",[book,user]);

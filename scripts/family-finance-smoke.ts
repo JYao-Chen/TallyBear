@@ -1,3 +1,4 @@
+import {migrate,migrateWith} from './migrate.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ process.loadEnvFile('.env');
 const original=process.env.DATABASE_URL!;const admin=new pg.Client({connectionString:original});await admin.connect();const dbName='tallybear_family_test_'+Date.now();await admin.query(`CREATE DATABASE ${dbName}`);const url=new URL(original);url.pathname='/'+dbName;process.env.DATABASE_URL=url.toString();
 const {db}=await import('../src/server/db');
 try{
- await db.query(readFileSync('scripts/schema.sql','utf8'));
+ await migrateWith(db);
  const {familyFinance:api}=await import('../src/server/family-finance');const {listAssets,accountReport}=await import('../src/server/accounts');
  const [a,b,outsider,f,wa,wb,wf,book,expense]=Array.from({length:9},()=>randomUUID());
  for(const u of [a,b,outsider])await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$2,$2)',[u,u]);

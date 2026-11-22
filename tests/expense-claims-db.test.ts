@@ -1,13 +1,13 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {migrate} from '../scripts/migrate.mjs';
 import {discussionFixtures} from './helpers/discussion-fixtures';
 test('消费认领：私账授权、选择账本、资金去重、退款、同步撤回和消息',{skip:!process.env.CLAIM_TEST_DATABASE_URL},async()=>{
  const url=new URL(process.env.CLAIM_TEST_DATABASE_URL!);assert.ok(['127.0.0.1','localhost'].includes(url.hostname)&&url.pathname.endsWith('_test'));process.env.DATABASE_URL=url.toString();
  const {db,withConnection}=await import('../src/server/db');const {expenseClaims}=await import('../src/server/expense-claims');const {entry}=await import('../src/server/model');const {insertEntry}=await import('../src/server/ledger');const {syncFinancialFacts}=await import('../src/server/reuse');const {assertClaimEditable}=await import('../src/server/claim-access');const {personalExpenseReport,personalWalletReport,report}=await import('../src/server/reports');const {discussions}=await import('../src/server/discussions');
  const c=await db.connect();try{
-  for(const file of ['schema','memory-schema','profile-schema','discussions-schema','expense-claims-schema'])await c.query(await readFile('scripts/'+file+'.sql','utf8'));
+  await migrate(c);
   await c.query('BEGIN');await withConnection(c,async()=>{
    const f=await discussionFixtures(c),privateBook=randomUUID(),secondBook=randomUUID();
    for(const id of [privateBook,secondBook]){await c.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'我的衣柜','private',$2)",[id,f.bob]);await c.query("INSERT INTO members VALUES($1,$2,'owner')",[id,f.bob]);}

@@ -37,7 +37,7 @@ test('new defaults preserve personal icons and disabled or deleted choices',asyn
 });
 
 test('legacy used categories keep their built-in icons during personal catalogue migration',()=>{
- const schema=readFileSync(new URL('../scripts/schema.sql',import.meta.url),'utf8');
+ const schema=readFileSync(new URL('../scripts/legacy-schema/schema.sql',import.meta.url),'utf8');
  for(const [name,icon] of defaultCategories)assert.ok(schema.includes(`('${name}','${icon}')`),`${name} is missing from the migration icon map`);
  assert.match(schema,/COALESCE\(default_icon\.icon,'🧸'\)/);
 });

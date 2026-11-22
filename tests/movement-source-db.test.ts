@@ -1,13 +1,13 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {migrate} from '../scripts/migrate.mjs';
 import {discussionFixtures} from './helpers/discussion-fixtures';
 test('家庭往来付款钱包更正：已到账余额、待收款、权限与结算关联',{skip:!process.env.MOVEMENT_TEST_DATABASE_URL},async()=>{
  const url=new URL(process.env.MOVEMENT_TEST_DATABASE_URL!);assert.ok(['127.0.0.1','localhost'].includes(url.hostname)&&url.pathname.endsWith('_test'));process.env.DATABASE_URL=url.toString();
  const {db,withConnection}=await import('../src/server/db'),{familyFinance}=await import('../src/server/family-finance'),{accountBalance}=await import('../src/server/accounts'),{attachWalletBalances}=await import('../src/server/wallet-history');
  const c=await db.connect();try{
-  for(const name of ['schema','memory-schema','profile-schema','discussions-schema','expense-claims-schema'])await c.query(await readFile('scripts/'+name+'.sql','utf8'));
+  await migrate(c);
   await c.query('BEGIN');await withConnection(c,async()=>{
    const f=await discussionFixtures(c),bank=randomUUID(),archived=randomUUID(),shared=randomUUID();
    for(const [id,name,owner,family,closed] of [[bank,'付款银行卡',f.alice,null,false],[archived,'停用银行卡',f.alice,null,true],[shared,'共同钱包',null,f.family,false]])await c.query('INSERT INTO accounts(id,name,type,owner_id,family_id,opening,archived) VALUES($1,$2,\'bank\',$3,$4,200000,$5)',[id,name,owner,family,closed]);

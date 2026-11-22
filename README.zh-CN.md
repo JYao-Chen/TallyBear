@@ -162,7 +162,7 @@ Compose 包含 PostgreSQL、一次性初始化程序、Web 服务和后台 worke
 
 1. 一起备份数据库、收据文件与环境配置。
 2. 保留原 PostgreSQL 主版本、数据卷、加密密钥、语言和币种。
-3. 停止 Web 与 worker，更新到目标代码版本后重新构建；初始化会依次执行两份 schema 脚本。
+3. 停止 Web 与 worker，更新到目标代码版本后重新构建；初始化会执行 `migrations/` 下的编号迁移；引入迁移前创建的数据库会先补齐到 baseline，再登记到 `schema_migrations`。
 4. 一起启动 Web 与 worker，检查 `/api/health`，确认旧账单和附件可用。
 5. 按需配置记忆模型与 pgvector；历史记忆整理需要单独启动后台任务。
 
@@ -184,8 +184,12 @@ node --env-file=.env --import tsx scripts/worker.ts
 ```sh
 npm test
 npm run typecheck
+# 数据库测试会重建本机 *_test 库：
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
 npm run build
 ```
+
+表结构变更写成 `migrations/` 下新的编号文件，`npm run db:migrate` 执行未应用的迁移。已发布的迁移不再修改。
 
 构建会在 `.next/standalone` 生成 `server.js` 与 `worker.mjs`。发布时补齐 `public` 和 `.next/static`，并给两个进程传入相同环境。源码发布、持久文件、密钥和备份分别管理。
 

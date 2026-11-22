@@ -19,6 +19,7 @@ Before submitting:
 ```sh
 npm run typecheck
 npm test
+TEST_DATABASE_URL=postgres://user:pass@127.0.0.1:5439/tallybear_test npm run test:db
 npm run build
 ```
 

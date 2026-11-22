@@ -1,9 +1,10 @@
+import {migrate,migrateWith} from './migrate.mjs';
 import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import {readFileSync} from 'node:fs';
 import {db} from '../src/server/db';import {prepareChatAction,confirmChatAction} from '../src/server/chat-actions';import {createAccount,listAssets} from '../src/server/accounts';import type {ChatAction} from '../src/lib/chat-actions';
 assert.ok(new URL(process.env.DATABASE_URL!).pathname.endsWith('_range_test'),'Use an isolated range_test database');
 const user={id:randomUUID(),username:randomUUID(),name:'Assistant range test',admin:false,avatar:'',theme:'bear' as const},book=randomUUID(),expense=randomUUID(),conversation=randomUUID();
 try{
- for(const file of ['schema.sql','memory-schema.sql','profile-schema.sql','discussions-schema.sql','expense-claims-schema.sql'])await db.query(readFileSync(new URL(file,import.meta.url),'utf8'));
+ await migrateWith(db);
  await db.query('INSERT INTO users(id,username,name,password) VALUES($1,$2,$3,$4)',[user.id,user.username,user.name,'test']);await db.query("INSERT INTO books(id,name,kind,owner_id) VALUES($1,'Assistant range','private',$2)",[book,user.id]);await db.query("INSERT INTO members VALUES($1,$2,'owner')",[book,user.id]);
  await db.query("INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,'Range')",[conversation,book,user.id]);
  const account=(await createAccount(user.id,{name:'Test cash',opening:0,type:'credit'})).id;
