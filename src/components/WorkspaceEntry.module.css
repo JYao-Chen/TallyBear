@@ -143,3 +143,7 @@
     text-align: center;
   }
 }
+.back {
+  justify-self: start;
+  align-self: flex-start;
+}

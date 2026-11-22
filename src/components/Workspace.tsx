@@ -1536,7 +1536,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                 </>
                               ) : (
                                 <>
-                                  <Button variant="ghost" onClick={() => setEntryMode('ai')}>
+                                  <Button variant="ghost" className={entryStyles.back} onClick={() => setEntryMode('ai')}>
                                     <ArrowLeft size={18} />
                                     {tr('返回交给小熊')}
                                   </Button>
