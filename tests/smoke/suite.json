@@ -44,7 +44,7 @@
   "organize-http-smoke.ts": "需要 TEST_BASE_URL 对应的测试服务。",
   "password-policy-smoke.mjs": "需要运行中的隔离 HTTP 服务（APP_ORIGIN）。",
   "photo-upload-smoke.mjs": "需要运行中的隔离 HTTP 服务（APP_ORIGIN）。",
-  "preference-smoke.ts": "已知业务缺陷：同时推断账本和钱包时，保存的建议只有 bookId，缺少 accountId。",
+  "preference-smoke.ts": "db",
   "profile-smoke.ts": "db",
   "purchase-search-smoke.ts": "需要 TEST_ORIGIN 对应的测试服务及图片夹具。",
   "queue-public-smoke.mjs": "需要运行中的隔离 HTTP 服务和独立队列 worker。",

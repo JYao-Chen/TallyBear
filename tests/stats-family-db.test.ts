@@ -17,6 +17,7 @@ test(
     const { familyOverview, report } = await import('../src/server/reports');
     const { walletFunds } = await import('../src/server/wallet-funds');
     const { changeAccount } = await import('../src/server/accounts');
+    const { expenseClaims } = await import('../src/server/expense-claims');
     const c = await db.connect();
     try {
       await migrate(c);
@@ -34,6 +35,30 @@ test(
         assert.equal(nov.daily.find(d => d.date === '2026-11-28')?.adjustment, 700);
         assert.equal(dec.summary.openingBalance, nov.summary.closingBalance);
         assert.equal(dec.summary.adjustment, 0);
+        const before = randomUUID(),
+          after = randomUUID();
+        await c.query(
+          `INSERT INTO transactions(id,book_id,account_id,kind,amount,date,occurred_at,created_by)
+           VALUES($1,$3,$4,'expense',100,'2026-11-28','09:59',$5),($2,$3,$4,'income',100,'2026-11-28','10:01',$5)`,
+          [before, after, f.partnerBook, f.partnerBank, f.partner],
+        );
+        const { NextRequest } = await import('next/server');
+        const { dispatch } = await import('../src/server/http/router');
+        await c.query("INSERT INTO deployment_settings(id,currency) VALUES(1,'CNY') ON CONFLICT DO NOTHING");
+        for (const [id, expected] of [
+          [before, 389900],
+          [after, 390700],
+        ] as const) {
+          const response = await dispatch(
+            new NextRequest(`http://localhost/api/books/${f.partnerBook}/transaction-balance?id=${id}`),
+            ['books', f.partnerBook, 'transaction-balance'],
+            { id: f.partner, name: '伴侣', username: 'partner', admin: false, theme: 'bear', avatar: '' },
+          );
+          assert.equal(response.status, 200);
+          assert.deepEqual(await response.json(), [
+            { account_id: f.partnerBank, name: '伴侣银行卡', balance: expected },
+          ]);
+        }
         const version = (await c.query('SELECT version FROM accounts WHERE id=$1', [f.partnerBank])).rows[0]
           .version;
         const adjustmentId = nov.rows.find(r => r.kind === 'adjustment')!.id;
@@ -74,12 +99,9 @@ test(
         );
         assert.equal(overview.openingBalance, 0);
         assert.equal(overview.surplus, 160000);
-        const { NextRequest } = await import('next/server');
-        const { applicationApi } = await import('../src/server/application-api');
-        await c.query("INSERT INTO deployment_settings(id,currency) VALUES(1,'CNY') ON CONFLICT DO NOTHING");
-        const denied = await applicationApi(
+        const denied = await dispatch(
           new NextRequest('http://localhost/api/family-finance/overview?' + q),
-          { params: Promise.resolve({ path: ['family-finance', 'overview'] }) },
+          ['family-finance', 'overview'],
           { id: randomUUID(), name: '访客', username: 'guest', admin: false, theme: 'bear', avatar: '' },
         );
         assert.equal(denied.status, 403);
@@ -90,12 +112,29 @@ test(
             [
               f.familyWallet,
               JSON.stringify([
-                { category: '居住', amount: 30000 },
-                { category: '日用', amount: 10000 },
+                { name: '房租', category: '居住', amount: 30000 },
+                { name: '日用品', category: '日用', amount: 10000 },
               ]),
             ],
           )
         ).rows[0].id;
+        const { consumptionRows } = await import('../src/server/domain/stats/projection');
+        const ownership = async () =>
+          (
+            await c.query(
+              consumptionRows({
+                fields: 't.id,t.kind',
+                joins: 'transactions t JOIN accounts a ON a.id=t.account_id',
+                where: 't.id=$1',
+                categoryPredicate: 'TRUE',
+              }),
+              [bill],
+            )
+          ).rows[0];
+        const projected = await ownership();
+        assert.equal(projected.event_key, bill);
+        assert.equal(projected.attributed_owner, 'family:' + f.family);
+        assert.deepEqual(projected.payments, [{ wallet: f.familyWallet, date: '2026-11-12' }]);
         const filtered = (filters: Record<string, string>) =>
           report(f.shared, new URLSearchParams({ ...month, ...filters }));
         const match = await filtered({ category: '日用', min: '10000', max: '10000' });
@@ -117,15 +156,73 @@ test(
           { name: '日用', amount: 10000 },
         ]);
         assert.equal(common.commonExpense, 39000);
+        const request = (user: string, method: string, path: string, body = {}, params = {}): Promise<any> =>
+          expenseClaims(user, method, ['expense-claims', path], body, new URLSearchParams(params));
+        const invite = (user: string, recipientId: string | null) =>
+          request(user, 'POST', 'invite', { sourceId: bill, recipientId });
+        const outsider = randomUUID(),
+          otherFamily = randomUUID();
         await c.query(
-          "INSERT INTO expense_claims(id,event_id,source_id,sender_id,recipient_id,status,target_id) VALUES($1,$2,$2,$3,$4,'accepted',$2)",
-          [randomUUID(), bill, f.partner, f.me],
+          "INSERT INTO users(id,username,name,password) VALUES($1::uuid,$1::text,'访客','unused')",
+          [outsider],
         );
+        await c.query("INSERT INTO families(id,name,owner_id) VALUES($1,'另一个家庭',$2)", [
+          otherFamily,
+          f.me,
+        ]);
+        await c.query('INSERT INTO family_members VALUES($1,$2),($1,$3)', [otherFamily, outsider, f.me]);
+        await c.query("INSERT INTO members VALUES($1,$2,'editor')", [f.shared, outsider]);
+        await assert.rejects(invite(outsider, f.me), /权限/);
+        await assert.rejects(invite(f.me, outsider), /同一家庭/);
+        const people = await request(f.me, 'GET', 'people', {}, { familyId: f.family });
+        assert.deepEqual(new Set(people.map((p: { id: string }) => p.id)), new Set([f.me, f.partner]));
+        await c.query("UPDATE members SET role='viewer' WHERE book_id=$1 AND user_id=$2", [f.shared, f.me]);
+        const access = await request(f.me, 'GET', 'for-record', {}, { id: bill });
+        assert.equal(access.canInvite, true);
+        assert.equal(access.canEdit, false);
+        const invitation = await invite(f.me, f.partner);
+        const pending = await request(f.partner, 'GET', invitation.id);
+        assert.equal(pending.claim.status, 'pending');
+        assert.equal((await familyOverview(f.me, q)).commonExpense, 39000);
+        await assert.rejects(invite(f.partner, null), /原发起人/);
+        await request(f.partner, 'POST', invitation.id, {
+          operation: 'accept',
+          version: pending.claim.version,
+          bookId: f.shared,
+        });
+        assert.equal((await familyOverview(f.me, q)).commonExpense, 0);
+        const accepted = await request(f.me, 'GET', invitation.id);
+        await request(f.me, 'POST', invitation.id, {
+          operation: 'withdraw',
+          version: accepted.claim.version,
+        });
+        assert.equal((await familyOverview(f.me, q)).commonExpense, 39000);
+        const self = await invite(f.me, f.me);
+        const own = await request(f.me, 'GET', self.id);
+        assert.equal(own.claim.status, 'accepted');
+        assert.equal(own.claim.target_id, bill);
+        assert.equal((await invite(f.me, f.me)).id, self.id);
+        assert.equal((await ownership()).attributed_owner, f.me);
         const claimed = await familyOverview(f.me, q);
         assert.deepEqual(claimed.categories, []);
         assert.equal(claimed.commonExpense, 0);
         assert.equal(claimed.claimedExpense, 39000);
         assert.equal(claimed.closingBalance, 161000);
+        await request(f.me, 'POST', self.id, { operation: 'withdraw', version: own.claim.version });
+        assert.equal((await familyOverview(f.me, q)).commonExpense, 39000);
+        await c.query('DELETE FROM members WHERE book_id=$1 AND user_id=$2', [f.shared, f.me]);
+        await assert.rejects(invite(f.me, f.me), /可编辑的账本/);
+        const privateClaim = await request(f.me, 'POST', 'invite', {
+          sourceId: bill,
+          recipientId: f.me,
+          bookId: f.myBook,
+        });
+        const moved = await request(f.me, 'GET', privateClaim.id);
+        assert.equal(moved.targetBookId, f.myBook);
+        assert.equal((await familyOverview(f.me, q)).commonExpense, 0);
+        await c.query('DELETE FROM family_members WHERE family_id=$1 AND user_id=$2', [f.family, f.me]);
+        assert.equal((await request(f.me, 'GET', privateClaim.id)).claim.status, 'withdrawn');
+        assert.equal((await familyOverview(f.partner, q)).commonExpense, 39000);
       });
     } finally {
       await c.query('ROLLBACK');

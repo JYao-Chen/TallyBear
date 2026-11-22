@@ -23,7 +23,7 @@ export async function attachWalletBalances<
  FROM family_movements m CROSS JOIN LATERAL (VALUES(m.source_id,-m.amount),(m.target_id,m.amount)) v(account_id,delta)
  WHERE m.status='confirmed' AND v.account_id IN(SELECT id FROM owned)
  UNION ALL
- SELECT j.id,j.account_id,j.amount,j.created_at AT TIME ZONE 'Asia/Shanghai',j.created_at,2 FROM account_adjustments j WHERE j.account_id IN(SELECT id FROM owned)
+ SELECT j.id,j.account_id,j.amount,j.effective_date+(j.created_at AT TIME ZONE 'Asia/Shanghai')::time,j.created_at,2 FROM account_adjustments j WHERE j.account_id IN(SELECT id FROM owned)
  ), running AS (
  SELECT e.*,a.name,a.opening+sum(e.delta) OVER(PARTITION BY e.account_id ORDER BY e.at,e.created_at,e.type,e.id ROWS UNBOUNDED PRECEDING) AS balance
  FROM events e JOIN owned a ON a.id=e.account_id

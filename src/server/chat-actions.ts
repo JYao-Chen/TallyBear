@@ -329,12 +329,15 @@ export async function prepareChatAction(
       ...(old?.data || {}),
       ...b.data,
       ...(b.kind === 'entry' ? { bookId: book } : {}),
-      ...(bookSuggestions.length ? { preferenceSuggestions: bookSuggestions } : {}),
     },
     missing: [],
     warnings: [],
     summary: [],
   };
+  if (bookSuggestions.length) {
+    const carried: typeof bookSuggestions = a.data.preferenceSuggestions || [];
+    a.data.preferenceSuggestions = [...bookSuggestions, ...carried.filter(s => s.field !== 'bookId')];
+  }
   if (a.kind === 'management') {
     const prepared = await prepareOperation(
       {
@@ -536,10 +539,14 @@ export async function prepareChatAction(
         ctx.question || '',
       )
     )[0];
+    const suggestions: typeof bookSuggestions = changedContext ? [] : data.preferenceSuggestions || [];
     Object.assign(data, {
-      preferenceSuggestions: changedContext
-        ? preferred.preferenceSuggestions
-        : data.preferenceSuggestions || preferred.preferenceSuggestions,
+      preferenceSuggestions: [
+        ...suggestions,
+        ...(preferred.preferenceSuggestions || []).filter(
+          s => !suggestions.some(prior => prior.field === s.field),
+        ),
+      ],
       accountId: preferred.accountId,
       memorySuggestions: preferred.memorySuggestions,
       category: preferred.category,

@@ -50,7 +50,7 @@ export function QuickEntry({
   initial?: Draft;
   savedDraft?: Partial<Draft>;
   onDraftChange?: (draft: Partial<Draft>) => void;
-  accounts: (AccountIdentity & { id: string })[];
+  accounts: (AccountIdentity & { id: string; family_id?: string | null })[];
   originals: Original[];
   onSave: (entry: Draft) => Promise<void>;
   onCancel: () => void;
@@ -374,7 +374,12 @@ export function QuickEntry({
           </summary>
           {kind === 'expense' &&
             (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
-              <ClaimRecipientSelect value={claimRecipient} onChange={setClaimRecipient} disabled={busy} />
+              <ClaimRecipientSelect
+                familyId={accounts.find(a => a.id === account)?.family_id}
+                value={claimRecipient}
+                onChange={setClaimRecipient}
+                disabled={busy}
+              />
             )}{' '}
           {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
             <p className="muted">

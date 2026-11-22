@@ -97,7 +97,7 @@ export function DraftReview({
   books: ManagedBook[];
   drafts: Draft[];
   setDrafts: (d: Draft[]) => void;
-  accounts: (AccountIdentity & { id: string })[];
+  accounts: (AccountIdentity & { id: string; family_id?: string | null })[];
   originals: Original[];
   busy: boolean;
   onReview: () => void;
@@ -296,6 +296,7 @@ export function DraftReview({
                       </label>
                       {d.kind === 'expense' && d.action !== 'merge' && (
                         <ClaimRecipientSelect
+                          familyId={accounts.find(a => a.id === d.accountId)?.family_id}
                           value={d.claimRecipientId || ''}
                           onChange={v => change(d.id, { claimRecipientId: v || null })}
                           disabled={busy || d.action === 'skip'}

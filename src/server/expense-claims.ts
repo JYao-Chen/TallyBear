@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { PoolClient } from 'pg';
-import { transaction, lockBook } from './db';
+import { transaction } from './db';
 import { Failure } from './access';
 import { checkCategory } from './categories';
 import { attachWalletBalances } from './wallet-history';
@@ -10,16 +10,29 @@ const uuid = z.string().uuid();
 async function notify(c: PoolClient, id: string, user: string, kind: string) {
   await c.query('INSERT INTO expense_claim_events(claim_id,user_id,kind) VALUES($1,$2,$3)', [id, user, kind]);
 }
-async function familyPair(c: PoolClient, a: string, b: string) {
+async function familyPair(c: PoolClient, a: string, b: string, sourceId: string) {
   if (
     !(
       await c.query(
-        'SELECT 1 FROM family_members a JOIN family_members b ON b.family_id=a.family_id JOIN users u ON u.id=b.user_id AND NOT u.disabled WHERE a.user_id=$1 AND b.user_id=$2 AND a.user_id<>b.user_id',
-        [a, b],
+        `SELECT 1 FROM transactions t JOIN accounts wallet ON wallet.id=t.account_id
+         JOIN family_members a ON a.user_id=$1 AND (wallet.family_id IS NULL OR wallet.family_id=a.family_id)
+         JOIN family_members b ON b.family_id=a.family_id AND b.user_id=$2
+         JOIN users u ON u.id=b.user_id AND NOT u.disabled
+         WHERE t.id=$3 AND (wallet.family_id IS NOT NULL OR a.user_id<>b.user_id)`,
+        [a, b, sourceId],
       )
     ).rowCount
   )
-    throw new Failure('请选择仍在同一家庭的其他成员', 403);
+    throw new Failure('请选择符合付款钱包归属的同一家庭成员', 403);
+}
+function canAssignExpense(
+  record: { kind: string; owner_id: string | null; family_member: string | null; role: string | null },
+  user: string,
+) {
+  return (
+    record.kind === 'expense' &&
+    (!!record.family_member || (record.owner_id === user && !!record.role && record.role !== 'viewer'))
+  );
 }
 async function copyForClaim(c: PoolClient, claim: any, source: any, book: string) {
   if (source.book_id === book) {
@@ -66,6 +79,28 @@ async function copyForClaim(c: PoolClient, claim: any, source: any, book: string
   );
   return { id: result.id, managed };
 }
+async function acceptClaim(
+  c: PoolClient,
+  claim: { id: string; source_id: string; recipient_id: string },
+  book: string,
+) {
+  const rows = (
+    await c.query(
+      "SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date FROM transactions t WHERE (id=$1 OR refund_of=$1) AND NOT deleted ORDER BY (id=$1) DESC,created_at",
+      [claim.source_id],
+    )
+  ).rows;
+  if (!rows.some(t => t.id === claim.source_id)) throw new Failure('原账单已删除');
+  let targetId = '';
+  for (const row of rows) {
+    const copy = await copyForClaim(c, claim, row, book);
+    if (row.id === claim.source_id) targetId = copy.id;
+  }
+  await c.query(
+    "UPDATE expense_claims SET status='accepted',target_id=$2,version=version+1,updated_at=now() WHERE id=$1",
+    [claim.id, targetId],
+  );
+}
 async function removeLinks(c: PoolClient, id: string) {
   await c.query('UPDATE expense_claim_links SET active=false WHERE claim_id=$1', [id]);
   await c.query(
@@ -73,15 +108,21 @@ async function removeLinks(c: PoolClient, id: string) {
     [id],
   );
 }
-export async function inviteExpense(c: PoolClient, user: string, sourceId: string, recipient: string | null) {
+export async function inviteExpense(
+  c: PoolClient,
+  user: string,
+  sourceId: string,
+  recipient: string | null,
+  bookId?: string,
+) {
   const source = (
     await c.query(
-      `SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,(SELECT COALESCE(sum(r.amount),0)::float8 FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted) AS refunded,a.owner_id,m.role FROM transactions t JOIN accounts a ON a.id=t.account_id JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1 AND NOT t.deleted`,
+      `SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date,(SELECT COALESCE(sum(r.amount),0)::float8 FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted) AS refunded,a.owner_id,a.family_id,m.role,f.user_id AS family_member FROM transactions t JOIN accounts a ON a.id=t.account_id LEFT JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 LEFT JOIN family_members f ON f.family_id=a.family_id AND f.user_id=$2 WHERE t.id=$1 AND NOT t.deleted`,
       [sourceId, user],
     )
   ).rows[0];
-  if (!source || source.role === 'viewer' || source.owner_id !== user || source.kind !== 'expense')
-    throw new Failure('只能为本人实际付款且可编辑的消费指定认领人', 403);
+  if (!source || !canAssignExpense(source, user))
+    throw new Failure('只能为有权限的个人或家庭钱包消费指定认领人', 403);
   if (
     (await c.query('SELECT 1 FROM expense_claim_links WHERE target_id=$1 AND managed', [sourceId])).rowCount
   )
@@ -93,8 +134,24 @@ export async function inviteExpense(c: PoolClient, user: string, sourceId: strin
       [event],
     )
   ).rows[0];
+  if (recipient) await familyPair(c, user, recipient, sourceId);
+  if (current && current.sender_id !== user) throw new Failure('请由原发起人调整这笔认领', 403);
   if (current?.recipient_id === recipient) return { id: current.id };
   if (current?.status === 'accepted') throw new Failure('请先撤回已认领的关联，再更换认领人');
+  let selfBook = source.book_id;
+  if (user === recipient && !source.role) {
+    if (
+      !bookId ||
+      !(
+        await c.query("SELECT 1 FROM members WHERE book_id=$1 AND user_id=$2 AND role<>'viewer'", [
+          bookId,
+          user,
+        ])
+      ).rowCount
+    )
+      throw new Failure('请选择自己可编辑的账本', 403);
+    selfBook = bookId;
+  }
   if (current) {
     await c.query(
       "UPDATE expense_claims SET status='withdrawn',version=version+1,updated_at=now() WHERE id=$1",
@@ -103,7 +160,6 @@ export async function inviteExpense(c: PoolClient, user: string, sourceId: strin
     await notify(c, current.id, current.recipient_id, 'withdrawn');
   }
   if (!recipient) return { ok: true };
-  await familyPair(c, user, recipient);
   if (
     (
       await c.query(
@@ -117,7 +173,7 @@ export async function inviteExpense(c: PoolClient, user: string, sourceId: strin
     await c.query('UPDATE transactions SET event_id=$2,version=version+1 WHERE id=$1', [source.id, event]);
   const id = randomUUID();
   await c.query(
-    "INSERT INTO expense_claims(id,event_id,source_id,sender_id,recipient_id,status,snapshot) VALUES($1,$2,$3,$4,$5,'pending',$6)",
+    "INSERT INTO expense_claims(id,event_id,source_id,sender_id,recipient_id,status,snapshot) VALUES($1,$2,$3,$4,$5,CASE WHEN $4::uuid=$5::uuid THEN 'accepted' ELSE 'pending' END,$6)",
     [
       id,
       event,
@@ -142,7 +198,9 @@ export async function inviteExpense(c: PoolClient, user: string, sourceId: strin
       ),
     ],
   );
-  await notify(c, id, recipient, 'invited');
+  if (user === recipient)
+    await acceptClaim(c, { id, source_id: sourceId, recipient_id: recipient }, selfBook);
+  else await notify(c, id, recipient, 'invited');
   return { id };
 }
 // A later refund follows the accepted expense into its recipient's chosen book.
@@ -177,13 +235,15 @@ export async function expenseClaims(
   params: URLSearchParams,
 ) {
   return transaction(async c => {
-    if (path[1] === 'people' && method === 'GET')
+    if (path[1] === 'people' && method === 'GET') {
+      const family = uuid.nullable().parse(params.get('familyId'));
       return (
         await c.query(
-          'SELECT DISTINCT u.id,u.name,u.avatar FROM family_members a JOIN family_members b ON b.family_id=a.family_id JOIN users u ON u.id=b.user_id AND NOT u.disabled WHERE a.user_id=$1 AND u.id<>$1 ORDER BY u.name,u.id',
-          [user],
+          'SELECT DISTINCT u.id,u.name,u.avatar,u.id=$1 AS self FROM family_members a JOIN family_members b ON b.family_id=a.family_id JOIN users u ON u.id=b.user_id AND NOT u.disabled WHERE a.user_id=$1 AND (($2::uuid IS NULL AND u.id<>$1) OR a.family_id=$2) ORDER BY u.name,u.id',
+          [user, family],
         )
       ).rows;
+    }
     if (path[1] === 'inbox' && method === 'GET') {
       const offset = z.coerce
         .number()
@@ -222,49 +282,53 @@ export async function expenseClaims(
     }
     if (path[1] === 'for-record' && method === 'GET') {
       const id = uuid.parse(params.get('id'));
-      if (
-        !(
-          await c.query(
-            'SELECT 1 FROM transactions t JOIN members m ON m.book_id=t.book_id AND m.user_id=$2 WHERE t.id=$1',
-            [id, user],
-          )
-        ).rowCount
-      )
-        throw new Failure('无权查看这笔账', 403);
+      const record = (
+        await c.query(
+          `SELECT a.owner_id,a.family_id,m.role,f.user_id AS family_member,t.kind,t.deleted
+         FROM transactions t LEFT JOIN accounts a ON a.id=t.account_id
+         LEFT JOIN members m ON m.book_id=t.book_id AND m.user_id=$2
+         LEFT JOIN family_members f ON f.family_id=a.family_id AND f.user_id=$2 WHERE t.id=$1`,
+          [id, user],
+        )
+      ).rows[0];
+      if (!record?.role && !record?.family_member) throw new Failure('无权查看这笔账', 403);
       const row = (
         await c.query(
           "SELECT c.id,c.status,c.version,c.sender_id,c.recipient_id,s.name AS sender_name,r.name AS recipient_name,c.target_id FROM expense_claims c JOIN users s ON s.id=c.sender_id JOIN users r ON r.id=c.recipient_id JOIN transactions t ON COALESCE(t.event_id,t.id)=c.event_id WHERE t.id=$1 AND c.status IN ('pending','accepted') ORDER BY c.created_at DESC LIMIT 1",
           [id],
         )
       ).rows[0];
-      const payer = (
-        await c.query(
-          'SELECT a.owner_id FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.id=$1',
-          [id],
-        )
-      ).rows[0]?.owner_id;
       if (row && row.recipient_id !== user) row.target_id = null;
-      const writable = !!(
-        await c.query(
-          "SELECT 1 FROM members m JOIN transactions t ON t.book_id=m.book_id WHERE t.id=$1 AND m.user_id=$2 AND m.role<>'viewer'",
-          [id, user],
-        )
-      ).rowCount;
+      const writable = !!record.role && record.role !== 'viewer';
+      const editableClaim =
+        (!row || row.sender_id === user) &&
+        !(await c.query('SELECT 1 FROM expense_claim_links WHERE target_id=$1 AND managed', [id])).rowCount;
       return {
         claim: row || null,
         canOpen: !!row && [row.sender_id, row.recipient_id].includes(user),
-        canInvite: payer === user && writable,
-        canEdit:
-          (!row || row.sender_id === user) &&
-          !(await c.query('SELECT 1 FROM expense_claim_links WHERE target_id=$1 AND managed', [id])).rowCount,
+        familyId: record.family_id,
+        userId: user,
+        selfBooks:
+          record.family_member && !record.role
+            ? (
+                await c.query(
+                  "SELECT b.id,b.name FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.name,b.id",
+                  [user],
+                )
+              ).rows
+            : null,
+        canInvite: editableClaim && !record.deleted && canAssignExpense(record, user),
+        canEdit: writable && editableClaim,
       };
     }
     if (method === 'POST' && path[1] === 'invite') {
-      const b = z.object({ sourceId: uuid, recipientId: uuid.nullable() }).parse(body);
+      const b = z
+        .object({ sourceId: uuid, recipientId: uuid.nullable(), bookId: uuid.optional() })
+        .parse(body);
       const t = (await c.query('SELECT book_id FROM transactions WHERE id=$1', [b.sourceId])).rows[0];
       if (!t) throw new Failure('账单不存在', 404);
-      await lockRelatedBooks(c, t.book_id, b.sourceId, user);
-      return inviteExpense(c, user, b.sourceId, b.recipientId);
+      await lockRelatedBooks(c, t.book_id, b.sourceId, user, b.bookId);
+      return inviteExpense(c, user, b.sourceId, b.recipientId, b.bookId);
     }
     const id = uuid.parse(path[1]);
     let claim = (await c.query('SELECT * FROM expense_claims WHERE id=$1', [id])).rows[0];
@@ -282,7 +346,7 @@ export async function expenseClaims(
           ).rowCount
         )
           return [];
-      } else await familyPair(c, claim.sender_id, claim.recipient_id);
+      } else await familyPair(c, claim.sender_id, claim.recipient_id, claim.source_id);
       return (
         await c.query(
           'SELECT f.id,f.name,r.purpose FROM transaction_receipts r JOIN receipt_files f ON f.id=r.file_id WHERE r.transaction_id=$1',
@@ -313,7 +377,7 @@ export async function expenseClaims(
           ? (await c.query('SELECT book_id FROM transactions WHERE id=$1', [claim.target_id])).rows[0]
           : null;
       const active = ['pending', 'accepted'].includes(claim.status);
-      if (active) await familyPair(c, claim.sender_id, claim.recipient_id);
+      if (active) await familyPair(c, claim.sender_id, claim.recipient_id, claim.source_id);
       const ownRecord =
         claim.recipient_id === user && claim.target_id && active
           ? (
@@ -336,7 +400,7 @@ export async function expenseClaims(
         active || claim.sender_id === user
           ? { ...source, wallet_balances: (await attachWalletBalances(user, [source]))[0].wallet_balances }
           : { ...claim.snapshot, kind: 'expense', wallet_balances: [] };
-      if (claim.recipient_id === user) delete visibleSource.book_id;
+      if (claim.recipient_id === user && !sourceBook) delete visibleSource.book_id;
       return {
         claim: {
           ...claim,
@@ -402,7 +466,7 @@ export async function expenseClaims(
     )
       throw new Failure('无权处理这笔认领', 403);
     if (op === 'accept') {
-      await familyPair(c, claim.sender_id, claim.recipient_id);
+      await familyPair(c, claim.sender_id, claim.recipient_id, claim.source_id);
       if (!['pending', 'accepted'].includes(claim.status)) throw new Failure('这笔邀请已经结束');
       if (
         !book ||
@@ -414,23 +478,8 @@ export async function expenseClaims(
         ).rowCount
       )
         throw new Failure('请选择自己可编辑的账本', 403);
-      const rows = (
-        await c.query(
-          "SELECT t.*,t.amount::float8 AS amount,to_char(t.date,'YYYY-MM-DD') AS date FROM transactions t WHERE (id=$1 OR refund_of=$1) AND NOT deleted ORDER BY (id=$1) DESC,created_at",
-          [claim.source_id],
-        )
-      ).rows;
-      if (!rows.some(t => t.id === claim.source_id)) throw new Failure('原账单已删除');
       if (claim.status === 'accepted') await removeLinks(c, id);
-      let targetId = '';
-      for (const row of rows) {
-        const copy = await copyForClaim(c, claim, row, book);
-        if (row.id === claim.source_id) targetId = copy.id;
-      }
-      await c.query(
-        "UPDATE expense_claims SET status='accepted',target_id=$2,version=version+1,updated_at=now() WHERE id=$1",
-        [id, targetId],
-      );
+      await acceptClaim(c, claim, book);
       await notify(c, id, claim.sender_id, 'accepted');
     } else {
       if (

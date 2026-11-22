@@ -59,7 +59,7 @@ TZ=Asia/Shanghai TEST_DATABASE_URL=postgres://tb:x@127.0.0.1:55486/tallybear_tes
 | `organize-http-smoke.ts` | 按需 | 需要 TEST_BASE_URL 对应的测试服务。 |
 | `password-policy-smoke.mjs` | 按需 | 需要运行中的隔离 HTTP 服务（APP_ORIGIN）。 |
 | `photo-upload-smoke.mjs` | 按需 | 需要运行中的隔离 HTTP 服务（APP_ORIGIN）。 |
-| `preference-smoke.ts` | 按需 · 已知缺陷 | 已知业务缺陷：同时推断账本和钱包时，保存的建议只有 bookId，缺少 accountId。 |
+| `preference-smoke.ts` | 转正 · 数据库 | 自建个人消费历史，验证助手确认卡同时保存账本和钱包的偏好依据。 |
 | `profile-smoke.ts` | 转正 · 数据库 | 事务内建立个人规则和上下文，验证权限、推断及设置。 |
 | `purchase-search-smoke.ts` | 按需 | 需要 TEST_ORIGIN 对应的测试服务及图片夹具。 |
 | `queue-public-smoke.mjs` | 按需 | 需要运行中的隔离 HTTP 服务和独立队列 worker。 |

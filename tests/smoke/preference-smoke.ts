@@ -1,5 +1,6 @@
 import './database.mjs';
 import assert from 'node:assert/strict';
+import { recordingDate } from '../../src/lib/entry-time';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { db, withConnection } from '../../src/server/db';
 import { entry } from '../../src/server/model';
@@ -14,7 +15,8 @@ import { sceneSchema } from '../../src/lib/entry-scene';
 import { receiptOriginSchema } from '../../src/lib/receipt-origin';
 process.env.ENCRYPTION_KEY = randomBytes(32).toString('base64');
 const c = await db.connect(),
-  originalFetch = globalThis.fetch;
+  originalFetch = globalThis.fetch,
+  date = recordingDate();
 await c.query('BEGIN');
 try {
   await withConnection(c, async () => {
@@ -48,7 +50,7 @@ try {
         id: randomUUID(),
         kind: 'expense',
         amount: 1800,
-        date: '2026-10-01',
+        date,
         accountId: wallet,
         payee: '面馆',
         title: '面馆午餐',
@@ -76,7 +78,7 @@ try {
     assert.equal(integrated.accountId, wallet);
     assert.ok(integrated.preferenceSuggestions?.length);
     const card = await prepareChatAction(
-      { kind: 'entry', data: { ...current, date: '2026-10-01' } },
+      { kind: 'entry', data: { ...current, date } },
       { book, user, useHistory: true },
       [],
     );
@@ -96,7 +98,7 @@ try {
       id: randomUUID(),
       lineItems: [],
       status: 'paid' as const,
-      date: '2026-10-01',
+      date,
       note: '',
     };
     const result = await recognize(

@@ -143,7 +143,7 @@ try {
   await entry(refund, 'refund', 200, '2026-10-17', { refund: ordinary });
   await entry(transfer, 'transfer', 5000, '2026-10-18', { target });
   await db.query(
-    "INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at) VALUES($1,$2,300,'测试校正',$3,'2026-10-19 10:00:00+08')",
+    "INSERT INTO account_adjustments(id,account_id,amount,note,created_by,created_at,effective_date) VALUES($1,$2,300,'测试校正',$3,'2026-10-19 10:00:00+08','2026-10-19')",
     [randomUUID(), wallet, a],
   );
   await entry(last, 'expense', 100, '2026-10-20');

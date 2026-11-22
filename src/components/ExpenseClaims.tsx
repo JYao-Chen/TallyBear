@@ -635,6 +635,7 @@ export function ExpenseClaimRecord({
     l = (zh: string, en: string) => (locale === 'en' ? en : zh);
   const [data, setData] = useState<any>(null),
     [recipient, setRecipient] = useState(''),
+    [selfBook, setSelfBook] = useState(''),
     [open, setOpen] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
@@ -642,18 +643,21 @@ export function ExpenseClaimRecord({
     const d = await claimRequest('for-record?id=' + transactionId);
     setData(d);
     setRecipient(d.claim?.recipient_id || '');
+    setSelfBook(d.selfBooks?.length === 1 ? d.selfBooks[0].id : '');
     onPermission?.(d.canEdit);
   }, [transactionId]);
   useEffect(() => {
     void load().catch(e => setError(e.message));
   }, [load]);
+  const chooseBook = data?.selfBooks && recipient === data.userId;
   return (
     <section className="expense-claim-record">
       {data?.claim && (
         <>
           <p>
-            {l('认领对象', 'Purchase recipient')}：{data.claim.recipient_name} · {l('实际付款人', 'Paid by')}
-            ：{data.claim.sender_name} ·{' '}
+            {l('认领对象', 'Purchase recipient')}：{data.claim.recipient_name} ·{' '}
+            {data.familyId ? l('发起人', 'Assigned by') : l('实际付款人', 'Paid by')}：
+            {data.claim.sender_name} ·{' '}
             {data.claim.status === 'accepted' ? l('已认领', 'Claimed') : l('待认领', 'Pending claim')}
           </p>
           {data.canOpen && (
@@ -663,17 +667,38 @@ export function ExpenseClaimRecord({
           )}
         </>
       )}
-      {data?.canInvite && data.canEdit && (!data.claim || data.claim.status === 'pending') && (
+      {data?.canInvite && (!data.claim || data.claim.status === 'pending') && (
         <>
-          <ClaimRecipientSelect value={recipient} onChange={setRecipient} disabled={busy} />
+          <ClaimRecipientSelect
+            familyId={data.familyId}
+            value={recipient}
+            onChange={setRecipient}
+            disabled={busy}
+          />
+          {chooseBook && (
+            <VisualSelect
+              label={l('归入我的哪个账本', 'Choose my destination book')}
+              value={selfBook}
+              onChange={setSelfBook}
+              disabled={busy}
+              options={[
+                { value: '', label: l('请选择账本', 'Choose a book') },
+                ...data.selfBooks.map((b: { id: string; name: string }) => ({ value: b.id, label: b.name })),
+              ]}
+            />
+          )}
           <button
             className="secondary"
-            disabled={busy || recipient === (data.claim?.recipient_id || '')}
+            disabled={busy || (chooseBook && !selfBook) || recipient === (data.claim?.recipient_id || '')}
             onClick={async () => {
               setBusy(true);
               setError('');
               try {
-                await claimRequest('invite', { sourceId: transactionId, recipientId: recipient || null });
+                await claimRequest('invite', {
+                  sourceId: transactionId,
+                  recipientId: recipient || null,
+                  bookId: chooseBook ? selfBook : undefined,
+                });
                 await load();
                 onChanged?.();
                 window.dispatchEvent(new Event('expense-claims-changed'));
@@ -684,7 +709,9 @@ export function ExpenseClaimRecord({
               }
             }}
           >
-            {l('保存消费对象', 'Save purchase recipient')}
+            {data.familyId
+              ? l('指给家庭成员', 'Assign to family member')
+              : l('保存消费对象', 'Save purchase recipient')}
           </button>
         </>
       )}
