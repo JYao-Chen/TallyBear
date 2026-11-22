@@ -1,6 +1,6 @@
 # TallyBear v3 重构计划
 
-2026-11-22 立项。基线：main `4487483`（与生产版本相同）。工作分支：`refactor/v3`。
+2026-11-22 立项。基线：main `4487483`（与生产版本相同）。工作分支：`refactor/v3-clean`（`refactor/v3` 为早期分支，已废弃）。
 
 ## 已定决策
 
@@ -9,7 +9,7 @@
 | 推进方式 | 渐进替换：按阶段整体替换模块，每阶段可测试、可单独上线，旧代码随之删除 |
 | 技术栈 | 保留 Next.js 16 + PostgreSQL + LangGraph 单体，内部分层重整 |
 | 视觉 | 先出方案对比（画布：https://claude.ai/artifact/6P7fRN1n9pZFftzdgHbgDu），选定后定设计系统 |
-| 执行 | 代理机会话直接改代码，依赖、测试、构建经 `dev-check linux` 在 dev-linux 执行 |
+| 执行 | 代理机会话（Claude）负责架构、设计系统、外壳与首页、审核与合并；边界清楚的后端与迁移类任务派给 dev-linux 上的 Codex（gpt-6.2-astra，中等思考），每个任务一份任务单、一个 worktree，Claude 逐项审核补丁并复跑验证后才合入 |
 | 数据 | 生产库不重建；表结构变化全部走迁移，迁移前备份，可回滚 |
 
 ## 不变的约束
@@ -44,6 +44,30 @@ src/
   lib/                      前后端共享的纯逻辑与类型
 migrations/                 编号迁移 0001_baseline.sql …
 ```
+
+## 执行分工（2026-11-22 定）
+
+| 工作 | 执行者 | 任务单 / 状态 |
+|---|---|---|
+| 阶段 0：迁移系统、格式化、特征测试 | Claude | 已完成 |
+| 阶段 0：冒烟脚本归类与 `test:smoke` | Codex `tb-smoke-tests` | 已合入 |
+| 阶段 1：任务事件 LISTEN/NOTIFY、会话摘要、IP 限流、密码长度、币种缓存（迁移 0002） | Codex `tb-stage1-backend` | 已合入；IP 改为信任 `X-Real-IP`（审核修正） |
+| 阶段 1：校准生效日、家庭缴款统一、家庭总览、金额区间（迁移 0003） | Codex `tb-stats-family` | 已合入 |
+| 阶段 1：助手风险分级、操作记录与撤销（迁移 0004） | Codex `tb-assistant-risk` | 第二轮 |
+| 阶段 1：错误码 | 并入阶段 2 的 http 包装（响应增加 `code`，文案不动） | 第二轮 |
+| 阶段 2：`server/http` 包装与路由表、拆除 `application-api.ts` | Codex `tb-api-split` | 第二轮 |
+| 阶段 2：统计领域统一（投影、赠与规则、钱包域、整数分） | Codex `tb-stats-domain` | 第二轮 |
+| 缺陷：偏好依据缺 accountId、逐笔余额按生效日、家庭钱包认领 | Codex `tb-fixes-a` | 第二轮 |
+| 阶段 3：tokens 与基础组件（`src/ui/`） | Claude | 已完成 |
+| 阶段 4：网址路由、5 项导航外壳、首页 | Claude | 已完成 |
+| 阶段 4：其余页面换用 `src/ui` 组件与 CSS Modules | 按页面派 Codex，Claude 定样式与验收 | 第三轮 |
+| 阶段 5：删除旧样式层、文档、发布 | Claude | — |
+
+### 实施中的设计调整
+- **API 拆分方式**：助手执行写操作时在进程内调用 API 分发（`assistant-operations.ts` 的 `runOperation`），所以不采用“每域一个 `app/api/<domain>/route.ts`”，改为 `src/server/http/routes/<domain>.ts` 路由表 + 统一 `dispatch`，`app/api/[...path]/route.ts` 与助手共用。
+- **错误码**：响应体统一为 `{ error, code }`；中文文案保留在服务端（前端与助手都直接显示 `error`），不做文案表外置。
+- **页面路由**：`src/app/(app)/layout.tsx` 常驻 `Workspace`，`[[...slug]]` 只校验网址；页面由网址决定（`src/lib/routes.ts`）。之后按页面把内容迁到各自的 route 文件，`Workspace` 逐步缩小。
+- **字体**：生产在国内且不引入外部字体服务，标题用系统宋体栈（Noto Serif SC / 思源宋体 / 宋体），正文用系统黑体栈，数字 Geist。
 
 ## 阶段
 

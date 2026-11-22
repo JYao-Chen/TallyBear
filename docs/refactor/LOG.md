@@ -13,3 +13,9 @@
 - `tsc --noEmit` 通过；`npm test` 396 项，386 通过，10 跳过，0 失败。
 - `npm run test:db`（pgvector/pgvector:0.8.2-pg16 临时容器）：9 项，7 通过，2 跳过（演示数据测试）。
 - 生产 2026-11-22 03:30 备份恢复副本：`migrate.mjs` 走旧库路径，登记 `0001|legacy`，再次执行无变化；迁移前后口径快照 `stats-diff` 无差异。基线快照存于开发机 artifacts 目录（真实数据，权限 600，不入库）。
+
+## 2026-11-22 第一轮 Codex 任务合入
+
+- `tb-stage1-backend`（迁移 0002）：任务结束时触发器删事件并 `pg_notify`，SSE 等待通知（2 秒兜底）；会话只存 sha256 摘要，旧会话迁移时就地转换；登录限流按 IP（30 次）与用户名（15 次）分开计数；新密码至少 8 位；部署币种检查缓存成功结果。审核修正：客户端 IP 取 `X-Real-IP`，退回时取 `X-Forwarded-For` 的最后一段（第一段可伪造）。
+- `tb-stats-family`（迁移 0003）：`account_adjustments.effective_date`（按上海日期回填）；`family_contributions` 视图统一两种缴款记法；`GET /api/family-finance/overview` 给出缴款、共同费用、期初期末与结余；个人报表增加 `familyContribution`；资金流把缴款单列；金额区间筛选按命中金额。
+- `tb-smoke-tests`：63 个冒烟移入 `tests/smoke/`，`npm run test:smoke` 每项独立重建测试库；36 个浏览器脚本移入 `tests/browser/`。审核修正：`readme-screenshots.mjs` 跟随新路径与 `SMOKE_DATABASE_URL`。
