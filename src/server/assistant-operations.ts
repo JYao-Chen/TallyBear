@@ -731,14 +731,14 @@ export async function runOperation(input: unknown, user: User, write = false) {
         if (Array.isArray(value)) for (const item of value) url.searchParams.append(key, String(item));
         else url.searchParams.set(key, String(value));
       }
-  const { applicationApi } = await import('./application-api');
-  const response = await applicationApi(
+  const { dispatch } = await import('./http/router');
+  const response = await dispatch(
     new NextRequest(url, {
       method: op.method,
       headers: { origin, 'content-type': 'application/json' },
       ...(op.method === 'GET' ? {} : { body: JSON.stringify(body) }),
     }),
-    { params: Promise.resolve({ path }) },
+    path,
     user,
   );
   if (response.ok && response.headers.get('content-type')?.includes('text/csv'))

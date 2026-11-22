@@ -19,3 +19,9 @@
 - `tb-stage1-backend`（迁移 0002）：任务结束时触发器删事件并 `pg_notify`，SSE 等待通知（2 秒兜底）；会话只存 sha256 摘要，旧会话迁移时就地转换；登录限流按 IP（30 次）与用户名（15 次）分开计数；新密码至少 8 位；部署币种检查缓存成功结果。审核修正：客户端 IP 取 `X-Real-IP`，退回时取 `X-Forwarded-For` 的最后一段（第一段可伪造）。
 - `tb-stats-family`（迁移 0003）：`account_adjustments.effective_date`（按上海日期回填）；`family_contributions` 视图统一两种缴款记法；`GET /api/family-finance/overview` 给出缴款、共同费用、期初期末与结余；个人报表增加 `familyContribution`；资金流把缴款单列；金额区间筛选按命中金额。
 - `tb-smoke-tests`：63 个冒烟移入 `tests/smoke/`，`npm run test:smoke` 每项独立重建测试库；36 个浏览器脚本移入 `tests/browser/`。审核修正：`readme-screenshots.mjs` 跟随新路径与 `SMOKE_DATABASE_URL`。
+
+## 2026-11-23 阶段 2 API 拆分
+
+- Web API 与助手操作共用 `src/server/http/router.ts` 的 `dispatch(req, path, actor?)`。业务路由在 `src/server/http/routes/` 声明方法、路径和访问级别，按注册顺序匹配。账本成员、写入和所有者权限继续按资源检查。
+- `handler.ts` 统一检查部署币种、Origin、身份和请求体。普通 JSON 按实际读取的字节数限 35,000,000 字节。助手、对话和草稿的图片 JSON 允许更大请求，收据上传保留原始流。
+- `errors.ts` 保留原有错误文案和 HTTP 状态，并返回 `code`。401、403、404、409、400、413、429、500 分别对应 `unauthorized`、`forbidden`、`not_found`、`conflict`、`validation`、`too_large`、`rate_limited`、`internal`。现有 410 附件过期响应使用 `not_found`，上游 502、503 使用 `internal`。

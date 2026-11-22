@@ -1,8 +1,10 @@
+import type { ErrorCode } from './http/errors';
 import { db } from './db';
 export class Failure extends Error {
   constructor(
     message: string,
     public status = 400,
+    public code?: ErrorCode,
   ) {
     super(message);
   }

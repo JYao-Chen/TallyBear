@@ -30,7 +30,7 @@ test('任务事件与会话', { skip: !process.env.JOBS_TEST_DATABASE_URL }, asy
   const { authenticate, passwordHash, sessionUser, sessionDigest } = await import('../src/server/auth');
   const { executeJob, cleanupExpiredSessions } = await import('../src/server/job-worker');
   const { watchJob } = await import('../src/server/jobs');
-  const { applicationApi } = await import('../src/server/application-api');
+  const { dispatch } = await import('../src/server/http/router');
   const uid = randomUUID(),
     job = randomUUID(),
     oldJob = randomUUID();
@@ -169,13 +169,13 @@ test('任务事件与会话', { skip: !process.env.JOBS_TEST_DATABASE_URL }, asy
         'x-real-ip': '192.0.2.3',
       };
       async function login(username: string) {
-        return applicationApi(
+        return dispatch(
           new NextRequest('http://localhost/api/login', {
             method: 'POST',
             headers,
             body: JSON.stringify({ username, password: 'bad' }),
           }),
-          { params: Promise.resolve({ path: ['login'] }) },
+          ['login'],
         );
       }
       assert.equal((await login('legacy')).status, 401);
