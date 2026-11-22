@@ -39,10 +39,15 @@ test('translation keeps placeholders for existing deferred replacement callers',
 
 test('static component copy and literal translation keys are localized', () => {
   const failures: string[] = [];
-  for (const file of readdirSync('src/components').filter(f => f.endsWith('.tsx'))) {
+  const sources = ['src/components', 'src/features', 'src/ui'].flatMap(dir =>
+    readdirSync(dir, { recursive: true, encoding: 'utf8' })
+      .filter(f => f.endsWith('.tsx'))
+      .map(f => dir + '/' + f),
+  );
+  for (const file of sources) {
     const ast = ts.createSourceFile(
       file,
-      readFileSync('src/components/' + file, 'utf8'),
+      readFileSync(file, 'utf8'),
       ts.ScriptTarget.Latest,
       true,
       ts.ScriptKind.TSX,

@@ -1,0 +1,147 @@
+.greeting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.greeting h1 {
+  margin: 0;
+  font: 700 var(--text-title) / 1.25 var(--font-title);
+}
+.greeting p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+@media (max-width: 960px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.capture {
+  display: grid;
+  gap: var(--space-3);
+}
+.captureHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.captureHead h2 {
+  margin: 0;
+  font: 600 var(--text-lg) var(--font-body);
+}
+.say {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: end;
+}
+.say textarea {
+  min-height: 52px;
+  height: 52px;
+  resize: none;
+}
+.captureActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.upload {
+  position: relative;
+  overflow: hidden;
+}
+.upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.or {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.month {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+.monthHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.monthHead small {
+  opacity: 0.8;
+  font-size: var(--text-xs);
+}
+.monthMain {
+  display: grid;
+  gap: 2px;
+}
+.monthMain span {
+  font-size: var(--text-xs);
+  opacity: 0.85;
+}
+.monthMain strong {
+  font: 600 30px / 1.15 var(--font-number);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.pairs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.pairs strong {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+}
+.budget {
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-xs);
+}
+.bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.22);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--highlight);
+}
+.bar.over > span {
+  background: #f39a8f;
+}
+.monthLink {
+  justify-self: start;
+  color: inherit;
+  font-size: var(--text-xs);
+  opacity: 0.9;
+}
+
+.reminders {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.reminders:empty {
+  display: none;
+}

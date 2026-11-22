@@ -1,0 +1,93 @@
+/* Design tokens (docs/refactor/DESIGN-SYSTEM.md). Both themes share token names; only values differ.
+   Legacy variable names at the bottom keep the pre-v3 stylesheets on the same palette until they are removed. */
+:root {
+  --paper: #faf7f2;
+  --surface: #fffdfa;
+  --surface-sunk: #f6f1ea;
+  --line: #ece3d8;
+  --line-strong: #dfd4c6;
+  --ink: #453d38;
+  --muted: #6f645c;
+  --accent: #365f58;
+  --accent-ink: #ffffff;
+  --accent-soft: #eaf0eb;
+  --expense: #9a4d58;
+  --income: #3c6b55;
+  --attention: #b0612e;
+  --attention-soft: #fff7ee;
+  --highlight: #f2c18f;
+  --danger: #a33b3b;
+  --focus: #365f58;
+
+  --font-title: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
+  --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-number: Geist, 'Noto Sans SC', 'PingFang SC', sans-serif;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-input: 15px;
+  --text-lg: 17px;
+  --text-title: 26px;
+  --text-money: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-sheet: 20px;
+  --radius-pill: 99px;
+  --shadow-raised: 0 10px 30px rgb(69 61 56 / 0.1), 0 1px 3px rgb(69 61 56 / 0.08);
+  --shadow-overlay: 0 24px 60px rgb(69 61 56 / 0.22);
+  --touch: 44px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration: 160ms;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Legacy aliases */
+  --soft: var(--accent-soft);
+  --green: var(--income);
+  --red: var(--expense);
+  --radius: 18px;
+}
+html[data-theme='minimal'] {
+  --paper: #f5f7fa;
+  --surface: #ffffff;
+  --surface-sunk: #eef2f7;
+  --line: #dfe5ed;
+  --line-strong: #cbd4e0;
+  --ink: #253047;
+  --muted: #5d6779;
+  --accent: #4166ad;
+  --accent-soft: #edf2fa;
+  --expense: #b04a5d;
+  --income: #26816e;
+  --attention: #b0612e;
+  --attention-soft: #fff6ec;
+  --highlight: #9fb8e6;
+  --focus: #4166ad;
+  --font-title: var(--font-body);
+  --radius-card: 12px;
+  --radius-sheet: 16px;
+  --radius: 12px;
+}
+@media (max-width: 640px) {
+  :root {
+    --text-title: 18px;
+  }
+}
+.tabular,
+.money {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

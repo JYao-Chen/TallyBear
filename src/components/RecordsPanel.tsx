@@ -51,7 +51,9 @@ export function RecordsPanel({
   periodOnly = false,
   summary,
   overview,
+  initialView = 'overview',
 }: {
+  initialView?: 'overview' | 'entries';
   summary?: ReactNode;
   overview?: ReactNode;
   bookIds?: string[];
@@ -74,7 +76,7 @@ export function RecordsPanel({
   onReportChange?: (value: AnalysisResult) => void;
 }) {
   const { t: tr, locale } = useI18n();
-  const [view, setView] = useState('overview');
+  const [view, setView] = useState<string>(initialView);
   const [sort, setSort] = useState<DetailSort>('date_desc');
   const [selecting, setSelecting] = useState(false),
     [selection, setSelection] = useState<Set<string>>(new Set());

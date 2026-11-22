@@ -34,6 +34,7 @@ type Props = {
   onChanged: () => void;
   onReconcile: () => void;
   onPlans: () => void;
+  initialView?: 'overview' | 'entries';
 };
 export function SpendingAnalysis(props: Props) {
   const { locale } = useI18n(),
@@ -201,6 +202,7 @@ export function SpendingAnalysis(props: Props) {
       ) : (
         <>
           <RecordsPanel
+            initialView={props.initialView}
             summary={
               <>
                 {' '}

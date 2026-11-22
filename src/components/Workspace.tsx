@@ -12,7 +12,6 @@ import { DiscussionInbox } from './DiscussionInbox';
 import { FamilyMovementDetails } from './FamilyMovementDetails';
 import { HomeFamilyInbox } from './HomeFamilyInbox';
 import { FamilyFinanceEntry } from './FamilyFinanceEntry';
-import { FinanceChart } from './InteractiveFinanceChart';
 import { SpendingAnalysis } from './SpendingAnalysis';
 import { deviceDateTime } from '@/lib/entry-time';
 import { InstallmentsPanel, InstallmentReminder } from './InstallmentsPanel';
@@ -43,9 +42,27 @@ import {
 import { AllocationPanel } from './AllocationPanel';
 import { CostProjects } from './CostProjects';
 import { ChartTransactionDetail } from './ChartTransactionDetail';
-import stickerIds from '@/lib/stickers.json';
 import { VisualSelect, SymbolIcon, CategoryIcons } from './VisualSelect';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  pageForPath,
+  pathForPage,
+  pagePaths,
+  sectionOf,
+  sections,
+  subPages,
+  type PageKey,
+} from '@/lib/routes';
+import { Sidebar } from '@/features/shell/Sidebar';
+import { MobileTabBar } from '@/features/shell/MobileTabBar';
+import { AccountMenu } from '@/features/shell/AccountMenu';
+import { SubNav } from '@/features/shell/SubNav';
+import { Greeting } from '@/features/home/Greeting';
+import { CaptureCard } from '@/features/home/CaptureCard';
+import { MonthCard } from '@/features/home/MonthCard';
+import homeStyles from '@/features/home/home.module.css';
+import shellStyles from '@/features/shell/shell.module.css';
 import {
   ArrowLeftRight,
   PanelLeftClose,
@@ -105,22 +122,6 @@ const newId = () => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 };
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
-const baseNav = [
-  ['home', '我的账本', Home],
-  ['entry', '记一笔', NotebookPen],
-  ['insights', '收支分析', ChartNoAxesCombined],
-  ['activities', '活动账', FolderHeart],
-  ['accounts', '资金资产', Wallet],
-  ['budget', '每月预算', ShieldCheck],
-  ['settings', '账本设置', Settings],
-  ['schedules', '计划与分摊', CalendarDays],
-  ['books', '账本管理', NotebookPen],
-  ['families', '家庭管理', Users],
-  ['profile', '个人资料', UserRound],
-  ['users', '用户管理', ShieldCheck],
-  ['chat', '小熊对话', Sparkles],
-  ['help', '使用说明', BookOpen],
-] as const;
 async function api(path: string, method = 'GET', body?: unknown) {
   const r = await fetch('/api/' + path, {
     method,
@@ -230,16 +231,24 @@ function ModelSettingsPanel({
     </section>
   );
 }
-export default function Workspace() {
+export default function Workspace({ children }: { children?: ReactNode }) {
   const { t: tr, locale } = useI18n();
   const [costTarget, setCostTarget] = useState<string | undefined>();
   const [settingsTab, setSettingsTab] = useState('categories');
   const [planTab, setPlanTab] = useState('cost');
   const [installmentSeed, setInstallmentSeed] = useState<Row | null>(null);
   const { theme, setTheme } = useTheme();
-  const nav = baseNav.map(
-    ([key, label, Icon]) => [key, key === 'chat' ? themes[theme].assistant : label, Icon] as const,
-  );
+  const pathname = usePathname();
+  const router = useRouter();
+  const page: PageKey = pageForPath(pathname) ?? 'home';
+  const setPage = (key: string) => router.push(pathForPage(key), { scroll: false });
+  const pageTitle = (key: PageKey) =>
+    key === 'chat'
+      ? themes[theme].assistant
+      : (subPages[key]?.find(p => p.key === key)?.label ??
+        sections.find(s => s.key === key)?.label ??
+        { entry: '记一笔', profile: '个人资料与画像', help: '使用说明' }[key as string] ??
+        '');
   const [user, setUser] = useState<User | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -256,22 +265,6 @@ export default function Workspace() {
     window.addEventListener('tallybear:memory', open);
     return () => window.removeEventListener('tallybear:memory', open);
   }, []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  useEffect(() => {
-    try {
-      setSidebarCollapsed(localStorage.getItem('ledger-sidebar-collapsed') === 'true');
-    } catch {}
-  }, []);
-  function toggleSidebar() {
-    setSidebarCollapsed(v => {
-      const next = !v;
-      try {
-        localStorage.setItem('ledger-sidebar-collapsed', String(next));
-      } catch {}
-      return next;
-    });
-  }
-
   const detailRequest = useRef(0);
   const [openingDetail, setOpeningDetail] = useState<{ row: Row; error?: string } | null>(null);
   const [claimDetail, setClaimDetail] = useState(''),
@@ -306,7 +299,6 @@ export default function Workspace() {
   const [dataLoading, setDataLoading] = useState(false);
   const [books, setBooks] = useState<Book[]>([]),
     [book, setBook] = useState(''),
-    [page, setPage] = useState('home'),
     [month, setMonth] = useState(today().slice(0, 7));
   const [activities, setActivities] = useState<Activity[]>([]);
   const [entryActivityId, setEntryActivityId] = useState('');
@@ -377,8 +369,7 @@ export default function Workspace() {
     [templateItems, setTemplateItems] = useState<Template[]>([]);
   const [originals, setOriginals] = useState<Original[]>([]);
   const [editing, setEditing] = useState<Row | null>(null);
-  const [undo, setUndo] = useState<{ id: string; version: number } | null>(null),
-    [bear, setBear] = useState(0);
+  const [undo, setUndo] = useState<{ id: string; version: number } | null>(null);
   const availableAccounts = accounts.filter(a => !a.archived && a.usable !== false);
   const current = books.find(b => b.id === book),
     canWrite = current?.role !== 'viewer';
@@ -473,7 +464,7 @@ export default function Workspace() {
       setSearchTarget(null);
     }
   }, [book, accounts, searchTarget]);
-  async function requestAI() {
+  async function requestAI(input = text) {
     const requestedBook = book;
     aiAbort.current?.abort();
     const controller = new AbortController();
@@ -487,7 +478,7 @@ export default function Workspace() {
         {
           profileContext: history ? profileContext : undefined,
           deviceTime: deviceDateTime(),
-          text,
+          text: input,
           images: intent === 'record' ? images.map(i => i.data) : undefined,
           useHistory: history,
           intent,
@@ -540,19 +531,24 @@ export default function Workspace() {
     }
   }
   function switchPage(p: string) {
-    const target = p === 'records' ? 'insights' : p;
-    setPage(target);
+    setPage(p);
+  }
+  // Navigation by link, history or code: start each page at the top with no stale messages.
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     setError('');
     setNotice('');
-    if (target === 'settings' && user?.admin)
-      Promise.all([api('ai-settings'), api('assistant-ai-settings')])
-        .then(([recognition, assistant]) => {
-          setConfig(old => ({ ...old, ...recognition, key: '' }));
-          setAssistantConfig(old => ({ ...old, ...assistant, key: '' }));
-        })
-        .catch(e => setError(e.message));
-  }
+    setMenuOpen(false);
+  }, [page]);
+  useEffect(() => {
+    if (page !== 'settings' || !user?.admin) return;
+    Promise.all([api('ai-settings'), api('assistant-ai-settings')])
+      .then(([recognition, assistant]) => {
+        setConfig(old => ({ ...old, ...recognition, key: '' }));
+        setAssistantConfig(old => ({ ...old, ...assistant, key: '' }));
+      })
+      .catch(e => setError(e.message));
+  }, [page, user?.admin]);
   function recordToActivity(id: string) {
     const writable =
       books.find(b => b.id === book && b.role !== 'viewer') || books.find(b => b.role !== 'viewer');
@@ -585,12 +581,7 @@ export default function Workspace() {
     return () => controller.abort();
   }, [page, book, statisticsRange, homeSort, revision]);
   const visibleReport = page === 'home' ? periodReport : monthlyReport;
-  const visibleRange = statisticsRange;
-  const income = visibleReport?.totals.income || 0,
-    refund = visibleReport?.totals.refund || 0,
-    expense = (visibleReport?.totals.expense || 0) - refund;
   const spending = visibleReport?.categories || [];
-  const metricLabels = ['收入', '净支出', '收支结余'];
   const chosenHomeActivity =
     activities.find(a => a.id === homeActivityChoice && !a.archived)?.id ||
     activities.find(a => !a.archived)?.id ||
@@ -736,59 +727,24 @@ export default function Workspace() {
   return (
     <CategoryIcons.Provider value={categoryItems}>
       <EntryDetailContext.Provider value={openEntry}>
-        <div
-          className={`${sidebarCollapsed ? 'app sidebar-collapsed' : 'app'}${page === 'chat' ? ' chat-page' : ''}`}
-        >
-          {menuOpen && (
-            <Sheet title={tr('账本工具')} onClose={() => setMenuOpen(false)}>
-              <div className="tool-menu">
-                {nav
-                  .filter(n => n[0] !== 'users' || user?.admin)
-                  .map(([key, label, Icon]) => (
-                    <button
-                      className="secondary"
-                      key={key}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        switchPage(key);
-                      }}
-                    >
-                      <Icon size={22} />
-                      {tr(label)}
-                    </button>
-                  ))}
-              </div>
-              <div className="mobile-account">
-                <div className="mobile-account-copy">
-                  <Avatar value={user.avatar} size={40} />
-                  <span>
-                    <small>{tr('当前账号')}</small>
-                    <strong>{user.name}</strong>
-                    <span>@{user.username}</span>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="mobile-logout secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    run(async () => {
-                      await Promise.all([intake.flush(), photos.flush(), manual.flush()]);
-                      await api('logout', 'POST', {});
-                      setMenuOpen(false);
-                      setUser(null);
-                      setBooks([]);
-                      setRows([]);
-                      setBook('');
-                    })
-                  }
-                >
-                  <LogOut size={18} />
-                  {tr('退出登录')}
-                </button>
-              </div>
-            </Sheet>
-          )}
+        <div className={`app${page === 'chat' ? ' chat-page' : ''}`}>
+          <AccountMenu
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            user={user}
+            busy={busy}
+            onLogout={() =>
+              run(async () => {
+                await Promise.all([intake.flush(), photos.flush(), manual.flush()]);
+                await api('logout', 'POST', {});
+                setMenuOpen(false);
+                setUser(null);
+                setBooks([]);
+                setRows([]);
+                setBook('');
+              })
+            }
+          />
           {claimDetail && (
             <ExpenseClaimDetail
               id={claimDetail}
@@ -897,74 +853,27 @@ export default function Workspace() {
               onEdit={() => openEntry(selected, { edit: true })}
             />
           )}
-          <aside className="ledger-sidebar">
-            <div className="sidebar-top">
-              <div className="brand">
-                <span className="brand-art">
-                  {theme === 'bear' ? (
-                    <img src="/brand/tallybear-192.png" width={58} height={58} alt="TallyBear" />
-                  ) : (
-                    <NotebookPen size={36} />
-                  )}
-                </span>
-                <div>
-                  <strong>{tr(themes[theme].name)}</strong>
-                  <small>{theme === 'bear' ? tr('布布 & 一二') : tr('个人与家庭财务')}</small>
-                </div>
-              </div>
-              <button
-                className="sidebar-toggle"
-                aria-label={sidebarCollapsed ? tr('展开侧栏') : tr('折叠侧栏')}
-                aria-expanded={!sidebarCollapsed}
-                aria-controls="primary-navigation"
-                title={sidebarCollapsed ? tr('展开侧栏') : tr('折叠侧栏')}
-                onClick={toggleSidebar}
-              >
-                {sidebarCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
-              </button>
-            </div>
-            <nav id="primary-navigation" aria-label={tr('主要导航')}>
-              {nav
-                .filter(n => n[0] !== 'users' || user?.admin)
-                .map(([key, label, Icon]) => (
-                  <button
-                    key={key}
-                    className={page === key ? 'active' : ''}
-                    aria-label={tr(label)}
-                    aria-current={page === key ? 'page' : undefined}
-                    title={tr(label)}
-                    onClick={() => switchPage(key)}
-                  >
-                    <Icon size={20} />
-                    <span>{tr(label)}</span>
-                  </button>
-                ))}
-            </nav>
-            <div className="sidebar-bottom" />
-            <button
-              className="logout"
-              title={tr('退出登录')}
-              aria-label={tr('退出登录')}
-              onClick={() =>
-                run(async () => {
-                  await Promise.all([intake.flush(), photos.flush(), manual.flush()]);
-                  await api('logout', 'POST', {});
-                  setUser(null);
-                  setBooks([]);
-                  setRows([]);
-                  setBook('');
-                })
-              }
-            >
-              <LogOut size={16} />
-              <span>{tr('退出登录')}</span>
-            </button>
-          </aside>
+          <Sidebar
+            page={page}
+            user={user}
+            canWrite={books.some(b => b.role !== 'viewer')}
+            onAccount={() => setMenuOpen(true)}
+            bookSwitcher={
+              page !== 'accounts' && (
+                <BookSwitcher
+                  books={books}
+                  current={book}
+                  onSelect={setBook}
+                  onManage={() => switchPage('books')}
+                />
+              )
+            }
+          />
           <div className="workspace">
             <header>
               <div>
-                <small>{tr('工作台 /')}</small>
-                <strong>{tr(nav.find(n => n[0] === page)?.[1] || '')}</strong>
+                <small>{tr(sections.find(x => x.key === sectionOf(page))?.label || '')}</small>
+                <strong>{tr(pageTitle(page))}</strong>
               </div>
               <div className="header-tools">
                 <GlobalSearch
@@ -979,33 +888,16 @@ export default function Workspace() {
                   }}
                 />
                 <JobPanel book={book} onDrafts={openDrafts} />
-                {theme === 'bear' && (
-                  <button
-                    className="companion-switch"
-                    title={tr('换个陪伴表情')}
-                    aria-label={tr('换个陪伴表情')}
-                    onClick={() => setBear(b => b + 1)}
-                  >
-                    <Bear name={'sticker:' + stickerIds[bear % stickerIds.length]} size={40} />
-                    <span>{tr('今日陪伴')}</span>
-                  </button>
-                )}
-                {page !== 'accounts' && (
-                  <BookSwitcher
-                    books={books}
-                    current={book}
-                    onSelect={setBook}
-                    onManage={() => switchPage('books')}
-                  />
-                )}
-                <button
-                  className="profile-trigger"
-                  aria-label={tr('打开个人资料')}
-                  onClick={() => switchPage('profile')}
-                >
-                  <Avatar value={user.avatar} size={36} />
-                  <span>{user.name}</span>
-                </button>
+                <span className={shellStyles.mobileBook}>
+                  {page !== 'accounts' && (
+                    <BookSwitcher
+                      books={books}
+                      current={book}
+                      onSelect={setBook}
+                      onManage={() => switchPage('books')}
+                    />
+                  )}
+                </span>
               </div>
             </header>
             <main
@@ -1013,6 +905,8 @@ export default function Workspace() {
                 page === 'entry' ? 'entry-workspace' : page === 'home' ? 'home-workspace' : undefined
               }
             >
+              <SubNav page={page} admin={!!user.admin} />
+              {children}
               {error && (
                 <div className="error" role="alert">
                   {tr(error)}
@@ -1119,12 +1013,10 @@ export default function Workspace() {
                 </section>
               ) : (
                 <>
-                  {!['chat', 'activities'].includes(page) && (
+                  {!['chat', 'activities', 'home'].includes(page) && (
                     <div className="page-heading">
                       <div>
-                        <h1>
-                          {page === 'home' ? current?.name : tr(nav.find(n => n[0] === page)?.[1] || '')}
-                        </h1>
+                        <h1>{page === 'home' ? current?.name : tr(pageTitle(page))}</h1>
                         {current?.role === 'viewer' && <p>{tr('只读权限')}</p>}
                       </div>
                       <div className="inline">
@@ -1181,19 +1073,54 @@ export default function Workspace() {
                     </div>
                   )}
                   {page === 'home' && (
-                    <p className="muted">
-                      {locale === 'en'
-                        ? 'Period expenses include everyday spending and allocated costs, without counting the original payment twice. Wallets show actual cash movements.'
-                        : '当期支出包含日常消费与分摊费用，原付款不重复统计。钱包按实际资金流动计算。'}
-                    </p>
-                  )}
-                  {page === 'home' && (
-                    <ReportPeriodPicker
-                      value={statisticsRange}
-                      onChange={range => {
-                        setStatisticsRange(range);
-                      }}
-                    />
+                    <>
+                      <Greeting name={user.name} book={current?.name} readOnly={current?.role === 'viewer'} />
+                      <div className={homeStyles.top}>
+                        {canWrite ? (
+                          <CaptureCard
+                            disabled={busy || aiRunning}
+                            onSay={value => {
+                              setText(value);
+                              setEntryMode('ai');
+                              switchPage('entry');
+                              void run(() => requestAI(value));
+                            }}
+                            onImages={files => {
+                              setEntryMode('ai');
+                              switchPage('entry');
+                              void run(() => loadImages(files));
+                            }}
+                            onManual={() => {
+                              setEntryMode('manual');
+                              switchPage('entry');
+                            }}
+                          />
+                        ) : (
+                          <div />
+                        )}
+                        <MonthCard
+                          month={month}
+                          income={monthlyReport?.totals.income || 0}
+                          netExpense={
+                            (monthlyReport?.totals.expense || 0) - (monthlyReport?.totals.refund || 0)
+                          }
+                          budget={
+                            budgets.length
+                              ? {
+                                  amount: budgets.reduce((n, b) => n + b.amount, 0),
+                                  spent: budgets.reduce(
+                                    (n, b) =>
+                                      n +
+                                      ((monthlyReport?.categories || []).find(c => c.name === b.category)
+                                        ?.value || 0),
+                                    0,
+                                  ),
+                                }
+                              : undefined
+                          }
+                        />
+                      </div>
+                    </>
                   )}
                   {page === 'home' && (
                     <HomeTaskCenter
@@ -1261,79 +1188,20 @@ export default function Workspace() {
                     </div>
                   )}
                   {page === 'home' && (
-                    <>
-                      <div className="metrics">
-                        {[
-                          [metricLabels[0], income, 'income', 'cheer'],
-                          [metricLabels[1], expense, 'expense', 'groceries'],
-                          [metricLabels[2], income - expense, '', 'peek'],
-                        ].map(([label, value, cls, character]) => (
-                          <section className="panel metric" key={tr(String(label))}>
-                            <Bear name={String(character)} size={46} />
-                            <p>{tr(label)}</p>
-                            <strong className={String(cls)}>{yuan(Number(value))}</strong>
-                            <></>
-                          </section>
-                        ))}
+                    <section className="panel">
+                      <div className="panel-title">
+                        <h2>{tr(homeSort === 'date_desc' ? '最近的记录' : '所选范围的记录')}</h2>
+                        <button className="text-button" onClick={() => switchPage('entries')}>
+                          {tr('查看全部流水')}
+                          <ChevronRight size={15} />
+                        </button>
                       </div>
-                      {page === 'home' && (
-                        <section className="panel">
-                          <div className="panel-title">
-                            <h2>{tr(homeSort === 'date_desc' ? '最近的小记录' : '所选范围的小记录')}</h2>
-                            <button className="text-button" onClick={() => switchPage('insights')}>
-                              {tr('查看全部')}
-                              <ChevronRight size={15} />
-                            </button>
-                          </div>
-                          <DetailSortSelect value={homeSort} onChange={setHomeSort} />
-                          {list(6)}
-                        </section>
-                      )}
-                      <div className="chart-grid">
-                        <FinanceChart
-                          chart={{
-                            id: 'daily-expense',
-                            title: tr('每日净支出'),
-                            type: 'bar',
-                            dimension: 'daily_expense',
-                            books: [book],
-                            ...visibleRange,
-                            unit: deployment().currency,
-                            data: (visibleReport?.daily || []).map(d => ({
-                              name: d.date,
-                              value: d.expense / 100,
-                            })),
-                          }}
-                        />
-                        <FinanceChart
-                          chart={{
-                            id: 'categories',
-                            title: tr('钱花在哪里'),
-                            type: 'pie',
-                            dimension: 'category',
-                            books: [book],
-                            ...visibleRange,
-                            unit: deployment().currency,
-                            data: spending.map(d => ({ name: d.name, value: d.value / 100 })),
-                          }}
-                        />
-                        <FinanceChart
-                          chart={{
-                            id: 'daily-income',
-                            title: tr('每日收入'),
-                            type: 'line',
-                            dimension: 'daily_income',
-                            books: [book],
-                            ...visibleRange,
-                            unit: deployment().currency,
-                            data: (visibleReport?.daily || []).map(d => ({
-                              name: d.date,
-                              value: d.income / 100,
-                            })),
-                          }}
-                        />
+                      <div className="inline">
+                        <ReportPeriodPicker value={statisticsRange} onChange={setStatisticsRange} />
+                        <DetailSortSelect value={homeSort} onChange={setHomeSort} />
                       </div>
-                    </>
+                      {list(8)}
+                    </section>
                   )}
                   {page === 'home' && activities.some(a => !a.archived) && (
                     <section className="panel home-activities">
@@ -1371,8 +1239,10 @@ export default function Workspace() {
                       </div>
                     </section>
                   )}
-                  {page === 'insights' && (
+                  {(page === 'insights' || page === 'entries') && (
                     <SpendingAnalysis
+                      key={page}
+                      initialView={page === 'entries' ? 'entries' : 'overview'}
                       book={book}
                       books={books}
                       month={month}
@@ -1807,7 +1677,7 @@ export default function Workspace() {
                   {page === 'chat' && (
                     <FinanceChat
                       onNavigate={target => {
-                        if (baseNav.some(([key]) => key === target)) switchPage(target as typeof page);
+                        if (target in pagePaths || target === 'records') switchPage(target);
                       }}
                       books={books}
                       onChanged={async () => {
@@ -1910,26 +1780,7 @@ export default function Workspace() {
                 </>
               )}
             </main>
-            <nav className="mobile-nav" aria-label={tr('手机导航')}>
-              {[
-                nav.find(n => n[0] === 'home')!,
-                nav.find(n => n[0] === 'insights')!,
-                nav.find(n => n[0] === 'entry')!,
-                nav.find(n => n[0] === 'chat')!,
-                nav.find(n => n[0] === 'settings')!,
-              ].map(([key, label, Icon]) => (
-                <button
-                  key={key}
-                  className={page === key ? 'active' : ''}
-                  aria-current={page === key ? 'page' : undefined}
-                  aria-label={key === 'settings' ? tr('更多功能') : tr(label)}
-                  onClick={() => (key === 'settings' ? setMenuOpen(true) : switchPage(key))}
-                >
-                  <Icon size={21} />
-                  <small>{key === 'settings' ? tr('更多') : tr(label)}</small>
-                </button>
-              ))}
-            </nav>
+            <MobileTabBar page={page} onMenu={() => setMenuOpen(true)} />
           </div>
         </div>
       </EntryDetailContext.Provider>
