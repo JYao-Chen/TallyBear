@@ -136,13 +136,41 @@ button.removeChip {
 
 .menu {
   display: grid;
-  gap: var(--space-2);
 }
 .menu > div {
   display: contents;
 }
-.menu button {
-  min-height: var(--touch);
+/* 菜单项统一为图标 + 文字的列表行 */
+.menu button.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 var(--text-md) / 1.4 var(--font-body);
+  text-align: start;
+  cursor: pointer;
+}
+.menu > button.menuItem:last-child {
+  border-bottom: 0;
+}
+.menu button.menuItem svg {
+  color: var(--muted);
+  flex: none;
+}
+.menu button.menuItem:hover:not(:disabled) {
+  background: var(--surface-sunk);
+}
+.menu button.menuItem:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 .more {
   margin-inline-start: auto;

@@ -3,6 +3,7 @@ import type { DetailSort } from '@/lib/detail-sort';
 import { useI18n } from './LanguageProvider';
 import { formatMoney } from '@/lib/deployment';
 import { useEffect, useState } from 'react';
+import { ShieldCheck, Trash2 } from 'lucide-react';
 import { Sheet } from './Sheet';
 import type { LedgerRow } from '@/lib/ledger-types';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
@@ -11,8 +12,11 @@ export function AttentionRecords({
   onSelect,
   onRestored,
   revision: sourceRevision = 0,
+  itemClassName,
 }: {
   revision?: number;
+  /** 放进菜单时由父组件给出统一的菜单项样式 */
+  itemClassName?: string;
   book: string;
   onRestored: () => void;
   onSelect: (row: LedgerRow) => void;
@@ -40,23 +44,25 @@ export function AttentionRecords({
   }, [book, mode, sort, offset, revision, sourceRevision]);
   return (
     <>
-      <div className="inline">
+      <div className={itemClassName ? undefined : 'inline'}>
         <button
-          className="text-button"
+          className={itemClassName || 'text-button'}
           onClick={() => {
             setOffset(0);
             setMode('verification');
           }}
         >
+          {itemClassName && <ShieldCheck size={18} aria-hidden="true" />}
           {tr('待核验记录')}
         </button>
         <button
-          className="text-button"
+          className={itemClassName || 'text-button'}
           onClick={() => {
             setOffset(0);
             setMode('trash');
           }}
         >
+          {itemClassName && <Trash2 size={18} aria-hidden="true" />}
           {tr('回收站')}
         </button>
       </div>

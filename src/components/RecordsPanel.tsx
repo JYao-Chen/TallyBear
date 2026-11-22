@@ -15,7 +15,16 @@ import { AttentionRecords } from './AttentionRecords';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { CategoryFilterSelect, VisualSelect } from './VisualSelect';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { SlidersHorizontal, Ellipsis, Download, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  SlidersHorizontal,
+  Ellipsis,
+  Download,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  ScanSearch,
+} from 'lucide-react';
 import { TransactionList } from './TransactionList';
 import { monthRange, type LedgerReport, type LedgerRow } from '@/lib/ledger-types';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
@@ -530,39 +539,47 @@ export function RecordsPanel({
               revision={revision}
               onSelect={onSelect}
               onRestored={() => setRestored(n => n + 1)}
+              itemClassName={s.menuItem}
             />
           )}
           {scope === 'book' && canWrite && (!bookIds || bookIds.length === 1) && (
-            <Button
+            <button
+              type="button"
+              className={s.menuItem}
               onClick={() => {
                 setSelecting(true);
                 setMore(false);
               }}
             >
+              <ListChecks size={18} aria-hidden="true" />
               {tr('批量整理')}
-            </Button>
+            </button>
           )}
           {entries && onReconcile && (
-            <Button
+            <button
+              type="button"
+              className={s.menuItem}
               onClick={() => {
                 setMore(false);
                 onReconcile();
               }}
             >
+              <ScanSearch size={18} aria-hidden="true" />
               {tr('智能核对账单')}
-            </Button>
+            </button>
           )}
-          <Button
-            variant="ghost"
+          <button
+            type="button"
+            className={s.menuItem}
             disabled={exporting || loading || q !== search || !report?.totals.count}
             onClick={() => {
               setMore(false);
               void download();
             }}
           >
-            <Download size={17} />
+            <Download size={18} aria-hidden="true" />
             {tr(exporting ? '导出中…' : '导出全部结果')}
-          </Button>
+          </button>
         </div>
       </Sheet>
       {entries || overview ? (
