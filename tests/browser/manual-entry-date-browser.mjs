@@ -12,25 +12,27 @@ const built = await build({
     resolveDir: process.cwd(),
     loader: 'tsx',
   },
+  outdir: 'fixture',
   bundle: true,
   write: false,
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
-const css = (
-  await Promise.all(
-    ['globals', 'mobile-refinement', 'desktop-refinement', 'workspace-polish'].map(n =>
-      readFile('src/app/' + n + '.css', 'utf8'),
-    ),
-  )
-).join('\n');
+const css =
+  (
+    await Promise.all(
+      ['globals', 'mobile-refinement', 'desktop-refinement', 'workspace-polish'].map(n =>
+        readFile('src/app/' + n + '.css', 'utf8'),
+      ),
+    )
+  ).join('\n') + built.outputFiles.find(f => f.path.endsWith('.css')).text;
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', req.url === '/app.js' ? 'text/javascript' : 'text/html');
   res.end(
     req.url === '/app.js'
-      ? built.outputFiles[0].contents
+      ? built.outputFiles.find(f => f.path.endsWith('.js')).contents
       : `<meta name="viewport" content="width=device-width"><style>${css}main{max-width:850px;padding:20px;margin:auto}</style><main id="root"></main><script src="/app.js"></script>`,
   );
 });
@@ -38,7 +40,10 @@ await new Promise(r => server.listen(0, '127.0.0.1', r));
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ timezoneId: 'Asia/Shanghai' });
 const errors = [];
-page.on('pageerror', e => errors.push(e.message));
+page.on('pageerror', e => {
+  console.error(e.stack);
+  errors.push(e.message);
+});
 await page.clock.install({ time: new Date('2026-10-20T04:00:00Z') });
 await page.route('**/api/**', route =>
   route.fulfill({
@@ -51,33 +56,78 @@ await page.route('**/api/**', route =>
 );
 async function load(mode) {
   await page.goto('http://127.0.0.1:' + server.address().port + '/?mode=' + mode);
-  await page.locator('.date-field input[type=date]').waitFor({ state: 'attached' });
+  await page.locator('input[type=date]').waitFor({ state: 'attached' });
 }
 try {
   for (const width of [1440, 375]) {
     await page.setViewportSize({ width, height: 1000 });
     await load('empty');
-    assert.equal(await page.locator('.date-field input[type=date]').inputValue(), '2026-10-20');
-    await page.locator('.date-field').scrollIntoViewIfNeeded();
+    assert.equal(await page.locator('input[type=date]').isVisible(), false);
+    assert.equal(await page.locator('input[type=date]').inputValue(), '2026-10-20');
+    await page.getByRole('button', { name: /^交易日期:/ }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: out + '/today-' + width + '.png' });
     await page.getByRole('button', { name: /^交易日期:/ }).click();
     await page.getByRole('textbox', { name: '手动输入日期', exact: true }).fill('2026-09-27');
     await page.getByRole('button', { name: '确定', exact: true }).click();
     await page.getByLabel('金额（元）', { exact: true }).fill('50');
     await page.getByLabel('账目标题', { exact: true }).fill('补记电费');
-    await page.locator('.quick-submit button').first().click();
+    await page.getByRole('button', { name: '保存', exact: true }).click();
     await page.waitForFunction(
       () =>
         window.saved?.date === '2026-09-27' &&
         window.draft?.amount === 0 &&
         window.draft?.date === '2026-10-20',
     );
-    assert.equal(await page.locator('.date-field input[type=date]').inputValue(), '2026-10-20');
+    assert.equal(await page.locator('input[type=date]').inputValue(), '2026-10-20');
   }
   await load('pending');
-  assert.equal(await page.locator('.date-field input[type=date]').inputValue(), '2026-09-27');
+  assert.equal(await page.locator('input[type=date]').inputValue(), '2026-09-27');
+  await page.getByRole('button', { name: '保存并再记', exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      window.saved?.date === '2026-09-27' &&
+      window.draft?.amount === 0 &&
+      window.draft.date === '2026-09-27' &&
+      window.draft.accountId === 'wallet' &&
+      window.draft.targetBook === 'book',
+  );
+  await load('empty');
+  await page.route('**/api/receipts?**', route =>
+    route.fulfill({ json: { name: 'receipt.png', data: '/api/receipts/fixture' } }),
+  );
+  let pass = 0;
+  await page.route('**/api/books/book/assistant', route => {
+    pass++;
+    const entry = {
+      id: 'proposal',
+      title: '识别标题' + pass,
+      payee: '商家' + pass,
+      lineItems: [{ name: '商品', quantity: 1, unitPrice: 100, amount: 100 }],
+    };
+    return route.fulfill({
+      contentType: 'text/event-stream',
+      body: 'data: ' + JSON.stringify({ event: 'complete', data: { entries: [entry] } }) + '\n\n',
+    });
+  });
+  await page.getByText('更多', { exact: true }).click();
+  await page.getByRole('group', { name: '商品与优惠费用', exact: true }).locator('summary').first().click();
+  const applyReceipt = async () => {
+    await page
+      .getByLabel('上传同一订单的小票图片')
+      .setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: Buffer.from('fixture') });
+    await page.getByRole('button', { name: /合并识别/ }).click();
+    await page.getByRole('button', { name: /使用这份明细/ }).click();
+  };
+  await applyReceipt();
+  const title = page.getByRole('textbox', { name: '账目标题', exact: true });
+  assert.equal(await title.inputValue(), '识别标题1');
+  await title.fill('');
+  await applyReceipt();
+  assert.equal(await title.inputValue(), '');
+  assert.equal(await page.getByText('已修改', { exact: true }).count(), 1);
+  assert.equal(await page.evaluate(() => window.draft.payee), '商家2');
   await load('edit');
-  assert.equal(await page.locator('.date-field input[type=date]').inputValue(), '2026-09-27');
+  assert.equal(await page.locator('input[type=date]').inputValue(), '2026-09-27');
   assert.deepEqual(errors, []);
   console.log(
     'PASS: blank cloud draft defaults to today on desktop/mobile; intentional historical submission preserved; next entry/draft reset to today; pending draft and editing retain original dates',

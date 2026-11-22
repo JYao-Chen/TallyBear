@@ -1,8 +1,9 @@
 'use client';
+import styles from './DateField.module.css';
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
-import { Sheet } from './Sheet';
+import { Sheet } from '@/ui/Sheet';
 import { calendarDays, validCalendarValue } from '@/lib/calendar';
 type Props = {
   type: 'date' | 'month';
@@ -24,7 +25,7 @@ export function DateField({
   'aria-label': ariaLabel,
   onChange,
 }: Props) {
-  const { locale } = useI18n(),
+  const { locale, t: tr } = useI18n(),
     en = locale === 'en';
   const [local, setLocal] = useState(defaultValue),
     [open, setOpen] = useState(false),
@@ -66,7 +67,7 @@ export function DateField({
   }
   function choose(next: string) {
     if (next && !validCalendarValue(next, type)) {
-      setError(en ? 'Enter a valid date.' : '请输入有效日期。');
+      setError(tr('请输入有效日期。'));
       return;
     }
     if (!next && required) return;
@@ -82,8 +83,7 @@ export function DateField({
       setMonth(((total % 12) + 12) % 12);
     }
   }
-  const title =
-    label || (type === 'month' ? (en ? 'Choose month' : '选择月份') : en ? 'Choose date' : '选择日期');
+  const title = label || (type === 'month' ? tr('选择月份') : tr('选择日期'));
   const shown = validCalendarValue(selected, type)
     ? new Intl.DateTimeFormat(locale, {
         year: 'numeric',
@@ -91,9 +91,7 @@ export function DateField({
         ...(type === 'date' ? { day: 'numeric' as const } : {}),
         timeZone: 'UTC',
       }).format(new Date(selected + (type === 'month' ? '-01T12:00:00Z' : 'T12:00:00Z')))
-    : en
-      ? 'Select'
-      : '请选择';
+    : tr('请选择');
   const display =
     validCalendarValue(selected, type) && type === 'date'
       ? en
@@ -106,7 +104,7 @@ export function DateField({
         : selected.replaceAll('-', '/')
       : shown;
   return (
-    <div className="date-field">
+    <div className={styles.field}>
       <input
         hidden
         ref={input}
@@ -127,7 +125,7 @@ export function DateField({
       <button
         type="button"
         ref={trigger}
-        className="visual-trigger"
+        className={styles.trigger}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -138,21 +136,21 @@ export function DateField({
         <span title={shown}>{display}</span>
       </button>
       {open && (
-        <Sheet title={title} onClose={() => setOpen(false)} variant="picker">
-          <div className="calendar-picker">
-            <div className="calendar-navigation">
+        <Sheet open title={title} onClose={() => setOpen(false)}>
+          <div className={styles.picker}>
+            <div className={styles.nav}>
               <button
-                className="icon-button"
+                className={styles.icon}
                 type="button"
-                aria-label={en ? 'Previous' : '上一页'}
+                aria-label={tr('上一页')}
                 onClick={() => (type === 'month' ? setYear(y => Math.max(1, y - 1)) : move(-1))}
               >
                 <ChevronLeft size={18} />
               </button>
-              <label className="calendar-year">
-                <span>{en ? 'Year' : '年份'}</span>
+              <label className={styles.year}>
+                <span>{tr('年份')}</span>
                 <input
-                  aria-label={en ? 'Year' : '年份'}
+                  aria-label={tr('年份')}
                   type="number"
                   min={1}
                   max={9999}
@@ -169,16 +167,16 @@ export function DateField({
                 </strong>
               )}
               <button
-                className="icon-button"
+                className={styles.icon}
                 type="button"
-                aria-label={en ? 'Next' : '下一页'}
+                aria-label={tr('下一页')}
                 onClick={() => (type === 'month' ? setYear(y => Math.min(9999, y + 1)) : move(1))}
               >
                 <ChevronRight size={18} />
               </button>
             </div>
             {type === 'month' ? (
-              <div className="calendar-months">
+              <div className={styles.months}>
                 {Array.from({ length: 12 }, (_, m) => {
                   const v = `${String(year).padStart(4, '0')}-${String(m + 1).padStart(2, '0')}`;
                   return (
@@ -190,7 +188,7 @@ export function DateField({
               </div>
             ) : (
               <>
-                <div className="calendar-weekdays" aria-hidden="true">
+                <div className={styles.week} aria-hidden="true">
                   {(en
                     ? ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
                     : ['一', '二', '三', '四', '五', '六', '日']
@@ -199,7 +197,7 @@ export function DateField({
                   ))}
                 </div>
                 <div
-                  className="calendar-days"
+                  className={styles.days}
                   onKeyDown={e => {
                     const delta = (
                       { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 } as Record<string, number>
@@ -217,10 +215,11 @@ export function DateField({
                     <button
                       type="button"
                       key={d.value}
-                      className={d.current ? '' : 'adjacent-month'}
+                      className={d.current ? undefined : styles.adjacent}
                       disabled={!validCalendarValue(d.value, 'date')}
                       aria-label={d.value}
                       aria-pressed={d.value === selected}
+                      autoFocus={d.value === (selected || today)}
                       aria-current={d.value === today ? 'date' : undefined}
                       onClick={() => choose(d.value)}
                     >
@@ -230,10 +229,10 @@ export function DateField({
                 </div>
               </>
             )}
-            <div className="calendar-manual">
+            <div className={styles.manual}>
               <input
                 type="text"
-                aria-label={en ? 'Enter date' : '手动输入日期'}
+                aria-label={tr('手动输入日期')}
                 placeholder={type === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD'}
                 value={manual}
                 onChange={e => setManual(e.target.value)}
@@ -245,25 +244,25 @@ export function DateField({
                 }}
               />
               <button type="button" onClick={() => choose(manual)} disabled={!manual && required}>
-                {en ? 'Apply' : '确定'}
+                {tr('确定')}
               </button>
             </div>
             {error && (
-              <p className="error" role="alert">
+              <p className={styles.error} role="alert">
                 {error}
               </p>
             )}
-            <div className="calendar-actions">
+            <div className={styles.actions}>
               <button
-                className="text-button"
+                className={styles.link}
                 type="button"
                 onClick={() => choose(type === 'month' ? today.slice(0, 7) : today)}
               >
-                {type === 'month' ? (en ? 'This month' : '本月') : en ? 'Today' : '今天'}
+                {type === 'month' ? tr('本月') : tr('今天')}
               </button>
               {!required && (
-                <button className="text-button" type="button" onClick={() => choose('')}>
-                  {en ? 'Clear' : '清空'}
+                <button className={styles.link} type="button" onClick={() => choose('')}>
+                  {tr('清空')}
                 </button>
               )}
             </div>

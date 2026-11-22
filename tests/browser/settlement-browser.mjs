@@ -58,22 +58,23 @@ try {
   await page
     .context()
     .addCookies([{ name: 'bubu_session', value: token, domain: new URL(origin).hostname, path: '/' }]);
-  await page.goto(origin);
-  await page.getByRole('navigation').getByRole('button', { name: '记一笔', exact: true }).click();
+  await page.goto(new URL('/entry', origin).href);
+  await page.getByRole('button', { name: /测试订单/ }).click();
   const goods = page.getByRole('region', { name: '商品明细', exact: true }),
     adjustments = page.getByRole('region', { name: '优惠与费用', exact: true });
   await adjustments.waitFor();
-  assert.equal(await goods.locator('.line-item-edit').count(), 6);
-  assert.equal(await adjustments.locator('.line-item-edit').count(), 3);
+  assert.equal(await goods.getByLabel(/^第\d+项小计$/).count(), 6);
+  assert.equal(await adjustments.getByLabel(/^第\d+项小计$/).count(), 3);
   assert.equal(
     (await goods.locator('input').evaluateAll(inputs => inputs.map(i => i.value))).includes('满减'),
     false,
   );
   await goods.getByRole('button', { name: '下一页', exact: true }).click();
-  assert.equal(await goods.locator('.line-item-edit').count(), 2);
+  assert.equal(await goods.getByLabel(/^第\d+项小计$/).count(), 2);
   await adjustments.getByLabel('第9项小计', { exact: true }).fill('20');
   assert.equal(await page.getByLabel('金额（元）', { exact: true }).inputValue(), '148');
-  await page.getByRole('button', { name: '按结算合计填写实付', exact: true }).click();
+  await page.getByText('核对与计算实付', { exact: true }).click();
+  await page.getByRole('button', { name: '采用推荐实付', exact: true }).click();
   assert.equal(await page.getByLabel('金额（元）', { exact: true }).inputValue(), '138');
   await mkdir(process.env.TEST_ARTIFACT_DIR, { recursive: true });
   for (const width of [360, 390, 844, 1280]) {

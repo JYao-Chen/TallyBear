@@ -2,6 +2,9 @@
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import type { ChatAction } from '@/lib/chat-actions';
+import styles from './FamilyActionEditor.module.css';
+import { Button, Field, Input, Segmented } from '@/ui';
+import { currencySymbol } from '@/lib/deployment';
 import { DateField } from './DateField';
 import { VisualSelect } from './VisualSelect';
 import { amountToCents } from '@/server/model';
@@ -81,7 +84,7 @@ export function FamilyActionEditor({
   }));
   return (
     <form
-      className="chat-inline-editor family-action-editor"
+      className={styles.form}
       onSubmit={async e => {
         e.preventDefault();
         setBusy(true);
@@ -98,7 +101,7 @@ export function FamilyActionEditor({
         }
       }}
     >
-      <div className="form-grid">
+      <div className={styles.grid}>
         <label>
           {tr('家庭')}
           <VisualSelect
@@ -128,11 +131,22 @@ export function FamilyActionEditor({
           ])}
         {data.operation === 'create' && (
           <>
-            {select(
-              'kind',
-              tr('用途'),
-              Object.entries(kinds).map(([value, label]) => ({ value, label: tr(label) })),
-            )}
+            <Segmented
+              className={styles.kinds}
+              label={tr('用途')}
+              value={data.kind || ''}
+              options={Object.entries(kinds).map(([value, label]) => ({ value, label: tr(label) }))}
+              onChange={kind =>
+                setData(d => ({
+                  ...d,
+                  kind,
+                  targetId: null,
+                  recipientId: null,
+                  expenseId: null,
+                  loanId: null,
+                }))
+              }
+            />
             {select(
               'sourceId',
               tr('转出钱包'),
@@ -161,14 +175,19 @@ export function FamilyActionEditor({
                       options.wallets.find((a: any) => a.id === w.value)?.family_id),
                 ),
               )}
-            <label>
-              {tr('金额')}
-              <input
-                inputMode="decimal"
-                value={data.amountInput ?? (data.amount == null ? '' : data.amount / 100)}
-                onChange={e => update('amountInput', e.target.value)}
-              />
-            </label>
+            <Field label={tr('金额')}>
+              {props => (
+                <div className={styles.amount}>
+                  <span>{currencySymbol()}</span>
+                  <Input
+                    {...props}
+                    inputMode="decimal"
+                    value={data.amountInput ?? (data.amount == null ? '' : data.amount / 100)}
+                    onChange={e => update('amountInput', e.target.value)}
+                  />
+                </div>
+              )}
+            </Field>
             <label>
               {tr('交易日期')}
               <DateField type="date" value={data.date || ''} onChange={v => update('date', v)} />
@@ -197,7 +216,7 @@ export function FamilyActionEditor({
                   })),
               )}
             <label>
-              {locale === 'en' ? 'Transfer note (visible to recipient)' : '转账留言（收款人可见）'}
+              {tr('转账留言（收款人可见）')}
               <input maxLength={500} value={data.note || ''} onChange={e => update('note', e.target.value)} />
             </label>
           </>
@@ -254,7 +273,7 @@ export function FamilyActionEditor({
         )}
       </div>
       {data.operation === 'create' && action.warnings.some(w => /同日|已有|same date|already/i.test(w)) && (
-        <label className="check">
+        <label className={styles.check}>
           <input
             type="checkbox"
             checked={!!data.allowSimilar}
@@ -264,15 +283,17 @@ export function FamilyActionEditor({
         </label>
       )}
       {error && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {error}
         </p>
       )}
-      <div className="inline">
-        <button disabled={busy || !options}>{tr('更新卡片')}</button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={busy}>
+      <div className={styles.actions}>
+        <Button type="submit" variant="primary" disabled={busy || !options}>
+          {tr('更新卡片')}
+        </Button>
+        <Button onClick={onCancel} disabled={busy}>
           {tr('取消修改')}
-        </button>
+        </Button>
       </div>
     </form>
   );

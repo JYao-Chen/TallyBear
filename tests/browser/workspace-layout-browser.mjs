@@ -99,7 +99,7 @@ try {
       await navigate(name);
       await shot(key + '-' + width);
       if (key === 'entry') {
-        await page.getByRole('button', { name: '手动记账', exact: true }).click();
+        await page.getByRole('button', { name: '手动填写', exact: true }).click();
         await shot('manual-' + width);
         await page.getByRole('button', { name: '家庭往来', exact: true }).click();
         await shot('family-entry-' + width);

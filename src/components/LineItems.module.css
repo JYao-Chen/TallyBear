@@ -1,0 +1,150 @@
+.editor,
+.summary,
+.region,
+.result,
+.details,
+.breakdown {
+  min-width: 0;
+  margin-block: var(--space-3);
+}
+.editor,
+.result {
+  border: 1px solid var(--line);
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+}
+.editor summary,
+.details summary {
+  cursor: pointer;
+  align-content: center;
+  min-height: var(--touch);
+  font-weight: 600;
+}
+.editor fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settlement,
+.region {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-3);
+}
+.settlement > div,
+.summaryRow,
+.itemHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+}
+.settlement dd,
+.equation,
+.itemHead b,
+.summaryRow > strong {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.itemHead {
+  width: 100%;
+  color: var(--ink);
+  background: var(--surface);
+  border: 0;
+  text-align: start;
+}
+.itemHead span:first-child,
+.summaryRow > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.summaryRow small,
+.itemHead small,
+.muted,
+.reconcile {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.row,
+.actions,
+.photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.item {
+  border-bottom: 1px solid var(--line);
+}
+.edit {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(min(125px, 100%), 1fr));
+  padding: var(--space-3);
+  background: var(--surface-sunk);
+}
+.edit label,
+.edit input,
+.mode {
+  min-width: 0;
+}
+.full,
+.actions,
+.name {
+  grid-column: 1/-1;
+}
+.actions {
+  justify-content: flex-end;
+}
+.income {
+  color: var(--income);
+}
+.error {
+  color: var(--danger);
+}
+.link,
+.secondary,
+.upload {
+  min-height: var(--touch);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  padding: var(--space-2);
+}
+.link {
+  border-color: transparent;
+}
+.upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.photos img {
+  max-width: 100%;
+  width: 80px;
+  object-fit: contain;
+}
+@media (min-width: 1200px) {
+  .item > .itemHead {
+    display: none;
+  }
+  .item > div[hidden] {
+    display: block;
+  }
+}
+.itemHead:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

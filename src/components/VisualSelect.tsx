@@ -1,5 +1,7 @@
 'use client';
 import { useI18n } from './LanguageProvider';
+import styles from './VisualSelect.module.css';
+import { Button } from '@/ui/Button';
 import { ChoicePicker } from './ChoicePicker';
 import { useTheme } from './ThemeProvider';
 import { useState, createContext, useContext } from 'react';
@@ -36,20 +38,20 @@ export function SymbolIcon({
   if (theme === 'minimal' && (icon.startsWith('sticker:') || /[🧸🐻🐼🐾]/u.test(icon))) {
     const Icon = fallback === 'user' ? UserRound : Tag;
     return (
-      <span className="symbol-icon" style={{ width: size, height: size }}>
+      <span className={styles.symbol} style={{ width: size, height: size }}>
         <Icon size={size * 0.62} />
       </span>
     );
   }
   if (icon.startsWith('data:image/'))
     return (
-      <span className="symbol-icon" style={{ width: size, height: size }}>
+      <span className={styles.symbol} style={{ width: size, height: size }}>
         <img src={icon} width={size} height={size} alt="" />
       </span>
     );
   const id = icon.startsWith('sticker:') ? icon.slice(8) : '';
   return id && stickers.includes(id) ? (
-    <picture className="symbol-icon" style={{ width: size, height: size }}>
+    <picture className={styles.symbol} style={{ width: size, height: size }}>
       <source media="(prefers-reduced-motion: reduce)" srcSet={`/stickers/bubu-yier-${id}.png`} />
       <img
         loading="lazy"
@@ -61,7 +63,7 @@ export function SymbolIcon({
       />
     </picture>
   ) : (
-    <span className="symbol-icon" style={{ width: size, height: size, fontSize: size * 0.65 }}>
+    <span className={styles.symbol} style={{ width: size, height: size, fontSize: size * 0.65 }}>
       {icon}
     </span>
   );
@@ -77,7 +79,7 @@ export function AccountIcon({ name, size = 28 }: { name: string; size?: number }
         ? 'alipay'
         : null;
   return brand ? (
-    <img className="account-logo" src={`/brands/${brand}.svg`} width={size} height={size} alt="" />
+    <img className={styles.logo} src={`/brands/${brand}.svg`} width={size} height={size} alt="" />
   ) : /信用卡|白条|花呗|credit/i.test(name) ? (
     <CreditCard size={size} />
   ) : /银行|储蓄|bank/i.test(name) ? (
@@ -99,7 +101,9 @@ export function VisualSelect({
   onChange,
   disabled = false,
   label = '请选择',
+  grid = false,
 }: {
+  grid?: boolean;
   options: Option[];
   value?: string;
   defaultValue?: string;
@@ -122,12 +126,39 @@ export function VisualSelect({
     ) : categories.some(c => c.name === o.label) ? (
       <CategoryIcon name={o.label} size={30} />
     ) : undefined;
+  if (grid) {
+    const visible = open ? options : options.filter((o, i) => i < 5 || o.value === selected);
+    return (
+      <div className={styles.categories} role="group" aria-label={tr(label)}>
+        {visible.map(o => (
+          <Button
+            key={o.value}
+            aria-label={tr(o.label)}
+            disabled={disabled}
+            aria-pressed={selected === o.value}
+            onClick={() => {
+              setLocal(o.value);
+              onChange?.(o.value);
+            }}
+          >
+            {o.icon?.startsWith('sticker:') || /[🧸🐻🐼🐾]/u.test(o.icon || '') ? <Tag size={18} /> : icon(o)}
+            {tr(o.label)}
+          </Button>
+        ))}
+        {options.length > 5 && (
+          <Button aria-expanded={open} onClick={() => setOpen(!open)}>
+            {tr(open ? '收起更多分类' : '全部分类')}
+          </Button>
+        )}
+      </div>
+    );
+  }
   return (
-    <div className="visual-select">
+    <div className={styles.select}>
       {name && <input type="hidden" name={name} value={selected} />}
       <button
         type="button"
-        className="visual-trigger"
+        className={styles.trigger}
         aria-label={tr(label) + '：' + (chosen?.label || tr('未选择'))}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -163,7 +194,7 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
     pages = Math.ceil(ids.length / 24);
   if (theme === 'minimal')
     return (
-      <div className="emoji-options">
+      <div className={styles.icons}>
         {'🍜 🥬 ☕ 🛍️ 🚇 🏡 🎮 💊 📚 🔑 💡 🧳 💼 🎁 🍼 💻 🎨 💐 📒 👤'.split(' ').map(icon => (
           <button type="button" key={icon} aria-pressed={value === icon} onClick={() => onChange(icon)}>
             {icon}
@@ -172,8 +203,8 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
       </div>
     );
   return (
-    <div className="sticker-library">
-      <div className="sticker-current">
+    <div className={styles.library}>
+      <div className={styles.current}>
         <SymbolIcon icon={value} size={64} />
         <div>
           <strong>{tr('为分类选一只小熊')}</strong>
@@ -192,7 +223,7 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
           setPage(0);
         }}
       />
-      <div className="sticker-grid">
+      <div className={styles.icons}>
         {ids.slice(page * 24, page * 24 + 24).map(id => (
           <button
             type="button"
@@ -206,8 +237,13 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
           </button>
         ))}
       </div>
-      <div className="pagination">
-        <button type="button" className="secondary" disabled={!page} onClick={() => setPage(p => p - 1)}>
+      <div className={styles.pages}>
+        <button
+          type="button"
+          className={styles.secondary}
+          disabled={!page}
+          onClick={() => setPage(p => p - 1)}
+        >
           {tr('上一组')}
         </button>
         <small>
@@ -215,7 +251,7 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
         </small>
         <button
           type="button"
-          className="secondary"
+          className={styles.secondary}
           disabled={page + 1 >= pages}
           onClick={() => setPage(p => p + 1)}
         >
@@ -224,7 +260,7 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
       </div>
       <details>
         <summary>{tr('也可以使用简洁符号')}</summary>
-        <div className="emoji-options">
+        <div className={styles.icons}>
           {'🧸 🍜 🥬 ☕ 🛍️ 🚇 🏡 🎮 💊 📚 🔑 💡 🧳 💼 🎁 🐾 🍼 💻 🎨 💐'.split(' ').map(icon => (
             <button type="button" key={icon} onClick={() => onChange(icon)}>
               {icon}
@@ -245,16 +281,16 @@ export function CategoryFilterSelect({
   values: string[];
   onChange: (values: string[]) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t: tr } = useI18n();
   const [open, setOpen] = useState(false);
-  const title = locale === 'en' ? 'Categories' : '记账分类',
-    all = locale === 'en' ? 'All categories' : '全部分类';
+  const title = tr('记账分类'),
+    all = tr('全部分类');
   const label = values.length ? values.join('、') : all;
   return (
-    <div className="visual-select">
+    <div className={styles.select}>
       <button
         type="button"
-        className="visual-trigger"
+        className={styles.trigger}
         aria-label={title + '：' + label}
         aria-expanded={open}
         aria-haspopup="dialog"

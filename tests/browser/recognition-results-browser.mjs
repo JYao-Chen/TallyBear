@@ -292,7 +292,7 @@ try {
     assert.equal(await page.getByLabel('账目标题', { exact: true }).inputValue(), '后台任务草稿');
     await page.getByLabel('账目标题', { exact: true }).fill('后台草稿修改后保存');
     await page.getByRole('button', { name: /确认保存 · 新增1\s*笔/ }).click();
-    await page.waitForFunction(() => !document.querySelector('.intake-review'));
+    await page.getByRole('region', { name: '核对草稿' }).waitFor({ state: 'detached' });
     assert.ok(posted[0].path.includes(B));
     assert.equal(posted[0].body.entries[0].title, '后台草稿修改后保存');
     assert.ok(

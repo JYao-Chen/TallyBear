@@ -526,8 +526,8 @@ try {
     ...(process.env.TEST_CHROMIUM_PATH ? { executablePath: process.env.TEST_CHROMIUM_PATH } : {}),
   });
   for (const [lang, httpPort] of [
-    ['zh-CN', 3126],
-    ['en', 3127],
+    ['zh-CN', Number(process.env.SCREENSHOT_HTTP_PORT || 3126)],
+    ['en', Number(process.env.SCREENSHOT_HTTP_PORT || 3126) + 1],
   ]) {
     const database = lang === 'en' ? 'readme_en_test' : 'readme_zh_test';
     await admin.query('CREATE DATABASE ' + database);
@@ -954,19 +954,23 @@ try {
       }
       if (process.env.HELP_FIGURES_ONLY) {
         await navigate('记一笔');
-        await page.getByRole('button', { name: t('手动记账'), exact: true }).click();
+        await page.getByRole('button', { name: t('手动填写'), exact: true }).click();
         await page
-          .locator('.quick-entry')
+          .getByRole('form', { name: t('手动记账') })
           .getByRole('button', { name: t('支出'), exact: true })
           .click();
-        await page.locator('.entry-modes').scrollIntoViewIfNeeded();
-        await page.locator('.entry-modes').evaluate(el => el.scrollIntoView({ block: 'start' }));
+        await page.getByRole('group', { name: t('录入方式') }).scrollIntoViewIfNeeded();
+        await page
+          .getByRole('group', { name: t('录入方式') })
+          .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('manual');
         await page.getByRole('button', { name: t('退款'), exact: true }).click();
         await page.locator('.refund-picker').scrollIntoViewIfNeeded();
         await shot('refund');
         await page.getByRole('button', { name: t('微信／支付宝账单'), exact: true }).click();
-        await page.locator('.entry-modes').evaluate(el => el.scrollIntoView({ block: 'start' }));
+        await page
+          .getByRole('group', { name: t('录入方式') })
+          .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('import');
         await navigate('小熊对话');
         await page
@@ -1024,9 +1028,9 @@ try {
           ),
         );
         await page.locator('.help-feature-link').first().click();
-        await page.locator('.quick-entry').waitFor();
+        await page.getByRole('form', { name: t('手动记账') }).waitFor();
         assert.equal(
-          await page.getByRole('button', { name: t('手动记账'), exact: true }).getAttribute('aria-pressed'),
+          await page.getByRole('button', { name: t('手动填写'), exact: true }).getAttribute('aria-pressed'),
           'true',
         );
         await navigate('使用说明');
@@ -1131,25 +1135,67 @@ try {
       await audit('memory-settings');
       await navigate('记一笔');
       await shot('intake');
-      await page.locator('.intake-review').scrollIntoViewIfNeeded();
-      await page.evaluate(() => document.querySelector('.intake-review').scrollIntoView({ block: 'start' }));
+      const draftsRegion = page.getByRole('region', { name: t('核对草稿') });
+      const itemsEditor = draftsRegion.getByRole('group', { name: t('商品与优惠费用'), exact: true }).first();
+      await draftsRegion.scrollIntoViewIfNeeded();
+      await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
       await shot('draft');
-      if (!(await page.locator('.line-items-editor').count()))
-        await page
-          .locator('.intake-review')
+      await draftsRegion.getByRole('button', { name: t('修改'), exact: true }).click();
+      const draftDialog = page.getByRole('dialog');
+      await draftDialog.getByText(t('小熊填'), { exact: true }).first().waitFor();
+      await shot('draft-edit');
+      await draftDialog.getByRole('button', { name: t('取消'), exact: true }).click();
+      if (!(await itemsEditor.count()))
+        await draftsRegion
           .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
           .first()
           .click();
-      await page.locator('.line-items-editor').first().scrollIntoViewIfNeeded();
-      await page.evaluate(() =>
-        document.querySelector('.line-items-editor').scrollIntoView({ block: 'start' }),
-      );
+      await itemsEditor.scrollIntoViewIfNeeded();
+      await itemsEditor.evaluate(el => el.scrollIntoView({ block: 'start' }));
       await shot('line-items');
+      const draftAmount = draftsRegion.getByPlaceholder(t('请补充金额'));
+      const originalAmount = await draftAmount.inputValue();
+      await draftAmount.fill('');
+      assert.equal(
+        await draftsRegion.getByRole('button', { name: t('记入'), exact: true }).isDisabled(),
+        true,
+      );
+      await draftsRegion.getByRole('button', { name: t('← 返回草稿列表'), exact: true }).click();
+      await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
+      await shot('draft-missing');
+      await draftsRegion
+        .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
+        .first()
+        .click();
+      await draftAmount.fill(originalAmount);
+      assert.equal(
+        await draftsRegion.getByRole('button', { name: t('记入'), exact: true }).isEnabled(),
+        true,
+      );
+      await page.getByRole('button', { name: t('手动填写'), exact: true }).click();
+      await page
+        .getByRole('group', { name: t('录入方式') })
+        .evaluate(el => el.scrollIntoView({ block: 'start' }));
+      await shot('manual');
+      const manualForm = page.getByRole('form', { name: t('手动记账') });
+      await manualForm
+        .getByRole('textbox', { name: t('金额（元）').replace('CNY', 'USD'), exact: true })
+        .fill('1.23');
+      await manualForm.getByRole('button', { name: t('保存并再记'), exact: true }).click();
+      await page.getByRole('button', { name: t('撤销'), exact: true }).click();
+      const undoResponse = page.waitForResponse(
+        r => r.request().method() === 'DELETE' && r.url().includes('/transactions'),
+      );
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: t('确认'), exact: true })
+        .click();
+      assert.equal((await undoResponse).ok(), true);
       await navigate('记一笔');
       await page.getByRole('button', { name: t('家庭往来'), exact: true }).click();
       await shot('family-entry');
       await page.getByRole('button', { name: t('记一笔往来'), exact: true }).click();
-      await audit('family-entry-form');
+      await shot('family-entry-form');
       await navigate('小熊对话');
       await page.getByRole('button', { name: t('打开对话历史和报告'), exact: true }).click();
       await page

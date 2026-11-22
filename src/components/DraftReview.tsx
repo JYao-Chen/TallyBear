@@ -1,4 +1,8 @@
 'use client';
+import styles from './DraftReview.module.css';
+import { Button, ConfirmDialog, Money, FilledBadge, Sheet } from '@/ui';
+import { QuickEntry } from './QuickEntry';
+import { missingEntryFields } from '@/lib/missing-entry-fields';
 import { EntryInstallmentFields } from './EntryInstallmentFields';
 import { PagedList } from './PagedList';
 import { verifyItemTotal } from '@/lib/line-items';
@@ -86,8 +90,10 @@ export function DraftReview({
   drafts,
   setDrafts,
   accounts,
+  recentCategories,
   originals,
   busy,
+  onSaveOne,
   onReview,
   onSave,
   focusRequest,
@@ -98,8 +104,10 @@ export function DraftReview({
   drafts: Draft[];
   setDrafts: (d: Draft[]) => void;
   accounts: (AccountIdentity & { id: string; family_id?: string | null })[];
+  recentCategories?: string[];
   originals: Original[];
   busy: boolean;
+  onSaveOne?: (d: Draft) => void;
   onReview: () => void;
   onSave: () => void;
 }) {
@@ -118,35 +126,31 @@ export function DraftReview({
     return () => cancelAnimationFrame(frame);
   }, [focusRequest]);
   const categories = useContext(CategoryIcons);
-  const change = (id: string, patch: Partial<Draft>) =>
+  const [editing, setEditing] = useState<Draft | null>(null);
+  const [removing, setRemoving] = useState('');
+  const [changed, setChanged] = useState<Record<string, (keyof Draft)[]>>({});
+  const fieldBadge = (d: Draft, key: keyof Draft) =>
+    !d.source?.startsWith('CSV') && (changed[d.id]?.includes(key) || d[key]) ? (
+      <span className={styles.provenance}>
+        <FilledBadge>{changed[d.id]?.includes(key) ? tr('已修改') : undefined}</FilledBadge>
+      </span>
+    ) : null;
+  const change = (id: string, patch: Partial<Draft>) => {
+    const original = drafts.find(d => d.id === id);
+    const keys = (Object.keys(patch) as (keyof Draft)[]).filter(key => patch[key] !== original?.[key]);
+    setChanged(old => ({ ...old, [id]: [...new Set([...(old[id] || []), ...keys])] }));
     setDrafts(
       drafts.map(d => {
         if (d.id !== id) return d;
         const next = { ...d, ...patch };
-        if (
-          ['kind', 'payee', 'scene', 'title', 'product', 'lineItems'].some(key =>
-            Object.prototype.hasOwnProperty.call(patch, key),
-          )
-        )
+        if (keys.some(key => ['kind', 'payee', 'scene', 'title', 'product', 'lineItems'].includes(key)))
           delete next.categorySuggestion;
         return next;
       }),
     );
-  const incomplete = drafts.filter(
-    d =>
-      d.action !== 'skip' &&
-      ((d.installment &&
-        (!d.installment.terms ||
-          !d.installment.firstDate ||
-          d.installment.fees == null ||
-          !accounts.some(a => a.id === d.accountId && a.type === 'credit'))) ||
-        (d.action === 'merge'
-          ? !d.mergeId
-          : !d.amount ||
-            !d.accountId ||
-            !d.category.trim() ||
-            (d.kind === 'transfer' && (!d.targetId || d.targetId === d.accountId)))),
-  );
+  };
+  const missing = (d: Draft) => missingEntryFields(d, accounts);
+  const incomplete = drafts.filter(d => missing(d).length);
   const money = (n: number) => formatMoney(n);
   const needs = (d: Draft) =>
     incomplete.some(v => v.id === d.id) ||
@@ -163,8 +167,8 @@ export function DraftReview({
   const current = drafts.find(d => d.id === selected);
 
   return (
-    <section ref={root} className="panel intake-review">
-      <div className="panel-title">
+    <section aria-label={tr('核对草稿')} ref={root} className={styles.review}>
+      <div className={styles.head}>
         <div>
           <h2>
             {tr('核对小票 ·')}
@@ -173,11 +177,11 @@ export function DraftReview({
           </h2>
           <></>
         </div>
-        <button className="secondary" disabled={busy || uploading > 0} onClick={onReview}>
+        <button className={styles.secondary} disabled={busy || uploading > 0} onClick={onReview}>
           {tr('重新检查重复')}
         </button>
       </div>
-      <div className="batch-filters" role="group" aria-label={locale === 'en' ? 'Draft status' : '草稿状态'}>
+      <div className={styles.filters} role="group" aria-label={tr('草稿状态')}>
         {[
           ['all', '全部'],
           ['needs', '待核对'],
@@ -207,69 +211,98 @@ export function DraftReview({
           </button>
         ))}
       </div>
-      <div className={`batch-workspace${current ? ' has-selection' : ''}`}>
-        <div className="batch-draft-list">
+      <div className={styles.workspace}>
+        <div className={styles.list}>
           <PagedList items={filtered} pageSize={8} resetKey={filter}>
             {d => (
-              <button
-                type="button"
-                className="batch-draft-row"
-                aria-pressed={selected === d.id}
-                disabled={busy || uploading > 0}
-                onClick={() => setSelected(d.id)}
-              >
-                <span>
-                  <strong>{d.title || d.payee || tr('待补充的小记录')}</strong>
+              <article className={missing(d).length ? styles.attention : styles.card}>
+                <button
+                  type="button"
+                  className={styles.draft}
+                  aria-pressed={selected === d.id}
+                  disabled={busy || uploading > 0}
+                  onClick={() => setSelected(d.id)}
+                >
+                  <span>
+                    <strong>{d.title || d.payee || tr('待补充的小记录')}</strong>
+                    <small>
+                      {d.date} · {tr(d.action === 'skip' ? '已跳过' : needs(d) ? '待核对' : '可保存')}
+                    </small>
+                  </span>
+                  {d.amount ? (
+                    <Money
+                      value={d.amount}
+                      tone={d.kind === 'expense' ? 'expense' : d.kind === 'transfer' ? 'plain' : 'income'}
+                    />
+                  ) : (
+                    <span>{tr('待补金额')}</span>
+                  )}
+                </button>
+                {!!missing(d).length && (
                   <small>
-                    {d.date} · {tr(d.action === 'skip' ? '已跳过' : needs(d) ? '待核对' : '可保存')}
+                    {tr('待补充')} ·{' '}
+                    {missing(d)
+                      .map(k => tr(k))
+                      .join(' · ')}
                   </small>
-                </span>
-                <b>{money(d.amount)}</b>
-              </button>
+                )}
+                <div className={styles.rowActions}>
+                  {(!d.action || d.action === 'create') && (
+                    <Button disabled={busy || uploading > 0} onClick={() => setEditing(d)}>
+                      {tr('修改')}
+                    </Button>
+                  )}
+                  {onSaveOne && d.action !== 'skip' && (
+                    <Button
+                      disabled={
+                        busy ||
+                        uploading > 0 ||
+                        !!missing(d).length ||
+                        !!drafts.find(other => other.id === d.refundOf && other.action !== 'skip')
+                      }
+                      onClick={() => onSaveOne(d)}
+                    >
+                      {tr('记入')}
+                    </Button>
+                  )}
+                </div>
+              </article>
             )}
           </PagedList>
-          {!filtered.length && (
-            <p className="muted">{locale === 'en' ? 'No drafts in this view' : '当前状态没有草稿'}</p>
-          )}
+          {!filtered.length && <p className={styles.muted}>{tr('当前状态没有草稿')}</p>}
         </div>
-        <div className="batch-draft-editor">
+        <div className={styles.editor}>
           {current ? (
             <button
               type="button"
-              className="text-button batch-back"
+              className={styles.link}
               disabled={busy || uploading > 0}
               onClick={() => setSelected('')}
             >
-              {locale === 'en' ? '← Back to drafts' : '← 返回草稿列表'}
+              {tr('← 返回草稿列表')}
             </button>
           ) : (
-            <p className="batch-placeholder">
-              {locale === 'en' ? 'Choose a draft to review its details' : '选择一笔草稿，核对或补充完整信息'}
-            </p>
+            <p className={styles.muted}>{tr('选择一笔草稿，核对或补充完整信息')}</p>
           )}
           {(current ? [current] : []).map(d => {
             const i = drafts.findIndex(r => r.id === d.id);
             return (
-              <article
-                className={`receipt ${d.action === 'skip' ? 'receipt-skipped' : ''}`}
-                key={d.id}
-                id={'draft-' + d.id}
-              >
+              <article className={styles.receipt} key={d.id} id={'draft-' + d.id}>
                 <fieldset disabled={busy || uploading > 0}>
-                  <div className="panel-title">
+                  <div className={styles.head}>
                     <strong>
                       {i + 1}. {d.title || d.payee || d.product || tr('待补充的小记录')}
                     </strong>
-                    <span className="muted">
+                    <span className={styles.muted}>
                       {d.source || tr('手动 / 账单')}
                       {d.platform ? ' · ' + d.platform : ''}
                     </span>
                   </div>
                   {d.status === 'unknown' && (
-                    <p className="notice">{tr('付款状态不明确，请确认这笔钱已实际支付或到账。')}</p>
+                    <p className={styles.notice}>{tr('付款状态不明确，请确认这笔钱已实际支付或到账。')}</p>
                   )}
                   {!!d.matches?.length && (
-                    <div className="match-box">
+                    <div className={styles.notice}>
                       <strong>{tr('发现可能重复的记录')}</strong>
                       {d.matches.map(m => (
                         <p key={m.record.id}>
@@ -279,9 +312,9 @@ export function DraftReview({
                       ))}
                     </div>
                   )}
-                  <section className="receipt-form-section">
+                  <section className={styles.section}>
                     <h3>{tr('账单归属与场景')}</h3>
-                    <div className="form-grid">
+                    <div className={styles.grid}>
                       <label>
                         {tr('记入账本')}
                         <VisualSelect
@@ -308,9 +341,9 @@ export function DraftReview({
                         disabled={d.action === 'skip'}
                       />
                       {d.targetBook && d.targetBook !== book && d.refundOf && (
-                        <p className="muted">{tr('退款记入原单所在账本，原消费不移动。')}</p>
+                        <p className={styles.muted}>{tr('退款记入原单所在账本，原消费不移动。')}</p>
                       )}
-                      <details className="entry-optional">
+                      <details className={styles.details}>
                         <summary>{tr('消费场景与时间')}</summary>
                         <SceneFields
                           value={d.scene}
@@ -328,7 +361,9 @@ export function DraftReview({
                       </details>
                       <label>
                         {tr('账目标题')}
+                        {fieldBadge(d, 'title')}
                         <input
+                          aria-label={tr('账目标题')}
                           value={d.title || ''}
                           maxLength={80}
                           placeholder={d.payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
@@ -337,9 +372,9 @@ export function DraftReview({
                       </label>
                     </div>
                   </section>
-                  <section className="receipt-form-section">
+                  <section className={styles.section}>
                     <h3>{tr('交易信息')}</h3>
-                    <div className="form-grid">
+                    <div className={styles.grid}>
                       <label>
                         {tr('这笔如何处理')}
                         <FormSelect
@@ -382,6 +417,7 @@ export function DraftReview({
                       <ReceiptOriginHint origin={d.receiptOrigin} />
                       <label>
                         {tr('类型')}
+                        {fieldBadge(d, 'kind')}
                         <FormSelect
                           value={d.kind}
                           onChange={selectedValue =>
@@ -396,6 +432,7 @@ export function DraftReview({
                       </label>
                       <label>
                         {tr('金额（元）')}
+                        {fieldBadge(d, 'amount')}
                         <input
                           type="number"
                           min="0.01"
@@ -411,6 +448,7 @@ export function DraftReview({
                       </label>
                       <label>
                         {d.kind === 'refund' ? tr('退款到账日') : tr('支付 / 交易日期')}
+                        {fieldBadge(d, 'date')}
                         <DateField
                           type="date"
                           value={d.date}
@@ -419,6 +457,7 @@ export function DraftReview({
                       </label>
                       <label>
                         {tr('资金账户')}
+                        {fieldBadge(d, 'accountId')}
                         <VisualSelect
                           label={tr('请选择实际收付款账户')}
                           value={d.accountId}
@@ -427,11 +466,7 @@ export function DraftReview({
                             value: a.id,
                             label:
                               accountLabel(a) +
-                              (d.walletCandidates?.includes(a.id)
-                                ? locale === 'en'
-                                  ? ' · matches receipt'
-                                  : ' · 符合付款信息'
-                                : ''),
+                              (d.walletCandidates?.includes(a.id) ? tr(' · 符合付款信息') : ''),
                             account: true,
                             accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
                           }))}
@@ -439,6 +474,7 @@ export function DraftReview({
                       </label>
                       <label>
                         {tr('分类')}
+                        {fieldBadge(d, 'category')}
                         <VisualSelect
                           value={d.category}
                           onChange={v => change(d.id, { category: v, categorySource: 'explicit' })}
@@ -448,10 +484,7 @@ export function DraftReview({
                         />
                       </label>
                       {d.categorySuggestion && (
-                        <p
-                          aria-live="polite"
-                          className={`category-suggestion ${d.category !== d.categorySuggestion.category ? 'is-corrected' : ''}`}
-                        >
+                        <p aria-live="polite" className={styles.notice}>
                           <strong>
                             {tr(
                               d.category !== d.categorySuggestion.category
@@ -484,11 +517,12 @@ export function DraftReview({
                           </small>
                         </p>
                       )}
-                      <details className="receipt-details">
+                      <details className={styles.details}>
                         <summary>{tr('商家、商品与订单详情')}</summary>
-                        <div className="form-grid">
+                        <div className={styles.grid}>
                           <label>
                             {tr('交易对方')}
+                            {fieldBadge(d, 'payee')}
                             <input
                               value={d.payee}
                               maxLength={120}
@@ -497,6 +531,7 @@ export function DraftReview({
                           </label>
                           <label>
                             {tr('商品摘要')}
+                            {fieldBadge(d, 'product')}
                             <input
                               value={d.product || ''}
                               maxLength={160}
@@ -506,6 +541,7 @@ export function DraftReview({
                           </label>
                           <label>
                             {tr('商城 / 平台')}
+                            {fieldBadge(d, 'platform')}
                             <input
                               value={d.platform || ''}
                               maxLength={40}
@@ -514,6 +550,7 @@ export function DraftReview({
                           </label>
                           <label>
                             {tr('订单号')}
+                            {fieldBadge(d, 'orderId')}
                             <input
                               value={d.orderId || ''}
                               maxLength={200}
@@ -522,6 +559,7 @@ export function DraftReview({
                           </label>
                           <label>
                             {tr('交易 / 退款流水号')}
+                            {fieldBadge(d, 'externalId')}
                             <input
                               value={d.externalId || ''}
                               maxLength={200}
@@ -530,6 +568,7 @@ export function DraftReview({
                           </label>
                           <label>
                             {tr('备注')}
+                            {fieldBadge(d, 'note')}
                             <textarea
                               rows={3}
                               value={d.note}
@@ -586,11 +625,11 @@ export function DraftReview({
                         }}
                       />
                       {d.scene?.purchaseGroup && (
-                        <p className="muted">
+                        <p className={styles.muted}>
                           {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
                           <button
                             type="button"
-                            className="text-button"
+                            className={styles.link}
                             onClick={() => change(d.id, { scene: { ...d.scene!, purchaseGroup: undefined } })}
                           >
                             {tr('取消同款关联')}
@@ -617,17 +656,17 @@ export function DraftReview({
                     </div>
                   </section>
                   {d.accountId && d.walletMatch === 'channel' && (
-                    <small className="wallet-match-note" role="status">
+                    <small className={styles.notice} role="status">
                       {tr('已按支付渠道自动选择，请核对是否为实际扣款账户。')}
                     </small>
                   )}
                   {d.accountId && d.walletMatch === 'funding' && (
-                    <small className="wallet-match-note" role="status">
+                    <small className={styles.notice} role="status">
                       {tr('已根据明确扣款信息自动选择。')}
                     </small>
                   )}
                   {!d.accountId && (d.walletCandidates?.length || 0) > 1 && (
-                    <small className="wallet-match-note" role="status">
+                    <small className={styles.notice} role="status">
                       {tr('找到多个符合付款信息的钱包，请选择实际扣款账户。')}
                     </small>
                   )}
@@ -650,7 +689,7 @@ export function DraftReview({
                     />
                   )}
                   {!!d.attachmentIds?.length && (
-                    <label className="receipt-retention">
+                    <label className={styles.check}>
                       <input
                         type="checkbox"
                         checked={!!d.retainReceipts}
@@ -675,9 +714,9 @@ export function DraftReview({
                     onChange={v => change(d.id, { verificationReason: v })}
                   />
                   <button
-                    className="text-button"
+                    className={styles.link}
                     disabled={busy || uploading > 0}
-                    onClick={() => setDrafts(drafts.filter(r => r.id !== d.id))}
+                    onClick={() => setRemoving(d.id)}
                   >
                     {tr('移除草稿')}
                   </button>
@@ -687,13 +726,45 @@ export function DraftReview({
           })}
         </div>
       </div>
-      <div className="batch-save-bar">
+      {editing && (
+        <Sheet open wide title={tr('修改草稿')} onClose={() => setEditing(null)}>
+          <QuickEntry
+            key={editing.id}
+            book={book}
+            books={books}
+            categories={categories.map(c => ({ archived: false, ...c }))}
+            recentCategories={recentCategories}
+            reviewDraft={editing}
+            editedFields={changed[editing.id]}
+            localDrafts={drafts}
+            accounts={accounts}
+            originals={originals}
+            onCancel={() => setEditing(null)}
+            onSave={async item => {
+              change(item.id, item);
+              setEditing(null);
+            }}
+          />
+        </Sheet>
+      )}
+      <ConfirmDialog
+        open={!!removing}
+        title={tr('移除草稿')}
+        onCancel={() => setRemoving('')}
+        onConfirm={() => {
+          setDrafts(drafts.filter(d => d.id !== removing));
+          setRemoving('');
+        }}
+      >
+        {tr('确定移除这笔草稿？')}
+      </ConfirmDialog>
+      <div className={styles.saveBar}>
         {incomplete.length > 0 && (
-          <p className="notice">
+          <p className={styles.notice}>
             {tr('有')}
             {incomplete.length} {tr('笔需要补全金额、日期、账户或处理方式。')}
             <button
-              className="text-button"
+              className={styles.link}
               onClick={() => {
                 setFilter('all');
                 setSelected(incomplete[0].id);

@@ -16,7 +16,7 @@ const bundle = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
 const js = bundle.outputFiles.find(f => f.path.endsWith('.js')).contents;
@@ -48,7 +48,10 @@ const browser = await chromium.launch({ headless: true, executablePath: process.
 try {
   const page = await browser.newPage(),
     errors = [];
-  page.on('pageerror', e => errors.push(e.message));
+  page.on('pageerror', e => {
+    console.error(e.stack);
+    errors.push(e.message);
+  });
   await page.route('**/api/**', async route => {
     const url = route.request().url();
     const data = url.includes('/chat?')
@@ -67,9 +70,10 @@ try {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('http://127.0.0.1:' + server.address().port);
+    await page.getByText('更多', { exact: true }).click();
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).waitFor();
-    await page.locator('.category-breakdown-toggle>summary').click();
-    const breakdown = page.locator('.item-category-breakdown');
+    await page.getByText('分类计入金额', { exact: true }).first().click();
+    const breakdown = page.getByRole('heading', { name: '分类计入金额' }).locator('..');
     assert.ok((await breakdown.innerText()).includes('蔬菜'));
     assert.ok((await breakdown.innerText()).includes('服饰'));
     if (width < 1200) await page.getByRole('button', { name: '编辑第4项', exact: true }).click();
@@ -80,17 +84,21 @@ try {
     await adjustmentPicker.getByRole('button', { name: '按全部商品比例分摊', exact: true }).click();
     if (width < 1200) await page.getByRole('button', { name: '编辑第3项', exact: true }).click();
     await page.getByRole('button', { name: '第3项分类：服饰', exact: true }).click();
-    await page.getByRole('button', { name: '零食', exact: true }).last().click();
+    await page.getByRole('dialog').getByRole('button', { name: '零食', exact: true }).click();
     assert.ok((await breakdown.innerText()).includes('零食'));
     await page.getByRole('button', { name: '保存修改', exact: true }).click();
     await page.waitForFunction(() => window.saved);
     assert.equal((await page.evaluate(() => window.saved)).lineItems[2].category, '零食');
-    await page.locator('.line-items-editor').screenshot({ path: resolve(out, 'items-' + width + '.png') });
+    await page
+      .getByRole('group', { name: '商品与优惠费用', exact: true })
+      .screenshot({ path: resolve(out, 'items-' + width + '.png') });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).click();
     await page.getByRole('button', { name: '整单统一分类', exact: true }).click();
-    await page.getByRole('button', { name: /^记在哪一类/ }).click();
-    await page.getByRole('button', { name: '零食', exact: true }).last().click();
+    await page
+      .getByRole('group', { name: '记在哪一类？' })
+      .getByRole('button', { name: '零食', exact: true })
+      .click();
     await page.evaluate(() => {
       window.saved = null;
     });
@@ -100,6 +108,15 @@ try {
     assert.equal(saved.category, '零食');
     assert.ok(saved.lineItems.every(i => !i.category));
     assert.equal(saved.amount, 14000);
+    const remove = page.getByRole('button', { name: '删除第3项', exact: true });
+    await remove.click();
+    await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click();
+    assert.ok(await remove.isVisible());
+    await remove.click();
+    await page.getByRole('dialog').getByRole('button', { name: '确认', exact: true }).click();
+    await page.getByRole('button', { name: '保存修改', exact: true }).click();
+    await page.waitForFunction(() => window.saved.lineItems.length === 3);
+    assert.equal(await page.evaluate(() => window.saved.lineItems[2].name), '满减');
     await page.getByRole('button', { name: 'AI确认卡编辑', exact: true }).click();
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).waitFor();
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).click();

@@ -1,0 +1,136 @@
+.modes {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+.modes button,
+.editor button,
+.status button {
+  min-height: var(--touch);
+}
+.status,
+.muted,
+.editor small {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.status {
+  text-align: end;
+}
+.editor {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+  padding: clamp(16px, 3vw, 28px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+}
+.heading,
+.row,
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.heading {
+  justify-content: space-between;
+}
+.heading h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+.capture {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+.capture textarea {
+  min-height: var(--touch);
+  resize: vertical;
+}
+.upload,
+.secondary,
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--line-strong);
+  padding: var(--space-2);
+  cursor: pointer;
+}
+.upload {
+  position: relative;
+  height: 100%;
+}
+.upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.link {
+  border: 0;
+}
+.images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.images:empty {
+  display: none;
+}
+.images figure {
+  width: 9rem;
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.images img {
+  width: 100%;
+  height: 6rem;
+  object-fit: contain;
+}
+.progress {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--accent-soft);
+}
+@media (max-width: 640px) {
+  .capture {
+    grid-template-columns: minmax(0, 1fr) minmax(84px, 30%);
+  }
+}
+.editor .check {
+  flex-direction: row;
+  justify-content: flex-start;
+  min-height: var(--touch);
+  margin: 0;
+}
+.check input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+.editor > button:last-child {
+  justify-self: start;
+}
+
+.modes button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

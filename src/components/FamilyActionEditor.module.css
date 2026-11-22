@@ -1,0 +1,42 @@
+.form,
+.grid {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+}
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+}
+.grid label {
+  min-width: 0;
+}
+.kinds {
+  grid-column: 1/-1;
+  display: flex;
+  flex-wrap: wrap;
+}
+.kinds button {
+  flex: auto;
+  min-height: var(--touch);
+}
+.actions,
+.amount,
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.amount input {
+  min-width: 0;
+  text-align: end;
+  font: 600 var(--text-money) var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+.error {
+  color: var(--danger);
+}
+
+.kinds button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

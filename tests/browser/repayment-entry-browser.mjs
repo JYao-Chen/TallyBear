@@ -15,7 +15,7 @@ const bundle = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
 const js = bundle.outputFiles.find(f => f.path.endsWith('.js')).contents;
@@ -64,7 +64,7 @@ try {
     await page.getByRole('textbox', { name: '金额（元）', exact: true }).fill('808.47');
     await page.getByText(/本次还款后欠款.*191.53/).waitFor();
     await page.screenshot({ path: out + '/repayment-' + width + '.png', fullPage: true });
-    const submit = page.getByRole('button', { name: '记好了，保存这一笔', exact: true });
+    const submit = page.getByRole('button', { name: '保存', exact: true });
     await submit.click();
     await page.waitForFunction(() => !!window.saved);
     const saved = await page.evaluate(() => window.saved);

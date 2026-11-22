@@ -1,0 +1,130 @@
+.review,
+.card,
+.attention,
+.receipt {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+.review {
+  display: grid;
+  gap: var(--space-4);
+}
+.head,
+.rowActions,
+.filters,
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.head {
+  justify-content: space-between;
+}
+.head h2 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+.filters button,
+.secondary,
+.link,
+.saveBar button {
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+.filters button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.workspace,
+.list,
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+.grid > * {
+  min-width: 0;
+}
+.grid :is(details, p) {
+  grid-column: 1/-1;
+}
+.draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch);
+  text-align: start;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.draft span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.draft small,
+.muted {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.attention,
+.notice {
+  border-color: var(--attention);
+  background: var(--attention-soft);
+}
+.card,
+.attention {
+  display: grid;
+  gap: var(--space-2);
+}
+.notice,
+.details,
+.section {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+}
+.link {
+  border: 0;
+}
+.receipt fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.section {
+  border-top: 1px solid var(--line);
+}
+.rowActions {
+  justify-content: flex-end;
+}
+.saveBar > button {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.provenance {
+  margin-inline-start: var(--space-1);
+  display: inline-flex;
+  width: fit-content;
+}
+.draft:hover,
+.filters button:hover,
+.link:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

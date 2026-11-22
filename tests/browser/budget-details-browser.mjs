@@ -79,7 +79,7 @@ try {
     await page.getByText('本月此分类暂无消费。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '修改预算', exact: true }).click();
     const edit = page.getByRole('dialog');
-    await edit.locator('.visual-trigger').click();
+    await edit.getByRole('button', { name: '请选择：餐饮旧', exact: true }).click();
     await page.getByRole('button', { name: '餐饮', exact: true }).click();
     await page.getByRole('dialog').locator('input[name=amount]').fill('300');
     await page.screenshot({ path: dir + '/edit-' + width + '.png' });

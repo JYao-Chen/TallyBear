@@ -1,0 +1,94 @@
+.select,
+.trigger {
+  min-width: 0;
+  width: 100%;
+}
+.trigger,
+.secondary,
+.icons button {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  min-height: var(--touch);
+}
+.trigger,
+.symbol,
+.pages,
+.current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.trigger {
+  padding-inline: var(--space-3);
+}
+.trigger > span[title] {
+  min-width: 0;
+  flex: 1;
+  text-align: start;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.trigger svg,
+.symbol,
+.logo {
+  flex-shrink: 0;
+}
+.symbol {
+  display: inline-flex;
+  justify-content: center;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.symbol img,
+.logo {
+  object-fit: contain;
+}
+.categories,
+.icons {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(min(95px, 100%), 1fr));
+}
+.categories button {
+  min-height: var(--touch);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.categories button[aria-pressed='true'],
+.icons button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.library {
+  display: grid;
+  gap: var(--space-3);
+}
+.icons {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.icons button small,
+.current small {
+  display: block;
+  color: var(--muted);
+}
+.pages {
+  justify-content: space-between;
+}
+.trigger:hover,
+.icons button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (max-width: 640px) {
+  :global(html[lang='en']) .categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :global(html[lang='en']) .categories button {
+    padding-inline: var(--space-2);
+    gap: var(--space-1);
+  }
+}

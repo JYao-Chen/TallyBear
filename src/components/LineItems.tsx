@@ -1,4 +1,6 @@
 'use client';
+import { Button, ConfirmDialog } from '@/ui';
+import styles from './LineItems.module.css';
 import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
 import { uploadReceipt } from '@/lib/upload-receipt';
@@ -20,7 +22,7 @@ function Verification({ items, total }: { items: LineItem[]; total: number }) {
   const check = verifyItemTotal(items, total);
   if (check.status === 'none') return null;
   return (
-    <span className={check.status === 'verified' ? 'income' : 'muted'} role="status">
+    <span className={check.status === 'verified' ? styles.income : styles.muted} role="status">
       {check.status === 'verified'
         ? tr('✓ 明细合计与实付一致')
         : check.status === 'incomplete'
@@ -33,7 +35,7 @@ function Settlement({ items, total }: { items: LineItem[]; total: number }) {
   const { t: tr, locale } = useI18n();
   const s = settlementTotals(items);
   return (
-    <dl className="settlement-summary">
+    <dl className={styles.settlement}>
       <div>
         <dt>
           {tr('商品合计')}
@@ -44,7 +46,7 @@ function Settlement({ items, total }: { items: LineItem[]; total: number }) {
       {s.discount !== 0 && (
         <div>
           <dt>{tr('优惠 / 抹零')}</dt>
-          <dd className="income">−{money(s.discount)}</dd>
+          <dd className={styles.income}>−{money(s.discount)}</dd>
         </div>
       )}
       {s.fees !== 0 && (
@@ -89,36 +91,36 @@ function ItemRegion({
   const pages = Math.max(1, Math.ceil(rows.length / pageSize)),
     current = Math.min(page, pages);
   return (
-    <section className="line-item-region" aria-label={title}>
+    <section className={styles.region} aria-label={title}>
       <h4>
-        {title} <span className="muted">· {rows.length}</span>
+        {title} <span className={styles.muted}>· {rows.length}</span>
       </h4>
       {rows.length ? (
         rows.slice((current - 1) * pageSize, current * pageSize).map(({ item, index }) => render(item, index))
       ) : (
-        <p className="muted">{tr('未填写')}</p>
+        <p className={styles.muted}>{tr('未填写')}</p>
       )}
       {pages > 1 && (
-        <div className="item-region-pager">
-          <button
+        <div className={styles.row}>
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             disabled={current === 1}
             onClick={() => setPage(current - 1)}
           >
             {tr('上一页')}
-          </button>
+          </Button>
           <span>
             {current} / {pages}
           </span>
-          <button
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             disabled={current === pages}
             onClick={() => setPage(current + 1)}
           >
             {tr('下一页')}
-          </button>
+          </Button>
         </div>
       )}
       {children}
@@ -146,7 +148,7 @@ export function LineItemsView({
   const groups = groupedItems(items);
   if (!items.length) return null;
   const row = (i: LineItem, n: number) => (
-    <div className="item-summary-row" key={i.id || n}>
+    <div className={styles.summaryRow} key={i.id || n}>
       <span>
         <strong>{i.name}</strong>
         {i.category &&
@@ -168,7 +170,7 @@ export function LineItemsView({
     </div>
   );
   return (
-    <section className="item-summary">
+    <section className={styles.summary}>
       {groups.goods.length > 0 && <ItemRegion title={tr('商品明细')} rows={groups.goods} render={row} />}
       {groups.adjustments.length > 0 && (
         <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={row} />
@@ -177,7 +179,7 @@ export function LineItemsView({
         <CategoryBreakdown items={items} total={total} category={category} />
       )}
       <Settlement items={items} total={total} />
-      <div className="item-reconciliation">
+      <div className={styles.reconcile}>
         <Verification items={items} total={total} />
       </div>
     </section>
@@ -218,6 +220,7 @@ export function LineItemsEditor({
     [error, setError] = useState(''),
     [found, setFound] = useState<Draft[]>([]),
     [photos, setPhotos] = useState<{ name: string; data: string }[]>([]);
+  const [removing, setRemoving] = useState<LineItem | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   const sum = itemTotals(items);
@@ -285,11 +288,8 @@ export function LineItemsEditor({
   const renderExpandedRow = (i: LineItem, n: number) => {
     const recommended = recommendedItemAmount(i);
     return (
-      <div
-        className={lineItemKind(i) !== 'item' ? 'line-item-edit settlement-edit' : 'line-item-edit'}
-        key={i.id || n}
-      >
-        <label className="item-kind">
+      <div className={styles.edit} key={i.id || n}>
+        <label>
           {tr('明细类型')}
           <VisualSelect
             label={tr('明细类型')}
@@ -309,7 +309,7 @@ export function LineItemsEditor({
             ]}
           />
         </label>
-        <label className="item-name">
+        <label className={styles.name}>
           {lineItemKind(i) === 'discount'
             ? tr('优惠 / 抹零名称')
             : i.kind === 'fee'
@@ -325,7 +325,7 @@ export function LineItemsEditor({
         </label>
         {lineItemKind(i) === 'item' ? (
           <>
-            <label className="item-quantity">
+            <label>
               {tr('数量')}
               <input
                 aria-label={tr('第{0}项数量', [n + 1])}
@@ -337,7 +337,7 @@ export function LineItemsEditor({
                 onChange={e => change(n, { quantity: e.target.value === '' ? null : Number(e.target.value) })}
               />
             </label>
-            <label className="item-price">
+            <label>
               {tr('单价（元）')}
               <input
                 aria-label={tr('第{0}项单价', [n + 1])}
@@ -354,7 +354,7 @@ export function LineItemsEditor({
             </label>
           </>
         ) : null}
-        <label className="item-amount">
+        <label>
           {lineItemKind(i) === 'discount' ? tr('减免金额（元）') : tr('小计（元）')}
           <input
             aria-label={tr('第{0}项小计', [n + 1])}
@@ -378,23 +378,17 @@ export function LineItemsEditor({
           />
         </label>
         {recommended !== null && i.amount !== recommended && (
-          <div className="item-calculation">
-            <button type="button" className="text-button" onClick={() => change(n, { amount: recommended })}>
+          <div className={styles.full}>
+            <Button type="button" variant="ghost" onClick={() => change(n, { amount: recommended })}>
               {tr('采用推荐小计')} {money(recommended)}
-            </button>
+            </Button>
           </div>
         )}
         {split && (
-          <label className="item-category">
-            {lineItemKind(i) === 'item'
-              ? locale === 'en'
-                ? 'Category'
-                : '分类'
-              : locale === 'en'
-                ? 'Apply to merchandise'
-                : '跟随商品'}
+          <label className={styles.full}>
+            {lineItemKind(i) === 'item' ? tr('分类') : tr('跟随商品')}
             <VisualSelect
-              label={locale === 'en' ? `Item ${n + 1} category` : `第${n + 1}项分类`}
+              label={tr('第{0}项分类', [n + 1])}
               value={
                 lineItemKind(i) === 'item' || goodsCategories.includes(i.category || '')
                   ? i.category || ''
@@ -404,14 +398,7 @@ export function LineItemsEditor({
               options={[
                 {
                   value: '',
-                  label:
-                    lineItemKind(i) !== 'item'
-                      ? locale === 'en'
-                        ? 'All merchandise proportionally'
-                        : '按全部商品比例分摊'
-                      : locale === 'en'
-                        ? 'Use order category'
-                        : '沿用整单分类',
+                  label: lineItemKind(i) !== 'item' ? tr('按全部商品比例分摊') : tr('沿用整单分类'),
                 },
                 ...(lineItemKind(i) === 'item'
                   ? Array.from(new Set([...(i.category ? [i.category] : []), ...available.map(c => c.name)]))
@@ -421,16 +408,16 @@ export function LineItemsEditor({
             />
           </label>
         )}
-        <div className="item-edit-actions">
-          <button
+        <div className={styles.actions}>
+          <Button
             type="button"
-            className="text-button"
+            variant="ghost"
             aria-label={tr('删除第{0}项', [n + 1])}
-            onClick={() => onChange(items.filter((_, j) => j !== n))}
+            onClick={() => setRemoving(i)}
           >
             <Trash2 size={16} aria-hidden="true" />
             {tr('删除明细')}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -447,9 +434,7 @@ export function LineItemsEditor({
             ? i.category || fallback
             : goodsCategories.includes(i.category || '')
               ? i.category
-              : locale === 'en'
-                ? 'Follows merchandise'
-                : '随商品分摊'
+              : tr('随商品分摊')
           : undefined
       }
     >
@@ -458,7 +443,8 @@ export function LineItemsEditor({
   );
   return (
     <details
-      className="line-items-editor compact-items"
+      aria-label={tr('商品与优惠费用')}
+      className={styles.editor}
       open={items.length > 0 || photos.length > 0 || busy || found.length > 0 || undefined}
     >
       <summary>
@@ -466,11 +452,11 @@ export function LineItemsEditor({
         {items.length ? tr(' · {0}件商品', [groups.goods.length]) : tr(' · 选填')}
       </summary>
       <fieldset disabled={busy}>
-        <div className="item-category-mode">
+        <div className={styles.mode}>
           <label>
-            {locale === 'en' ? 'Classification' : '分类方式'}
+            {tr('分类方式')}
             <VisualSelect
-              label={locale === 'en' ? 'Classification' : '分类方式'}
+              label={tr('分类方式')}
               value={split ? 'items' : 'order'}
               onChange={mode => {
                 setSplitWanted(mode === 'items');
@@ -484,59 +470,57 @@ export function LineItemsEditor({
                 );
               }}
               options={[
-                { value: 'order', label: locale === 'en' ? 'One category for the order' : '整单统一分类' },
-                { value: 'items', label: locale === 'en' ? 'Classify each item' : '按商品分别分类' },
+                { value: 'order', label: tr('整单统一分类') },
+                { value: 'items', label: tr('按商品分别分类') },
               ]}
             />
           </label>
-          <p className="muted">
+          <p className={styles.muted}>
             {split
-              ? locale === 'en'
-                ? 'Classify merchandise only. Discounts and shipping follow merchandise proportionally unless assigned to an existing merchandise category.'
-                : '只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。'
-              : locale === 'en'
-                ? `All items use ${fallback}.`
-                : `所有商品统一计入「${fallback}」。切换为按商品分类后，可逐项选择。`}
+              ? tr(
+                  '只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。',
+                )
+              : tr('所有商品统一计入「{0}」。切换为按商品分类后，可逐项选择。', [fallback])}
           </p>
         </div>
 
         <ItemRegion title={tr('商品明细')} rows={groups.goods} render={renderRow} pageSize={6}>
-          <button
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             disabled={items.length >= 200}
             onClick={() => add('item')}
           >
             <Plus size={16} aria-hidden="true" />
             {tr('添加商品')}
-          </button>
+          </Button>
         </ItemRegion>
         <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={renderRow} pageSize={6}>
-          <p className="muted">
+          <p className={styles.muted}>
             {tr('满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。')}
           </p>
-          <div className="inline">
-            <button
+          <div className={styles.row}>
+            <Button
               type="button"
-              className="secondary"
+              variant="secondary"
               disabled={items.length >= 200}
               onClick={() => add('discount')}
             >
               {tr('添加优惠 / 抹零')}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="secondary"
+              variant="secondary"
               disabled={items.length >= 200}
               onClick={() => add('fee')}
             >
               {tr('添加附加费用')}
-            </button>
+            </Button>
           </div>
         </ItemRegion>
-        <div className="inline">
+        <div className={styles.row}>
           {book && (
-            <label className="upload">
+            <label className={styles.upload}>
               <Camera size={16} />
               {tr('添加小票图片')}
               <input
@@ -554,15 +538,15 @@ export function LineItemsEditor({
           )}
         </div>
         {photos.length > 0 && (
-          <div className="receipt-photo-queue">
+          <div className={styles.photos}>
             {photos.map((p, n) => (
               <div key={n}>
                 <span>
                   {n + 1}. {p.name}
                 </span>
-                <button
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="ghost"
                   disabled={n === 0}
                   onClick={() => {
                     setFound([]);
@@ -574,17 +558,17 @@ export function LineItemsEditor({
                   }}
                 >
                   {tr('上移')}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="text-button"
+                  variant="ghost"
                   onClick={() => {
                     setFound([]);
                     setPhotos(v => v.filter((_, i) => i !== n));
                   }}
                 >
                   {tr('移除')}
-                </button>
+                </Button>
               </div>
             ))}
             <button type="button" onClick={photo}>
@@ -598,18 +582,18 @@ export function LineItemsEditor({
       {busy && (
         <p role="status">
           {tr('正在识别小票…')}
-          <button type="button" className="text-button" onClick={() => abort.current?.abort()}>
+          <Button type="button" variant="ghost" onClick={() => abort.current?.abort()}>
             {tr('取消')}
-          </button>
+          </Button>
         </p>
       )}
-      {error && <p className="error">{tr(error)}</p>}
+      {error && <p className={styles.error}>{tr(error)}</p>}
       {found.map(d => (
-        <div className="item-photo-result" key={d.id}>
+        <div className={styles.result} key={d.id}>
           <LineItemsView category={d.category} items={d.lineItems || []} total={d.amount} />
-          <button
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             onClick={() => {
               onChange(d.lineItems || []);
               onRecognized?.(d);
@@ -619,24 +603,24 @@ export function LineItemsEditor({
           >
             {tr('使用这份明细')}
             {items.length ? tr('（替换当前明细）') : ''}
-          </button>
+          </Button>
         </div>
       ))}
       {split && items.length > 0 && (
-        <details className="category-breakdown-toggle">
-          <summary>{locale === 'en' ? 'Category totals' : '分类计入金额'}</summary>
+        <details className={styles.details}>
+          <summary>{tr('分类计入金额')}</summary>
           <CategoryBreakdown items={items} total={total} category={fallback} />
         </details>
       )}
       {items.length > 0 && <Settlement items={items} total={total} />}
       {items.length > 0 && (
-        <details className="settlement-calculator">
-          <summary>{locale === 'en' ? 'Check and calculate payment' : '核对与计算实付'}</summary>
-          <div className="settlement-calculator-heading">
+        <details className={styles.details}>
+          <summary>{tr('核对与计算实付')}</summary>
+          <div className={styles.row}>
             <Calculator size={18} aria-hidden="true" />
             <strong>{tr('推荐实付（按当前明细）')}</strong>
           </div>
-          <p className="settlement-equation">
+          <p className={styles.equation}>
             {tr('商品 {0} − 优惠 {1} + 费用 {2} = {3}', [
               money(settlementTotals(items).goods),
               money(settlementTotals(items).discount),
@@ -648,21 +632,33 @@ export function LineItemsEditor({
           <p>{tr('推荐值不覆盖实付；采用后仍可手动修改。')}</p>
           {sum.missing > 0 && <p>{tr('还有 {0} 项金额未填写，当前仅为已知部分合计。', [sum.missing])}</p>}
           {!sum.missing && !canUseSettlementTotal(sum.known, sum.missing) && (
-            <p className="error">{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>
+            <p className={styles.error}>{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>
           )}
           {onTotal && (
-            <button
+            <Button
               type="button"
-              className="secondary"
+              variant="secondary"
               disabled={busy || !canUseSettlementTotal(sum.known, sum.missing)}
               onClick={() => onTotal(sum.known)}
             >
               {tr('采用推荐实付')}
-            </button>
+            </Button>
           )}
         </details>
       )}
-      <></>
+      {removing && (
+        <ConfirmDialog
+          open
+          title={tr('删除明细')}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            onChange(items.filter(item => item !== removing));
+            setRemoving(null);
+          }}
+        >
+          {removing.name || tr('新明细')}
+        </ConfirmDialog>
+      )}
     </details>
   );
 }
@@ -676,17 +672,17 @@ function CategoryBreakdown({
   total: number;
   category: string;
 }) {
-  const { locale } = useI18n(),
+  const { locale, t: tr } = useI18n(),
     error = itemCategoryError(items, total, category);
   return (
-    <div className="item-category-breakdown" aria-live="polite">
-      <h4>{locale === 'en' ? 'Category totals' : '分类计入金额'}</h4>
+    <div className={styles.breakdown} aria-live="polite">
+      <h4>{tr('分类计入金额')}</h4>
       {error ? (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {locale === 'en' ? 'Complete and reconcile all item amounts before using item categories.' : error}
         </p>
       ) : (
-        <dl className="settlement-summary">
+        <dl className={styles.settlement}>
           {categoryAmounts(items, total, category).map(p => (
             <div key={p.category}>
               <dt>
@@ -713,28 +709,28 @@ function CompactItem({
   category?: string;
   children: ReactNode;
 }) {
-  const { locale } = useI18n(),
+  const { locale, t: tr } = useI18n(),
     [open, setOpen] = useState(!item.name);
   return (
-    <div className={`compact-item${open ? ' is-open' : ''}`}>
+    <div className={styles.item}>
       <button
         type="button"
-        className="compact-item-summary"
+        className={styles.itemHead}
         aria-expanded={open}
-        aria-label={locale === 'en' ? `Edit item ${index + 1}` : `编辑第${index + 1}项`}
+        aria-label={tr('编辑第{0}项', [index + 1])}
         onClick={() => setOpen(v => !v)}
       >
         <span>
-          <strong>{item.name || (locale === 'en' ? 'New item' : '新明细')}</strong>
+          <strong>{item.name || tr('新明细')}</strong>
           <small>
-            {category || (lineItemKind(item) === 'discount' ? (locale === 'en' ? 'Discount' : '优惠') : '')}
+            {category || (lineItemKind(item) === 'discount' ? tr('优惠') : '')}
             {item.quantity != null ? ` · × ${item.quantity}` : ''}
           </small>
         </span>
-        <b>{item.amount == null ? (locale === 'en' ? 'Missing amount' : '待补金额') : money(item.amount)}</b>
+        <b>{item.amount == null ? tr('待补金额') : money(item.amount)}</b>
         <span aria-hidden="true">{open ? '−' : '＋'}</span>
       </button>
-      <div className="compact-item-editor">{children}</div>
+      <div hidden={!open}>{children}</div>
     </div>
   );
 }

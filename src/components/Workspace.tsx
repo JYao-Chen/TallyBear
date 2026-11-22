@@ -96,6 +96,9 @@ import { CategoryPanel, type Category } from './CategoryPanel';
 import { TemplatesPanel, type Template } from './TemplatesPanel';
 import { AccountsPanel, type Account } from './AccountsPanel';
 import { BudgetPanel } from './BudgetPanel';
+import entryStyles from './WorkspaceEntry.module.css';
+import { EntrySaveFeedback } from './EntrySaveFeedback';
+import { Button, Segmented, TextArea } from '@/ui';
 import { QuickEntry } from './QuickEntry';
 import { ActivitiesPage } from './ActivitiesPage';
 import { invalidateActivityOptions, type Activity } from './ActivitySelect';
@@ -1271,313 +1274,405 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                     />
                   )}
                   {page === 'entry' && (
-                    <>
-                      <div className="draft-status" role="status" hidden={entryMode === 'family'}>
-                        {[intake, photos, manual].some(d => d.error) ? (
-                          <>
-                            <span>
-                              {tr('草稿尚未同步：')}
-                              {[intake, photos, manual].find(d => d.error)?.error}
-                            </span>
-                            <button
-                              className="text-button"
-                              onClick={() =>
-                                Promise.all([intake.flush(), photos.flush(), manual.flush()]).catch(e =>
-                                  setError(e.message),
-                                )
-                              }
-                            >
-                              {tr('重试保存')}
-                            </button>
-                            <button
-                              className="text-button"
-                              onClick={() => Promise.all([intake.reload(), photos.reload(), manual.reload()])}
-                            >
-                              {tr('用云端草稿替换当前输入')}
-                            </button>
-                          </>
-                        ) : [intake, photos, manual].some(d => d.saving || d.dirty) ? (
-                          tr('正在保存草稿…')
-                        ) : (
-                          tr('草稿已同步')
-                        )}
-                      </div>
-                      {entryMode !== 'family' && !editing && canWrite && manual.ready && (
-                        <TemplatesPanel
-                          items={templateItems}
-                          current={manual.value}
-                          accounts={availableAccounts}
-                          onSave={async (value, method) => {
-                            await api('books/' + book + '/templates', method, value);
-                            await refresh();
-                          }}
-                          onDelete={async id => {
-                            await api('books/' + book + '/templates', 'DELETE', { id });
-                            await refresh();
-                          }}
-                          onUse={async value => {
-                            setEntryMode('manual');
-                            manual.setValue({ ...value, id: newId(), date: today() });
-                            await manual.flush();
-                            await manual.reload();
-                            requestAnimationFrame(() =>
-                              document
-                                .querySelector('.entry-editor')
-                                ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+                    <EntrySaveFeedback>
+                      {(notifySaved, confirmEntryAction) => {
+                        const recordOne = async (item: Entry) => {
+                          const destination = item.targetBook || book;
+                          const result = await api(`books/${book}/transactions`, 'POST', {
+                            entries: [item],
+                            targetBook: item.targetBook,
+                          });
+                          if (result.added !== 1) {
+                            setNotice(
+                              tr('已入账{0}笔，补充{1}笔，跳过{2}笔。', [
+                                result.added,
+                                result.merged,
+                                result.skipped,
+                              ]),
                             );
-                          }}
-                        />
-                      )}
-                      <div className="entry-modes" role="group" aria-label={tr('录入方式')}>
-                        {[
-                          ['ai', 'AI 文字／截图'],
-                          ['manual', '手动记账'],
-                          ['import', '微信／支付宝账单'],
-                        ].map(([v, l]) => (
-                          <button
-                            key={v}
-                            aria-pressed={entryMode === v}
-                            className={entryMode === v ? 'active' : ''}
-                            onClick={() => setEntryMode(v)}
-                          >
-                            {v === 'ai' ? (
-                              <Sparkles size={18} />
-                            ) : v === 'manual' ? (
-                              <NotebookPen size={18} />
-                            ) : (
-                              <Upload size={18} />
-                            )}
-                            <span>{tr(l)}</span>
-                          </button>
-                        ))}
-                        <button
-                          aria-pressed={entryMode === 'family'}
-                          className={entryMode === 'family' ? 'active' : ''}
-                          onClick={() => setEntryMode('family')}
-                        >
-                          <ArrowLeftRight size={18} />
-                          <span>{tr('家庭往来')}</span>
-                        </button>
-                      </div>
-                      <section
-                        className={
-                          entryMode === 'family' ? 'entry-editor family-entry-editor' : 'panel entry-editor'
-                        }
-                      >
-                        {entryMode === 'family' ? (
-                          <FamilyFinanceEntry
-                            onAssistant={() => switchPage('chat')}
-                            userId={user.id}
-                            onChanged={refresh}
-                            onManage={() => switchPage('families')}
-                          />
-                        ) : !canWrite ? (
-                          <p>{tr('此账本为只读，不能添加交易。')}</p>
-                        ) : !intake.ready || !photos.ready || !manual.ready ? (
-                          <div className="empty">
-                            <p>
-                              {intake.error || photos.error || manual.error || tr('正在恢复未完成的记录…')}
-                            </p>
-                            <button
-                              className="secondary"
-                              onClick={() => Promise.all([intake.reload(), photos.reload(), manual.reload()])}
-                            >
-                              {tr('重新读取草稿')}
-                            </button>
-                          </div>
-                        ) : entryMode === 'ai' ? (
+                            return;
+                          }
+                          let version: number;
+                          try {
+                            const rows: Row[] = await api(
+                              `books/${destination}/transactions?` + new URLSearchParams({ id: item.id }),
+                            );
+                            const row = rows.find(r => r.id === item.id);
+                            if (!row) throw new Error('记录不存在或已删除');
+                            version = row.version;
+                          } catch (error) {
+                            notifySaved();
+                            setError((error as Error).message);
+                            return;
+                          }
+                          notifySaved(async () => {
+                            await api(`books/${destination}/transactions`, 'DELETE', {
+                              id: item.id,
+                              version,
+                            });
+                            await refresh();
+                          });
+                        };
+                        return (
                           <>
-                            <div className="panel-title">
-                              <h2>
-                                <Sparkles size={20} />
-                                {tr('快速账单识别')}
-                              </h2>
-                              <button className="text-button" onClick={() => switchPage('chat')}>
-                                {tr('打开智能对话 →')}
-                              </button>
-                            </div>
-                            <textarea
-                              rows={4}
-                              value={text}
-                              onChange={e => setText(e.target.value)}
-                              placeholder={tr('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元')}
+                            <Segmented
+                              className={entryStyles.modes}
+                              value={entryMode === 'import' ? 'ai' : entryMode}
+                              onChange={setEntryMode}
+                              label={tr('录入方式')}
+                              options={[
+                                { value: 'ai', label: tr('交给小熊') },
+                                { value: 'manual', label: tr('手动填写') },
+                                { value: 'family', label: tr('家庭往来') },
+                              ]}
                             />
-                            <div className="inline">
-                              <label className="upload">
-                                <Upload size={18} />
-                                {tr('添加订单 / 流水图片')}
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/png,image/jpeg,image/webp"
-                                  disabled={busy}
-                                  onChange={e => {
-                                    const files = e.target.files;
-                                    run(() => loadImages(files));
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
-                              <small>{tr('自动分批识别 · 支持长截图')}</small>
-                            </div>
-                            <div className="image-queue">
-                              {images.map((img, i) => (
-                                <figure key={i}>
-                                  <img src={img.data} alt={tr('待识别图片{0}', [i + 1])} />
-                                  <figcaption>
-                                    {tr('图片')}
-                                    {i + 1} · {img.name}
-                                  </figcaption>
-                                  <button
-                                    className="text-button"
-                                    disabled={busy}
-                                    onClick={() => setImages(a => a.filter((_, j) => i !== j))}
-                                  >
-                                    {tr('移除')}
-                                  </button>
-                                </figure>
-                              ))}
-                            </div>
-                            <label className="check">
-                              <input
-                                type="checkbox"
-                                checked={history}
-                                onChange={e => setHistory(e.target.checked)}
-                              />
-                              {tr('使用我的记账偏好')}
-                            </label>
-                            {history && (
-                              <ProfileLocation
-                                value={profileContext}
-                                onChange={setProfileContext}
-                                disabled={busy}
-                              />
-                            )}
-                            <></>
-                            {aiRunning && (
-                              <div className="ai-live" role="status">
-                                <div className="inline">
-                                  <Sparkles size={18} />
-                                  <strong>{tr('正在处理')}</strong>
-                                  <span className="muted">
-                                    {aiCharacters
-                                      ? tr('已接收 {0} 字符', [aiCharacters])
-                                      : tr('等待模型响应')}
+                            <div className={entryStyles.status} role="status" hidden={entryMode === 'family'}>
+                              {[intake, photos, manual].some(d => d.error) ? (
+                                <>
+                                  <span>
+                                    {tr('草稿尚未同步：')}
+                                    {[intake, photos, manual].find(d => d.error)?.error}
                                   </span>
-                                </div>
-                                <p>{tr(aiProgress)}</p>
-                                <button className="secondary" onClick={() => aiAbort.current?.abort()}>
-                                  {tr('转到后台继续')}
-                                </button>
-                              </div>
-                            )}
-                            <button
-                              disabled={busy || (!text && !images.length)}
-                              onClick={() => run(requestAI)}
-                            >
-                              {aiRunning ? tr('正在生成…') : tr('识别并生成草稿')}
-                            </button>
-                          </>
-                        ) : entryMode === 'manual' ? (
-                          <>
-                            <QuickEntry
-                              book={book}
-                              books={books}
-                              categories={categoryItems}
-                              key={editing?.id || book + ':' + manual.restoreKey}
-                              savedDraft={manual.value}
-                              onDraftChange={value => {
-                                if (!editing) manual.setValue(value);
-                              }}
-                              initial={
-                                editing
-                                  ? {
-                                      id: editing.id,
-                                      scene: editing.scene,
-                                      title: editing.title,
-                                      kind: editing.kind,
-                                      amount: editing.amount,
-                                      date: editing.date,
-                                      accountId: editing.account_id,
-                                      targetId: editing.target_id,
-                                      payee: editing.payee,
-                                      category: editing.category,
-                                      note: editing.note,
-                                      product: editing.product,
-                                      lineItems: editing.line_items,
-                                      verificationReason: editing.verification_reason,
-                                      platform: editing.platform,
-                                      orderId: editing.order_id,
-                                      occurredAt: editing.occurred_at,
-                                      externalId: editing.external_id || undefined,
-                                      refundOf: editing.refund_of,
+                                  <button
+                                    className={entryStyles.link}
+                                    onClick={() =>
+                                      Promise.all([intake.flush(), photos.flush(), manual.flush()]).catch(e =>
+                                        setError(e.message),
+                                      )
                                     }
-                                  : undefined
-                              }
-                              accounts={accounts.filter(
-                                a =>
-                                  (!a.archived && a.usable !== false) ||
-                                  a.id === editing?.account_id ||
-                                  a.id === editing?.target_id,
+                                  >
+                                    {tr('重试保存')}
+                                  </button>
+                                  <button
+                                    className={entryStyles.link}
+                                    onClick={() =>
+                                      Promise.all([intake.reload(), photos.reload(), manual.reload()])
+                                    }
+                                  >
+                                    {tr('用云端草稿替换当前输入')}
+                                  </button>
+                                </>
+                              ) : [intake, photos, manual].some(d => d.saving || d.dirty) ? (
+                                tr('正在保存草稿…')
+                              ) : (
+                                tr('草稿已同步')
                               )}
-                              originals={originals}
-                              onCancel={() => setEditing(null)}
-                              onSave={async item => {
-                                const requestedBook = book;
-                                if (editing)
-                                  await api(`books/${book}/transactions`, 'PUT', {
-                                    ...item,
-                                    version: editing.version,
-                                  });
-                                else {
-                                  await api(`books/${book}/transactions`, 'POST', {
-                                    entries: [item],
-                                    targetBook: item.targetBook,
-                                  });
-                                  manual.setValue(item.activityId ? { activityId: item.activityId } : {});
+                            </div>
+                            <section
+                              id="entry-editor"
+                              className={entryMode === 'family' ? undefined : entryStyles.editor}
+                            >
+                              {entryMode === 'family' ? (
+                                <FamilyFinanceEntry
+                                  onAssistant={() => router.push(pathForPage('chat'))}
+                                  userId={user.id}
+                                  onChanged={refresh}
+                                  onManage={() => router.push(pathForPage('families'))}
+                                />
+                              ) : !canWrite ? (
+                                <p>{tr('此账本为只读，不能添加交易。')}</p>
+                              ) : !intake.ready || !photos.ready || !manual.ready ? (
+                                <div className={entryStyles.status}>
+                                  <p>
+                                    {intake.error ||
+                                      photos.error ||
+                                      manual.error ||
+                                      tr('正在恢复未完成的记录…')}
+                                  </p>
+                                  <button
+                                    className={entryStyles.secondary}
+                                    onClick={() =>
+                                      Promise.all([intake.reload(), photos.reload(), manual.reload()])
+                                    }
+                                  >
+                                    {tr('重新读取草稿')}
+                                  </button>
+                                </div>
+                              ) : entryMode === 'ai' ? (
+                                <>
+                                  <div className={entryStyles.heading}>
+                                    <h2>
+                                      <Sparkles size={20} />
+                                      {tr('快速账单识别')}
+                                    </h2>
+                                    <button
+                                      className={entryStyles.link}
+                                      onClick={() => router.push(pathForPage('chat'))}
+                                    >
+                                      {tr('打开智能对话 →')}
+                                    </button>
+                                  </div>
+                                  <div className={entryStyles.capture}>
+                                    <TextArea
+                                      rows={2}
+                                      aria-label={tr('用一句话记账')}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                          e.preventDefault();
+                                          if (!busy && (text.trim() || images.length)) void run(requestAI);
+                                        }
+                                      }}
+                                      value={text}
+                                      onChange={e => setText(e.target.value)}
+                                      placeholder={tr('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元')}
+                                    />
+                                    <div>
+                                      <label className={entryStyles.upload}>
+                                        <Upload size={18} />
+                                        {tr('添加订单 / 流水图片')}
+                                        <input
+                                          type="file"
+                                          multiple
+                                          accept="image/png,image/jpeg,image/webp"
+                                          disabled={busy}
+                                          onChange={e => {
+                                            const files = e.target.files;
+                                            run(() => loadImages(files));
+                                            e.target.value = '';
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <small>{tr('自动分批识别 · 支持长截图')}</small>
+                                  <div className={entryStyles.images}>
+                                    {images.map((img, i) => (
+                                      <figure key={i}>
+                                        <img src={img.data} alt={tr('待识别图片{0}', [i + 1])} />
+                                        <figcaption>
+                                          {tr('图片')}
+                                          {i + 1} · {img.name}
+                                        </figcaption>
+                                        <button
+                                          className={entryStyles.link}
+                                          disabled={busy}
+                                          onClick={() => setImages(a => a.filter((_, j) => i !== j))}
+                                        >
+                                          {tr('移除')}
+                                        </button>
+                                      </figure>
+                                    ))}
+                                  </div>
+                                  <label className={entryStyles.check}>
+                                    <input
+                                      type="checkbox"
+                                      checked={history}
+                                      onChange={e => setHistory(e.target.checked)}
+                                    />
+                                    {tr('使用我的记账偏好')}
+                                  </label>
+                                  {history && (
+                                    <ProfileLocation
+                                      value={profileContext}
+                                      onChange={setProfileContext}
+                                      disabled={busy}
+                                    />
+                                  )}
+                                  <></>
+                                  {aiRunning && (
+                                    <div className={entryStyles.progress} role="status">
+                                      <div className={entryStyles.row}>
+                                        <Sparkles size={18} />
+                                        <strong>{tr('正在处理')}</strong>
+                                        <span className={entryStyles.muted}>
+                                          {aiCharacters
+                                            ? tr('已接收 {0} 字符', [aiCharacters])
+                                            : tr('等待模型响应')}
+                                        </span>
+                                      </div>
+                                      <p>{tr(aiProgress)}</p>
+                                      <button
+                                        className={entryStyles.secondary}
+                                        onClick={() => aiAbort.current?.abort()}
+                                      >
+                                        {tr('转到后台继续')}
+                                      </button>
+                                    </div>
+                                  )}
+                                  <Button
+                                    variant="primary"
+                                    disabled={busy || (!text && !images.length)}
+                                    onClick={() => run(requestAI)}
+                                  >
+                                    {aiRunning ? tr('正在生成…') : tr('识别并生成草稿')}
+                                  </Button>
+                                </>
+                              ) : entryMode === 'manual' ? (
+                                <>
+                                  <QuickEntry
+                                    book={book}
+                                    books={books}
+                                    categories={categoryItems}
+                                    key={editing?.id || book + ':' + manual.restoreKey}
+                                    savedDraft={manual.value}
+                                    onDraftChange={value => {
+                                      if (!editing) manual.setValue(value);
+                                    }}
+                                    initial={
+                                      editing
+                                        ? {
+                                            id: editing.id,
+                                            scene: editing.scene,
+                                            title: editing.title,
+                                            kind: editing.kind,
+                                            amount: editing.amount,
+                                            date: editing.date,
+                                            accountId: editing.account_id,
+                                            targetId: editing.target_id,
+                                            payee: editing.payee,
+                                            category: editing.category,
+                                            note: editing.note,
+                                            product: editing.product,
+                                            lineItems: editing.line_items,
+                                            verificationReason: editing.verification_reason,
+                                            platform: editing.platform,
+                                            orderId: editing.order_id,
+                                            occurredAt: editing.occurred_at,
+                                            externalId: editing.external_id || undefined,
+                                            refundOf: editing.refund_of,
+                                          }
+                                        : undefined
+                                    }
+                                    accounts={accounts.filter(
+                                      a =>
+                                        (!a.archived && a.usable !== false) ||
+                                        a.id === editing?.account_id ||
+                                        a.id === editing?.target_id,
+                                    )}
+                                    recentCategories={rows.map(r => r.category)}
+                                    originals={originals}
+                                    onCancel={() => {
+                                      if (editing) {
+                                        setEditing(null);
+                                        router.push(pathForPage('records'));
+                                      } else {
+                                        manual.setValue({});
+                                        setEntryMode('ai');
+                                      }
+                                    }}
+                                    onSave={async item => {
+                                      const requestedBook = book;
+                                      if (editing)
+                                        await api(`books/${book}/transactions`, 'PUT', {
+                                          ...item,
+                                          version: editing.version,
+                                        });
+                                      else {
+                                        await recordOne(item);
+                                        manual.setValue(
+                                          item.activityId ? { activityId: item.activityId } : {},
+                                        );
+                                        await manual.flush();
+                                      }
+                                      if (activeBook.current !== requestedBook) return;
+                                      await refresh();
+                                      if (editing) {
+                                        setEditing(null);
+                                        router.push(pathForPage('records'));
+                                      }
+                                      if (editing && item.targetBook && item.targetBook !== book) {
+                                        setBook(item.targetBook);
+                                        router.push(pathForPage('records'));
+                                      }
+                                      if (editing) setNotice('交易已更新');
+                                    }}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <Button onClick={() => setEntryMode('ai')}>{tr('交给小熊')}</Button>
+                                  <h2>{tr('导入已有账单')}</h2>
+                                  <></>
+                                  <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={e => run(() => importCSV(e.target.files?.[0]))}
+                                  />
+                                </>
+                              )}
+                              {canWrite && entryMode !== 'family' && entryMode !== 'import' && (
+                                <Button variant="ghost" onClick={() => setEntryMode('import')}>
+                                  {tr('微信／支付宝账单')}
+                                </Button>
+                              )}
+                            </section>
+                            {entryMode !== 'family' && drafts.length > 0 && (
+                              <DraftReview
+                                focusRequest={reviewFocus}
+                                book={book}
+                                books={books}
+                                drafts={drafts}
+                                setDrafts={setDrafts}
+                                accounts={availableAccounts}
+                                recentCategories={rows.map(r => r.category)}
+                                originals={originals}
+                                busy={busy || !canWrite}
+                                onSaveOne={item =>
+                                  run(async () => {
+                                    await recordOne(item);
+                                    if (activeBook.current === book) {
+                                      setDrafts(old => old.filter(d => d.id !== item.id));
+                                      await intake.flush();
+                                      await refresh();
+                                    }
+                                  })
+                                }
+                                onReview={() => run(reviewDrafts)}
+                                onSave={() =>
+                                  run(async () => {
+                                    if (
+                                      drafts.length !== 1 ||
+                                      drafts[0].action === 'skip' ||
+                                      drafts[0].action === 'merge'
+                                    )
+                                      return saveDrafts();
+                                    await recordOne(drafts[0]);
+                                    setDrafts([]);
+                                    setImages([]);
+                                    setText('');
+                                    await Promise.all([intake.flush(), photos.flush()]);
+                                    await refresh();
+                                  })
+                                }
+                              />
+                            )}
+                            {entryMode !== 'family' && !editing && canWrite && manual.ready && (
+                              <TemplatesPanel
+                                items={templateItems}
+                                current={manual.value}
+                                accounts={availableAccounts}
+                                onSave={async (value, method) => {
+                                  await api('books/' + book + '/templates', method, value);
+                                  await refresh();
+                                }}
+                                onDelete={async id => {
+                                  if (
+                                    !(await confirmEntryAction(
+                                      tr('删除常用'),
+                                      templateItems.find(item => item.id === id)?.name || tr('删除常用'),
+                                    ))
+                                  )
+                                    throw new Error('');
+                                  await api('books/' + book + '/templates', 'DELETE', { id });
+                                  await refresh();
+                                }}
+                                onUse={async value => {
+                                  setEntryMode('manual');
+                                  manual.setValue({ ...value, id: newId(), date: today() });
                                   await manual.flush();
-                                }
-                                if (activeBook.current !== requestedBook) return;
-                                await refresh();
-                                if (editing) {
-                                  setEditing(null);
-                                  switchPage('records');
-                                }
-                                if (item.targetBook && item.targetBook !== book) {
-                                  setBook(item.targetBook);
-                                  switchPage('records');
-                                }
-                                setNotice(editing ? '交易已更新' : '这一笔已保存');
-                              }}
-                            />
+                                  await manual.reload();
+                                  requestAnimationFrame(() =>
+                                    document
+                                      .getElementById('entry-editor')
+                                      ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+                                  );
+                                }}
+                              />
+                            )}
                           </>
-                        ) : (
-                          <>
-                            <h2>{tr('导入已有账单')}</h2>
-                            <></>
-                            <input
-                              type="file"
-                              accept=".csv"
-                              onChange={e => run(() => importCSV(e.target.files?.[0]))}
-                            />
-                          </>
-                        )}
-                      </section>
-                      {entryMode !== 'family' && drafts.length > 0 && (
-                        <DraftReview
-                          focusRequest={reviewFocus}
-                          book={book}
-                          books={books}
-                          drafts={drafts}
-                          setDrafts={setDrafts}
-                          accounts={availableAccounts}
-                          originals={originals}
-                          busy={busy || !canWrite}
-                          onReview={() => run(reviewDrafts)}
-                          onSave={() => run(saveDrafts)}
-                        />
-                      )}
-                    </>
+                        );
+                      }}
+                    </EntrySaveFeedback>
                   )}
                   {page === 'schedules' && (
                     <>

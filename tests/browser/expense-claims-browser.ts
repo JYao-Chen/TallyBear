@@ -64,13 +64,16 @@ async function close() {
 try {
   await login(0);
   await page.locator('#primary-navigation').getByRole('button', { name: '记一笔', exact: true }).click();
-  await page.getByRole('button', { name: '手动记账', exact: true }).click();
-  const form = page.locator('.quick-entry');
+  await page.getByRole('button', { name: '手动填写', exact: true }).click();
+  const form = page.getByRole('form', { name: '手动记账' });
   await choose('记入账本', '私人账本', form);
   await choose('消费对象', '一二', form);
   await form.getByLabel('金额（元）', { exact: true }).fill('500');
   await form.getByLabel('账目标题', { exact: true }).fill('新衣服');
-  await form.locator('.category-picker').getByRole('button', { name: '服装配饰', exact: true }).click();
+  const category = form.getByRole('group', { name: '记在哪一类？' });
+  if (!(await category.getByRole('button', { name: '服装配饰', exact: true }).count()))
+    await category.getByRole('button', { name: '全部分类' }).click();
+  await category.getByRole('button', { name: '服装配饰', exact: true }).click();
   await form.locator('.claim-recipient').scrollIntoViewIfNeeded();
   await capture('desktop-entry');
   await page.setViewportSize({ width: 375, height: 812 });
@@ -78,7 +81,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const [saved] = await Promise.all([
     page.waitForResponse((r: any) => r.url().endsWith('/transactions') && r.request().method() === 'POST'),
-    form.locator('.quick-submit button').first().click(),
+    form.getByRole('button', { name: '保存', exact: true }).click(),
   ]);
   assert.equal(saved.status(), 200, await saved.text());
   const purchase = (

@@ -1,20 +1,21 @@
 'use client';
+import styles from './QuickEntry.module.css';
+import { Button, Field, Input, Segmented, FilledBadge } from '@/ui';
 import { EntryInstallmentFields } from './EntryInstallmentFields';
 import { claimRequest } from './ExpenseClaims';
 import { ClaimRecipientSelect } from './ClaimRecipientSelect';
 import { normalizeTransactionTime, recordingDate } from '@/lib/entry-time';
 import { manualEntryDate } from '@/lib/manual-entry-date';
-import { deviceDateTime } from '@/lib/entry-time';
 import { SceneFields } from './SceneFields';
 import { emptyScene } from '@/lib/entry-scene';
 import type { ManagedBook } from './ManagementPages';
 import { DateField } from './DateField';
-import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
+import { formatMoney, currencySymbol } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
 import { TransactionPhotos } from './TransactionPhotos';
 import { VerificationConfirm } from './VerificationConfirm';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
-import { VisualSelect, SymbolIcon, AccountIcon, CategoryIcon, CategoryIcons } from './VisualSelect';
+import { VisualSelect } from './VisualSelect';
 import { useEffect, useRef, useState } from 'react';
 import { LineItemsEditor } from './LineItems';
 import type { LineItem } from '@/lib/line-items';
@@ -37,8 +38,12 @@ export function QuickEntry({
   books,
   initial,
   savedDraft,
+  reviewDraft,
+  editedFields = [],
+  localDrafts,
   onDraftChange,
   categories,
+  recentCategories = [],
   accounts,
   originals,
   onSave,
@@ -46,21 +51,39 @@ export function QuickEntry({
 }: {
   book: string;
   books: ManagedBook[];
+  recentCategories?: string[];
   categories: { name: string; icon: string; archived: boolean }[];
   initial?: Draft;
+  reviewDraft?: Draft;
+  editedFields?: (keyof Draft)[];
+  localDrafts?: Draft[];
   savedDraft?: Partial<Draft>;
   onDraftChange?: (draft: Partial<Draft>) => void;
   accounts: (AccountIdentity & { id: string; family_id?: string | null })[];
   originals: Original[];
-  onSave: (entry: Draft) => Promise<void>;
+  onSave: (entry: Draft, again?: boolean) => Promise<void>;
   onCancel: () => void;
 }) {
   const { t: tr, locale } = useI18n();
   const choices = categories.filter(c => !c.archived).map(c => [c.name, c.icon]);
-  const pendingId = useRef<string | null>(initial?.id || savedDraft?.id || null),
+  const frequency = new Map<string, number>();
+  for (const name of recentCategories) frequency.set(name, (frequency.get(name) || 0) + 1);
+  const categoryOptions = choices
+    .map(([value, icon]) => ({ value, label: value, icon }))
+    .sort((a, b) => (frequency.get(b.value) || 0) - (frequency.get(a.value) || 0));
+  const pendingId = useRef<string | null>(initial?.id || reviewDraft?.id || savedDraft?.id || null),
     change = useRef(onDraftChange);
   change.current = onDraftChange;
-  const seed = initial || savedDraft;
+  const seed = initial || reviewDraft || savedDraft;
+  const [changed, setChanged] = useState<Set<keyof Draft>>(() => new Set(editedFields));
+  const [filled, setFilled] = useState<Set<keyof Draft>>(new Set());
+  const mark = (key: keyof Draft) => setChanged(old => new Set(old).add(key));
+  const badge = (key: keyof Draft) =>
+    filled.has(key) || (reviewDraft && !reviewDraft.source?.startsWith('CSV') && reviewDraft[key]) ? (
+      <span className={styles.provenance}>
+        <FilledBadge>{changed.has(key) ? tr('已修改') : undefined}</FilledBadge>
+      </span>
+    ) : null;
   const [claimRecipient, setClaimRecipient] = useState(seed?.claimRecipientId || '');
   const [claimInfo, setClaimInfo] = useState<{
     canInvite: boolean;
@@ -90,7 +113,7 @@ export function QuickEntry({
   const [destination, setDestination] = useState(seed?.targetBook || book);
   const [activityId, setActivityId] = useState(seed?.activityId || '');
   useEffect(() => {
-    if (!initial) setActivityId(savedDraft?.activityId || '');
+    if (!initial && !reviewDraft) setActivityId(savedDraft?.activityId || '');
   }, [initial, savedDraft?.activityId]);
   const [activityLoaded, setActivityLoaded] = useState(!initial);
   useEffect(() => {
@@ -128,10 +151,12 @@ export function QuickEntry({
     [externalId, setExternalId] = useState(seed?.externalId || '');
   const [kind, setKind] = useState<Draft['kind']>(seed?.kind || 'expense'),
     [amount, setAmount] = useState(seed?.amount ? String(seed.amount / 100) : ''),
-    [date, setDate] = useState(initial?.date || manualEntryDate(savedDraft)),
-    [account, setAccount] = useState(seed?.accountId || accounts[0]?.id || ''),
+    [date, setDate] = useState(reviewDraft?.date ?? (initial?.date || manualEntryDate(savedDraft))),
+    [account, setAccount] = useState(reviewDraft?.accountId ?? (seed?.accountId || accounts[0]?.id || '')),
     [target, setTarget] = useState(seed?.targetId || ''),
-    [category, setCategory] = useState(seed?.category || choices[0]?.[0] || tr('其他')),
+    [category, setCategory] = useState(
+      reviewDraft?.category ?? (seed?.category || choices[0]?.[0] || tr('其他')),
+    ),
     [payee, setPayee] = useState(seed?.payee || ''),
     [note, setNote] = useState(seed?.note || ''),
     [product, setProduct] = useState(seed?.product || ''),
@@ -163,7 +188,7 @@ export function QuickEntry({
     return () => c.abort();
   }, [repaying, saved]);
   useEffect(() => {
-    if (initial) return;
+    if (initial || reviewDraft) return;
     let cents = 0;
     try {
       cents = amount ? amountToCents(amount) : 0;
@@ -228,6 +253,23 @@ export function QuickEntry({
     claimRecipient,
   ]);
   function fillFromOriginal(row: SearchResult) {
+    setChanged(
+      old =>
+        new Set<keyof Draft>([
+          ...old,
+          'title',
+          'payee',
+          'product',
+          'category',
+          'platform',
+          'note',
+          'scene',
+          'lineItems',
+          'orderId',
+          'externalId',
+          'accountId',
+        ]),
+    );
     const value = purchaseDefaults(purchaseFromRow(row.detail), true);
     setTitle(value.title);
     setPayee(value.payee);
@@ -245,8 +287,9 @@ export function QuickEntry({
     setRefund(row.id);
     setWalletNotice('已填充原单信息，退款记入原单所在账本；请核对到账钱包和本次金额。');
   }
-  async function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const again = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value === 'again';
     if (busy || recognizing || photoBusy || !activityLoaded) return;
     setError('');
     setSaved(false);
@@ -259,53 +302,54 @@ export function QuickEntry({
           !accounts.some(a => a.id === account && a.type !== 'credit') ||
           account === target)
       )
-        throw new Error(
-          locale === 'en'
-            ? 'Select a payment wallet and a credit account.'
-            : '请选择付款钱包和要还款的信用账户',
-        );
+        throw new Error(tr('请选择付款钱包和要还款的信用账户'));
       if (!cents) throw new Error('请输入大于0的金额');
       pendingId.current ??= initial?.id || id();
-      await onSave({
-        ...seed,
-        ...(!initial
-          ? { claimRecipientId: kind === 'expense' ? claimRecipient || null : null }
-          : kind === 'expense' &&
-              claimInfo?.canInvite &&
-              claimInfo.claim?.status !== 'accepted' &&
-              claimRecipient !== (claimInfo.claim?.recipient_id || '')
-            ? { claimRecipientId: claimRecipient || null }
-            : {}),
-        targetBook: destination,
-        id: pendingId.current,
-        activityId: activityId || null,
-        installment: kind === 'expense' ? installment : null,
-        kind,
-        amount: cents,
-        date,
-        accountId: account,
-        targetId: kind === 'transfer' ? target : null,
-        refundOf: kind === 'refund' ? refund || null : null,
-        category,
-        payee,
-        note,
-        product,
-        platform,
-        orderId,
-        externalId,
-        verificationReason,
-        attachmentIds,
-        retainReceipts,
-        photoIds,
-        title: title || (repaying ? (locale === 'en' ? 'Credit repayment' : '信用账户还款') : ''),
-        scene,
-        occurredAt,
-        lineItems: kind === 'transfer' ? [] : lineItems,
-      });
+      await onSave(
+        {
+          ...seed,
+          ...(!initial
+            ? { claimRecipientId: kind === 'expense' ? claimRecipient || null : null }
+            : kind === 'expense' &&
+                claimInfo?.canInvite &&
+                claimInfo.claim?.status !== 'accepted' &&
+                claimRecipient !== (claimInfo.claim?.recipient_id || '')
+              ? { claimRecipientId: claimRecipient || null }
+              : {}),
+          targetBook: destination,
+          id: pendingId.current,
+          activityId: activityId || null,
+          installment: kind === 'expense' ? installment : null,
+          kind,
+          amount: cents,
+          date,
+          accountId: account,
+          targetId: kind === 'transfer' ? target : null,
+          refundOf: kind === 'refund' ? refund || null : null,
+          category,
+          payee,
+          note,
+          product,
+          platform,
+          orderId,
+          externalId,
+          verificationReason,
+          attachmentIds,
+          retainReceipts,
+          photoIds,
+          title: title || (repaying ? tr('信用账户还款') : ''),
+          scene,
+          occurredAt,
+          lineItems: kind === 'transfer' ? [] : lineItems,
+        },
+        again,
+      );
       pendingId.current = null;
-      if (!initial) {
+      if (!initial && !reviewDraft) {
+        setChanged(new Set());
+        setFilled(new Set());
         setInstallment(null);
-        setDate(recordingDate());
+        if (!again) setDate(recordingDate());
         setClaimRecipient('');
         setAmount('');
         setRefund('');
@@ -332,8 +376,189 @@ export function QuickEntry({
     }
   }
   return (
-    <form className="quick-entry" onSubmit={save}>
-      <div className="entry-destination">
+    <form aria-label={tr('手动记账')} className={styles.form} onSubmit={save}>
+      <Segmented
+        className={styles.types}
+        label={tr('记账类型')}
+        value={repaying ? 'repayment' : kind}
+        options={(
+          [
+            ['expense', '支出'],
+            ['income', '收入'],
+            ['refund', '退款'],
+            ['transfer', '转账'],
+            ['repayment', '还款'],
+          ] as const
+        ).map(([value, key]) => ({ value, label: tr(key), disabled: busy }))}
+        onChange={value => {
+          mark('kind');
+          setRepaying(value === 'repayment');
+          setKind(value === 'repayment' ? 'transfer' : value);
+          if (value === 'income' && category === '餐饮') setCategory('工资');
+          if (value === 'expense' && category === '工资') setCategory('餐饮');
+          if (value === 'repayment') {
+            if (!accounts.some(a => a.id === account && a.type !== 'credit'))
+              setAccount(accounts.find(a => a.type !== 'credit')?.id || '');
+            if (!accounts.some(a => a.id === target && a.type === 'credit'))
+              setTarget(accounts.find(a => a.type === 'credit')?.id || '');
+          }
+        }}
+      />
+      {badge('kind')}
+      {repaying && (
+        <p className={styles.notice}>
+          {debtError ||
+            (() => {
+              const debt = debts.find(a => a.id === target);
+              if (!debt) return !target ? tr('请先在资金资产中创建信用账户。') : tr('正在读取欠款…');
+              let paid = 0;
+              try {
+                paid = amountToCents(amount || '0');
+              } catch {}
+              return tr('当前账面欠款 {0}，本次还款后欠款 {1}。', [
+                formatMoney(Math.max(0, -debt.balance)),
+                formatMoney(Math.max(0, -debt.balance - paid)),
+              ]);
+            })()}
+          <br />
+          {tr(
+            '本金只减少欠款，不重复计支出；利息、手续费请另记支出。已建立分期的还款请从原分期计划操作，避免重复记录。',
+          )}
+        </p>
+      )}
+      <label className={styles.amount}>
+        {kind === 'refund'
+          ? tr('实际退回多少钱？')
+          : kind === 'income'
+            ? tr('收到多少钱？')
+            : tr('这一笔多少钱？')}
+        {badge('amount')}
+        <div>
+          <span>{currencySymbol()}</span>
+          <Input
+            aria-label={tr('金额（元）')}
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            required
+            disabled={busy}
+            onChange={e => {
+              mark('amount');
+              setAmount(e.target.value);
+            }}
+            autoComplete="off"
+          />
+        </div>
+      </label>
+      <Field
+        label={
+          <>
+            {tr('账目标题')} {badge('title')}
+          </>
+        }
+      >
+        {props => (
+          <Input
+            {...props}
+            aria-label={tr('账目标题')}
+            value={title}
+            maxLength={80}
+            placeholder={payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
+            onChange={e => {
+              mark('title');
+              setTitle(e.target.value);
+            }}
+          />
+        )}
+      </Field>
+      {scene.purchaseGroup && (
+        <p className={styles.muted}>
+          {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
+          <button
+            type="button"
+            className={styles.link}
+            onClick={() => setScene(s => ({ ...s, purchaseGroup: undefined }))}
+          >
+            {tr('取消同款关联')}
+          </button>
+        </p>
+      )}
+      {saved && !onDraftChange && (
+        <p className={styles.notice} role="status">
+          {tr('这一笔已记好，可以继续记下一笔。')}
+        </p>
+      )}
+      {kind !== 'transfer' && (
+        <div>
+          {tr('记在哪一类？')}
+          {badge('category')}
+          <VisualSelect
+            grid
+            label={tr('记在哪一类？')}
+            value={category}
+            onChange={v => {
+              mark('category');
+              setCategory(v);
+            }}
+            options={categoryOptions}
+          />
+        </div>
+      )}
+      <div className={styles.meta}>
+        <label>
+          {kind === 'transfer'
+            ? tr('转出账户')
+            : kind === 'income' || kind === 'refund'
+              ? tr('实际到账账户')
+              : tr('实际扣款账户')}
+          {badge('accountId')}
+          <VisualSelect
+            label={tr('资金账户')}
+            value={account}
+            onChange={v => {
+              mark('accountId');
+              setAccount(v);
+              setWalletNotice('');
+            }}
+            options={accounts
+              .filter(a => !repaying || a.type !== 'credit')
+              .map(a => ({
+                value: a.id,
+                label: accountLabel(a),
+                account: true,
+                accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+              }))}
+          />
+        </label>
+        <div className={styles.when}>
+          {' '}
+          <label>
+            {kind === 'refund' ? tr('退款到账日') : tr('交易日期')}
+            {badge('date')}
+            <DateField
+              type="date"
+              required
+              value={date}
+              onChange={value => {
+                mark('date');
+                setDate(value);
+              }}
+            />
+          </label>
+          <label>
+            {tr('交易时间（选填）')}
+            {badge('occurredAt')}
+            <input
+              type="time"
+              step="1"
+              value={normalizeTransactionTime(occurredAt)}
+              onChange={e => {
+                mark('occurredAt');
+                setOccurredAt(e.target.value);
+              }}
+            />
+          </label>
+        </div>
         <label>
           {tr('记入账本')}
           <VisualSelect
@@ -353,198 +578,9 @@ export function QuickEntry({
               }))}
           />
         </label>
-        {destination !== book && (
-          <p className="muted">
-            {tr(
-              initial
-                ? '保存修改时同时移动到账本，实际收付款账户不变。'
-                : '保存到所选账本，使用下方的实际收付款账户。',
-            )}
-            {(kind === 'refund' || initial?.kind === 'expense') && (
-              <span>
-                {tr(initial ? '关联的原消费与退款一起移动。' : '退款记入原单所在账本，原消费不移动。')}
-              </span>
-            )}
-          </p>
-        )}
-        <details className="entry-optional">
-          <summary>
-            {locale === 'en' ? 'Recipient and activity' : '消费对象与活动'}
-            {claimRecipient || activityId ? ' · ✓' : ''}
-          </summary>
-          {kind === 'expense' &&
-            (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
-              <ClaimRecipientSelect
-                familyId={accounts.find(a => a.id === account)?.family_id}
-                value={claimRecipient}
-                onChange={setClaimRecipient}
-                disabled={busy}
-              />
-            )}{' '}
-          {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
-            <p className="muted">
-              {locale === 'en'
-                ? `Claimed by ${claimInfo.claim.recipient_name}. Withdraw the invitation in bill details before changing the recipient.`
-                : `这笔消费已由${claimInfo.claim.recipient_name}认领。如需更换对象，请先在账单详情中撤回认领邀请。`}
-            </p>
-          )}
-          {initial?.kind === 'expense' && claimLoadError && (
-            <p className="error" role="alert">
-              {claimLoadError}{' '}
-              <button type="button" className="text-button" onClick={() => setClaimRetry(v => v + 1)}>
-                {locale === 'en' ? 'Retry recipient loading' : '重试加载消费对象'}
-              </button>
-            </p>
-          )}
-          <ActivitySelect value={activityId} onChange={setActivityId} disabled={busy || !activityLoaded} />
-        </details>
-      </div>
-      <div className="tabs" role="group" aria-label={tr('记账类型')}>
-        {(
-          [
-            ['expense', '支出'],
-            ['income', '收入'],
-            ['refund', '退款'],
-            ['transfer', '转账'],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            type="button"
-            key={value}
-            disabled={busy}
-            className={kind === value && !repaying ? 'active' : ''}
-            onClick={() => {
-              setRepaying(false);
-              setKind(value);
-              if (value === 'income' && category === '餐饮') setCategory('工资');
-              if (value === 'expense' && category === '工资') setCategory('餐饮');
-            }}
-          >
-            {tr(label)}
-          </button>
-        ))}
-        <button
-          type="button"
-          disabled={busy}
-          className={repaying ? 'active' : ''}
-          onClick={() => {
-            setRepaying(true);
-            setKind('transfer');
-            if (!accounts.some(a => a.id === account && a.type !== 'credit'))
-              setAccount(accounts.find(a => a.type !== 'credit')?.id || '');
-            if (!accounts.some(a => a.id === target && a.type === 'credit'))
-              setTarget(accounts.find(a => a.type === 'credit')?.id || '');
-          }}
-        >
-          {locale === 'en' ? 'Repayment' : '还款'}
-        </button>
-      </div>
-      {repaying && (
-        <p className="notice">
-          {debtError ||
-            (() => {
-              const debt = debts.find(a => a.id === target);
-              if (!debt)
-                return !target
-                  ? locale === 'en'
-                    ? 'Create a credit account first.'
-                    : '请先在资金资产中创建信用账户。'
-                  : locale === 'en'
-                    ? 'Loading debt balance…'
-                    : '正在读取欠款…';
-              let paid = 0;
-              try {
-                paid = amountToCents(amount || '0');
-              } catch {}
-              return locale === 'en'
-                ? `Recorded debt: ${formatMoney(Math.max(0, -debt.balance))}. After repayment: ${formatMoney(Math.max(0, -debt.balance - paid))}.`
-                : `当前账面欠款 ${formatMoney(Math.max(0, -debt.balance))}，本次还款后欠款 ${formatMoney(Math.max(0, -debt.balance - paid))}。`;
-            })()}
-          <br />
-          {locale === 'en'
-            ? 'Principal reduces debt without another expense. Record interest and fees separately. Scheduled installments should be paid from their existing plan.'
-            : '本金只减少欠款，不重复计支出；利息、手续费请另记支出。已建立分期的还款请从原分期计划操作，避免重复记录。'}
-        </p>
-      )}
-      <label className="amount-entry">
-        {kind === 'refund'
-          ? tr('实际退回多少钱？')
-          : kind === 'income'
-            ? tr('收到多少钱？')
-            : tr('这一笔多少钱？')}
-        <div>
-          <span>{currencySymbol()}</span>
-          <input
-            aria-label={tr('金额（元）')}
-            inputMode="decimal"
-            placeholder="0.00"
-            value={amount}
-            required
-            disabled={busy}
-            onChange={e => setAmount(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-      </label>
-      {scene.purchaseGroup && (
-        <p className="muted">
-          {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => setScene(s => ({ ...s, purchaseGroup: undefined }))}
-          >
-            {tr('取消同款关联')}
-          </button>
-        </p>
-      )}
-      {saved && (
-        <p className="notice" role="status">
-          {tr('这一笔已记好，可以继续记下一笔。')}
-        </p>
-      )}
-      {kind !== 'transfer' && (
-        <label>
-          {tr('记在哪一类？')}
-          <VisualSelect
-            label={tr('记在哪一类？')}
-            value={category}
-            onChange={setCategory}
-            options={choices.map(([value, icon]) => ({ value, label: value, icon }))}
-          />
-        </label>
-      )}
-      <div className="form-grid">
-        <label>
-          {kind === 'refund' ? tr('退款到账日') : tr('交易日期')}
-          <DateField type="date" required value={date} onChange={value => setDate(value)} />
-        </label>
-        <label>
-          {kind === 'transfer'
-            ? tr('转出账户')
-            : kind === 'income' || kind === 'refund'
-              ? tr('实际到账账户')
-              : tr('实际扣款账户')}
-          <VisualSelect
-            label={tr('资金账户')}
-            value={account}
-            onChange={v => {
-              setAccount(v);
-              setWalletNotice('');
-            }}
-            options={accounts
-              .filter(a => !repaying || a.type !== 'credit')
-              .map(a => ({
-                value: a.id,
-                label: accountLabel(a),
-                account: true,
-                accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-              }))}
-          />
-        </label>
         {kind === 'transfer' && (
           <label>
-            {repaying ? (locale === 'en' ? 'Credit account to repay' : '要还款的信用账户') : tr('转入账户')}
+            {repaying ? tr('要还款的信用账户') : tr('转入账户')}
             <VisualSelect
               label={tr('请选择转入账户')}
               value={target}
@@ -567,7 +603,10 @@ export function QuickEntry({
             book={destination}
             value={refund}
             onChange={setRefund}
-            exclude={initial?.id}
+            exclude={initial?.id || reviewDraft?.id}
+            local={localDrafts?.filter(
+              d => d.kind === 'expense' && d.action !== 'skip' && (d.targetBook || book) === destination,
+            )}
             amount={(() => {
               try {
                 return amount ? amountToCents(amount) : undefined;
@@ -579,176 +618,260 @@ export function QuickEntry({
           />
         )}
       </div>
-      {kind === 'expense' && (
-        <EntryInstallmentFields
-          value={installment}
-          onChange={setInstallment}
-          credit={accounts.some(a => a.id === account && a.type === 'credit')}
-        />
+      {destination !== book && (
+        <p className={styles.muted}>
+          {tr(
+            initial
+              ? '保存修改时同时移动到账本，实际收付款账户不变。'
+              : '保存到所选账本，使用下方的实际收付款账户。',
+          )}
+          {(kind === 'refund' || initial?.kind === 'expense') && (
+            <span>
+              {tr(initial ? '关联的原消费与退款一起移动。' : '退款记入原单所在账本，原消费不移动。')}
+            </span>
+          )}
+        </p>
       )}
-      {walletNotice && (
-        <small className="wallet-match-note" role="status">
-          {tr(walletNotice)}
-        </small>
+      {kind === 'expense' &&
+        (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
+          <ClaimRecipientSelect
+            familyId={accounts.find(a => a.id === account)?.family_id}
+            value={claimRecipient}
+            onChange={setClaimRecipient}
+            disabled={busy}
+          />
+        )}{' '}
+      {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
+        <p className={styles.muted}>
+          {tr('这笔消费已由{0}认领。如需更换对象，请先在账单详情中撤回认领邀请。', [
+            claimInfo.claim.recipient_name,
+          ])}
+        </p>
       )}
-      <label>
-        {tr('账目标题')}
-        <input
-          value={title}
-          maxLength={80}
-          placeholder={payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
-          onChange={e => setTitle(e.target.value)}
-        />
-      </label>
-      <label>
-        {kind === 'income' ? tr('收入来源 / 付款方') : tr('商家 / 交易对方')}
-        <input
-          value={payee}
-          maxLength={120}
-          placeholder={tr('选填，例如：楼下便利店')}
-          onChange={e => setPayee(e.target.value)}
-        />
-      </label>
-      <details className="entry-optional">
-        <summary>
-          {tr('商品、订单与备注')}
-          <span>{tr('选填')}</span>
-        </summary>
-        <SceneFields
-          value={scene}
-          onChange={(value, title) => {
-            setScene(value);
-            if (title) setTitle(title);
-          }}
-        />
+      {initial?.kind === 'expense' && claimLoadError && (
+        <p className={styles.error} role="alert">
+          {claimLoadError}{' '}
+          <button type="button" className={styles.link} onClick={() => setClaimRetry(v => v + 1)}>
+            {tr('重试加载消费对象')}
+          </button>
+        </p>
+      )}
+      <details className={styles.more} open={!!reviewDraft?.installment || undefined}>
+        <summary>{tr('更多')}</summary>
+        <ActivitySelect value={activityId} onChange={setActivityId} disabled={busy || !activityLoaded} />
+        {kind === 'expense' && (
+          <EntryInstallmentFields
+            value={installment}
+            onChange={setInstallment}
+            credit={accounts.some(a => a.id === account && a.type === 'credit')}
+          />
+        )}
+        {walletNotice && (
+          <small className={styles.notice} role="status">
+            {tr(walletNotice)}
+          </small>
+        )}
         <label>
-          {tr('交易时间（选填）')}
+          {kind === 'income' ? tr('收入来源 / 付款方') : tr('商家 / 交易对方')}
+          {badge('payee')}
           <input
-            type="time"
-            step="1"
-            value={normalizeTransactionTime(occurredAt)}
-            onChange={e => setOccurredAt(e.target.value)}
+            value={payee}
+            maxLength={120}
+            placeholder={tr('选填，例如：楼下便利店')}
+            onChange={e => {
+              mark('payee');
+              setPayee(e.target.value);
+            }}
           />
         </label>
-        <label>
-          {tr('商品摘要')}
-          <input value={product} maxLength={160} onChange={e => setProduct(e.target.value)} />
-        </label>
-        <div className="form-grid">
+        <details className={styles.more}>
+          <summary>
+            {tr('商品、订单与备注')}
+            <span>{tr('选填')}</span>
+          </summary>
+          <SceneFields
+            value={scene}
+            onChange={(value, title) => {
+              setScene(value);
+              if (title) {
+                mark('title');
+                setTitle(title);
+              }
+            }}
+          />
           <label>
-            {tr('商城 / 平台')}
-            <input value={platform} maxLength={40} onChange={e => setPlatform(e.target.value)} />
-          </label>
-          <label>
-            {tr('订单号（选填）')}
+            {tr('商品摘要')}
+            {badge('product')}
             <input
-              value={orderId}
-              maxLength={200}
-              autoComplete="off"
-              onChange={e => setOrderId(e.target.value)}
+              value={product}
+              maxLength={160}
+              onChange={e => {
+                mark('product');
+                setProduct(e.target.value);
+              }}
             />
           </label>
+          <div className={styles.meta}>
+            <label>
+              {tr('商城 / 平台')}
+              {badge('platform')}
+              <input
+                value={platform}
+                maxLength={40}
+                onChange={e => {
+                  mark('platform');
+                  setPlatform(e.target.value);
+                }}
+              />
+            </label>
+            <label>
+              {tr('订单号（选填）')}
+              {badge('orderId')}
+              <input
+                value={orderId}
+                maxLength={200}
+                autoComplete="off"
+                onChange={e => {
+                  mark('orderId');
+                  setOrderId(e.target.value);
+                }}
+              />
+            </label>
+            <label>
+              {tr('交易 / 退款流水号（选填）')}
+              {badge('externalId')}
+              <input
+                value={externalId}
+                maxLength={200}
+                autoComplete="off"
+                onChange={e => {
+                  mark('externalId');
+                  setExternalId(e.target.value);
+                }}
+              />
+            </label>
+          </div>
+          <small className={styles.muted}>
+            {tr('编号不是必填项；图片中清晰可见时会自动带入，并用于以后核对账单。')}
+          </small>
           <label>
-            {tr('交易 / 退款流水号（选填）')}
-            <input
-              value={externalId}
-              maxLength={200}
-              autoComplete="off"
-              onChange={e => setExternalId(e.target.value)}
+            {tr('备注')}
+            {badge('note')}
+            <textarea
+              rows={2}
+              value={note}
+              maxLength={2000}
+              placeholder={tr('记一点这笔钱的小故事')}
+              onChange={e => {
+                mark('note');
+                setNote(e.target.value);
+              }}
             />
           </label>
-        </div>
-        <small className="muted">
-          {tr('编号不是必填项；图片中清晰可见时会自动带入，并用于以后核对账单。')}
-        </small>
-        <label>
-          {tr('备注')}
-          <textarea
-            rows={2}
-            value={note}
-            maxLength={2000}
-            placeholder={tr('记一点这笔钱的小故事')}
-            onChange={e => setNote(e.target.value)}
+        </details>
+        {kind !== 'transfer' && (
+          <>
+            {badge('lineItems')}
+            <LineItemsEditor
+              category={category}
+              categories={categories}
+              items={lineItems}
+              onChange={items => {
+                mark('lineItems');
+                setLineItems(items);
+              }}
+              total={Number(amount) ? Math.round(Number(amount) * 100) : 0}
+              onTotal={n => setAmount(String(n / 100))}
+              book={book}
+              onRecognized={d => {
+                setChanged(old => {
+                  const next = new Set(old);
+                  next.delete('lineItems');
+                  return next;
+                });
+                const received = new Set<keyof Draft>();
+                const fill = (key: keyof Draft, value: string | undefined, setter: (s: string) => void) => {
+                  if (
+                    !changed.has(key) &&
+                    value &&
+                    (filled.has(key) || !seed?.[key] || (key === 'accountId' && !initial && !reviewDraft))
+                  ) {
+                    setter(value);
+                    received.add(key);
+                  }
+                };
+                fill('title', d.title || d.payee, setTitle);
+                fill('payee', d.payee, setPayee);
+                fill('platform', d.platform, setPlatform);
+                fill('orderId', d.orderId, setOrderId);
+                fill('externalId', d.externalId, setExternalId);
+                fill('accountId', d.accountId, setAccount);
+                setFilled(old => new Set([...old, ...received, 'lineItems']));
+                if (received.has('accountId')) {
+                  setWalletNotice(
+                    d.walletMatch === 'channel'
+                      ? '已按支付渠道自动选择，请核对是否为实际扣款账户。'
+                      : '已根据明确扣款信息自动选择。',
+                  );
+                } else if ((d.walletCandidates?.length || 0) > 1)
+                  setWalletNotice('找到多个符合付款信息的钱包，请选择实际扣款账户。');
+              }}
+              onBusyChange={setRecognizing}
+              onAttachments={ids => setAttachmentIds(v => Array.from(new Set([...v, ...ids])))}
+            />
+          </>
+        )}
+        {kind !== 'transfer' && (
+          <VerificationConfirm
+            items={lineItems}
+            total={Math.round(Number(amount) * 100)}
+            value={verificationReason}
+            onChange={setVerificationReason}
           />
-        </label>
-      </details>
-      {kind !== 'transfer' && (
-        <LineItemsEditor
-          category={category}
-          categories={categories}
-          items={lineItems}
-          onChange={setLineItems}
-          total={Number(amount) ? Math.round(Number(amount) * 100) : 0}
-          onTotal={n => setAmount(String(n / 100))}
-          book={book}
-          onRecognized={d => {
-            if (!title) setTitle(d.title || d.payee || '');
-            if (!payee) setPayee(d.payee);
-            if (!platform) setPlatform(d.platform || '');
-            if (!orderId) setOrderId(d.orderId || '');
-            if (!externalId) setExternalId(d.externalId || '');
-            if (d.accountId) {
-              setAccount(d.accountId);
-              setWalletNotice(
-                d.walletMatch === 'channel'
-                  ? '已按支付渠道自动选择，请核对是否为实际扣款账户。'
-                  : '已根据明确扣款信息自动选择。',
-              );
-            } else if ((d.walletCandidates?.length || 0) > 1)
-              setWalletNotice('找到多个符合付款信息的钱包，请选择实际扣款账户。');
-          }}
-          onBusyChange={setRecognizing}
-          onAttachments={ids => setAttachmentIds(v => Array.from(new Set([...v, ...ids])))}
-        />
-      )}
-      {kind !== 'transfer' && (
-        <VerificationConfirm
-          items={lineItems}
-          total={Math.round(Number(amount) * 100)}
-          value={verificationReason}
-          onChange={setVerificationReason}
-        />
-      )}
-      {!!attachmentIds.length && (
-        <label className="receipt-retention">
-          <input
-            type="checkbox"
-            checked={retainReceipts}
-            onChange={e => setRetainReceipts(e.target.checked)}
+        )}
+        {!!attachmentIds.length && (
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={retainReceipts}
+              onChange={e => setRetainReceipts(e.target.checked)}
+            />
+            {tr('保存本次上传的图片凭证（')}
+            {attachmentIds.length}
+            {tr('张）')}
+          </label>
+        )}
+        <details className={styles.more}>
+          <summary>
+            {tr('生活附图')}
+            {photoIds.length ? ` · ${photoIds.length}` : null}
+          </summary>
+          <TransactionPhotos
+            book={book}
+            ids={photoIds}
+            onChange={setPhotoIds}
+            disabled={busy}
+            onBusy={setPhotoBusy}
           />
-          {tr('保存本次上传的图片凭证（')}
-          {attachmentIds.length}
-          {tr('张）')}
-        </label>
-      )}
-      {!!attachmentIds.length && <></>}
-      <details className="entry-optional">
-        <summary>
-          {tr('生活附图')}
-          {photoIds.length ? ` · ${photoIds.length}` : null}
-        </summary>
-        <TransactionPhotos
-          book={book}
-          ids={photoIds}
-          onChange={setPhotoIds}
-          disabled={busy}
-          onBusy={setPhotoBusy}
-        />
+        </details>
       </details>
       {error && (
-        <p className="error" role="alert">
+        <p className={styles.error} role="alert">
           {tr(error)}
         </p>
       )}
-      <div className="quick-submit">
-        <button disabled={busy || recognizing || photoBusy}>
-          {busy ? tr('正在保存…') : initial ? tr('保存修改') : tr('记好了，保存这一笔')}
-        </button>
-        {initial && (
-          <button type="button" className="secondary" disabled={busy} onClick={onCancel}>
-            {tr('取消修改')}
-          </button>
+      <div className={styles.actions}>
+        <Button type="submit" variant="primary" disabled={busy || recognizing || photoBusy}>
+          {busy ? tr('正在保存…') : initial || reviewDraft ? tr('保存修改') : tr('保存')}
+        </Button>
+        {!initial && !reviewDraft && (
+          <Button type="submit" value="again" disabled={busy || recognizing || photoBusy}>
+            {tr('保存并再记')}
+          </Button>
         )}
+        <Button variant="ghost" disabled={busy} onClick={onCancel}>
+          {initial ? tr('取消修改') : tr('取消')}
+        </Button>
       </div>
     </form>
   );

@@ -19,7 +19,7 @@ const result = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
 const js = result.outputFiles.find(f => f.path.endsWith('.js')).contents,
@@ -105,20 +105,42 @@ try {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('http://127.0.0.1:' + server.address().port);
     const nav = page.locator('.fixture-nav');
-    assert.equal(await page.locator('.receipt').count(), 0);
-    assert.equal(await page.locator('.batch-draft-row').count(), 8);
-    await page.locator('.batch-draft-row').filter({ hasText: '草稿 1' }).first().click();
+    assert.equal(
+      await page
+        .getByRole('article')
+        .filter({ has: page.getByText('交易信息', { exact: true }) })
+        .count(),
+      0,
+    );
+    assert.equal(await page.getByRole('button', { name: /草稿 \d+|保留这次修改/ }).count(), 8);
+    await page
+      .getByRole('button', { name: /草稿 \d+|保留这次修改/ })
+      .filter({ hasText: '草稿 1' })
+      .first()
+      .click();
     await page.getByLabel('账目标题', { exact: true }).fill('保留这次修改');
     await page.getByRole('button', { name: '← 返回草稿列表', exact: true }).click();
-    await page.locator('.batch-draft-row').filter({ hasText: '草稿 2' }).click();
+    await page
+      .getByRole('button', { name: /草稿 \d+|保留这次修改/ })
+      .filter({ hasText: '草稿 2' })
+      .click();
     await page.getByRole('button', { name: '← 返回草稿列表', exact: true }).click();
-    await page.locator('.batch-draft-row').filter({ hasText: '保留这次修改' }).click();
+    await page
+      .getByRole('button', { name: /草稿 \d+|保留这次修改/ })
+      .filter({ hasText: '保留这次修改' })
+      .click();
     assert.equal(await page.getByLabel('账目标题', { exact: true }).inputValue(), '保留这次修改');
-    assert.equal(await page.locator('.receipt').count(), 1);
+    assert.equal(
+      await page
+        .getByRole('article')
+        .filter({ has: page.getByText('交易信息', { exact: true }) })
+        .count(),
+      1,
+    );
     await page.screenshot({ path: resolve(out, 'batch-editor-' + width + '.png'), fullPage: true });
     await page.getByRole('button', { name: '← 返回草稿列表', exact: true }).click();
     await page.getByRole('button', { name: '待核对 · 1', exact: true }).click();
-    assert.equal(await page.locator('.batch-draft-row').count(), 1);
+    assert.equal(await page.getByRole('button', { name: /草稿 \d+|保留这次修改/ }).count(), 1);
     await page.screenshot({ path: resolve(out, 'batch-list-' + width + '.png'), fullPage: true });
     await nav.getByRole('button', { name: 'detail', exact: true }).click();
     await page.getByRole('tab', { name: '商品 · 2', exact: true }).click();
