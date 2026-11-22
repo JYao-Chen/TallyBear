@@ -6,7 +6,7 @@ node_modules/
 next-env.d.ts
 *.tmp
 credentials.txt
-releases/
+/releases/
 current
 current-new
 *.log

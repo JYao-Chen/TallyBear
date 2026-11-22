@@ -19,7 +19,7 @@ English · [简体中文](README.zh-CN.md)
 
 TallyBear brings receipts, cash flow and shared spending into one place. Enter a transaction manually, import a bill or describe it to the assistant; review an editable draft before saving. Track the money in your own wallets separately from the books where you organize purchases.
 
-The current version is **2.0**. It includes the current financial-memory system, cross-book activities, unified charts and records, conversational management, and the redesigned receipt cards. The optional Bubu & Yier bear theme can be replaced with a minimal interface.
+The current version is **2.0**: a rebuilt interface with five primary destinations, addressable pages and one design system across desktop and mobile, on a reorganized server with numbered migrations, graded assistant actions and statistics checked against the records. It keeps financial memory, cross-book activities, linked charts and records, conversational management and the receipt cards. The optional Bubu & Yier bear theme can be replaced with a minimal interface.
 
 ![TallyBear 2.0 spending analysis on desktop](docs/screenshots/v2/en-desktop-analysis.webp)
 
@@ -220,7 +220,7 @@ See [screenshot maintenance](docs/screenshot-maintenance.md) for capture command
 - [Assistant capabilities](docs/assistant-capability-audit.md) — supported operations and confirmation boundaries.
 - [Languages and currency](docs/internationalization.md).
 - [Version history](docs/version-history.md) — the evolution of TallyBear.
-- [2.0 release notes](docs/releases/v2.0.0.md) · [Changelog](CHANGELOG.md).
+- [2.0 release notes](docs/releases/v2.0.0.md) · [Version history](docs/version-history.md) · [Changelog](CHANGELOG.md).
 
 ## License and artwork
 

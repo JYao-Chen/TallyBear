@@ -1,17 +1,47 @@
 # Changelog
 
-## 2.0 maintenance — 2026-10-02
+## 2.0.0 — 2026-11-22
+
+A rebuild of the interface and the server internals. Accounting rules, permissions and existing data carry over; the database upgrades through numbered migrations. See [the 2.0.0 release notes](docs/releases/v2.0.0.md) and the [upgrade steps](docs/deployment.md#upgrading-to-200).
+
+### Interface
+
+- Five primary destinations — Home, Records, Analysis, Wallets & plans, Family — with settings, help and profile under the account menu, a persistent assistant entry and a book switcher at the top of navigation. Every page and detail view has its own URL, so back, refresh and shared links return to the same place.
+- A shared design system (`src/ui`): tokens for colour, type, spacing, radius and motion expressed by both the bear and minimal themes, and common components (buttons, fields, selects, sheets, segmented tabs, cards, list rows, money, empty states). Page styles moved to CSS Modules; about 140 KB of unused global CSS was removed.
+- Home shows this month's spending, budget, wallets and recent records. Records are a day-grouped timeline with a filter sheet and a bulk-tidy / reconcile / export menu; record details keep the main action in reach on phones.
+- Analysis, budgets and activities: reordered analysis with a filter sheet, charts that default to bars for mostly-zero series, budget totals that match Home, and activity cards with a clear hierarchy.
+- Wallets & plans: one net-worth summary, grouped wallet cards and a wallet detail with a cash-flow ledger and graded actions; recurring bills, installments, cost allocation and templates under one set of tabs with confirmation for destructive actions.
+- Family opens on the current family with a period overview of contributions, shared costs and balance; movements and claims share one list and detail layout.
+- Entry: mode switch between assistant, manual and family movement; drafts flag missing fields, can be saved and followed by another entry, and can be undone. Line items edit one per row on wide screens.
+- Profile, memory, settings, assistant and help: underline sub-tabs, grouped settings lists with edit sheets, consistent form spacing, a memory filter row, assistant cards with collapsible details and a "back to latest" button that does not cover content, and a help reader with a chapter list and section links.
+- Native selects replaced by one picker component across pages; network failures show a readable message instead of a browser error.
+
+### Server and data
+
+- API routes are declared per domain and dispatched through one wrapper that checks deployment currency, origin, session and request size. Errors return `{ error, code }`.
+- Statistics use integer cents and a single spending projection. Family wallets follow "contributions + shared costs": contributions are reported separately from transfers, and family-wallet payments count as shared family costs rather than personal spending. Balance corrections apply from their effective date.
+- Assistant operations are graded read / write / confirm. Confirm-level operations (deletions, permissions, family membership, balance corrections and similar) only ever produce a confirmation card; every assistant execution is logged and new or edited entries can be undone.
+- Session tokens are stored as digests, login throttling counts per IP and per username, new passwords need at least 8 characters, and job progress uses `LISTEN/NOTIFY` instead of polling.
+- Numbered migrations (`migrations/0001`–`0006`) with checksums replace re-running schema scripts.
+
+### Development
+
+- Prettier and ESLint; `npm run test:db` and `npm run test:smoke` run against a disposable PostgreSQL; characterization tests pin the accounting rules; browser checks live in `tests/browser/`.
+
+## 2.0 preview maintenance — 2026-10-02
 
 - Unified assistant filters across summaries, transaction lookup, charts and drilldown, with reusable query references and explicit pagination.
 - Added weekly trends and merchant/product/wallet/platform grouping, plus matching merchandise subtotals, quantities and quantity-weighted unit prices. Missing evidence remains unknown; checkout discounts and fees are excluded from merchandise analysis.
 - Fixed filtered chart titles showing unrestricted spending and drilldown losing the original filters. See [financial query behavior](docs/assistant-finance-query.md).
 
-## 2.0.0 — 2026-09-27
+## 2.0 preview — 2026-09-27
+
+This version was labelled 2.0.0 in package metadata but never tagged; the tagged 2.0.0 release is the November rebuild above.
 
 - Reorganized the manual into ordered sections with project introduction, examples, FAQs, feature shortcuts, assistant questions and switchable desktop/mobile screenshots. Added matching manual-entry, refund, import and reconciliation images.
 - Added a bilingual illustrated in-app manual with 18 chapters, keyword highlights, paginated hybrid semantic search, versioned database embeddings and assistant chapter shortcuts.
 
-See [the 2.0 overview](docs/releases/v2.0.0.md), [version history](docs/version-history.md), and the screenshot galleries in [English](docs/screenshots/README.md) or [简体中文](docs/screenshots/README.zh-CN.md).
+See [the 2.0 preview overview](docs/releases/v2.0.0-preview.md), [version history](docs/version-history.md), and the screenshot galleries in [English](docs/screenshots/README.md) or [简体中文](docs/screenshots/README.zh-CN.md).
 
 - Rewrote both READMEs around the current product, with language-specific desktop/mobile screenshots. The application name remains TallyBear; its introduction identifies the current version as 2.0.
 - Completed English labels in memory management, family movements, reporting periods, search and help; fixed deferred translation placeholders and localized budget months and schedule units.

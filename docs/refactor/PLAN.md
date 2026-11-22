@@ -53,15 +53,15 @@ migrations/                 编号迁移 0001_baseline.sql …
 | 阶段 0：冒烟脚本归类与 `test:smoke` | Codex `tb-smoke-tests` | 已合入 |
 | 阶段 1：任务事件 LISTEN/NOTIFY、会话摘要、IP 限流、密码长度、币种缓存（迁移 0002） | Codex `tb-stage1-backend` | 已合入；IP 改为信任 `X-Real-IP`（审核修正） |
 | 阶段 1：校准生效日、家庭缴款统一、家庭总览、金额区间（迁移 0003） | Codex `tb-stats-family` | 已合入 |
-| 阶段 1：助手风险分级、操作记录与撤销（迁移 0006） | Codex `tb-assistant-risk` | 第二轮 |
-| 阶段 1：错误码 | 并入阶段 2 的 http 包装（响应增加 `code`，文案不动） | 第二轮 |
-| 阶段 2：`server/http` 包装与路由表、拆除 `application-api.ts` | Codex `tb-api-split` | 第二轮 |
-| 阶段 2：统计领域统一（投影、赠与规则、钱包域、整数分） | Codex `tb-stats-domain` | 第二轮 |
-| 缺陷：偏好依据缺 accountId、逐笔余额按生效日、家庭钱包认领 | Codex `tb-fixes-a` | 第二轮 |
+| 阶段 1：助手风险分级、操作记录与撤销（迁移 0006） | Codex `tb-assistant-risk` | 已合入 |
+| 阶段 1：错误码 | 并入阶段 2 的 http 包装（响应增加 `code`，文案不动） | 已合入 |
+| 阶段 2：`server/http` 包装与路由表、拆除 `application-api.ts` | Codex `tb-api-split` | 已合入 |
+| 阶段 2：统计领域统一（投影、赠与规则、钱包域、整数分） | Codex `tb-stats-domain` | 已合入 |
+| 缺陷：偏好依据缺 accountId、逐笔余额按生效日、家庭钱包认领 | Codex `tb-fixes-a` | 已合入 |
 | 阶段 3：tokens 与基础组件（`src/ui/`） | Claude | 已完成 |
 | 阶段 4：网址路由、5 项导航外壳、首页 | Claude | 已完成 |
-| 阶段 4：其余页面换用 `src/ui` 组件与 CSS Modules | 按页面派 Codex，Claude 定样式与验收 | 第三轮 |
-| 阶段 5：删除旧样式层、文档、发布 | Claude | — |
+| 阶段 4：其余页面换用 `src/ui` 组件与 CSS Modules | 按页面派 Codex，Claude 定样式与验收 | 已合入（含 polish-a/b/c 三轮审核返工） |
+| 阶段 5：删除旧样式层、文档、发布 | Claude | 已完成：未引用的旧全局样式已删，发布为 v2.0.0（原计划称 v3.0，按用户要求定为 2.0）；剩余全局样式见下 |
 
 ### 实施中的设计调整
 - **API 拆分方式**：助手执行写操作时在进程内调用 API 分发（`assistant-operations.ts` 的 `runOperation`），所以不采用“每域一个 `app/api/<domain>/route.ts`”，改为 `src/server/http/routes/<domain>.ts` 路由表 + 统一 `dispatch`，`app/api/[...path]/route.ts` 与助手共用。
@@ -106,7 +106,9 @@ migrations/                 编号迁移 0001_baseline.sql …
 5. 页面顺序：首页 → 记账（手动/识图/导入/家庭往来）→ 流水与详情 → 分析 → 钱包与计划 → 家庭 → 画像 → 设置 → 帮助。每页完成即删除 `Workspace.tsx` 对应部分。
 
 ### 阶段 5：收尾
-删除旧外壳与样式、更新 README/帮助截图、性能与可访问性检查、正式发布 v3.0。
+删除旧外壳与样式、更新 README/帮助截图、性能与可访问性检查、正式发布（定为 v2.0.0）。
+
+2.0.0 之后仍留的工作：`globals.css` 等全局样式里仍被引用的旧类（共约 6 万字节）逐页迁入模块；`Workspace.tsx` 按页面拆进各自的 route 文件。
 
 ## 上线节奏
 

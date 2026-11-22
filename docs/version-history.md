@@ -4,7 +4,20 @@ English · [简体中文](version-history.zh-CN.md)
 
 TallyBear is the application name. The current version is **2.0**.
 
-## 2.0 · Financial memory and cross-book workflows
+## 2.0 · Rebuilt interface and reorganized server
+November 22, 2026
+
+The interface and the server internals were rebuilt; accounting rules, permissions and data carry over.
+
+- Five primary destinations with addressable pages and detail views; a bottom bar on phones and a sidebar on desktop.
+- One design system across both themes: consistent lists, cards, detail sheets, pickers and confirmations.
+- Every chart and figure checked against the records. Family wallets are reported as contributions and shared costs; amounts are computed in integer cents.
+- Assistant actions are graded, logged and undoable; high-risk actions always need confirmation.
+- Numbered database migrations, domain API routes with error codes, digest-stored sessions and per-IP login throttling.
+
+[2.0.0 release details](releases/v2.0.0.md)
+
+## 2.0 preview · Financial memory and cross-book workflows
 September 27, 2026
 
 The focus moved from recording individual purchases to managing their context across books.
@@ -17,7 +30,7 @@ The focus moved from recording individual purchases to managing their context ac
 - Receipt cards separate products, discounts, fees and processing hints. Quantity × unit price recommends subtotals without overwriting independent amounts.
 - Profile contains full-page memory management; family movements have a dedicated entry workspace. Desktop and mobile documentation now have separate English and Chinese galleries.
 
-[2.0 release details](releases/v2.0.0.md)
+[2.0 preview details](releases/v2.0.0-preview.md)
 
 ## 1.5 · Conversational actions and shared finance
 September 16, 2026

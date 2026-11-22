@@ -42,11 +42,29 @@ Purchase claims add three tables and synchronization/membership triggers through
 
 ## Upgrading to 2.0.0
 
-The current Compose image name is `tallybear:2.0.0`. Keep your existing PostgreSQL major version, database and receipt volumes, language/currency and encryption key. Back up first; stop web and worker, obtain the intended 2.0 revision, then run `docker compose up -d --build`. The initializer runs `scripts/schema.sql`, `scripts/memory-schema.sql`, `scripts/profile-schema.sql`, `scripts/discussions-schema.sql` and `scripts/expense-claims-schema.sql` before runtime processes start. Do not create fresh volumes as an upgrade shortcut.
+The Compose image name is `tallybear:2.0.0`. Keep your existing PostgreSQL major version, database and receipt volumes, language/currency and encryption key. Back up first, stop web and worker, obtain the 2.0.0 release, then run `docker compose up -d --build`. Do not create fresh volumes as an upgrade shortcut.
+
+2.0.0 replaces the re-run-everything schema scripts with numbered migrations in `migrations/`. The Compose `init` service (`scripts/init.mjs`) calls `scripts/migrate.mjs`, which takes an advisory lock and records each applied file and its checksum in `schema_migrations`:
+
+- **New database:** `0001_baseline.sql` creates the full schema, then 0002–0006 run.
+- **Existing database (1.5 or the 2.0 preview):** the legacy idempotent scripts in `scripts/legacy-schema/` run once more to bring older installations level, `0001` is recorded as `legacy` without executing, and 0002–0006 run.
+- Running it again changes nothing. If an already applied migration file has been edited, the run stops with an error.
+
+| Migration | Effect |
+|---|---|
+| 0002 | Session tokens are stored as SHA-256 digests (existing sessions are converted in place); login throttling counts per IP and per username; finished job events are compacted and progress uses `LISTEN/NOTIFY`. |
+| 0003 | Wallet balance corrections gain an effective date (backfilled from their creation date); a `family_contributions` view unifies both ways of recording contributions to a family wallet. |
+| 0004 | Seeds the default background-queue settings row on new databases. |
+| 0005 | A family member may record a claim against themself once it is accepted or withdrawn. |
+| 0006 | `assistant_action_log` records assistant operations for audit and undo. |
+
+Start the new web and worker together with the migration: after 0002, older releases can no longer read the converted sessions, and a rollback signs everyone out (data is unaffected). To roll back, restore the pre-upgrade database backup together with the previous release. Login throttling identifies clients from `X-Real-IP` (falling back to the last `X-Forwarded-For` hop), so set `X-Real-IP` at your reverse proxy.
+
+For a standalone installation, run `node --env-file=.env scripts/init.mjs` (or `npm run db:migrate` for migrations only) before starting the new processes.
 
 Financial memory needs separate embedding, extraction and judgment settings, accessible through **Profile → Memory center → Learning & settings**. Existing official DashScope credentials can supply defaults; independent memory configuration takes precedence. Default PostgreSQL 16 does not bundle pgvector. Install a matching-major-version extension and run `CREATE EXTENSION IF NOT EXISTS vector;` in the target database to enable vector queries; without it, retrieval falls back to keywords. Do not change a production database major version merely to install the extension. See [financial memory](financial-memory.md) for historical organization, model-version rebuilds and privacy boundaries.
 
-Global search remains keyword-based. Language support is deployment-wide; some newer advanced panels still contain Chinese labels in English mode. Updated screenshots and their reproduction procedure are in the [gallery](screenshots/README.md).
+Global search remains keyword-based. Language support is deployment-wide. Updated screenshots and their reproduction procedure are in the [gallery](screenshots/README.md).
 
 ### Changes inherited since 1.5
 
