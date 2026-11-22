@@ -2220,5 +2220,11 @@
   "钱包与计划": "Wallets & plans",
   "钱包资产": "Wallets",
   "问账、记账、核对": "Ask, record, reconcile",
-  "首页": "Home"
+  "首页": "Home",
+  "今天": "Today",
+  "昨天": "Yesterday",
+  "当期分摊 · 不重复扣款": "Allocated cost · no wallet debit",
+  "{0} 付款 · {1} 认领": "{0} paid · {1} claimed",
+  "所选分类 · 整单": "Matched categories · order total",
+  "余额": "Balance"
 }

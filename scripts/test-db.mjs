@@ -25,8 +25,12 @@ const files = readdirSync('tests')
   .filter(f => f.endsWith('-db.test.ts'))
   .sort()
   .map(f => 'tests/' + f);
-const result = spawnSync('npx', ['tsx', '--test', '--test-concurrency=1', ...files], {
-  stdio: 'inherit',
-  env,
-});
+const result = spawnSync(
+  'npx',
+  ['tsx', '--import', './tests/helpers/css-hooks.mjs', '--test', '--test-concurrency=1', ...files],
+  {
+    stdio: 'inherit',
+    env,
+  },
+);
 process.exit(result.status ?? 1);

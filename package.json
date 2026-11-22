@@ -8,7 +8,7 @@
     "build": "node scripts/prepare-help-assets.mjs && next build --webpack && node scripts/build-worker.mjs",
     "start": "next start -p 3016",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --import ./tests/helpers/css-hooks.mjs --test tests/*.test.ts",
     "test:smoke": "node scripts/test-smoke.mjs",
     "test:db": "node scripts/test-db.mjs",
     "db:init": "node scripts/init.mjs",

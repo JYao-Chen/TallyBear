@@ -716,6 +716,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
       <TransactionList
         rows={periodReport.rows.slice(0, limit)}
         shared={current?.kind === 'shared'}
+        grouped={homeSort.startsWith('date')}
         onSelect={openEntry}
       />
     ) : (

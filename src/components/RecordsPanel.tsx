@@ -463,6 +463,7 @@ export function RecordsPanel({
                       shared={scope !== 'book' || shared}
                       showBook={scope !== 'book' || (bookIds?.length || 0) > 1}
                       onSelect={onSelect}
+                      grouped={sort.startsWith('date')}
                       selection={selecting ? selection : undefined}
                       onToggle={id =>
                         setSelection(old => {
@@ -587,6 +588,7 @@ export function RecordsPanel({
               shared={scope !== 'book' || shared}
               showBook={scope !== 'book' || (bookIds?.length || 0) > 1}
               onSelect={onSelect}
+              grouped={sort.startsWith('date')}
               selection={selecting ? selection : undefined}
               onToggle={id =>
                 setSelection(old => {
