@@ -75,7 +75,11 @@ try {
     await db.query("INSERT INTO budgets VALUES($1,$2,'餐饮旧',10000)", [book, month]);
     await page.setViewportSize({ width, height: 1000 });
     await navigateBudget(width);
-    await page.locator('.budget-card').filter({ hasText: '餐饮旧' }).click();
+    await page
+      .getByRole('button')
+      .filter({ has: page.getByRole('progressbar') })
+      .filter({ hasText: '餐饮旧' })
+      .click();
     await page.getByText('本月此分类暂无消费。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '修改预算', exact: true }).click();
     const edit = page.getByRole('dialog');
@@ -85,7 +89,10 @@ try {
     await page.screenshot({ path: dir + '/edit-' + width + '.png' });
     await page.getByRole('button', { name: '保存预算', exact: true }).click();
     await page.getByRole('dialog').waitFor({ state: 'hidden' });
-    const card = page.locator('.budget-card').filter({ hasText: '餐饮' });
+    const card = page
+      .getByRole('button')
+      .filter({ has: page.getByRole('progressbar') })
+      .filter({ hasText: '餐饮' });
     await card.waitFor();
     assert.match(await card.innerText(), /271.00/);
     assert.match(await card.innerText(), /300.00/);
@@ -154,7 +161,11 @@ try {
     .context()
     .addCookies([{ name: 'bubu_session', value: viewerToken, domain: 'localhost', path: '/' }]);
   await navigateBudget(390);
-  await page.locator('.budget-card').filter({ hasText: '餐饮' }).click();
+  await page
+    .getByRole('button')
+    .filter({ has: page.getByRole('progressbar') })
+    .filter({ hasText: '餐饮' })
+    .click();
   await page.getByRole('dialog').locator('.transaction-row').first().waitFor();
   assert.equal(await page.getByRole('button', { name: '修改预算', exact: true }).count(), 0);
   response = await page.request.put(origin + '/api/books/' + book + '/budgets', {

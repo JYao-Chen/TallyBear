@@ -60,7 +60,12 @@ try {
           .getByRole('button', { name: '收支分析', exact: true })
           .click();
       if (route.endsWith('chart')) {
-        await page.locator('.chart-data-legend button').filter({ hasText: '餐饮' }).first().click();
+        await page
+          .getByRole('group', { name: '图例' })
+          .getByRole('button')
+          .filter({ hasText: '餐饮' })
+          .first()
+          .click();
         await page.getByRole('dialog').getByRole('button').filter({ hasText: '卡里烤肉' }).click();
       } else await page.locator('.transaction-row').filter({ hasText: '卡里烤肉' }).first().click();
       const dialog = page.getByRole('dialog');

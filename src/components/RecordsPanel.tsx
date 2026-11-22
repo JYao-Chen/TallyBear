@@ -40,6 +40,7 @@ export function RecordsPanel({
   dateRange,
   bookIds,
   periodOnly = false,
+  basis = 'period_expense',
   summary,
   overview,
   currentBook = book,
@@ -59,6 +60,7 @@ export function RecordsPanel({
   overview?: ReactNode;
   bookIds?: string[];
   periodOnly?: boolean;
+  basis?: 'period_expense' | 'cashflow';
   onLoadingChange?: (loading: boolean) => void;
   dateRange?: ReportRange;
   books: ManagedBook[];
@@ -145,7 +147,7 @@ export function RecordsPanel({
     offset: String(offset),
     limit: String(LIST_PAGE_SIZE),
     ...(scope !== 'book' ? { scope } : {}),
-    ...(periodOnly ? { basis: 'period_expense', view: 'expenses' } : {}),
+    ...(periodOnly ? { basis, view: 'expenses' } : {}),
   });
   for (const k of ['min', 'max'] as const)
     if (amounts[k]) queryParams.set(k, String(amountToCents(amounts[k])));

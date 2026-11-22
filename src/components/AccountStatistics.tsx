@@ -1,4 +1,6 @@
 'use client';
+import s from './AccountStatistics.module.css';
+import { Card, EmptyState, Money } from '@/ui';
 import { useEffect, useState } from 'react';
 import { Landmark, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { PagedList } from './PagedList';
@@ -95,17 +97,17 @@ export function AccountStatistics({
     drill = personal && book ? { books: [book], scope: 'personal_wallet' as const } : {};
   return (
     <>
-      <div className="panel-title asset-summary-heading">
+      <div className={s.panelTitle}>
         <h2>{scopeLabel}</h2>
         <small>{personal ? tr('跨全部账本') : tr('家庭共同资产')}</small>
       </div>
       {error && (
-        <p className="error" role="alert">
+        <p className={s.error} role="alert">
           {tr(error)}
         </p>
       )}
       {data && (
-        <section className="account-metrics">
+        <section className={s.accountMetrics}>
           {[
             [Landmark, '银行存款', data.summary.bankDeposits],
             [Wallet, '零钱与现金', data.summary.walletAndCash],
@@ -114,19 +116,21 @@ export function AccountStatistics({
           ].map(([Icon, label, value]) => {
             const I = Icon as typeof Wallet;
             return (
-              <article className="panel" key={tr(String(label))}>
+              <Card as="article" key={tr(String(label))}>
                 <small>
                   <I size={18} />
                   {tr(String(label))}
                 </small>
-                <h2>{money(Number(value))}</h2>
-              </article>
+                <h2>
+                  <Money value={Number(value)} />
+                </h2>
+              </Card>
             );
           })}
         </section>
       )}
-      <section className="panel asset-analysis">
-        <div className="panel-title">
+      <Card className={s.assetAnalysis}>
+        <div className={s.panelTitle}>
           <h2>{tr('资产与收支分析')}</h2>
           <small>{personal ? tr('只统计本人钱包') : scopeLabel}</small>
         </div>
@@ -140,14 +144,14 @@ export function AccountStatistics({
         {!data && !error && <p role="status">{tr('正在汇总资产与收支…')}</p>}
         {data && (
           <>
-            <div className="filtered-summary">
+            <div className={s.filteredSummary}>
               <span>
                 {tr('收入')}
-                <strong className="income">{money(data.summary.income)}</strong>
+                <strong className={s.income}>{money(data.summary.income)}</strong>
               </span>
               <span>
                 {tr('净支出')}
-                <strong className="expense">{money(data.summary.expense - data.summary.refund)}</strong>
+                <strong className={s.expense}>{money(data.summary.expense - data.summary.refund)}</strong>
               </span>
               <span>
                 {tr('现金实际支付')}
@@ -159,11 +163,12 @@ export function AccountStatistics({
               </span>
               <span>
                 {tr('已退回')}
-                {money(data.summary.refund)}
+                <strong>{money(data.summary.refund)}</strong>
               </span>
             </div>
-            <div className="chart-grid asset-chart-grid">
+            <div className={s.assetChartGrid}>
               <FinanceChart
+                valueLabel={tr('账户余额')}
                 chart={{
                   id: 'asset-balances',
                   title: tr('钱包余额分布'),
@@ -221,9 +226,7 @@ export function AccountStatistics({
               />
             </div>
             {!data.accounts.length ? (
-              <div className="empty">
-                <p>{tr('这个范围还没有资金钱包。')}</p>
-              </div>
+              <EmptyState title={tr('这个范围还没有资金钱包。')} />
             ) : (
               <>
                 <h3>{tr('钱包收支与余额')}</h3>
@@ -231,7 +234,7 @@ export function AccountStatistics({
                   items={data.accounts}
                   resetKey={scope + from + to}
                   container={rows => (
-                    <div className="account-flow-table">
+                    <div className={s.accountFlowTable}>
                       <table>
                         <thead>
                           <tr>
@@ -267,7 +270,7 @@ export function AccountStatistics({
                     </tr>
                   )}
                 </PagedList>
-                <div className="account-source-grid">
+                <div className={s.accountSourceGrid}>
                   {[
                     ['income', '收入来源'],
                     ['expense', '支出去向'],
@@ -281,7 +284,7 @@ export function AccountStatistics({
                           resetKey={scope + from + to}
                         >
                           {(source, index) => (
-                            <div className="account-source-row" key={index}>
+                            <div className={s.accountSourceRow} key={index}>
                               <span>
                                 <strong>{source.category}</strong>
                                 <small>
@@ -294,7 +297,7 @@ export function AccountStatistics({
                           )}
                         </PagedList>
                       ) : (
-                        <p className="muted">{tr('此期间暂无记录')}</p>
+                        <p className={s.muted}>{tr('此期间暂无记录')}</p>
                       )}
                     </div>
                   ))}
@@ -303,8 +306,7 @@ export function AccountStatistics({
             )}
           </>
         )}
-        <></>
-      </section>
+      </Card>
       <WalletFundsPanel from={from} to={to} owner={scope} revision={revision} onChanged={onChanged} />
     </>
   );

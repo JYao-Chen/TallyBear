@@ -1,4 +1,6 @@
 'use client';
+import s from './InteractiveFinanceChart.module.css';
+import { Button, Sheet } from '@/ui';
 import { useEntryDetail } from './EntryDetailContext';
 import { DetailSortSelect } from './DetailSortSelect';
 import type { DetailSort } from '@/lib/detail-sort';
@@ -19,14 +21,13 @@ import {
 } from 'recharts';
 import { ChartNoAxesColumn, ChartPie, ChartLine, ChevronRight, ArrowLeft } from 'lucide-react';
 import { ChartTransactionDetail } from './ChartTransactionDetail';
-import { Sheet } from './Sheet';
-import { CategoryIcon } from './VisualSelect';
+
 import { useI18n } from './LanguageProvider';
 import { shortChartLabel, chartAmount } from '@/lib/chart-labels';
 import type { ChartArtifact } from '@/server/finance-agent';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
 import { chartDetailParams } from '@/lib/finance-query';
-const palette = ['#8873c7', '#ed9975', '#639bc6', '#d9b44c', '#c679a4', '#60a899', '#939bd1', '#bc9378'];
+const palette = Array.from({ length: 8 }, (_, i) => `var(--chart-${i + 1})`);
 export function FinanceChart({
   chart,
   valueLabel,
@@ -48,8 +49,7 @@ export function FinanceChart({
   const money = (n: number) =>
     new Intl.NumberFormat(locale, { style: 'currency', currency: chart.unit || 'CNY' }).format(n);
   const canDrill = !!onSelect || (!!chart.dimension && !!chart.books?.length);
-  const en = locale.startsWith('en'),
-    quantity = chart.metric === 'quantity',
+  const quantity = chart.metric === 'quantity',
     itemMetric = ['item_amount', 'unit_price', 'quantity'].includes(chart.metric || '');
   const format = (n: number) =>
     quantity ? new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(n) : money(n);
@@ -57,24 +57,14 @@ export function FinanceChart({
     valueLabel ||
     chart.valueLabel ||
     (quantity
-      ? en
-        ? 'Item quantity'
-        : '商品数量'
+      ? t('商品数量')
       : chart.metric === 'unit_price'
-        ? en
-          ? 'Quantity-weighted unit price'
-          : '按数量加权的商品单价'
+        ? t('按数量加权的商品单价')
         : chart.metric === 'item_amount'
-          ? en
-            ? 'Recorded item subtotal'
-            : '已记录商品小计'
-          : chart.metric === 'income'
-            ? en
-              ? 'Income'
-              : '收入'
-            : en
-              ? 'Net expense'
-              : '净支出');
+          ? t('已记录商品小计')
+          : chart.metric === 'income' || chart.dimension?.endsWith('_income')
+            ? t('收入')
+            : t('净支出'));
   const conditions = [
     chart.filters?.categories?.join('、') || chart.filters?.category,
     chart.filters?.query,
@@ -129,18 +119,31 @@ export function FinanceChart({
       setDetail(null);
     }
   };
+  const seriesColor =
+    chart.dimension?.endsWith('_income') || chart.metric === 'income'
+      ? 'var(--income)'
+      : chart.dimension?.endsWith('_expense') ||
+          (chart.metric === 'net_expense' && chart.dimension !== 'category')
+        ? 'var(--expense)'
+        : undefined;
+  const color = (i: number) => seriesColor ?? palette[i % palette.length];
   const total = chart.data.reduce((n, d) => n + d.value, 0),
     negative = chart.data.some(d => d.value < 0),
     noPie = negative || quantity || chart.metric === 'unit_price';
   const actualType = type === 'pie' && noPie ? 'bar' : type;
   const tip = (
     <Tooltip
-      contentStyle={{ borderRadius: 12, border: '1px solid #ddd', fontSize: 12 }}
+      contentStyle={{
+        backgroundColor: 'var(--surface)',
+        borderRadius: 'var(--radius-control)',
+        border: '1px solid var(--line)',
+        fontSize: 12,
+      }}
       formatter={v => [format(Number(v)), metricLabel]}
     />
   );
   return (
-    <figure className="finance-chart interactive-chart">
+    <figure aria-label={chart.title} className={s.chart}>
       <figcaption>
         <div>
           <strong>{chart.title}</strong>
@@ -148,13 +151,7 @@ export function FinanceChart({
             {chart.from} — {chart.to} · {quantity ? metricLabel : chart.unit} · {metricLabel}
           </small>
           {conditions && <small>{conditions}</small>}
-          {itemMetric && (
-            <small>
-              {en
-                ? 'Item evidence only; order discounts and fees are not allocated. Missing values are excluded.'
-                : '仅按商品明细计算；整单优惠与手续费不摊入商品，缺失值不视为零。'}
-            </small>
-          )}
+          {itemMetric && <small>{t('仅按商品明细计算；整单优惠与手续费不摊入商品，缺失值不视为零。')}</small>}
           {chart.warnings
             ?.filter(w => w.startsWith('unknown'))
             .map(w => (
@@ -162,9 +159,9 @@ export function FinanceChart({
                 {
                   (
                     {
-                      unknownAmounts: en ? 'Missing subtotal' : '缺少小计',
-                      unknownQuantities: en ? 'Missing quantity' : '缺少数量',
-                      unknownPrices: en ? 'Missing unit price' : '缺少单价',
+                      unknownAmounts: t('缺少小计'),
+                      unknownQuantities: t('缺少数量'),
+                      unknownPrices: t('缺少单价'),
                     } as Record<string, string>
                   )[w.split(':')[0]]
                 }
@@ -172,7 +169,7 @@ export function FinanceChart({
               </small>
             ))}
         </div>
-        <div className="chart-view-toggle">
+        <div className={s.chartViewToggle}>
           {(
             [
               ['pie', ChartPie, '环形图'],
@@ -180,7 +177,7 @@ export function FinanceChart({
               ['line', ChartLine, '折线图'],
             ] as const
           ).map(([v, Icon, label]) => (
-            <button
+            <Button
               type="button"
               key={v}
               aria-label={t(label)}
@@ -190,7 +187,7 @@ export function FinanceChart({
               onClick={() => setType(v)}
             >
               <Icon size={17} />
-            </button>
+            </Button>
           ))}
         </div>
       </figcaption>
@@ -198,7 +195,7 @@ export function FinanceChart({
         <p>{t('此范围暂无记录')}</p>
       ) : (
         <>
-          <div className="interactive-chart-plot">
+          <div className={s.interactiveChartPlot}>
             <ResponsiveContainer>
               {actualType === 'pie' ? (
                 <PieChart>
@@ -214,7 +211,7 @@ export function FinanceChart({
                     style={{ cursor: canDrill ? 'pointer' : 'default' }}
                   >
                     {chart.data.map((d, i) => (
-                      <Cell key={d.name} fill={palette[i % palette.length]} />
+                      <Cell key={d.name} fill={color(i)} />
                     ))}
                   </Pie>
                   {tip}
@@ -226,7 +223,7 @@ export function FinanceChart({
                     if (s?.activePayload?.[0]) select(s.activePayload[0]);
                   }}
                 >
-                  <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#ddd" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="var(--line)" />
                   <XAxis
                     dataKey="name"
                     tickFormatter={shortChartLabel}
@@ -237,7 +234,7 @@ export function FinanceChart({
                   {tip}
                   <Line
                     dataKey="value"
-                    stroke={palette[0]}
+                    stroke={color(0)}
                     strokeWidth={3}
                     dot={{ r: 3 }}
                     activeDot={{ r: 7, onClick: (_e: any, p: any) => select(p) }}
@@ -246,7 +243,7 @@ export function FinanceChart({
                 </LineChart>
               ) : (
                 <BarChart data={chart.data}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="#ddd" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="var(--line)" />
                   <XAxis
                     dataKey="name"
                     tickFormatter={shortChartLabel}
@@ -263,58 +260,49 @@ export function FinanceChart({
                     cursor={canDrill ? 'pointer' : 'default'}
                   >
                     {chart.data.map((d, i) => (
-                      <Cell key={d.name} fill={palette[i % palette.length]} />
+                      <Cell key={d.name} fill={color(i)} />
                     ))}
                   </Bar>
                 </BarChart>
               )}
             </ResponsiveContainer>
           </div>
-          <div className="chart-data-legend">
+          <div role="group" aria-label={t('图例')} className={s.chartDataLegend}>
             {chart.data.map((d, i) => (
-              <button type="button" key={d.name} disabled={!canDrill} onClick={() => select(d)}>
-                <i style={{ background: palette[i % palette.length] }} />
-                {chart.dimension === 'category' && <CategoryIcon name={d.name} size={24} />}
-                <span>{d.name || (en ? 'Not recorded' : '未填写')}</span>
+              <Button type="button" key={d.name} disabled={!canDrill} onClick={() => select(d)}>
+                <i style={{ background: color(i) }} />
+                <span>{d.name || t('未填写')}</span>
                 <strong>{format(d.value)}</strong>
                 {actualType === 'pie' && total > 0 && <small>{((d.value / total) * 100).toFixed(1)}%</small>}
                 {canDrill && <ChevronRight size={14} />}
-              </button>
+              </Button>
             ))}
           </div>
         </>
       )}
       {point && (
         <Sheet
+          open
+          closeLabel={t('关闭弹窗')}
           title={detail ? detail.title || detail.payee || t('账单明细') : point.name}
           onClose={() => setPoint(null)}
         >
           {detail ? (
             <>
-              <button className="text-button" onClick={() => setDetail(null)}>
+              <Button variant="ghost" onClick={() => setDetail(null)}>
                 <ArrowLeft size={16} />
                 {t('返回列表')}
-              </button>
+              </Button>
               <ChartTransactionDetail row={detail} money={money} />
             </>
           ) : (
             <>
-              <p className="muted">
+              <p className={s.muted}>
                 {metricLabel} {format(point.value)} · {t('以下为当前账目')}
               </p>
               <DetailSortSelect
                 value={sort}
-                valueLabel={
-                  quantity
-                    ? en
-                      ? 'Quantity'
-                      : '数量'
-                    : chart.metric === 'unit_price'
-                      ? en
-                        ? 'Unit price'
-                        : '单价'
-                      : undefined
-                }
+                valueLabel={quantity ? t('数量') : chart.metric === 'unit_price' ? t('单价') : undefined}
                 onChange={v => {
                   setSort(v);
                   setOffset(0);
@@ -330,9 +318,7 @@ export function FinanceChart({
                     {t('当前合计')}{' '}
                     {itemMetric
                       ? result.totals.value == null
-                        ? en
-                          ? 'Unknown'
-                          : '未知'
+                        ? t('未知')
                         : format(Number(result.totals.value) / (quantity ? 1 : 100))
                       : money(
                           (chart.metric === 'income' || chart.dimension?.endsWith('income')
@@ -341,9 +327,9 @@ export function FinanceChart({
                         )}{' '}
                     · {result.totals.count} {t('笔')}
                   </p>
-                  <div className="chart-drill-list">
+                  <div className={s.chartDrillList}>
                     {result.rows.map((r: any) => (
-                      <button
+                      <Button
                         type="button"
                         key={r.item_key || r.cost_row_key || r.id}
                         onClick={() => {
@@ -352,7 +338,6 @@ export function FinanceChart({
                           } else setDetail(r);
                         }}
                       >
-                        <CategoryIcon name={r.category} size={28} />
                         <span>
                           <strong>{r.item_name || r.title || r.payee || r.category}</strong>
                           <small>
@@ -368,9 +353,7 @@ export function FinanceChart({
                                     ? 'item_unit_price'
                                     : 'item_amount'
                               ] == null
-                              ? en
-                                ? 'Unknown'
-                                : '未知'
+                              ? t('未知')
                               : format(
                                   Number(
                                     r[
@@ -385,22 +368,22 @@ export function FinanceChart({
                             : money(((r.kind === 'refund' ? -1 : 1) * (r.matched_amount ?? r.amount)) / 100)}
                         </b>
                         <ChevronRight size={15} />
-                      </button>
+                      </Button>
                     ))}
                   </div>
-                  <div className="chart-drill-pages">
-                    <button
+                  <div className={s.chartDrillPages}>
+                    <Button
                       disabled={!offset}
                       onClick={() => setOffset(v => Math.max(0, v - LIST_PAGE_SIZE))}
                     >
                       {t('上一页')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       disabled={offset + LIST_PAGE_SIZE >= result.totals.count}
                       onClick={() => setOffset(v => v + LIST_PAGE_SIZE)}
                     >
                       {t('下一页')}
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}

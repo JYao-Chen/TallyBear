@@ -17,17 +17,21 @@ try {
   await page.locator('#primary-navigation').getByRole('button', { name: '小熊对话', exact: true }).click();
   await page.getByRole('button', { name: /历史.*报告/ }).click();
   await page.getByRole('button').filter({ hasText: '查询验收' }).first().click();
-  await page.locator('.finance-chart').nth(1).waitFor();
+  await page.getByRole('figure').nth(1).waitFor();
   for (const width of [1440, 390, 360]) {
     await page.setViewportSize({ width, height: 900 });
-    const spending = page.locator('.finance-chart').first(),
-      prices = page.locator('.finance-chart').nth(1);
+    const spending = page.getByRole('figure').first(),
+      prices = page.getByRole('figure').nth(1);
     assert.match(await spending.textContent(), /奶茶咖啡/);
     assert.match(await prices.textContent(), /加权/);
     assert.match(await prices.textContent(), /缺少单价/);
-    await prices.locator('.chart-data-legend button').filter({ hasText: '2026-09-22' }).click();
+    await prices
+      .getByRole('group', { name: '图例' })
+      .getByRole('button')
+      .filter({ hasText: '2026-09-22' })
+      .click();
     const dialog = page.getByRole('dialog');
-    await dialog.locator('.chart-drill-list button').first().waitFor();
+    await dialog.getByText(/当前合计/).waitFor();
     assert.match(await dialog.textContent(), /10\.00/);
     assert.ok(!/1459|1,459/.test(await dialog.textContent()));
     assert(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1));

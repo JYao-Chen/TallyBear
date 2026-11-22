@@ -1,0 +1,228 @@
+.allocationPanel .allocationHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 26px;
+  border: 0;
+  padding: 0;
+}
+.allocationHeading h2 {
+  margin-bottom: 8px;
+}
+.allocationHeading p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 65ch;
+}
+.allocationEquation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1.1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 24px 0;
+  border-block: 1px solid var(--line);
+}
+.allocationTerm,
+.allocationResult {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.allocationEquation span {
+  font-size: 14px;
+}
+.allocationEquation strong {
+  font-size: 28px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.allocationEquation small {
+  font-size: 12px;
+}
+.allocationOperator {
+  color: var(--muted);
+}
+.allocationResult {
+  padding: 18px 20px;
+  background: var(--accent-soft);
+  border-radius: 12px;
+  color: var(--accent);
+}
+.allocationResult small {
+  color: var(--accent);
+}
+.allocationExplanation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 16px 0 32px;
+  max-width: 85ch;
+}
+.allocationExplanation svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.allocationListHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.allocationListHeading h3 {
+  margin: 0;
+  font-size: 20px;
+}
+.allocationListHeading > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.allocationItem {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+.allocationItem:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+.allocationItemHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.allocationItemTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.allocationItemTitle h4 {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.allocationItemShare {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.allocationItemShare span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.allocationItemShare strong {
+  font-size: 22px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.allocationFacts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 0.6fr) auto;
+  gap: 16px;
+  margin: 20px 0 0;
+  align-items: center;
+}
+.allocationFacts > div {
+  min-width: 0;
+}
+.allocationFacts dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.allocationFacts dd {
+  margin: 0;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.allocationFacts dd small {
+  display: block;
+}
+.allocationItemAction {
+  justify-self: end;
+}
+@media (max-width: 700px) {
+  .allocationPanel .allocationHeading {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .allocationEquation {
+    grid-template-columns: 1fr 20px 1fr;
+    gap: 16px 10px;
+    padding: 18px 0;
+  }
+  .allocationEquation > .allocationOperator:nth-of-type(2) {
+    display: none;
+  }
+  .allocationResult {
+    grid-column: 1/-1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 16px;
+  }
+  .allocationResult small {
+    grid-column: 1/-1;
+  }
+  .allocationEquation strong {
+    font-size: 23px;
+  }
+  .allocationEquation span {
+    font-size: 13px;
+  }
+  .allocationExplanation {
+    margin-bottom: 26px;
+  }
+  .allocationListHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .allocationItem {
+    padding: 20px 0;
+  }
+  .allocationItemHeading {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .allocationItemShare {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .allocationFacts {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 12px;
+  }
+  .allocationFacts > div:nth-child(2) {
+    grid-column: 1/-1;
+    grid-row: 2;
+  }
+  .allocationItemAction {
+    grid-column: 1/-1;
+    justify-self: stretch;
+  }
+  .allocationItemAction button {
+    width: 100%;
+  }
+  .allocationItemTitle h4 {
+    flex: 1 1 180px;
+  }
+  .allocationHeading h2 {
+    font-size: 21px;
+  }
+}
+.error {
+  color: var(--danger);
+}

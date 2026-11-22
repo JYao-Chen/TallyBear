@@ -283,7 +283,9 @@ try {
       // A chart drilldown remains open below the canonical entry detail.
       await page.getByRole('tab', { name: '概览', exact: true }).click();
       await page
-        .locator('.analysis-charts .chart-data-legend button')
+        .getByRole('region', { name: /分析图表|Analysis charts/ })
+        .getByRole('group', { name: /图例|Chart legend/ })
+        .getByRole('button')
         .filter({ hasText: '餐饮' })
         .first()
         .click();
@@ -331,15 +333,20 @@ try {
         .locator('#primary-navigation')
         .getByRole('button', { name: '每月预算', exact: true })
         .click();
-    await page.locator('.budget-card').first().click();
+    await page
+      .getByRole('button')
+      .filter({ has: page.getByRole('progressbar') })
+      .first()
+      .click();
     await page.getByRole('dialog').getByRole('button', { name: '下一页', exact: true }).click();
     await page.getByRole('dialog').locator('.transaction-row').first().waitFor();
-    const before = await page.getByRole('dialog').locator('.pagination').innerText();
+    const pageRange = page.getByRole('dialog').getByText(/^\d+–\d+ \/ \d+$/);
+    const before = await pageRange.innerText();
     await page.getByRole('dialog').locator('.transaction-row').first().click();
     await page.getByRole('dialog').last().getByRole('button', { name: '修改记录', exact: true }).waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(), 1);
-    assert.equal(await page.getByRole('dialog').locator('.pagination').innerText(), before);
+    assert.equal(await pageRange.innerText(), before);
     await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
   }
   // Search results and their pagination stay behind a viewed record.

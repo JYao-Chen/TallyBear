@@ -6,8 +6,10 @@ import { formatMoney } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import { CalendarRange, Plus, Equal, Info } from 'lucide-react';
-import './allocation-panel.css';
-import { CategoryIcon } from './VisualSelect';
+
+import s from './AllocationPanel.module.css';
+import { Button, Card, Chip, EmptyState } from '@/ui';
+
 import { inclusivePeriodDays, periodLastDay, periodLabels, type PeriodUnit } from '@/lib/period';
 import { FormSelect } from './FormSelect';
 const yuan = (n: number) => formatMoney(n);
@@ -293,125 +295,103 @@ export function AllocationPanel({
       });
     return () => c.abort();
   }, [book, month, revision, attempt]);
-  const copy = (zh: string, en: string) => (locale === 'en' ? en : zh);
+
   const active = data?.items.filter(a => a.start_date <= month + '-31' && a.end >= month + '-01').length || 0;
   return (
-    <section className="panel allocation-panel" aria-busy={!data && !error}>
-      <header className="allocation-heading">
+    <Card className={s.allocationPanel} aria-busy={!data && !error}>
+      <header className={s.allocationHeading}>
         <div>
           <h2>
             <CalendarRange size={22} />
-            {copy('按月看费用', 'Monthly expenses')}
+            {tr('按月看费用')}
           </h2>
-          <p>
-            {copy(
-              '把一次付款的长期费用，分到实际使用的月份。',
-              'Spread a one-off payment over the months it covers.',
-            )}
-          </p>
+          <p>{tr('把一次付款的长期费用，分到实际使用的月份。')}</p>
         </div>
-        <span className="allocation-month">{month}</span>
+        <Chip>{month}</Chip>
       </header>
       {error && (
-        <div role="alert" className="error">
+        <div role="alert" className={s.error}>
           <p>{tr(error)}</p>
-          <button type="button" className="secondary" onClick={() => setAttempt(v => v + 1)}>
-            {copy('重新加载', 'Try again')}
-          </button>
+          <Button type="button" variant="secondary" onClick={() => setAttempt(v => v + 1)}>
+            {tr(locale === 'en' ? 'Try again' : '重新加载')}
+          </Button>
         </div>
       )}
-      {!data && !error && (
-        <p role="status">
-          {copy('正在读取本月费用和分摊明细…', 'Loading monthly expenses and allocations…')}
-        </p>
-      )}
+      {!data && !error && <p role="status">{tr('正在读取本月费用和分摊明细…')}</p>}
       {data && (
         <>
-          <div className="allocation-equation" aria-label={copy('本月费用构成', 'Monthly expense breakdown')}>
-            <div className="allocation-term">
-              <span>{copy('日常费用（扣除退款）', 'Everyday expenses, less refunds')}</span>
+          <div className={s.allocationEquation} aria-label={tr('本月费用构成')}>
+            <div className={s.allocationTerm}>
+              <span>{tr('日常费用（扣除退款）')}</span>
               <strong>{yuan(data.ordinary)}</strong>
-              <small>{copy('未设置分摊的支出与退款', 'Expenses and refunds without an allocation')}</small>
+              <small>{tr('未设置分摊的支出与退款')}</small>
             </div>
-            <Plus className="allocation-operator" size={20} aria-hidden="true" />
-            <div className="allocation-term">
-              <span>{copy('本月分摊费用', 'Allocated to this month')}</span>
+            <Plus className={s.allocationOperator} size={20} aria-hidden="true" />
+            <div className={s.allocationTerm}>
+              <span>{tr('本月分摊费用')}</span>
               <strong>{yuan(data.allocated)}</strong>
-              <small>{copy('来自下方已设置的分摊', 'From the allocations listed below')}</small>
+              <small>{tr('来自下方已设置的分摊')}</small>
             </div>
-            <Equal className="allocation-operator" size={20} aria-hidden="true" />
-            <div className="allocation-result">
-              <span>{copy('本月费用合计', 'Total monthly expenses')}</span>
+            <Equal className={s.allocationOperator} size={20} aria-hidden="true" />
+            <div className={s.allocationResult}>
+              <span>{tr('本月费用合计')}</span>
               <strong>{yuan(data.total)}</strong>
-              <small>{copy('按使用月份计算的费用', 'Expenses attributed to the month of use')}</small>
+              <small>{tr('按使用月份计算的费用')}</small>
             </div>
           </div>
-          <p className="allocation-explanation">
+          <p className={s.allocationExplanation}>
             <Info size={18} aria-hidden="true" />
             <span>
-              {copy(
-                '原付款已从日常费用中排除，只计入本月分摊，避免重复。分摊不会再次扣款，也不改变钱包余额。',
-                'The original payment is excluded from everyday expenses; only this month’s share is included. Allocations do not charge your wallet again or change its balance.',
-              )}
+              {tr('原付款已从日常费用中排除，只计入本月分摊，避免重复。分摊不会再次扣款，也不改变钱包余额。')}
             </span>
           </p>
-          <section className="allocation-list" aria-labelledby="allocation-list-title">
-            <div className="allocation-list-heading">
-              <h3 id="allocation-list-title">{copy('分摊明细', 'Allocation details')}</h3>
-              <span>
-                {copy(
-                  `共 ${data.items.length} 项 · 本月覆盖 ${active} 项`,
-                  `${data.items.length} allocations · ${active} cover this month`,
-                )}
-              </span>
+          <section aria-labelledby="allocation-list-title">
+            <div className={s.allocationListHeading}>
+              <h3 id="allocation-list-title">{tr('分摊明细')}</h3>
+              <span>{tr('共 {0} 项 · 本月覆盖 {1} 项', [data.items.length, active])}</span>
             </div>
             {!data.items.length ? (
-              <div className="allocation-empty">
-                <h4>{copy('还没有设置费用分摊', 'No allocations yet')}</h4>
-                <p>
-                  {copy(
-                    '服务器、会员或房租等一次支付、长期使用的费用，可以按覆盖周期分摊。打开一笔支出，在“费用周期分摊”中设置即可。',
-                    'For a server, membership or rent paid upfront, open the expense and set its coverage under “Expense period allocation”.',
-                  )}
-                </p>
-              </div>
+              <EmptyState title={tr('还没有设置费用分摊')}>
+                {tr(
+                  '服务器、会员或房租等一次支付、长期使用的费用，可以按覆盖周期分摊。打开一笔支出，在“费用周期分摊”中设置即可。',
+                )}
+              </EmptyState>
             ) : (
               <PagedList items={data.items} resetKey={book + month}>
                 {a => {
                   const status =
                     a.start_date > month + '-31'
-                      ? copy('尚未开始', 'Not started')
+                      ? tr('尚未开始')
                       : a.end < month + '-01'
-                        ? copy('已结束', 'Ended')
-                        : copy('本月覆盖', 'Covers this month');
+                        ? tr('已结束')
+                        : tr('本月覆盖');
                   return (
-                    <article className="allocation-item" key={a.id}>
-                      <div className="allocation-item-heading">
-                        <div className="allocation-item-title">
-                          <CategoryIcon name={a.category} />
+                    <article className={s.allocationItem} key={a.id}>
+                      <div className={s.allocationItemHeading}>
+                        <div className={s.allocationItemTitle}>
                           <h4>{a.title || a.payee || a.product || a.category}</h4>
-                          <span className="allocation-status">{status}</span>
+                          <Chip>{status}</Chip>
                         </div>
-                        <div className="allocation-item-share">
-                          <span>{copy('本月计入', 'This month')}</span>
+                        <div className={s.allocationItemShare}>
+                          <span>{tr('本月计入')}</span>
                           <strong>{yuan(a.monthly)}</strong>
                         </div>
                       </div>
-                      <dl className="allocation-facts">
+                      <dl className={s.allocationFacts}>
                         <div>
-                          <dt>{copy('原付款金额', 'Original payment')}</dt>
+                          <dt>{tr('原付款金额')}</dt>
                           <dd>
                             {yuan(a.amount)}
                             {a.refunded > 0 && (
                               <small>
-                                {copy('已退款 ', 'Refunded ')}
+                                {tr('已退款 ')}
                                 {yuan(a.refunded)}
                               </small>
                             )}
                           </dd>
                         </div>
                         <div>
-                          <dt>{copy('费用覆盖时间', 'Coverage')}</dt>
+                          <dt>{tr('费用覆盖时间')}</dt>
                           <dd>
                             <time>{a.start_date}</time>
                             <span> — </span>
@@ -419,22 +399,22 @@ export function AllocationPanel({
                           </dd>
                         </div>
                         <div>
-                          <dt>{copy('分摊周期', 'Allocation period')}</dt>
+                          <dt>{tr('分摊周期')}</dt>
                           <dd>
                             {a.period_count} {tr(periodLabels[a.period_unit])}
                           </dd>
                         </div>
                         {canWrite && (
-                          <div className="allocation-item-action">
-                            <button
+                          <div className={s.allocationItemAction}>
+                            <Button
                               type="button"
-                              className="secondary"
+                              variant="secondary"
                               aria-expanded={editing === a.id}
                               aria-controls={'allocation-edit-' + a.id}
                               onClick={() => setEditing(editing === a.id ? '' : a.id)}
                             >
-                              {editing === a.id ? copy('收起设置', 'Close settings') : tr('调整分摊')}
-                            </button>
+                              {editing === a.id ? tr('收起设置') : tr('调整分摊')}
+                            </Button>
                           </div>
                         )}
                       </dl>
@@ -463,6 +443,6 @@ export function AllocationPanel({
           </section>
         </>
       )}
-    </section>
+    </Card>
   );
 }

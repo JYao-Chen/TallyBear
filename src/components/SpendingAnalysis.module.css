@@ -1,0 +1,140 @@
+.spendingAnalysis {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-4);
+}
+.period,
+.analysisControls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.period > span {
+  margin-inline-end: auto;
+}
+.analysisModes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-card);
+}
+.analysisModes button {
+  border: 1px solid transparent;
+  display: flex;
+  min-width: 0;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: start;
+  background: transparent;
+}
+.analysisModes button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
+.analysisModes small,
+.analysisBookOptions small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+.analysisModeCheck {
+  margin-inline-start: auto;
+}
+.analysisControls {
+  justify-content: space-between;
+}
+.analysisBookChoice,
+.analysisBookOptions {
+  display: grid;
+  gap: var(--space-2);
+}
+.analysisBookChoice > span,
+.analysisSummaryNote {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.analysisSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  text-align: end;
+}
+.analysisSummary > div {
+  min-width: 0;
+}
+.analysisSummary > div + div {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-2);
+}
+.analysisSummary > div > span:last-child {
+  font-size: clamp(16px, 2.5vw, 28px);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.analysisSummaryNote {
+  margin: 0;
+}
+.analysisCharts {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+}
+.check input {
+  width: auto;
+}
+.notice {
+  padding: var(--space-3);
+  background: var(--attention-soft);
+}
+@media (max-width: 640px) {
+  .analysisModes button {
+    flex-direction: column;
+    text-align: center;
+    padding: var(--space-2);
+  }
+  .analysisModeCheck {
+    display: none;
+  }
+  .analysisModes button strong {
+    font-size: var(--text-sm);
+  }
+  .analysisSummary {
+    padding: var(--space-3);
+  }
+}
+.expense {
+  color: var(--expense);
+}
+.income {
+  color: var(--income);
+}
+.muted {
+  color: var(--muted);
+}
+
+.basisControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.basisControls button {
+  min-height: var(--touch);
+}
+.analysisSummary span span {
+  white-space: normal;
+}

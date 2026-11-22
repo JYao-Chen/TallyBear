@@ -1,0 +1,174 @@
+.panelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.panelTitle h2 {
+  margin: 0;
+  font: 700 var(--text-lg)/1.45 var(--font-title);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+.expense {
+  color: var(--expense);
+}
+.income {
+  color: var(--income);
+}
+
+.activitiesPage,
+.activityIndex,
+.activityAdd,
+.activityForm {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.activityIndexFilters,
+.activityFilters,
+.formGrid {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+}
+.activitySearch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.activitySearch svg {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  pointer-events: none;
+}
+.activitySearch input {
+  width: 100%;
+  padding-inline-start: 40px;
+  min-width: 0;
+  flex: 1;
+}
+.activityList,
+.activityChartGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+.activityList {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+.activitiesPage > button {
+  justify-self: start;
+}
+.activityIndex [role='group'] button {
+  min-height: var(--touch);
+}
+.activityList .activityTile {
+  display: grid;
+  justify-content: stretch;
+  text-align: start;
+  gap: var(--space-1);
+  min-width: 0;
+  white-space: normal;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+}
+.activityTile strong {
+  font-family: var(--font-title);
+  font-size: var(--text-lg);
+}
+.activityTile span,
+.activityTile small,
+.empty {
+  color: var(--muted);
+}
+.activityTile > span:last-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-2);
+  margin-top: var(--space-2);
+}
+.activityActions,
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+.activityMetrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
+  gap: var(--space-2);
+  margin-block: var(--space-4);
+}
+.activityMetrics > div {
+  display: grid;
+  gap: var(--space-2);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+.activityMetrics strong,
+.activityBar strong {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.activityBar {
+  margin-block: var(--space-3);
+}
+.activityBar > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.activityBarTrack,
+.activityBarTrack > span {
+  display: block;
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunk);
+}
+.activityBarTrack > span {
+  background: var(--accent);
+}
+.activityRecord,
+.activityAddRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  padding-block: var(--space-2);
+}
+.activityRecord > div,
+.activityAddRow > div {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.activityRecord small,
+.activityAddRow small {
+  display: block;
+}
+.activityRecord strong,
+.activityAddRow strong {
+  font-variant-numeric: tabular-nums;
+}
+.notice {
+  background: var(--accent-soft);
+  padding: var(--space-2);
+}
+.activityRecords,
+.activityOverview,
+.activityBreakdown {
+  min-width: 0;
+}

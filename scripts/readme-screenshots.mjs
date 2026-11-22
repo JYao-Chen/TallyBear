@@ -525,9 +525,10 @@ try {
     headless: true,
     ...(process.env.TEST_CHROMIUM_PATH ? { executablePath: process.env.TEST_CHROMIUM_PATH } : {}),
   });
+  const basePort = Number(process.env.SCREENSHOT_BASE_PORT || 3126);
   for (const [lang, httpPort] of [
-    ['zh-CN', Number(process.env.SCREENSHOT_HTTP_PORT || 3126)],
-    ['en', Number(process.env.SCREENSHOT_HTTP_PORT || 3126) + 1],
+    ['zh-CN', basePort],
+    ['en', basePort + 1],
   ]) {
     const database = lang === 'en' ? 'readme_en_test' : 'readme_zh_test';
     await admin.query('CREATE DATABASE ' + database);
@@ -756,14 +757,22 @@ try {
         await page.getByRole('button', { name: t('打开原账单') }).waitFor();
         await shot('entry-cost-detail');
         await navigate('收支分析');
+        await page.getByRole('region', { name: t('分析图表') }).waitFor();
         await shot('analysis-books');
-        await page.locator('.analysis-book-choice button').click();
+        await page
+          .getByRole('button', {
+            name: lang === 'en' ? 'Everyday together' : '一起过日子',
+            exact: true,
+          })
+          .click();
         await shot('analysis-book-choices');
         await page
           .getByRole('dialog')
           .getByRole('button', { name: lang === 'en' ? 'Done' : '完成选择', exact: true })
           .click();
-        await page.locator('.analysis-modes button').nth(1).click();
+        await page.getByRole('button', { name: new RegExp(t('我的费用')) }).click();
+        await settle();
+        await page.getByRole('region', { name: t('分析图表') }).waitFor();
         await shot('analysis-personal');
         const values = await page.evaluate(
           async ({ book, month }) => {
@@ -782,32 +791,34 @@ try {
         await page.getByRole('combobox', { name: t('收支类型') }).selectOption('expense', { force: true });
         await page.getByRole('textbox', { name: t('搜索流水') }).fill(lang === 'en' ? 'server' : '服务器');
         await settle();
-        await page
-          .getByRole('region', { name: t('收支明细') })
-          .getByRole('button', { name: t('查看{0}详情').replace('{0}', serverTitle), exact: true })
-          .first()
-          .waitFor();
+        await page.getByRole('region', { name: t('分析图表') }).waitFor();
+        await page.getByRole('tab', { name: lang === 'en' ? 'Entries' : '明细', exact: true }).click();
         assert.equal(
           await page
-            .getByRole('region', { name: t('收支明细') })
-            .getByRole('button', { name: t('查看{0}详情').replace('{0}', serverTitle), exact: true })
+            .getByRole('tabpanel')
+            .getByRole('button', { name: /查看.*详情|^View /i, includeHidden: true })
             .count(),
           1,
         );
         await shot('analysis-filtered');
-        await page.getByRole('tab', { name: t('概览'), exact: true }).click();
-        await page.locator('.analysis-charts .chart-data-legend button:not(:disabled)').first().click();
+        await page.getByRole('tab', { name: lang === 'en' ? 'Overview' : '概览', exact: true }).click();
+        await page
+          .getByRole('region', { name: t('分析图表') })
+          .getByRole('group', { name: t('图例') })
+          .getByRole('button', { disabled: false })
+          .first()
+          .click();
         await settle();
         await shot('analysis-drilldown');
         await page
           .getByRole('dialog')
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
-        await page.locator('.analysis-modes button').nth(2).click();
+        await page.getByRole('button', { name: new RegExp(t('钱包资金流')) }).click();
         await settle();
         await page.locator('.funds-list>button').first().waitFor();
         assert.equal(await page.getByRole('region', { name: t('收支明细') }).count(), 0);
-        assert.equal(await page.locator('.analysis-summary').count(), 0);
+        assert.equal(await page.getByLabel(t('筛选结果汇总')).count(), 0);
         await shot('analysis-wallets');
         await page.locator('.funds-filters select').selectOption('transfer');
         await settle();
@@ -822,7 +833,11 @@ try {
         await page.locator('.funds-wallet-choice select').selectOption({ index: 1 }, { force: true });
         await settle();
         await shot('analysis-single-wallet');
-        await page.locator('.analysis-controls select').selectOption({ index: 1 }, { force: true });
+        await page.getByRole('button', { name: /^Wallet owner:|^钱包归属:/ }).click();
+        await page
+          .getByRole('dialog')
+          .getByRole('button', { name: lang === 'en' ? 'Our household' : '我们的家', exact: true })
+          .click();
         await settle();
         await shot('analysis-family-wallets');
         if (device === 'mobile') {
@@ -936,9 +951,9 @@ try {
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('records-sorted');
         await page
-          .locator(
-            '.interactive-chart:not(.funds-charts .interactive-chart) .chart-data-legend button:not(:disabled)',
-          )
+          .getByRole('figure')
+          .getByRole('group', { name: t('图例') })
+          .getByRole('button', { disabled: false })
           .first()
           .click();
         await settle();
@@ -949,10 +964,10 @@ try {
           .getByRole('button', { name: t('关闭弹窗'), exact: true })
           .click();
         await navigate('活动账');
-        await page.locator('.activity-records').waitFor();
-        await chooseSort(page.locator('.activity-records'), 'amount_desc');
+        await page.getByRole('button', { name: /周末山海之旅|Coast & hills weekend/ }).click();
+        await chooseSort(page.getByRole('region', { name: t('活动明细') }), 'amount_desc');
         await page
-          .locator('.activity-records')
+          .getByRole('region', { name: t('活动明细') })
           .getByRole('combobox', { name: t('明细排序') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('activity-sorted');
@@ -1186,9 +1201,59 @@ try {
           await detail.getByRole('button', { name: t('关闭弹窗') }).click();
         }
         if (key === 'analysis') {
-          await page.locator('.chart-grid').first().scrollIntoViewIfNeeded();
-          await page.evaluate(() => document.querySelector('.chart-grid').scrollIntoView({ block: 'start' }));
+          await page
+            .getByRole('region', { name: t('分析图表') })
+            .evaluate(el => el.scrollIntoView({ block: 'start' }));
           await shot('charts');
+          const result = page.waitForResponse(
+            r => r.url().includes('/report?') && new URL(r.url()).searchParams.get('basis') === 'cashflow',
+          );
+          await page.getByRole('button', { name: t('按付款日'), exact: true }).click();
+          assert.equal((await result).status(), 200);
+          await page.getByRole('button', { name: t('统计口径说明') }).click();
+          await shot('basis');
+          await page
+            .getByRole('dialog')
+            .getByRole('button', { name: t('关闭'), exact: true })
+            .click();
+        }
+        if (key === 'assets') {
+          await page
+            .getByRole('heading', { name: t('资产与收支分析'), exact: true })
+            .evaluate(el => el.scrollIntoView({ block: 'start' }));
+          await page
+            .getByRole('figure', { name: t('钱包余额分布') })
+            .getByText(new RegExp(t('账户余额')))
+            .waitFor();
+          await shot('account-statistics');
+        }
+        if (key === 'budgets') {
+          await page
+            .getByRole('button')
+            .filter({ has: page.getByRole('progressbar') })
+            .first()
+            .click();
+          await page.getByRole('button', { name: t('修改预算'), exact: true }).click();
+          await page.getByRole('button', { name: t('删除预算'), exact: true }).click();
+          await page
+            .getByRole('dialog', { name: t('删除预算') })
+            .getByRole('button', { name: t('取消'), exact: true })
+            .click();
+          await page.getByRole('button', { name: t('保存预算') }).waitFor();
+        }
+        if (key === 'activities') {
+          await page.getByRole('button', { name: /周末山海之旅|Coast & hills weekend/ }).click();
+          await shot('activity-detail');
+          await page.getByRole('button', { name: t('归档此活动') }).click();
+          await page
+            .getByRole('dialog')
+            .getByRole('button', { name: t('取消'), exact: true })
+            .click();
+          await page.getByRole('button', { name: t('返回活动列表') }).click();
+          await page
+            .getByRole('heading', { name: t('活动账'), exact: true })
+            .first()
+            .waitFor();
         }
       }
       await navigate('计划与分摊');

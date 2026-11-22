@@ -9,7 +9,7 @@ assert.ok(out);
 await mkdir(out, { recursive: true });
 const result = await build({
   stdin: {
-    contents: `import {useState} from 'react';import {createRoot} from 'react-dom/client';import {AllocationPanel} from './src/components/AllocationPanel';import {LanguageProvider} from './src/components/LanguageProvider';function App(){const [revision,setRevision]=useState(0);return <LanguageProvider initial={location.search.includes('en')?'en':'zh-CN'}><main><AllocationPanel book="test" month="2026-10" revision={revision} canWrite={!location.search.includes('readonly')} onSaved={()=>setRevision(r=>r+1)}/></main></LanguageProvider>}createRoot(document.getElementById('root')).render(<App/>);`,
+    contents: `import './src/ui/tokens.css';import {useState} from 'react';import {createRoot} from 'react-dom/client';import {AllocationPanel} from './src/components/AllocationPanel';import {LanguageProvider} from './src/components/LanguageProvider';function App(){const [revision,setRevision]=useState(0);return <LanguageProvider initial={location.search.includes('en')?'en':'zh-CN'}><main><AllocationPanel book="test" month="2026-10" revision={revision} canWrite={!location.search.includes('readonly')} onSaved={()=>setRevision(r=>r+1)}/></main></LanguageProvider>}createRoot(document.getElementById('root')).render(<App/>);`,
     resolveDir: process.cwd(),
     loader: 'tsx',
   },
@@ -18,7 +18,7 @@ const result = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
 const js = result.outputFiles.find(f => f.path.endsWith('.js')).contents;
@@ -127,10 +127,16 @@ try {
     for (const width of [1440, 390, 360]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto(`http://127.0.0.1:${server.address().port}/?${lang}`);
-      await page.locator('.allocation-item').first().waitFor();
-      assert.equal(await page.locator('.allocation-item').count(), 2);
+      await page.getByRole('article').first().waitFor();
+      assert.equal(await page.getByRole('article').count(), 2);
       assert.ok(await page.getByText(base.title, { exact: true }).isVisible());
-      assert.equal(await page.locator('.allocation-list>details').count(), 0);
+      assert.equal(
+        await page
+          .getByRole('region', { name: /分摊明细|Allocation details/ })
+          .locator(':scope > details')
+          .count(),
+        0,
+      );
       await page.evaluate(async () => {
         await document.fonts.ready;
       });
@@ -228,7 +234,7 @@ try {
   await page.getByText('还没有设置费用分摊', { exact: true }).waitFor();
   payload = { ...payload, items: [base] };
   await page.goto(`http://127.0.0.1:${server.address().port}/?readonly`);
-  await page.locator('.allocation-item').waitFor();
+  await page.getByRole('article').waitFor();
   assert.equal(await page.getByRole('button', { name: '调整分摊', exact: true }).count(), 0);
   assert.deepEqual(errors, []);
   console.log(

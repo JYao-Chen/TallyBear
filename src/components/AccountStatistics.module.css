@@ -1,0 +1,81 @@
+.panelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.panelTitle h2 {
+  margin: 0;
+  font: 700 var(--text-lg)/1.45 var(--font-title);
+}
+.expense {
+  color: var(--expense);
+}
+.income {
+  color: var(--income);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+
+.accountMetrics,
+.filteredSummary,
+.accountSourceGrid,
+.assetChartGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  margin-block: var(--space-4);
+}
+.accountMetrics,
+.filteredSummary {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
+}
+.accountMetrics small,
+.filteredSummary span {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+.accountMetrics h2,
+.filteredSummary strong {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.assetAnalysis,
+.accountFlowTable {
+  min-width: 0;
+}
+.accountFlowTable {
+  overflow-x: auto;
+}
+.accountFlowTable table {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.accountFlowTable :is(td, th) {
+  padding: var(--space-2);
+  text-align: end;
+}
+.accountFlowTable :is(td, th):first-child {
+  text-align: start;
+}
+.accountSourceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  padding-block: var(--space-2);
+}
+.accountSourceRow small {
+  display: block;
+}
+.accountSourceRow b {
+  font-variant-numeric: tabular-nums;
+}

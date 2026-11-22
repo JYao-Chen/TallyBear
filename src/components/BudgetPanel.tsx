@@ -1,11 +1,13 @@
 'use client';
+import s from './BudgetPanel.module.css';
+import { Button, Card, ConfirmDialog, EmptyState, Input, Money, Sheet } from '@/ui';
 import { PagedList } from './PagedList';
 import { formatMoney } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
-import { VisualSelect, CategoryIcon } from './VisualSelect';
+import { VisualSelect } from './VisualSelect';
 import { useEffect, useState } from 'react';
 import { Plus, ChevronRight } from 'lucide-react';
-import { Sheet } from './Sheet';
+
 import { TransactionList } from './TransactionList';
 import { useEntryDetail } from './EntryDetailContext';
 import { monthRange, type LedgerReport } from '@/lib/ledger-types';
@@ -64,24 +66,24 @@ function BudgetDetails({
   }, [book, month, budget.category, offset, retry, revision]);
   const spent = report ? report.totals.expense - report.totals.refund : 0;
   return (
-    <Sheet title={budget.category + ' · ' + t('预算明细')} onClose={onClose}>
-      <div className="panel-title">
+    <Sheet open closeLabel={t('关闭弹窗')} title={budget.category + ' · ' + t('预算明细')} onClose={onClose}>
+      <div className={s.panelTitle}>
         <p>
           {month} · {t('预算金额（元）')} {yuan(budget.amount)}
         </p>
         {canWrite && (
-          <button type="button" className="secondary" onClick={onEdit}>
+          <Button type="button" variant="secondary" onClick={onEdit}>
             {t('修改预算')}
-          </button>
+          </Button>
         )}
       </div>
-      <p className="muted">{t('按当前账本、所选月份和预算分类统计，退款冲减消费。')}</p>
+      <p className={s.muted}>{t('按当前账本、所选月份和预算分类统计，退款冲减消费。')}</p>
       {error ? (
         <div role="alert">
-          <p className="error">{t(error)}</p>
-          <button type="button" className="secondary" onClick={() => setRetry(n => n + 1)}>
+          <p className={s.error}>{t(error)}</p>
+          <Button type="button" variant="secondary" onClick={() => setRetry(n => n + 1)}>
             {t('重新加载')}
-          </button>
+          </Button>
         </div>
       ) : !report ? (
         <p role="status">{t('正在读取账单…')}</p>
@@ -96,29 +98,29 @@ function BudgetDetails({
           {report.rows.length ? (
             <TransactionList rows={report.rows} onSelect={row => openEntry?.(row)} />
           ) : (
-            <p className="empty">{t('本月此分类暂无消费。')}</p>
+            <p className={s.empty}>{t('本月此分类暂无消费。')}</p>
           )}
           {report.totals.count > LIST_PAGE_SIZE && (
-            <div className="pagination">
-              <button
+            <div className={s.pagination}>
+              <Button
                 type="button"
-                className="secondary"
+                variant="secondary"
                 disabled={!offset}
                 onClick={() => setOffset(n => Math.max(0, n - LIST_PAGE_SIZE))}
               >
                 {t('上一页')}
-              </button>
+              </Button>
               <span>
                 {offset + 1}–{Math.min(offset + LIST_PAGE_SIZE, report.totals.count)} / {report.totals.count}
               </span>
-              <button
+              <Button
                 type="button"
-                className="secondary"
+                variant="secondary"
                 disabled={offset + LIST_PAGE_SIZE >= report.totals.count}
                 onClick={() => setOffset(n => n + LIST_PAGE_SIZE)}
               >
                 {t('下一页')}
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -153,6 +155,13 @@ export function BudgetPanel({
     [selected, setSelected] = useState<Budget | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+  const range = monthRange(month);
+  const remainingDays = Math.max(
+    0,
+    1 + (Date.parse(range.to) - Date.parse(today > range.from ? today : range.from)) / 86400000,
+  );
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setError('');
@@ -167,8 +176,8 @@ export function BudgetPanel({
     }
   }
   return (
-    <section className="panel">
-      <div className="panel-title">
+    <Card>
+      <div className={s.panelTitle}>
         <h2>
           {locale === 'en'
             ? new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
@@ -179,9 +188,9 @@ export function BudgetPanel({
             : month.replace('-', '年') + tr('月预算')}
         </h2>
         {canWrite && (
-          <button
+          <Button
             type="button"
-            className="text-button"
+            variant="ghost"
             onClick={() => {
               setEditing(null);
               setOpen(true);
@@ -190,34 +199,49 @@ export function BudgetPanel({
           >
             <Plus size={18} />
             {tr('添加')}
-          </button>
+          </Button>
         )}
       </div>
-      <PagedList items={budgets} resetKey={month}>
+      <PagedList container={rows => <div className={s.cards}>{rows}</div>} items={budgets} resetKey={month}>
         {b => {
           const spent = spending.find(s => s.name === b.category)?.value || 0;
           return (
-            <button type="button" className="budget-card" key={b.category} onClick={() => setSelected(b)}>
-              <div className="rank">
-                <strong>
-                  <CategoryIcon name={b.category} />
-                  {b.category}
-                </strong>
+            <Button type="button" className={s.budgetCard} key={b.category} onClick={() => setSelected(b)}>
+              <div className={s.rank}>
+                <strong>{b.category}</strong>
                 <span>
                   {yuan(spent)} / {yuan(b.amount)} <ChevronRight size={15} />
                 </span>
               </div>
-              <progress max={b.amount || 1} value={Math.max(0, Math.min(spent, b.amount || 1))} />
-              <small className={spent > b.amount ? 'expense' : ''}>
+              <progress
+                aria-label={b.category}
+                style={{
+                  accentColor:
+                    spent > b.amount
+                      ? 'var(--expense)'
+                      : spent * 5 > b.amount * 4
+                        ? 'var(--attention)'
+                        : 'var(--accent)',
+                }}
+                max={b.amount || 1}
+                value={Math.max(0, Math.min(spent, b.amount || 1))}
+              />
+              <small className={spent > b.amount ? s.expense : undefined}>
                 {spent > b.amount
                   ? tr('已超支 ') + yuan(spent - b.amount)
                   : tr('还可用 ') + yuan(b.amount - spent)}
               </small>
-            </button>
+              {remainingDays > 0 && (
+                <small>
+                  {tr('剩余 {0} 天 · 日均可用', [remainingDays])}{' '}
+                  <Money value={Number(BigInt(Math.max(0, b.amount - spent)) / BigInt(remainingDays))} />
+                </small>
+              )}
+            </Button>
           );
         }}
       </PagedList>
-      {!budgets.length && <div className="empty">{tr('还没有预算，添加一个分类额度开始规划。')}</div>}
+      {!budgets.length && <EmptyState title={tr('还没有预算，添加一个分类额度开始规划。')} />}
       {selected && !open && (
         <BudgetDetails
           revision={revision}
@@ -236,13 +260,15 @@ export function BudgetPanel({
       )}
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={editing ? tr('调整分类预算') : tr('添加分类预算')}
           onClose={() => {
             if (!busy) setOpen(false);
           }}
         >
           {error && (
-            <p className="error" role="alert">
+            <p className={s.error} role="alert">
               {tr(error)}
             </p>
           )}
@@ -280,29 +306,46 @@ export function BudgetPanel({
             </label>
             <label>
               {tr('预算金额（元）')}
-              <input
+              <Input
                 name="amount"
                 inputMode="decimal"
                 defaultValue={editing ? editing.amount / 100 : ''}
                 required
               />
             </label>
-            <div className="sheet-actions">
+            <div className={s.sheetActions}>
               {editing && (
-                <button
+                <Button
                   type="button"
-                  className="secondary"
+                  variant="secondary"
                   disabled={busy}
-                  onClick={() => run(() => onDelete(editing.category))}
+                  onClick={() => setConfirmDelete(true)}
                 >
                   {tr('删除预算')}
-                </button>
+                </Button>
               )}
-              <button disabled={busy}>{tr('保存预算')}</button>
+              <Button type="submit" variant="primary" disabled={busy}>
+                {tr('保存预算')}
+              </Button>
             </div>
           </form>
         </Sheet>
       )}
-    </section>
+      {editing && (
+        <ConfirmDialog
+          open={confirmDelete}
+          title={tr('删除预算')}
+          confirmLabel={tr('删除预算')}
+          busy={busy}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            setConfirmDelete(false);
+            void run(() => onDelete(editing.category));
+          }}
+        >
+          {tr('确定删除“{0}”的分类预算？消费记录会保留。', [editing.category])}
+        </ConfirmDialog>
+      )}
+    </Card>
   );
 }

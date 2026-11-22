@@ -1271,7 +1271,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                       }}
                       onPlans={() => {
                         setPlanTab('cost');
-                        switchPage('schedules');
+                        router.push(pathForPage('schedules'), { scroll: false });
                       }}
                       onReconcile={() => {
                         setChatPrefill({
@@ -1281,7 +1281,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                               ? 'Please reconcile my attached payment screenshots against my records.'
                               : '请读取我附上的支付账单截图，按流水号、订单号、时间和前后顺序智能核对漏记。',
                         });
-                        switchPage('chat');
+                        router.push(pathForPage('chat'), { scroll: false });
                       }}
                       onSelect={openEntry}
                     />

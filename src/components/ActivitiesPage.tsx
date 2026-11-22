@@ -1,4 +1,6 @@
 'use client';
+import s from './ActivitiesPage.module.css';
+import { Button, Card, ConfirmDialog, EmptyState, Input, Money, Segmented, Sheet, TextArea } from '@/ui';
 import { DetailSortSelect } from './DetailSortSelect';
 import type { DetailSort } from '@/lib/detail-sort';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -20,7 +22,6 @@ import type { ManagedBook } from './ManagementPages';
 import { FormSelect } from './FormSelect';
 import { DateField } from './DateField';
 import type { Activity } from './ActivitySelect';
-import { Sheet } from './Sheet';
 
 type ActivityRow = {
   id: string;
@@ -79,30 +80,56 @@ function BreakdownBars({
   const { t: tr } = useI18n(),
     max = Math.max(1, ...items.map(item => Math.max(0, item.amount)));
   return (
-    <section className="panel activity-breakdown">
+    <Card className={s.activityBreakdown}>
       <h2>{tr(title)}</h2>
       {items.length ? (
         items.map((item, index) => (
           <div
-            className="activity-bar"
+            className={s.activityBar}
             key={(item.id || item.category || item.date || item.name || '') + index}
           >
             <div>
               <span>{label(item)}</span>
               <strong>{formatMoney(item.amount)}</strong>
             </div>
-            <span className="activity-bar-track">
+            <span className={s.activityBarTrack}>
               <span style={{ width: `${(Math.max(0, item.amount) / max) * 100}%` }} />
             </span>
           </div>
         ))
       ) : (
-        <p className="muted">{tr('暂无可统计的支出')}</p>
+        <p className={s.muted}>{tr('暂无可统计的支出')}</p>
       )}
-    </section>
+    </Card>
   );
 }
 
+function ActivityTotal({ id, revision, count }: { id: string; revision: number; count: number }) {
+  const { t: tr } = useI18n();
+  const [value, setValue] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    setValue(null);
+    setError('');
+    if (!count) return;
+    fetch('/api/activities/' + id + '?limit=1', { signal: controller.signal })
+      .then(async response => {
+        const report = await response.json();
+        if (!response.ok) throw new Error(report.error);
+        if (!controller.signal.aborted) setValue(report.totals.expense - report.totals.refund);
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [id, revision, count]);
+  return (
+    <span>
+      {tr('可见净支出')} {error ? tr(error) : count && value === null ? '—' : <Money value={value ?? 0} />}
+    </span>
+  );
+}
 export function ActivitiesPage({
   books,
   activities,
@@ -129,7 +156,7 @@ export function ActivitiesPage({
   const [families, setFamilies] = useState<Family[]>([]),
     [editor, setEditor] = useState<Activity | null | undefined>(undefined),
     [name, setName] = useState(''),
-    [activityCategory, setActivityCategory] = useState('旅行'),
+    [activityCategory, setActivityCategory] = useState(tr('旅行')),
     [familyId, setFamilyId] = useState(''),
     [description, setDescription] = useState(''),
     [startsOn, setStartsOn] = useState(''),
@@ -157,8 +184,9 @@ export function ActivitiesPage({
     [sourceTotal, setSourceTotal] = useState(0),
     [sourceOffset, setSourceOffset] = useState(0),
     [sourceLoading, setSourceLoading] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const openedFromSearch = useRef('');
-  const selectedActivity = activities.find(a => a.id === selected);
+
   const visible = useMemo(
     () =>
       activities
@@ -177,7 +205,7 @@ export function ActivitiesPage({
   );
   const listPageCount = Math.max(1, Math.ceil(visible.length / 12));
   const shown = visible.slice(listPage * 12, listPage * 12 + 12);
-  const activity = visible.find(a => a.id === selected);
+  const activity = activities.find(a => a.id === selected);
   const categories = [...new Set(activities.map(a => a.category))].sort();
   const activeCount = activities.filter(a => !a.archived).length,
     archivedCount = activities.length - activeCount;
@@ -197,8 +225,7 @@ export function ActivitiesPage({
     }
   }, [initialId, activities]);
   useEffect(() => {
-    if (selectedActivity && selectedActivity.archived === (view === 'archived')) return;
-    setSelected(activities.find(a => a.archived === (view === 'archived'))?.id || '');
+    if (selected && !activities.some(a => a.id === selected)) setSelected('');
   }, [activities, view, selected]);
   useEffect(() => {
     setListPage(0);
@@ -302,7 +329,7 @@ export function ActivitiesPage({
   function openEditor(item?: Activity) {
     setEditor(item || null);
     setName(item?.name || '');
-    setActivityCategory(item?.category || '旅行');
+    setActivityCategory(item?.category || tr('旅行'));
     setFamilyId(item?.familyId || '');
     setDescription(item?.description || '');
     setStartsOn(item?.startsOn || '');
@@ -412,168 +439,178 @@ export function ActivitiesPage({
     remaining = activity?.budget == null ? null : activity.budget - net;
 
   return (
-    <div className="activities-page">
-      <section className="panel activity-index">
-        <div className="panel-title activity-main-header">
-          <div>
-            <h2>{tr('活动账')}</h2>
-            <p className="muted">{tr('一次活动可归集多个账本，原账目和钱包余额保持不变。')}</p>
+    <div className={s.activitiesPage}>
+      {!activity && (
+        <Card className={s.activityIndex}>
+          <div className={s.panelTitle}>
+            <div>
+              <h2>{tr('活动账')}</h2>
+              <p className={s.muted}>{tr('一次活动可归集多个账本，原账目和钱包余额保持不变。')}</p>
+            </div>
+            <Button variant="primary" onClick={() => openEditor()}>
+              <FolderPlus size={18} />
+              {tr('创建活动')}
+            </Button>
           </div>
-          <button onClick={() => openEditor()}>
-            <FolderPlus size={18} />
-            {tr('创建活动')}
-          </button>
-        </div>
-        <div className="activity-tabs" role="group" aria-label={tr('活动状态')}>
-          <button
-            type="button"
-            aria-pressed={view === 'active'}
-            className={view === 'active' ? 'active' : ''}
-            onClick={() => setView('active')}
-          >
-            {tr('进行中')} <small>{activeCount}</small>
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === 'archived'}
-            className={view === 'archived' ? 'active' : ''}
-            onClick={() => setView('archived')}
-          >
-            {tr('归档活动')} <small>{archivedCount}</small>
-          </button>
-        </div>
-        <div className="activity-index-filters">
-          <label className="activity-search">
-            <Search size={18} />
-            <input
-              value={listQuery}
-              onChange={e => setListQuery(e.target.value)}
-              placeholder={tr('搜索活动名称、类型、家庭或说明')}
-              aria-label={tr('搜索活动')}
-            />
-          </label>
-          <FormSelect value={listCategory} onChange={setListCategory} aria-label={tr('活动类型')}>
-            <option value="all">{tr('全部活动类型')}</option>
-            {categories.map(value => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </FormSelect>
-          <FormSelect value={listFamily} onChange={setListFamily} aria-label={tr('活动归属')}>
-            <option value="all">{tr('全部归属')}</option>
-            <option value="personal">{tr('仅个人活动')}</option>
-            {families.map(f => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </FormSelect>
-        </div>
-        {shown.length ? (
-          <div className="activity-list">
-            {shown.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                className={selected === item.id ? 'activity-tile is-active' : 'activity-tile'}
-                aria-pressed={selected === item.id}
-                onClick={() => setSelected(item.id)}
+          <Segmented
+            label={tr('活动状态')}
+            value={view}
+            onChange={setView}
+            options={[
+              {
+                value: 'active',
+                label: (
+                  <>
+                    {tr('进行中')} <small>{activeCount}</small>
+                  </>
+                ),
+              },
+              {
+                value: 'archived',
+                label: (
+                  <>
+                    {tr('归档活动')} <small>{archivedCount}</small>
+                  </>
+                ),
+              },
+            ]}
+          />
+          <div className={s.activityIndexFilters}>
+            <label className={s.activitySearch}>
+              <Search size={18} />
+              <Input
+                value={listQuery}
+                onChange={e => setListQuery(e.target.value)}
+                placeholder={tr('搜索活动名称、类型、家庭或说明')}
+                aria-label={tr('搜索活动')}
+              />
+            </label>
+            <FormSelect value={listCategory} onChange={setListCategory} aria-label={tr('活动类型')}>
+              <option value="all">{tr('全部活动类型')}</option>
+              {categories.map(value => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </FormSelect>
+            <FormSelect value={listFamily} onChange={setListFamily} aria-label={tr('活动归属')}>
+              <option value="all">{tr('全部归属')}</option>
+              <option value="personal">{tr('仅个人活动')}</option>
+              {families.map(f => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </FormSelect>
+          </div>
+          {shown.length ? (
+            <div className={s.activityList}>
+              {shown.map(item => (
+                <Button
+                  key={item.id}
+                  type="button"
+                  className={s.activityTile}
+                  aria-pressed={selected === item.id}
+                  onClick={() => setSelected(item.id)}
+                >
+                  <strong>{item.name}</strong>
+                  <span>
+                    {item.category} · {item.familyName || tr('个人活动')}
+                  </span>
+                  <small>
+                    {[item.startsOn, item.endsOn].filter(Boolean).join(' — ') || tr('未设置期间')}
+                  </small>
+                  <small>
+                    {item.entryCount} {tr('笔可见记录')}
+                  </small>
+                  <ActivityTotal id={item.id} revision={revision} count={item.entryCount} />
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={tr(view === 'archived' ? '暂无归档活动' : '没有符合条件的活动')} />
+          )}
+          {visible.length > 12 && (
+            <div className={s.pagination}>
+              <Button variant="secondary" disabled={listPage === 0} onClick={() => setListPage(n => n - 1)}>
+                <ChevronLeft size={16} />
+                {tr('上一页')}
+              </Button>
+              <span>
+                {listPage + 1} / {listPageCount}
+              </span>
+              <Button
+                variant="secondary"
+                disabled={listPage + 1 >= listPageCount}
+                onClick={() => setListPage(n => n + 1)}
               >
-                <strong>{item.name}</strong>
-                <span>
-                  {item.category} · {item.familyName || tr('个人活动')}
-                </span>
-                <small>
-                  {item.entryCount} {tr('笔可见记录')}
-                </small>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty">{tr(view === 'archived' ? '暂无归档活动' : '没有符合条件的活动')}</div>
-        )}
-        {visible.length > 12 && (
-          <div className="pagination">
-            <button className="secondary" disabled={listPage === 0} onClick={() => setListPage(n => n - 1)}>
-              <ChevronLeft size={16} />
-              {tr('上一页')}
-            </button>
-            <span>
-              {listPage + 1} / {listPageCount}
-            </span>
-            <button
-              className="secondary"
-              disabled={listPage + 1 >= listPageCount}
-              onClick={() => setListPage(n => n + 1)}
-            >
-              {tr('下一页')}
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-      </section>
+                {tr('下一页')}
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          )}
+        </Card>
+      )}
       {error && (
-        <p role="alert" className="error">
+        <p role="alert" className={s.error}>
           {tr(error)}
         </p>
       )}
       {notice && (
-        <p role="status" className="notice">
+        <p role="status" className={s.notice}>
           {notice}
         </p>
       )}
       {activity && (
         <>
-          <section className="panel activity-overview">
-            <div className="panel-title">
+          <Button variant="ghost" onClick={() => setSelected('')}>
+            {tr('返回活动列表')}
+          </Button>
+          <Card className={s.activityOverview}>
+            <div className={s.panelTitle}>
               <div>
                 <h2>{activity.name}</h2>
-                <p className="muted">
+                <p className={s.muted}>
                   {activity.category} · {activity.familyName || tr('个人活动')}
                   {activity.archived ? ' · ' + tr('已归档') : ''}
                 </p>
                 {activity.description && <p>{activity.description}</p>}
                 <small>{[activity.startsOn, activity.endsOn].filter(Boolean).join(' — ')}</small>
               </div>
-              <div className="activity-actions">
+              <div className={s.activityActions}>
                 {!activity.archived && (
-                  <button onClick={() => onRecord(activity.id)}>
+                  <Button onClick={() => onRecord(activity.id)}>
                     <NotebookPen size={17} />
                     {tr('记一笔到活动')}
-                  </button>
+                  </Button>
                 )}
                 {activity.editable && (
                   <>
                     {activity.archived && (
-                      <button className="secondary" disabled={busy} onClick={() => archive(activity)}>
+                      <Button variant="secondary" disabled={busy} onClick={() => archive(activity)}>
                         <ArchiveRestore size={16} />
                         {tr('重新启用')}
-                      </button>
+                      </Button>
                     )}
-                    <button className="secondary" onClick={() => openEditor(activity)}>
+                    <Button variant="secondary" onClick={() => openEditor(activity)}>
                       <Pencil size={16} />
                       {tr('编辑')}
-                    </button>
+                    </Button>
                     {!activity.archived && (
-                      <button className="secondary" disabled={busy} onClick={() => archive(activity)}>
+                      <Button variant="secondary" disabled={busy} onClick={() => setConfirmArchive(true)}>
                         <Archive size={16} />
                         {tr('归档此活动')}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      className="secondary activity-delete"
-                      disabled={busy}
-                      onClick={() => setConfirmDelete(true)}
-                    >
+                    <Button variant="danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
                       <Trash2 size={16} />
                       {tr('删除活动')}
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
             </div>
-            <div className="activity-metrics">
+            <div className={s.activityMetrics}>
               <div>
                 <small>{tr('可见净支出')}</small>
                 <strong>{formatMoney(net)}</strong>
@@ -588,7 +625,7 @@ export function ActivitiesPage({
               </div>
               <div>
                 <small>{tr('可见预算剩余')}</small>
-                <strong className={remaining != null && remaining < 0 ? 'expense' : ''}>
+                <strong className={remaining != null && remaining < 0 ? s.expense : undefined}>
                   {remaining == null ? '—' : formatMoney(remaining)}
                 </strong>
               </div>
@@ -598,8 +635,8 @@ export function ActivitiesPage({
                 '只统计你有权访问的账本记录。家庭成员可共同记账，但私人账本不会自动共享；退款冲减支出，转账不计收支。',
               )}
             </small>
-          </section>
-          <div className="activity-chart-grid">
+          </Card>
+          <div className={s.activityChartGrid}>
             <BreakdownBars
               title={tr('按分类')}
               items={report?.categories || []}
@@ -621,11 +658,11 @@ export function ActivitiesPage({
               label={item => item.date || ''}
             />
           </div>
-          <section className="panel activity-records">
-            <div className="panel-title">
+          <Card aria-label={tr('活动明细')} className={s.activityRecords}>
+            <div className={s.panelTitle}>
               <h2>{tr('活动明细')}</h2>
-              <button
-                className="secondary"
+              <Button
+                variant="secondary"
                 disabled={activity.archived || busy || !books.some(b => b.role !== 'viewer')}
                 onClick={() => {
                   setSourceBook(books.find(b => b.role !== 'viewer')?.id || '');
@@ -635,9 +672,9 @@ export function ActivitiesPage({
                 }}
               >
                 {tr('加入已有交易')}
-              </button>
+              </Button>
             </div>
-            <div className="activity-filters">
+            <div className={s.activityFilters}>
               <label>
                 {tr('账本')}
                 <FormSelect
@@ -715,73 +752,78 @@ export function ActivitiesPage({
                 setOffset(0);
               }}
             />
-            <label className="activity-search">
+            <label className={s.activitySearch}>
               <Search size={18} />
-              <input
+              <Input
                 value={q}
                 onChange={e => setQ(e.target.value)}
                 placeholder={tr('搜索商家、商品、备注、订单号')}
                 aria-label={tr('搜索活动明细')}
               />
             </label>
-            <p className="muted">{tr('匹配 {0} 笔', [report?.totals.count || 0])}</p>
+            <p className={s.muted}>{tr('匹配 {0} 笔', [report?.totals.count || 0])}</p>
             {loading ? (
               <p role="status">{tr('正在读取活动…')}</p>
             ) : report?.rows.length ? (
               report.rows.map(row => (
-                <div className="activity-record" key={row.id}>
+                <div className={s.activityRecord} key={row.id}>
                   <div>
                     <strong>{row.title || row.payee || row.product || row.category}</strong>
                     <small>
                       {row.date} · {row.book_name} · {row.account_name} · {row.category}
                     </small>
                   </div>
-                  <strong className={row.kind === 'expense' ? 'expense' : 'income'}>
+                  <strong className={row.kind === 'expense' ? s.expense : s.income}>
                     {row.kind === 'expense' ? '-' : ''}
                     {formatMoney(row.amount)}
                   </strong>
                   {!activity.archived && books.find(b => b.id === row.book_id)?.role !== 'viewer' && (
-                    <button className="text-button" disabled={busy} onClick={() => unassign(row)}>
+                    <Button variant="ghost" disabled={busy} onClick={() => unassign(row)}>
                       {tr('移出活动')}
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))
             ) : (
-              <div className="empty">{tr('当前筛选下没有交易')}</div>
+              <EmptyState title={tr('当前筛选下没有交易')} />
             )}
             {!!report && report.totals.count > 20 && (
-              <div className="pagination">
-                <button
-                  className="secondary"
+              <div className={s.pagination}>
+                <Button
+                  variant="secondary"
                   disabled={offset === 0 || loading}
                   onClick={() => setOffset(n => Math.max(0, n - 20))}
                 >
                   <ChevronLeft size={16} />
                   {tr('上一页')}
-                </button>
+                </Button>
                 <span>
                   {offset + 1}–{Math.min(offset + 20, report.totals.count)} / {report.totals.count}
                 </span>
-                <button
-                  className="secondary"
+                <Button
+                  variant="secondary"
                   disabled={loading || offset + 20 >= report.totals.count}
                   onClick={() => setOffset(n => n + 20)}
                 >
                   {tr('下一页')}
                   <ChevronRight size={16} />
-                </button>
+                </Button>
               </div>
             )}
-          </section>
+          </Card>
         </>
       )}
       {editor !== undefined && (
-        <Sheet title={tr(editor ? '编辑活动' : '创建活动')} onClose={() => !busy && setEditor(undefined)}>
-          <form className="activity-form" onSubmit={save}>
+        <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
+          title={tr(editor ? '编辑活动' : '创建活动')}
+          onClose={() => !busy && setEditor(undefined)}
+        >
+          <form className={s.activityForm} onSubmit={save}>
             <label>
               {tr('活动名称')}
-              <input
+              <Input
                 value={name}
                 onChange={e => setName(e.target.value)}
                 maxLength={80}
@@ -791,7 +833,7 @@ export function ActivitiesPage({
             </label>
             <label>
               {tr('活动类型')}
-              <input
+              <Input
                 list="activity-category-options"
                 value={activityCategory}
                 onChange={e => setActivityCategory(e.target.value)}
@@ -801,7 +843,7 @@ export function ActivitiesPage({
               />
               <datalist id="activity-category-options">
                 {activityCategories.map(c => (
-                  <option key={c} value={c} />
+                  <option key={c} value={tr(c)} />
                 ))}
               </datalist>
             </label>
@@ -820,17 +862,17 @@ export function ActivitiesPage({
                 ))}
               </FormSelect>
             </label>
-            <p className="muted">{tr('家庭活动会显示给家庭成员；各人的私人账本仍按原权限保护。')}</p>
+            <p className={s.muted}>{tr('家庭活动会显示给家庭成员；各人的私人账本仍按原权限保护。')}</p>
             <label>
               {tr('活动说明（选填）')}
-              <textarea
+              <TextArea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 maxLength={500}
                 rows={3}
               />
             </label>
-            <div className="form-grid">
+            <div className={s.formGrid}>
               <label>
                 {tr('开始日期（选填）')}
                 <DateField type="date" value={startsOn} onChange={setStartsOn} />
@@ -842,7 +884,7 @@ export function ActivitiesPage({
             </div>
             <label>
               {tr('总预算（选填）')}
-              <input
+              <Input
                 type="number"
                 min="0"
                 step="0.01"
@@ -852,35 +894,49 @@ export function ActivitiesPage({
               />
             </label>
             {error && (
-              <p role="alert" className="error">
+              <p role="alert" className={s.error}>
                 {tr(error)}
               </p>
             )}
-            <button disabled={busy}>{tr('保存活动')}</button>
+            <Button type="submit" variant="primary" disabled={busy}>
+              {tr('保存活动')}
+            </Button>
           </form>
         </Sheet>
       )}
       {confirmDelete && activity && (
-        <Sheet title={tr('删除活动')} onClose={() => !busy && setConfirmDelete(false)}>
+        <ConfirmDialog
+          open
+          title={tr('删除活动')}
+          busy={busy}
+          onCancel={() => !busy && setConfirmDelete(false)}
+          onConfirm={remove}
+          confirmLabel={tr('确认删除活动')}
+        >
           <p>{tr('确定删除“{0}”？只删除活动和归集关系，原账本里的交易不会删除。', [activity.name])}</p>
           {error && (
-            <p role="alert" className="error">
+            <p role="alert" className={s.error}>
               {tr(error)}
             </p>
           )}
-          <div className="activity-confirm-actions">
-            <button className="secondary" disabled={busy} onClick={() => setConfirmDelete(false)}>
-              {tr('取消')}
-            </button>
-            <button className="activity-delete" disabled={busy} onClick={remove}>
-              {tr('确认删除活动')}
-            </button>
-          </div>
-        </Sheet>
+        </ConfirmDialog>
+      )}
+      {confirmArchive && activity && (
+        <ConfirmDialog
+          open
+          title={tr('归档此活动')}
+          onCancel={() => setConfirmArchive(false)}
+          onConfirm={() => {
+            setConfirmArchive(false);
+            void archive(activity);
+          }}
+        >
+          {activity.name}
+        </ConfirmDialog>
       )}
       {adding && (
-        <Sheet title={tr('加入已有交易')} onClose={() => setAdding(false)}>
-          <div className="activity-add">
+        <Sheet open closeLabel={tr('关闭弹窗')} title={tr('加入已有交易')} onClose={() => setAdding(false)}>
+          <div className={s.activityAdd}>
             <label>
               {tr('从哪个账本选择')}
               <FormSelect
@@ -901,7 +957,7 @@ export function ActivitiesPage({
             </label>
             <label>
               {tr('搜索交易')}
-              <input
+              <Input
                 value={sourceQuery}
                 onChange={e => {
                   setSourceQuery(e.target.value);
@@ -914,42 +970,42 @@ export function ActivitiesPage({
               <p role="status">{tr('正在查找记录…')}</p>
             ) : sourceRows.length ? (
               sourceRows.map(row => (
-                <div className="activity-add-row" key={row.id}>
+                <div className={s.activityAddRow} key={row.id}>
                   <div>
                     <strong>{row.title || row.payee || row.category}</strong>
                     <small>
                       {row.date} · {row.category} · {formatMoney(row.amount)}
                     </small>
                   </div>
-                  <button className="secondary" disabled={busy} onClick={() => assign(row)}>
+                  <Button variant="secondary" disabled={busy} onClick={() => assign(row)}>
                     {tr('加入')}
-                  </button>
+                  </Button>
                 </div>
               ))
             ) : (
-              <p className="muted">{tr('没有找到交易，请换个关键词。')}</p>
+              <p className={s.muted}>{tr('没有找到交易，请换个关键词。')}</p>
             )}
             {sourceTotal > 20 && (
-              <div className="pagination">
-                <button
-                  className="secondary"
+              <div className={s.pagination}>
+                <Button
+                  variant="secondary"
                   disabled={sourceOffset === 0 || sourceLoading}
                   onClick={() => setSourceOffset(n => Math.max(0, n - 20))}
                 >
                   <ChevronLeft size={16} />
                   {tr('上一页')}
-                </button>
+                </Button>
                 <span>
                   {sourceOffset + 1}–{Math.min(sourceOffset + 20, sourceTotal)} / {sourceTotal}
                 </span>
-                <button
-                  className="secondary"
+                <Button
+                  variant="secondary"
                   disabled={sourceLoading || sourceOffset + 20 >= sourceTotal}
                   onClick={() => setSourceOffset(n => n + 20)}
                 >
                   {tr('下一页')}
                   <ChevronRight size={16} />
-                </button>
+                </Button>
               </div>
             )}
           </div>

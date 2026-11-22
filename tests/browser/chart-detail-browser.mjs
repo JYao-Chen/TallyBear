@@ -47,7 +47,11 @@ try {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(origin);
     await page.locator('#primary-navigation').waitFor({ state: 'attached' });
-    const category = page.locator('.chart-data-legend button').filter({ hasText: '餐饮' }).first();
+    const category = page
+      .getByRole('group', { name: '图例' })
+      .getByRole('button')
+      .filter({ hasText: '餐饮' })
+      .first();
     await category.click();
     await page.getByRole('dialog').getByRole('button').filter({ hasText: '卡里烤肉' }).click();
     const dialog = page.getByRole('dialog');

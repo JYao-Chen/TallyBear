@@ -1,0 +1,77 @@
+.panelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.panelTitle h2 {
+  margin: 0;
+  font: 700 var(--text-lg)/1.45 var(--font-title);
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--danger);
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  margin-block: var(--space-4);
+}
+.cards .budgetCard {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  justify-content: stretch;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  text-align: start;
+  white-space: normal;
+  min-width: 0;
+  background: var(--surface);
+}
+.rank {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.rank strong,
+.rank span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+.rank span {
+  margin-inline-start: auto;
+}
+.budgetCard progress {
+  width: 100%;
+  height: var(--space-2);
+  appearance: auto;
+}
+.budgetCard small,
+.empty {
+  color: var(--muted);
+}
+.budgetCard .expense {
+  color: var(--expense);
+}
+.pagination,
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+.sheetActions {
+  padding-bottom: var(--safe-bottom);
+  margin-block: var(--space-4);
+}
