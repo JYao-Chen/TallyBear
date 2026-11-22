@@ -2,6 +2,7 @@
 import { chatVisibleText } from '@/lib/chat-visible-text';
 import { ProfileLocation } from './ProfileLocation';
 import type { ProfileContext } from '@/lib/personal-profile';
+import { Button, ListRow, Chip, ConfirmDialog } from '@/ui';
 import { PagedList } from './PagedList';
 
 import { placeChatCards } from '@/lib/chat-card-placement';
@@ -31,6 +32,19 @@ type Turn = {
   model: string;
   created_at?: string;
 };
+type ActionLog = {
+  id: string;
+  title: string;
+  created_at: string;
+  status: 'success' | 'failed' | 'undone';
+  canUndo: boolean;
+};
+async function actionRecords(query: string): Promise<ActionLog[]> {
+  const response = await fetch('/api/assistant-actions?' + query);
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.error);
+  return value;
+}
 type Report = {
   id: string;
   title: string;
@@ -125,6 +139,80 @@ export function FinanceChat({
     } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [replyAction, setReplyAction] = useState<ChatAction | null>(null);
+  const [history, setHistory] = useState<ActionLog[]>([]);
+  const [undoId, setUndoId] = useState('');
+  const [undoBusy, setUndoBusy] = useState(false);
+  const [undone, setUndone] = useState(new Set<string>());
+  const [revision, setRevision] = useState(0);
+  const cardIds = [
+    ...new Set(
+      turns.flatMap(turn =>
+        (turn.artifacts?.actions || []).flatMap(card =>
+          card.canUndo && card.actionLogId ? [card.actionLogId] : [],
+        ),
+      ),
+    ),
+  ].join(',');
+  useEffect(() => {
+    if (!cardIds) return;
+    let active = true;
+    const ids = cardIds.split(',');
+    const requests = [];
+    for (let i = 0; i < ids.length; i += 50)
+      requests.push(actionRecords('ids=' + ids.slice(i, i + 50).join(',')));
+    Promise.all(requests)
+      .then(pages => {
+        if (active)
+          setUndone(
+            new Set(
+              pages
+                .flat()
+                .filter(row => row.status === 'undone')
+                .map(row => row.id),
+            ),
+          );
+      })
+      .catch(e => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [cardIds, revision]);
+  useEffect(() => {
+    if (tab !== 'actions') return;
+    let active = true;
+    actionRecords('limit=50')
+      .then(rows => {
+        if (active) setHistory(rows);
+      })
+      .catch(e => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, busy, revision, turns.length, cardIds]);
+  async function undoAction() {
+    if (!undoId || undoBusy) return;
+    setUndoBusy(true);
+    try {
+      const response = await fetch('/api/assistant-actions/' + undoId + '/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!response.ok) throw new Error((await response.json()).error);
+      setUndone(old => new Set([...old, undoId]));
+      setRevision(n => n + 1);
+      await onChanged?.();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUndoBusy(false);
+      setUndoId('');
+    }
+  }
   const activeTask = useRef('');
   const abort = useRef<AbortController | null>(null),
     bodyRef = useRef<HTMLDivElement>(null),
@@ -438,9 +526,38 @@ export function FinanceChat({
           <FileText size={16} />
           {tr('报告')}
         </button>
+        <Button size="sm" aria-pressed={tab === 'actions'} onClick={() => setTab('actions')}>
+          {tr('助手操作记录')}
+        </Button>
       </div>
       <div className="finance-history">
-        {
+        {tab === 'actions' ? (
+          history.length ? (
+            history.map(row => (
+              <ListRow
+                key={row.id}
+                title={tr(row.title)}
+                meta={new Date(row.created_at).toLocaleString(getLocale())}
+                leading={
+                  <Chip>
+                    {tr(row.status === 'undone' ? '已撤销' : row.status === 'failed' ? '失败' : '已执行')}
+                  </Chip>
+                }
+                end={
+                  row.canUndo ? (
+                    <Button size="sm" disabled={undoBusy} onClick={() => setUndoId(row.id)}>
+                      {tr('撤销')}
+                    </Button>
+                  ) : (
+                    row.status !== 'undone' && tr('不可撤销')
+                  )
+                }
+              />
+            ))
+          ) : (
+            <p>{tr('暂无操作记录')}</p>
+          )
+        ) : (
           <PagedList<(typeof list)[number] | Report> items={tab === 'chat' ? list : reports} resetKey={tab}>
             {item => (
               <div className="finance-history-row" key={item.id}>
@@ -479,12 +596,24 @@ export function FinanceChat({
               </div>
             )}
           </PagedList>
-        }
+        )}
       </div>
     </div>
   );
   return (
     <section className="finance-workspace">
+      <ConfirmDialog
+        open={!!undoId}
+        title={tr('撤销助手操作')}
+        confirmLabel={tr('撤销')}
+        busy={undoBusy}
+        onConfirm={undoAction}
+        onCancel={() => {
+          if (!undoBusy) setUndoId('');
+        }}
+      >
+        {tr('确认撤销这次账目变更？')}
+      </ConfirmDialog>
       {libraryOpen && (
         <Sheet title={tr('对话与报告')} onClose={() => setLibraryOpen(false)}>
           {library}
@@ -710,6 +839,8 @@ export function FinanceChat({
                     )}
                     {!!cardsByTurn.get(t.id)?.length && (
                       <ChatActionCards
+                        onUndo={setUndoId}
+                        undone={undone}
                         onEdit={async (actionId, data) => {
                           await api(book, {
                             operation: 'edit_action',
@@ -732,6 +863,7 @@ export function FinanceChat({
                             acknowledgeWarnings,
                           });
                           await load(id);
+                          setRevision(n => n + 1);
                           await onChanged?.();
                           setNotice('已保存，可继续描述下一项操作。');
                         }}

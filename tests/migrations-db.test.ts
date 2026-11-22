@@ -83,10 +83,19 @@ test(
       );
 
       const [a, b] = [await shape(fresh), await shape(legacy)];
-      assert.equal(new Set(a.columns.map(c => c.table_name)).size, 75, 'baseline 应包含全部 75 张业务表');
+      assert.equal(
+        new Set(a.columns.map(c => c.table_name)).size,
+        76,
+        '迁移后应包含操作记录表和原有 75 张业务表',
+      );
       assert.deepEqual(a.columns, b.columns);
       assert.deepEqual(a.indexes, b.indexes);
       assert.deepEqual(a.triggers, b.triggers);
+      // Seed rows the legacy scripts inserted must exist on both paths (worker reads the queue setting).
+      for (const c of [fresh, legacy])
+        assert.deepEqual((await c.query('SELECT id,concurrency FROM ai_queue_settings')).rows, [
+          { id: 1, concurrency: 2 },
+        ]);
 
       await migrate(fresh);
       assert.deepEqual(await shape(fresh), a);

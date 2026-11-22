@@ -69,6 +69,16 @@ export const routes: Route[] = [
   },
   { method: 'GET', pattern: '/jobs/:id', auth: 'user', handler: job },
   { method: 'POST', pattern: '/jobs/:id', auth: 'user', handler: job },
-  { method: 'POST', pattern: '/jobs/:id/retry', auth: 'user', handler: job },
-  { method: 'POST', pattern: '/jobs/:id/cancel', auth: 'user', handler: job },
+  {
+    method: 'POST',
+    pattern: '/jobs/:id/retry',
+    auth: 'user',
+    handler: ctx => job({ ...ctx, body: { operation: 'retry' } }),
+  },
+  {
+    method: 'POST',
+    pattern: '/jobs/:id/cancel',
+    auth: 'user',
+    handler: ctx => job({ ...ctx, body: { operation: 'cancel' } }),
+  },
 ];

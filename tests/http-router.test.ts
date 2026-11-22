@@ -19,6 +19,8 @@ user /activities GET POST PUT PATCH DELETE
 user /activities/:id GET
 user /activities/assign PUT
 user /activities/entry GET
+user /assistant-actions GET
+user /assistant-actions/:id/undo POST
 user /assets GET POST PATCH
 user /assets/funds GET
 user /assets/funds/entry GET DELETE

@@ -133,3 +133,89 @@ test('共享留言与私人备注使用不同助手操作', () => {
     'edit',
   );
 });
+
+test('each operation declares a risk consistent with its method and target', async () => {
+  const { assistantOperations } = await import('../src/server/assistant-operations');
+  const exceptions: Record<string, string> = {
+    members: 'Reads the member list.',
+    transaction_balance: 'Shows the historical balance after a transaction.',
+    users: 'Lists users without changing them.',
+    queue_settings: 'Reads queue configuration.',
+    ai_settings: 'Reads recognition model configuration.',
+    assistant_settings: 'Reads assistant model configuration.',
+  };
+  const used = new Set<string>();
+  for (const [name, op] of Object.entries(assistantOperations)) {
+    assert.ok(['read', 'write', 'confirm'].includes(op.risk), name);
+    assert.equal(op.risk === 'read', op.method === 'GET', name);
+    if (
+      /delete|remove|archive|merge|members|permission|role|balance|adjust|users|settings/i.test(
+        name + ' ' + op.path,
+      ) ||
+      op.method === 'DELETE'
+    ) {
+      if (exceptions[name]) {
+        used.add(name);
+        assert.equal(op.risk, 'read', name);
+      } else assert.equal(op.risk, 'confirm', name);
+    }
+  }
+  assert.deepEqual(used, new Set(Object.keys(exceptions)));
+});
+
+test('execute_action persists a pending confirmation card without executing the deletion', async () => {
+  const { executeFinanceTool } = await import('../src/server/finance-agent');
+  const { withConnection } = await import('../src/server/db');
+  const id = user.id;
+  const card = {
+    id,
+    kind: 'transaction' as const,
+    bookId: id,
+    title: '删除账目',
+    data: { operation: 'delete' },
+    status: 'pending' as const,
+    missing: [],
+    warnings: [],
+    summary: [],
+  };
+  let persisted;
+  const connection = {
+    async query(sql: string, args?: string[]) {
+      if (sql.startsWith('SELECT role')) return { rows: [{ role: 'owner' }] };
+      if (sql.startsWith('SELECT book_id')) return { rows: [{ book_id: id }] };
+      if (sql.startsWith('SELECT t.id')) return { rows: [{ id, conversation_id: id }] };
+      if (sql.startsWith('SELECT artifacts')) return { rows: [{ artifacts: {} }] };
+      if (sql.startsWith('UPDATE finance_turns')) persisted = JSON.parse(args![0]);
+      else assert.ok(['BEGIN', 'COMMIT'].includes(sql), sql);
+    },
+    release() {},
+  };
+  const result = await withConnection(connection as unknown as import('pg').PoolClient, () =>
+    executeFinanceTool(
+      'execute_action',
+      { actionId: id },
+      { user, book: id, turnId: id, images: [], signal: new AbortController().signal },
+      { charts: [], drafts: [], tools: [], actions: [card] },
+    ),
+  );
+  assert.deepEqual(result, { ok: false, status: 'pending', message: '需要用户在卡片上确认' });
+  assert.deepEqual(persisted, [card]);
+});
+
+test('entry and installment purchases that invite a claimant require a click', async () => {
+  const { actionRisk } = await import('../src/server/chat-actions');
+  const card = {
+    id: user.id,
+    bookId: user.id,
+    title: '',
+    status: 'pending' as const,
+    summary: [],
+    warnings: [],
+    missing: [],
+  };
+  for (const kind of ['entry', 'installment'] as const) {
+    assert.equal(actionRisk({ ...card, kind, data: { claimRecipientId: user.id } }), 'confirm');
+    assert.equal(actionRisk({ ...card, kind, data: {} }), 'write');
+  }
+  assert.equal(actionRisk({ ...card, kind: 'family', data: { operation: 'confirm' } }), 'confirm');
+});

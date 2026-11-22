@@ -1,7 +1,13 @@
 import { hasItemCategories } from '@/lib/item-categories';
 import { operationSummary } from '@/lib/assistant-operation-display';
 import { separateReceiptNote } from './receipt-note';
-import { resolveOperation, runOperation, prepareOperation } from './assistant-operations';
+import {
+  assistantOperations,
+  type OperationRisk,
+  resolveOperation,
+  runOperation,
+  prepareOperation,
+} from './assistant-operations';
 import { withDeviceTime } from '@/lib/entry-time';
 import { memoryRoute, prepareMemoryChange } from './memory';
 import { normalizeDining } from '@/lib/purchase-memory';
@@ -724,6 +730,7 @@ export async function prepareChatAction(
         ),
       );
   }
+  if (invitesClaim(a)) add('认领邀请对象', a.data.claimRecipientId);
   if (a.kind === 'template') a.warnings.push(tr('只保存常用预设，本次不会产生收支。'));
   if (a.kind === 'transaction')
     a.warnings.push(
@@ -812,6 +819,30 @@ export async function prepareChatAction(
   else actions.push(a);
   return a;
 }
+function invitesClaim(a: ChatAction) {
+  return (
+    !!a.data.claimRecipientId && (a.kind === 'entry' || (a.kind === 'installment' && !a.data.transactionId))
+  );
+}
+
+export function actionRisk(a: ChatAction): OperationRisk {
+  if (a.kind === 'management') return assistantOperations[a.data.operation].risk;
+  if (
+    invitesClaim(a) ||
+    (a.kind === 'transaction' && a.data.operation === 'delete') ||
+    (a.kind === 'family' && a.data.operation === 'confirm') ||
+    (a.kind === 'memory' && ['share', 'forget'].includes(a.data.operation))
+  )
+    return 'confirm';
+  return 'write';
+}
+
+function logJson(value: unknown) {
+  return JSON.stringify(value, (key, field) =>
+    /key$|password|passwd|secret|token|credential|authorization|cookie/i.test(key) ? undefined : field,
+  );
+}
+
 export async function confirmChatAction(book: string, user: User, body: unknown) {
   const b = z
     .object({
@@ -823,7 +854,7 @@ export async function confirmChatAction(book: string, user: User, body: unknown)
       acknowledgeWarnings: z.boolean().default(false),
     })
     .parse(body);
-  return transaction(async c => {
+  const outcome = await transaction(async c => {
     const conversation = (
       await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE', [
         b.id,
@@ -891,11 +922,60 @@ export async function confirmChatAction(book: string, user: User, body: unknown)
     if (b.operation === 'cancel_action') a.status = 'cancelled';
     else {
       if (t.status !== 'complete') throw new Failure('请先让助手完成本轮整理');
-      await executePreparedAction(c, a, user, b.id, b.acknowledgeWarnings);
+      const attempt = await recordExecution(c, a, user, b.id, b.acknowledgeWarnings);
+      if (attempt) return attempt;
     }
     await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2', [t.artifacts, t.id]);
     return { ok: true, status: a.status, result: a.result };
   });
+  if ('failure' in outcome) throw outcome.failure;
+  return outcome;
+}
+
+export type LoggedChatAction = ChatAction & { actionLogId?: string; canUndo?: boolean };
+
+async function recordExecution(
+  c: PoolClient,
+  a: LoggedChatAction,
+  user: User,
+  conversationId: string,
+  acknowledgeWarnings: boolean,
+) {
+  if (a.status !== 'pending') return;
+  const operation =
+    a.kind === 'management'
+      ? a.data.operation
+      : a.kind === 'family' && a.data.operation === 'create'
+        ? 'family_create_movement'
+        : ['transaction', 'family', 'memory'].includes(a.kind)
+          ? a.kind + '_' + a.data.operation
+          : a.kind;
+  const params = a.kind === 'management' ? a.data.params : { ...a.data, bookId: a.bookId };
+  const values = [user.id, operation, actionRisk(a), logJson(params)];
+  await c.query('SAVEPOINT assistant_write');
+  let undo;
+  try {
+    undo = await withConnection(c, () =>
+      executePreparedAction(c, a, user, conversationId, acknowledgeWarnings),
+    );
+  } catch (failure) {
+    await c.query('ROLLBACK TO SAVEPOINT assistant_write');
+    await c.query(
+      `INSERT INTO assistant_action_log(user_id,operation,risk,params,result,status) VALUES($1,$2,$3,$4,$5,'failed')`,
+      [...values, { error: failure instanceof Failure ? failure.message : '操作未完成' }],
+    );
+    return { failure };
+  }
+  await c.query('RELEASE SAVEPOINT assistant_write');
+  const log = await c.query(
+    `INSERT INTO assistant_action_log(user_id,operation,risk,params,result,status,undo)
+    VALUES($1,$2,$3,$4,$5,'success',$6) RETURNING id`,
+    [...values, logJson(a.result), undo],
+  );
+  a.actionLogId = log.rows[0].id;
+  a.canUndo = !!undo;
+  a.status = 'confirmed';
+  a.confirmedAt = new Date().toISOString();
 }
 
 async function executePreparedAction(
@@ -905,7 +985,6 @@ async function executePreparedAction(
   conversationId: string,
   acknowledgeWarnings: boolean,
 ) {
-  if (a.status !== 'pending') return;
   if (a.kind !== 'family' && a.kind !== 'memory' && a.kind !== 'management') {
     await lockBook(c, a.bookId);
     const role = (
@@ -917,10 +996,25 @@ async function executePreparedAction(
   const data = parseAction(a) as any;
   if (data.category || data.value?.category)
     await checkCategory(c, user.id, data.category || data.value.category);
+  let previous;
+  let expectedActivityId: string | null | undefined;
+  let previousEventId: string | null | undefined;
+  if (a.kind === 'transaction' && data.operation === 'update') {
+    const row = await transactionForAction(c, a.bookId, data.transactionId);
+    previous = transactionEntry(row);
+    if (data.value.installment) previousEventId = row.event_id;
+    if (data.value.activityId !== undefined) {
+      const { activityId } = await entryActivity(user.id, a.bookId, row.id);
+      if (activityId !== data.value.activityId) {
+        previous.activityId = activityId;
+        expectedActivityId = data.value.activityId;
+      }
+    }
+  }
   if (a.kind === 'management') {
     if (data.operation === 'conversation_delete' && data.params.id === conversationId)
       throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');
-    a.result = await withConnection(c, () => runOperation(data, user, true));
+    a.result = await runOperation(data, user, true);
   } else if (a.kind === 'memory') a.result = await memoryRoute(user, 'POST', new URLSearchParams(), data, c);
   else if (a.kind === 'entry') {
     const checked = (await review(a.bookId, { entries: [data] })).entries[0] as any;
@@ -952,8 +1046,24 @@ async function executePreparedAction(
     );
     a.result = { ok: true };
   }
-  a.status = 'confirmed';
-  a.confirmedAt = new Date().toISOString();
+  if (a.kind !== 'entry' && a.kind !== 'transaction') return null;
+  const transactionId = a.kind === 'entry' ? data.id : data.transactionId;
+  const { version } = (await c.query('SELECT version FROM transactions WHERE id=$1', [transactionId]))
+    .rows[0];
+  const installment = data.installment || data.value?.installment;
+  const planVersion = installment
+    ? (await c.query('SELECT version FROM installment_plans WHERE id=$1', [transactionId])).rows[0]?.version
+    : undefined;
+  return {
+    operation: a.kind === 'entry' ? 'delete' : data.operation === 'delete' ? 'restore' : 'update',
+    bookId: a.bookId,
+    transactionId,
+    expectedVersion: version,
+    value: previous,
+    previousEventId,
+    expectedActivityId,
+    planVersion,
+  };
 }
 
 // Execution and its visible audit record commit together, including interrupted turns.
@@ -965,7 +1075,7 @@ export async function executeAgentAction(
   acknowledgeWarnings = false,
   operation: 'execute' | 'cancel' = 'execute',
 ) {
-  return transaction(async c => {
+  const outcome = await transaction(async c => {
     const turn = (
       await c.query(
         'SELECT t.id,t.conversation_id FROM finance_turns t JOIN finance_conversations v ON v.id=t.conversation_id WHERE t.id=$1 AND v.user_id=$2 FOR UPDATE OF t',
@@ -975,20 +1085,28 @@ export async function executeAgentAction(
     if (!turn) throw new Failure('对话不存在', 404);
     const a = actions.find(a => a.id === uuid.parse(actionId));
     if (!a) throw new Failure('操作不存在', 404);
-    const saved = (
-      await c.query('SELECT artifacts FROM finance_turns WHERE id=$1', [turn.id])
-    ).rows[0]?.artifacts?.actions?.find((v: ChatAction) => v.id === a.id);
-    if (saved?.status === 'confirmed') {
+    const stored: ChatAction[] =
+      (await c.query('SELECT artifacts FROM finance_turns WHERE id=$1', [turn.id])).rows[0]?.artifacts
+        ?.actions || [];
+    // A concurrent tool call may already have resolved another card in this turn.
+    for (const persisted of stored) {
+      const local = actions.find(v => v.id === persisted.id);
+      if (!local) actions.push(persisted);
+      else if (persisted.status !== 'pending') Object.assign(local, persisted);
+    }
+    const saved = stored.find(v => v.id === a.id);
+    if (saved && saved.status !== 'pending') {
       Object.assign(a, saved);
       return { ok: true, status: a.status, result: a.result };
     }
     const next = structuredClone(a);
+    const needsConfirmation =
+      operation === 'execute' && next.status === 'pending' && actionRisk(next) === 'confirm';
     if (operation === 'cancel') {
       if (next.status === 'pending') next.status = 'cancelled';
-    } else {
-      await withConnection(c, () =>
-        executePreparedAction(c, next, user, turn.conversation_id, acknowledgeWarnings),
-      );
+    } else if (!needsConfirmation) {
+      const attempt = await recordExecution(c, next, user, turn.conversation_id, acknowledgeWarnings);
+      if (attempt) return attempt;
       if (next.status === 'confirmed') next.executedBy = 'assistant';
     }
     await c.query(
@@ -996,6 +1114,9 @@ export async function executeAgentAction(
       [JSON.stringify(actions.map(v => (v.id === next.id ? next : v))), turn.id],
     );
     Object.assign(a, next);
+    if (needsConfirmation) return { ok: false, status: 'pending', message: '需要用户在卡片上确认' };
     return { ok: true, status: a.status, result: a.result };
   });
+  if ('failure' in outcome) throw outcome.failure;
+  return outcome;
 }

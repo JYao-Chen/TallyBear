@@ -2,7 +2,9 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { Failure, type User } from './access';
 
+export type OperationRisk = 'read' | 'write' | 'confirm';
 type Operation = {
+  risk: OperationRisk;
   title: string;
   method: string;
   path: string;
@@ -13,16 +15,18 @@ type Operation = {
   query?: string;
 };
 const operation = (
+  risk: OperationRisk,
   title: string,
   method: string,
   path: string,
   fields: string,
   help = '',
   fixed?: Record<string, unknown>,
-): Operation => ({ title, method, path, fields, help, fixed });
+): Operation => ({ risk, title, method, path, fields, help, fixed });
 // Closed catalog: model output cannot choose an HTTP method, URL or secret field.
 export const assistantOperations: Record<string, Operation> = {
   profile_settings: operation(
+    'confirm',
     '调整个人学习与位置设置',
     'POST',
     'personal-profile',
@@ -31,6 +35,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'settings' },
   ),
   profile_place_save: operation(
+    'write',
     '新增或修改消费区域',
     'POST',
     'personal-profile',
@@ -38,16 +43,17 @@ export const assistantOperations: Record<string, Operation> = {
     '仅使用用户明确提供的区域与坐标，不推断家庭地址',
     { operation: 'save_place' },
   ),
-  profile_place_delete: operation('删除消费区域', 'POST', 'personal-profile', 'id', '', {
+  profile_place_delete: operation('confirm', '删除消费区域', 'POST', 'personal-profile', 'id', '', {
     operation: 'delete_place',
   }),
-  profile_locations_forget: operation('清除本人位置关联', 'POST', 'personal-profile', '', '', {
+  profile_locations_forget: operation('confirm', '清除本人位置关联', 'POST', 'personal-profile', '', '', {
     operation: 'forget_locations',
   }),
-  profile_export: operation('导出本人画像与规则', 'POST', 'personal-profile', '', '', {
+  profile_export: operation('write', '导出本人画像与规则', 'POST', 'personal-profile', '', '', {
     operation: 'export',
   }),
   family_movement_target: operation(
+    'confirm',
     '更正家庭转款到账钱包',
     'POST',
     'family-finance/:familyId',
@@ -56,6 +62,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'correct-target' },
   ),
   family_movement_source: operation(
+    'confirm',
     '更正家庭转款付款钱包',
     'POST',
     'family-finance/:familyId',
@@ -64,19 +71,21 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'correct-source' },
   ),
   transaction_detail: operation(
+    'read',
     '查询完整已入账账单',
     'GET',
     'books/:bookId/transactions',
     'id',
     '返回场景、商品、版本与完整字段；修改场景摘要使用prepare_transaction_change的changes.scene.summary',
   ),
-  claim_people: operation('查询可指定的认领成员', 'GET', 'expense-claims/people', ''),
-  claim_inbox: operation('查询待认领账单与动态', 'GET', 'expense-claims/inbox', 'offset'),
-  claim_sent: operation('查询为他人购买的账单', 'GET', 'expense-claims/sent', 'offset'),
-  claim_for_record: operation('查询账单认领与编辑权限', 'GET', 'expense-claims/for-record', 'id'),
-  claim_detail: operation('查询认领完整详情', 'GET', 'expense-claims/:id', ''),
-  claim_receipts: operation('查询认领账单图片', 'GET', 'expense-claims/:id/receipts', ''),
+  claim_people: operation('read', '查询可指定的认领成员', 'GET', 'expense-claims/people', ''),
+  claim_inbox: operation('read', '查询待认领账单与动态', 'GET', 'expense-claims/inbox', 'offset'),
+  claim_sent: operation('read', '查询为他人购买的账单', 'GET', 'expense-claims/sent', 'offset'),
+  claim_for_record: operation('read', '查询账单认领与编辑权限', 'GET', 'expense-claims/for-record', 'id'),
+  claim_detail: operation('read', '查询认领完整详情', 'GET', 'expense-claims/:id', ''),
+  claim_receipts: operation('read', '查询认领账单图片', 'GET', 'expense-claims/:id/receipts', ''),
   claim_invite: operation(
+    'confirm',
     '指定或取消账单认领人',
     'POST',
     'expense-claims/invite',
@@ -84,6 +93,7 @@ export const assistantOperations: Record<string, Operation> = {
     'recipientId=null取消待认领邀请；仅本人付款的可编辑支出',
   ),
   claim_respond: operation(
+    'confirm',
     '认领、拒绝或撤回账单',
     'POST',
     'expense-claims/:id',
@@ -91,6 +101,7 @@ export const assistantOperations: Record<string, Operation> = {
     'operation=accept/decline/withdraw/cancel/read；先读取claim_detail与版本，accept选择本人可写账本，不代表他人接受',
   ),
   claim_record_edit: operation(
+    'write',
     '修改本人认领账单信息',
     'POST',
     'expense-claims/:id',
@@ -98,8 +109,9 @@ export const assistantOperations: Record<string, Operation> = {
     '先查claim_detail，保留未改字段',
     { operation: 'edit-record' },
   ),
-  discussion_inbox: operation('查询账目讨论消息', 'GET', 'discussions/inbox', 'offset'),
+  discussion_inbox: operation('read', '查询账目讨论消息', 'GET', 'discussions/inbox', 'offset'),
   discussion: operation(
+    'read',
     '查询账目讨论及参与成员',
     'GET',
     'discussions',
@@ -107,6 +119,7 @@ export const assistantOperations: Record<string, Operation> = {
     'kind=movement/transaction/project/schedule/claim；scope仅周期账期日期，其他为空',
   ),
   discussion_post: operation(
+    'write',
     '发送留言或回复',
     'POST',
     'discussions/messages',
@@ -114,6 +127,7 @@ export const assistantOperations: Record<string, Operation> = {
     'target={kind,id,scope}；id为新UUID，replyTo为同段讨论已有留言ID或null；只按用户要求发言，不代替其他成员',
   ),
   discussion_read: operation(
+    'write',
     '标记讨论已读',
     'POST',
     'discussions/read',
@@ -121,16 +135,30 @@ export const assistantOperations: Record<string, Operation> = {
     'upTo为已查询到的留言seq字符串',
   ),
   budget_update: operation(
+    'write',
     '修改预算金额或分类',
     'PUT',
     'books/:bookId/budgets',
     'month category previousCategory amount',
     'amount整数分；可更改原预算分类',
   ),
-  book_movements: operation('查询账本家庭资金流水', 'GET', 'book-movements/:bookId', 'from to offset'),
-  transaction_balance: operation('查询交易后钱包余额', 'GET', 'books/:bookId/transaction-balance', 'id'),
-  draft_read: operation('查询记账草稿', 'GET', 'books/:bookId/drafts', 'section'),
+  book_movements: operation(
+    'read',
+    '查询账本家庭资金流水',
+    'GET',
+    'book-movements/:bookId',
+    'from to offset',
+  ),
+  transaction_balance: operation(
+    'read',
+    '查询交易后钱包余额',
+    'GET',
+    'books/:bookId/transaction-balance',
+    'id',
+  ),
+  draft_read: operation('read', '查询记账草稿', 'GET', 'books/:bookId/drafts', 'section'),
   draft_save: operation(
+    'write',
     '保存记账草稿',
     'PUT',
     'books/:bookId/drafts',
@@ -138,6 +166,7 @@ export const assistantOperations: Record<string, Operation> = {
     '仅修改用户明确要求的草稿；先读取原值',
   ),
   personal_profile: operation(
+    'read',
     '查询个人画像与场景规则',
     'GET',
     'personal-profile',
@@ -145,6 +174,7 @@ export const assistantOperations: Record<string, Operation> = {
     'section=overview/rules；只查询当前用户。返回的支持占比不是概率；不要把推断称为明确偏好。条件使用交易时间而非当前录入时间。',
   ),
   profile_rule_save: operation(
+    'write',
     '确认或纠正个人场景规则',
     'POST',
     'personal-profile',
@@ -153,6 +183,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'save_rule' },
   ),
   profile_rule_delete: operation(
+    'confirm',
     '删除个人场景规则',
     'POST',
     'personal-profile',
@@ -161,6 +192,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'delete_rule' },
   ),
   profile_rule_undo: operation(
+    'confirm',
     '撤销个人规则变更',
     'POST',
     'personal-profile',
@@ -168,8 +200,9 @@ export const assistantOperations: Record<string, Operation> = {
     '先查询section=events中的可撤销事件',
     { operation: 'undo' },
   ),
-  cost_schedules: operation('查询周期费用计划', 'GET', 'cost-schedules', 'offset'),
+  cost_schedules: operation('read', '查询周期费用计划', 'GET', 'cost-schedules', 'offset'),
   cost_schedule_create: operation(
+    'write',
     '提前建立周期分担计划',
     'POST',
     'cost-schedules',
@@ -177,6 +210,7 @@ export const assistantOperations: Record<string, Operation> = {
     'id为新UUID；rule={title,category,familyId或null,firstDate:YYYY-MM-DD,months:每隔几个月付款,shares:[{userId,amount:每月承担整数分}]}；bookId为本人选择的成本归属账本。没有付款、不需要钱包；其他成员自己接受和选账本。',
   ),
   cost_schedule_respond: operation(
+    'write',
     '接受周期分担并选择本人账本',
     'POST',
     'cost-schedules/:id/respond',
@@ -184,23 +218,32 @@ export const assistantOperations: Record<string, Operation> = {
     '只代表当前用户同意，不能替其他成员同意',
   ),
   cost_schedule_pause: operation(
+    'confirm',
     '暂停或恢复周期费用计划',
     'POST',
     'cost-schedules/:id/pause',
     'version paused',
   ),
-  cost_schedule_history: operation('查询周期费用账期记录', 'GET', 'cost-schedules/:id/history', 'offset'),
+  cost_schedule_history: operation(
+    'read',
+    '查询周期费用账期记录',
+    'GET',
+    'cost-schedules/:id/history',
+    'offset',
+  ),
   cost_schedule_confirm: operation(
+    'write',
     '确认本期实付并建立分摊',
     'POST',
     'cost-schedules/:id/confirm',
     'version dueDate bookId transactionId accountId paidDate note',
     '必须用户明确已付款。优先transactionId关联已记账原付款；未记账才传accountId、paidDate新增一次扣款。bookId为原付款所在账本或新付款记入账本。不得仅到期就自动确认付款。金额由计划计算；只处理当前到期账期。',
   ),
-  cost_projects: operation('查询费用分摊项目', 'GET', 'cost-projects', 'q offset archived'),
-  cost_project: operation('查询费用承担与结算', 'GET', 'cost-projects/:id', 'from to'),
-  cost_options: operation('查询费用分担成员', 'GET', 'cost-projects/options', ''),
+  cost_projects: operation('read', '查询费用分摊项目', 'GET', 'cost-projects', 'q offset archived'),
+  cost_project: operation('read', '查询费用承担与结算', 'GET', 'cost-projects/:id', 'from to'),
+  cost_options: operation('read', '查询费用分担成员', 'GET', 'cost-projects/options', ''),
   cost_sources: operation(
+    'read',
     '查找分摊付款或抵减收入',
     'GET',
     'cost-projects/sources',
@@ -208,6 +251,7 @@ export const assistantOperations: Record<string, Operation> = {
     'kind=expense/income；工资等任何收入均可按部分金额关联',
   ),
   cost_report: operation(
+    'read',
     '查询项目期间成本与净承担',
     'GET',
     'cost-projects/report',
@@ -215,6 +259,7 @@ export const assistantOperations: Record<string, Operation> = {
     '仅已确认费用项目；scope=personal本人/shared共享摘要；personal可用bookId筛选本人归属账本；不含普通消费，不能称全部支出',
   ),
   cost_create: operation(
+    'write',
     '创建费用归属与分担',
     'POST',
     'cost-projects',
@@ -222,15 +267,23 @@ export const assistantOperations: Record<string, Operation> = {
     'plan={title,category,familyId或null,sources:[{transactionId,amount整数分}],coverageStart,coverageEnd排他结束日,mode:monthly/daily/custom,startMonth:YYYY-MM,months,periods:[{start,end,amount}],shares:[{userId,amount全期承担}],offsets:[{id UUID,transactionId已到账收入ID或null预计,userId受益人,month,amount部分收入整数分,shared布尔}]}。从cost_sources查询真实ID。各人承担之和等于sources金额之和。仅关联已入账交易，不再次扣钱包。月份须用户指定。多人分担需要其他成员接受。',
   ),
   cost_update: operation(
+    'write',
     '修改费用分摊规则',
     'PUT',
     'cost-projects/:id',
     'version plan',
     '先查cost_project，保留完整plan；修改不重复付款，共享修改须成员确认',
   ),
-  cost_accept: operation('确认费用分担版本', 'POST', 'cost-projects/:id/respond', 'version accept'),
-  cost_archive: operation('归档或恢复费用项目', 'POST', 'cost-projects/:id/archive', 'version archived'),
+  cost_accept: operation('write', '确认费用分担版本', 'POST', 'cost-projects/:id/respond', 'version accept'),
+  cost_archive: operation(
+    'confirm',
+    '归档或恢复费用项目',
+    'POST',
+    'cost-projects/:id/archive',
+    'version archived',
+  ),
   cost_settlement: operation(
+    'write',
     '关联已有费用结算',
     'POST',
     'cost-projects/:id/settlements',
@@ -238,14 +291,16 @@ export const assistantOperations: Record<string, Operation> = {
     '只关联参与人之间已确认的转账；不是再次转账',
   ),
   cost_settlement_transfer: operation(
+    'confirm',
     '在费用项目记录成员转款或确认到账',
     'POST',
     'cost-projects/:projectId/settlement-transfer',
     'version operation id sourceId recipientId targetId amount date note allowSimilar',
     'projectId为费用项目，operation=create记录本人已经真实转出的款项，id为新转款UUID，金额分，选择本人sourceId和项目内recipientId；对方确认后自动结算，不新增消费。confirm仅收款人明确到账后传已有转款id、本人targetId；cancel取消已有待确认转款。不得代替其他成员确认，不执行真实银行转账。',
   ),
-  cost_movements: operation('查询可关联的费用结算', 'GET', 'cost-projects/:id/movements', ''),
+  cost_movements: operation('read', '查询可关联的费用结算', 'GET', 'cost-projects/:id/movements', ''),
   cost_personal_offsets: operation(
+    'write',
     '设置本人的收入抵减',
     'POST',
     'cost-projects/:id/personal-offsets',
@@ -253,41 +308,53 @@ export const assistantOperations: Record<string, Operation> = {
     'entries为完整数组：{id UUID,transactionId收入ID或null预计,userId本人ID,month YYYY-MM,amount整数分,shared布尔}。先读取cost_project保留已有personalOffsets，只使用本人收入；不改变他人承担或钱包余额',
   ),
   export: operation(
+    'read',
     '导出账本 CSV',
     'GET',
     'books/:bookId/export',
     'from to q category account kind mode activity scope book creator payee product platform orderId externalId min max basis sort',
     '先确认日期与筛选；scope=personal_wallet可导出个人钱包；返回下载链接，由用户点击下载',
   ),
-  books: operation('查询账本', 'GET', 'books', ''),
-  book_create: operation('创建账本', 'POST', 'books', 'name kind', 'kind=private/shared'),
+  books: operation('read', '查询账本', 'GET', 'books', ''),
+  book_create: operation('write', '创建账本', 'POST', 'books', 'name kind', 'kind=private/shared'),
   book_edit: operation(
+    'confirm',
     '修改账本',
     'PUT',
     'books/:bookId/metadata',
     'name icon description kind',
     '提供完整信息，保留未修改字段',
   ),
-  members: operation('查询账本成员', 'GET', 'books/:bookId/members', ''),
+  members: operation('read', '查询账本成员', 'GET', 'books/:bookId/members', ''),
   member_set: operation(
+    'confirm',
     '邀请或调整账本成员',
     'POST',
     'books/:bookId/members',
     'username role',
     'role=editor/viewer，仅所有者',
   ),
-  member_remove: operation('移除账本成员', 'DELETE', 'books/:bookId/members', 'id'),
-  reports: operation('查询历史对话和报告', 'GET', 'books/:bookId/chat', 'id'),
-  report_save: operation('保存分析报告', 'POST', 'books/:bookId/chat', 'turnId title', '', {
+  member_remove: operation('confirm', '移除账本成员', 'DELETE', 'books/:bookId/members', 'id'),
+  reports: operation('read', '查询历史对话和报告', 'GET', 'books/:bookId/chat', 'id'),
+  report_save: operation('write', '保存分析报告', 'POST', 'books/:bookId/chat', 'turnId title', '', {
     operation: 'save_report',
   }),
-  report_edit: operation('修改分析报告', 'POST', 'books/:bookId/chat', 'id version title content', '', {
-    operation: 'edit_report',
-  }),
-  report_delete: operation('删除分析报告', 'POST', 'books/:bookId/chat', 'id version', '', {
+  report_edit: operation(
+    'write',
+    '修改分析报告',
+    'POST',
+    'books/:bookId/chat',
+    'id version title content',
+    '',
+    {
+      operation: 'edit_report',
+    },
+  ),
+  report_delete: operation('confirm', '删除分析报告', 'POST', 'books/:bookId/chat', 'id version', '', {
     operation: 'delete_report',
   }),
   conversation_delete: operation(
+    'confirm',
     '删除其他历史对话',
     'POST',
     'books/:bookId/chat',
@@ -295,12 +362,13 @@ export const assistantOperations: Record<string, Operation> = {
     '当前对话请使用历史列表删除，不能删除承载本卡片的对话',
     { operation: 'delete' },
   ),
-  conversation_rename: operation('重命名对话', 'POST', 'books/:bookId/chat', 'id title', '', {
+  conversation_rename: operation('write', '重命名对话', 'POST', 'books/:bookId/chat', 'id title', '', {
     operation: 'rename',
   }),
-  wallets: operation('查询全部可用钱包', 'GET', 'assets', ''),
-  wallet_history: operation('查询余额校正记录', 'GET', 'assets/history', 'account'),
+  wallets: operation('read', '查询全部可用钱包', 'GET', 'assets', ''),
+  wallet_history: operation('read', '查询余额校正记录', 'GET', 'assets/history', 'account'),
   wallet_create: operation(
+    'write',
     '创建钱包',
     'POST',
     'assets',
@@ -308,6 +376,7 @@ export const assistantOperations: Record<string, Operation> = {
     'opening为整数分；type=wechat/alipay/bank/cash/credit/investment/other',
   ),
   wallet_edit: operation(
+    'confirm',
     '修改钱包',
     'PATCH',
     'assets',
@@ -316,6 +385,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'edit' },
   ),
   wallet_archive: operation(
+    'confirm',
     '归档或恢复钱包',
     'PATCH',
     'assets',
@@ -324,6 +394,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'archive' },
   ),
   wallet_delete: operation(
+    'confirm',
     '删除钱包',
     'PATCH',
     'assets',
@@ -332,6 +403,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'delete' },
   ),
   wallet_reconcile: operation(
+    'confirm',
     '校正钱包余额',
     'PATCH',
     'assets',
@@ -340,38 +412,43 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'reconcile' },
   ),
   wallet_merge: operation(
+    'confirm',
     '合并钱包',
     'POST',
     'assets/merge',
     'id targetId version targetVersion expectedBalance expectedTargetBalance balance',
     '所有金额为整数分，合并后余额必须用户指定或明确同意',
   ),
-  activities: operation('查询活动（含归档）', 'GET', 'activities', ''),
-  activity_detail: operation('查询活动详情', 'GET', 'activities/:id', ''),
+  activities: operation('read', '查询活动（含归档）', 'GET', 'activities', ''),
+  activity_detail: operation('read', '查询活动详情', 'GET', 'activities/:id', ''),
   activity_create: operation(
+    'write',
     '创建活动',
     'POST',
     'activities',
     'name category familyId description startsOn endsOn budget',
   ),
   activity_edit: operation(
+    'write',
     '修改活动',
     'PUT',
     'activities',
     'id name category familyId description startsOn endsOn budget',
     '先查询详情，保留所有未修改字段',
   ),
-  activity_archive: operation('归档或恢复活动', 'PATCH', 'activities', 'id archived'),
-  activity_delete: operation('删除活动', 'DELETE', 'activities', 'id'),
+  activity_archive: operation('confirm', '归档或恢复活动', 'PATCH', 'activities', 'id archived'),
+  activity_delete: operation('confirm', '删除活动', 'DELETE', 'activities', 'id'),
   activity_assign: operation(
+    'write',
     '调整账单活动归属',
     'PUT',
     'activities/assign',
     'transactionId activityId bookId',
     '先查询真实交易和活动',
   ),
-  categories: operation('查询个人分类', 'GET', 'books/:bookId/categories', ''),
+  categories: operation('read', '查询个人分类', 'GET', 'books/:bookId/categories', ''),
   category_save: operation(
+    'write',
     '新增或修改分类',
     'PUT',
     'books/:bookId/categories',
@@ -379,10 +456,11 @@ export const assistantOperations: Record<string, Operation> = {
     '保留原图标和停用状态；重命名也更新本人历史分类',
     { operation: 'save' },
   ),
-  category_delete: operation('删除分类', 'PUT', 'books/:bookId/categories', 'name', '', {
+  category_delete: operation('confirm', '删除分类', 'PUT', 'books/:bookId/categories', 'name', '', {
     operation: 'delete',
   }),
   category_reorder: operation(
+    'write',
     '调整分类顺序',
     'PUT',
     'books/:bookId/categories',
@@ -390,28 +468,42 @@ export const assistantOperations: Record<string, Operation> = {
     '必须包含完整分类名称列表',
     { operation: 'reorder' },
   ),
-  families: operation('查询家庭与邀请', 'GET', 'families', ''),
-  family_detail: operation('查询家庭成员及授权', 'GET', 'families/:familyId', ''),
-  family_create: operation('创建家庭', 'POST', 'families', 'name description avatar'),
-  family_edit: operation('修改家庭', 'PUT', 'families/:familyId', 'name description avatar'),
-  family_delete: operation('解散家庭', 'DELETE', 'families/:familyId', ''),
-  family_invite: operation('邀请家庭成员', 'POST', 'families/:familyId/invitations', 'username'),
-  family_cancel_invite: operation('撤回家庭邀请', 'DELETE', 'families/:familyId/invitations', 'userId'),
-  family_respond: operation('接受或拒绝家庭邀请', 'POST', 'families/:familyId/invitation', 'accept'),
-  family_remove: operation('退出家庭或移除成员', 'DELETE', 'families/:familyId/members', 'userId'),
-  family_owner: operation('转交家庭负责人', 'PUT', 'families/:familyId/owner', 'userId'),
-  family_link: operation('关联家庭账本', 'POST', 'families/:familyId/books', 'bookId'),
-  family_unlink: operation('解除家庭账本关联', 'DELETE', 'families/:familyId/books', 'bookId'),
+  families: operation('read', '查询家庭与邀请', 'GET', 'families', ''),
+  family_detail: operation('read', '查询家庭成员及授权', 'GET', 'families/:familyId', ''),
+  family_create: operation('confirm', '创建家庭', 'POST', 'families', 'name description avatar'),
+  family_edit: operation('confirm', '修改家庭', 'PUT', 'families/:familyId', 'name description avatar'),
+  family_delete: operation('confirm', '解散家庭', 'DELETE', 'families/:familyId', ''),
+  family_invite: operation('confirm', '邀请家庭成员', 'POST', 'families/:familyId/invitations', 'username'),
+  family_cancel_invite: operation(
+    'confirm',
+    '撤回家庭邀请',
+    'DELETE',
+    'families/:familyId/invitations',
+    'userId',
+  ),
+  family_respond: operation(
+    'confirm',
+    '接受或拒绝家庭邀请',
+    'POST',
+    'families/:familyId/invitation',
+    'accept',
+  ),
+  family_remove: operation('confirm', '退出家庭或移除成员', 'DELETE', 'families/:familyId/members', 'userId'),
+  family_owner: operation('confirm', '转交家庭负责人', 'PUT', 'families/:familyId/owner', 'userId'),
+  family_link: operation('confirm', '关联家庭账本', 'POST', 'families/:familyId/books', 'bookId'),
+  family_unlink: operation('confirm', '解除家庭账本关联', 'DELETE', 'families/:familyId/books', 'bookId'),
   family_access: operation(
+    'confirm',
     '设置家庭账本权限',
     'PUT',
     'families/:familyId/access',
     'bookId userId role',
     'role=editor/viewer/none',
   ),
-  family_inbox: operation('查询待收款', 'GET', 'family-inbox', ''),
-  family_finance: operation('查询家庭往来', 'GET', 'family-finance/:familyId', ''),
+  family_inbox: operation('read', '查询待收款', 'GET', 'family-inbox', ''),
+  family_finance: operation('read', '查询家庭往来', 'GET', 'family-finance/:familyId', ''),
   family_movement_note: operation(
+    'write',
     '修改双方可见的转账留言',
     'POST',
     'family-finance/:familyId',
@@ -420,6 +512,7 @@ export const assistantOperations: Record<string, Operation> = {
     { operation: 'edit-note' },
   ),
   family_movement_edit: operation(
+    'confirm',
     '修改家庭往来详情',
     'POST',
     'family-finance/:familyId',
@@ -427,10 +520,11 @@ export const assistantOperations: Record<string, Operation> = {
     'targetId/expectedTargetId仅收款人更正已到账钱包时传入；note为仅本人可见的私人备注，不修改共享留言；共享留言使用family_movement_note。transactionTime为HH:mm或空；保留未修改字段',
     { operation: 'edit' },
   ),
-  family_movement_cancel: operation('取消家庭往来', 'POST', 'family-finance/:familyId', 'id', '', {
+  family_movement_cancel: operation('confirm', '取消家庭往来', 'POST', 'family-finance/:familyId', 'id', '', {
     operation: 'cancel',
   }),
   family_movement_display: operation(
+    'write',
     '调整家庭往来展示账本',
     'POST',
     'family-finance/:familyId',
@@ -438,8 +532,9 @@ export const assistantOperations: Record<string, Operation> = {
     '',
     { operation: 'display' },
   ),
-  schedules: operation('查询周期订阅', 'GET', 'books/:bookId/schedules', ''),
+  schedules: operation('read', '查询周期订阅', 'GET', 'books/:bookId/schedules', ''),
   schedule_update: operation(
+    'write',
     '编辑周期订阅',
     'POST',
     'books/:bookId/schedules',
@@ -447,13 +542,30 @@ export const assistantOperations: Record<string, Operation> = {
     'value为完整账目；保留未修改字段',
     { operation: 'save' },
   ),
-  schedule_pause: operation('暂停或恢复订阅', 'POST', 'books/:bookId/schedules', 'id version paused', '', {
-    operation: 'pause',
-  }),
-  schedule_skip: operation('跳过本期订阅', 'POST', 'books/:bookId/schedules', 'id version dueDate', '', {
-    operation: 'skip',
-  }),
+  schedule_pause: operation(
+    'confirm',
+    '暂停或恢复订阅',
+    'POST',
+    'books/:bookId/schedules',
+    'id version paused',
+    '',
+    {
+      operation: 'pause',
+    },
+  ),
+  schedule_skip: operation(
+    'confirm',
+    '跳过本期订阅',
+    'POST',
+    'books/:bookId/schedules',
+    'id version dueDate',
+    '',
+    {
+      operation: 'skip',
+    },
+  ),
   schedule_confirm: operation(
+    'write',
     '确认本期订阅扣款',
     'POST',
     'books/:bookId/schedules',
@@ -461,20 +573,22 @@ export const assistantOperations: Record<string, Operation> = {
     'amount为整数分',
     { operation: 'confirm' },
   ),
-  schedule_delete: operation('删除周期订阅', 'POST', 'books/:bookId/schedules', 'id version', '', {
+  schedule_delete: operation('confirm', '删除周期订阅', 'POST', 'books/:bookId/schedules', 'id version', '', {
     operation: 'delete',
   }),
-  templates: operation('查询常用一笔', 'GET', 'books/:bookId/templates', ''),
+  templates: operation('read', '查询常用一笔', 'GET', 'books/:bookId/templates', ''),
   template_save: operation(
+    'write',
     '编辑常用一笔',
     'PUT',
     'books/:bookId/templates',
     'id version name value',
     'value为完整账目',
   ),
-  template_delete: operation('删除常用一笔', 'DELETE', 'books/:bookId/templates', 'id version'),
-  installments: operation('查询分期及还款', 'GET', 'installments', ''),
+  template_delete: operation('confirm', '删除常用一笔', 'DELETE', 'books/:bookId/templates', 'id version'),
+  installments: operation('read', '查询分期及还款', 'GET', 'installments', ''),
   installment_update: operation(
+    'write',
     '修改分期计划',
     'POST',
     'installments',
@@ -482,16 +596,17 @@ export const assistantOperations: Record<string, Operation> = {
     'schedule可指定每期date/principal/fee',
     { operation: 'schedule' },
   ),
-  installment_void: operation('撤销分期还款', 'POST', 'installments', 'id version paymentId', '', {
+  installment_void: operation('confirm', '撤销分期还款', 'POST', 'installments', 'id version paymentId', '', {
     operation: 'void',
   }),
-  installment_delete: operation('删除分期计划', 'POST', 'installments', 'id version', '', {
+  installment_delete: operation('confirm', '删除分期计划', 'POST', 'installments', 'id version', '', {
     operation: 'delete',
   }),
-  budgets: operation('查询预算', 'GET', 'books/:bookId/budgets', 'month'),
-  budget_delete: operation('删除预算', 'DELETE', 'books/:bookId/budgets', 'month category'),
-  allocations: operation('查询费用分摊', 'GET', 'books/:bookId/allocations', 'month'),
+  budgets: operation('read', '查询预算', 'GET', 'books/:bookId/budgets', 'month'),
+  budget_delete: operation('confirm', '删除预算', 'DELETE', 'books/:bookId/budgets', 'month category'),
+  allocations: operation('read', '查询费用分摊', 'GET', 'books/:bookId/allocations', 'month'),
   allocation_remove: operation(
+    'confirm',
     '取消费用分摊',
     'PUT',
     'books/:bookId/allocations',
@@ -499,16 +614,26 @@ export const assistantOperations: Record<string, Operation> = {
     'remove=true',
   ),
   attention: operation(
+    'read',
     '查询待补充或回收站',
     'GET',
     'books/:bookId/attention',
     'mode offset',
     'mode=trash查询已删除账目',
   ),
-  transaction_restore: operation('恢复已删除账目', 'PATCH', 'books/:bookId/transactions', 'id version', '', {
-    deleted: false,
-  }),
+  transaction_restore: operation(
+    'write',
+    '恢复已删除账目',
+    'PATCH',
+    'books/:bookId/transactions',
+    'id version',
+    '',
+    {
+      deleted: false,
+    },
+  ),
   organize_preview: operation(
+    'read',
     '查询批量整理影响',
     'GET',
     'books/:bookId/organize',
@@ -516,46 +641,72 @@ export const assistantOperations: Record<string, Operation> = {
     '重复id查询真实交易ID',
   ),
   organize: operation(
+    'confirm',
     '批量移动、关联或删除账目',
     'POST',
     'books/:bookId/organize',
     'ids operation targetBook versions',
     'operation=move/copy/delete；先organize_preview读取完整关联组和版本',
   ),
-  receipts: operation('查询账单凭证', 'GET', 'books/:bookId/receipts', 'transaction'),
+  receipts: operation('read', '查询账单凭证', 'GET', 'books/:bookId/receipts', 'transaction'),
   photos_attach: operation(
+    'write',
     '关联已有照片',
     'POST',
     'books/:bookId/photos',
     'transaction ids',
     '只能选择已经上传且有权使用的照片编号',
   ),
-  photos_remove: operation('移除账单照片关联', 'DELETE', 'books/:bookId/photos', 'transaction ids'),
-  profile: operation('查询个人资料', 'GET', 'me', ''),
-  profile_update: operation('修改个人资料', 'PUT', 'me', 'name avatar'),
-  theme: operation('切换主题', 'PATCH', 'me', 'theme', 'theme=bear/minimal'),
-  jobs: operation('查询后台任务', 'GET', 'jobs', ''),
-  job_detail: operation('查询后台任务详情', 'GET', 'jobs/:id', ''),
-  job_cancel: operation('取消后台任务', 'POST', 'jobs/:id/cancel', ''),
-  job_retry: operation('重试后台任务', 'POST', 'jobs/:id/retry', ''),
-  memories: operation('查询记忆及来源', 'GET', 'memories', 'id page q status kind events settings targets'),
+  photos_remove: operation(
+    'confirm',
+    '移除账单照片关联',
+    'DELETE',
+    'books/:bookId/photos',
+    'transaction ids',
+  ),
+  profile: operation('read', '查询个人资料', 'GET', 'me', ''),
+  profile_update: operation('write', '修改个人资料', 'PUT', 'me', 'name avatar'),
+  theme: operation('write', '切换主题', 'PATCH', 'me', 'theme', 'theme=bear/minimal'),
+  jobs: operation('read', '查询后台任务', 'GET', 'jobs', ''),
+  job_detail: operation('read', '查询后台任务详情', 'GET', 'jobs/:id', ''),
+  job_cancel: operation('confirm', '取消后台任务', 'POST', 'jobs/:id/cancel', ''),
+  job_retry: operation('write', '重试后台任务', 'POST', 'jobs/:id/retry', ''),
+  memories: operation(
+    'read',
+    '查询记忆及来源',
+    'GET',
+    'memories',
+    'id page q status kind events settings targets',
+  ),
   memory_manage: operation(
+    'confirm',
     '管理财务记忆',
     'POST',
     'memories',
     'operation id version targetId name eventId enabled sourceId itemId value title content kind attributes aliases status familyId shared replaceConflicts',
     'operation=merge/split/reject/learn/settings/history/rebuild/undo；普通编辑共享遗忘优先prepare_memory',
   ),
-  users: { ...operation('查询用户', 'GET', 'users', ''), admin: true },
+  users: { ...operation('read', '查询用户', 'GET', 'users', ''), admin: true },
   user_edit: {
-    ...operation('修改用户资料或停用', 'PATCH', 'users', 'id name avatar disabled', '不能通过聊天设置密码'),
+    ...operation(
+      'confirm',
+      '修改用户资料或停用',
+      'PATCH',
+      'users',
+      'id name avatar disabled',
+      '不能通过聊天设置密码',
+    ),
     admin: true,
   },
-  queue_settings: { ...operation('查询队列配置', 'GET', 'queue-settings', ''), admin: true },
-  queue_update: { ...operation('修改队列并发', 'PUT', 'queue-settings', 'concurrency', '1到8'), admin: true },
-  ai_settings: { ...operation('查询记账模型配置', 'GET', 'ai-settings', ''), admin: true },
+  queue_settings: { ...operation('read', '查询队列配置', 'GET', 'queue-settings', ''), admin: true },
+  queue_update: {
+    ...operation('confirm', '修改队列并发', 'PUT', 'queue-settings', 'concurrency', '1到8'),
+    admin: true,
+  },
+  ai_settings: { ...operation('read', '查询记账模型配置', 'GET', 'ai-settings', ''), admin: true },
   ai_update: {
     ...operation(
+      'confirm',
       '修改记账模型（保留密钥）',
       'PUT',
       'ai-settings',
@@ -565,11 +716,12 @@ export const assistantOperations: Record<string, Operation> = {
     admin: true,
   },
   ai_test: {
-    ...operation('测试记账模型连接', 'POST', 'ai-settings', '', '', { background: true }),
+    ...operation('confirm', '测试记账模型连接', 'POST', 'ai-settings', '', '', { background: true }),
     admin: true,
   },
   assistant_update: {
     ...operation(
+      'confirm',
       '修改助手模型（保留密钥）',
       'PUT',
       'assistant-ai-settings',
@@ -579,11 +731,14 @@ export const assistantOperations: Record<string, Operation> = {
     admin: true,
   },
   assistant_test: {
-    ...operation('测试助手模型连接', 'POST', 'assistant-ai-settings', '', '', { background: true }),
+    ...operation('confirm', '测试助手模型连接', 'POST', 'assistant-ai-settings', '', '', {
+      background: true,
+    }),
     admin: true,
   },
   memory_models_reuse: {
     ...operation(
+      'confirm',
       '复用现有模型密钥修复记忆连接',
       'PUT',
       'memories',
@@ -596,6 +751,7 @@ export const assistantOperations: Record<string, Operation> = {
   },
   memory_models_update: {
     ...operation(
+      'confirm',
       '修改记忆模型（保留密钥）',
       'PUT',
       'memories',
@@ -605,9 +761,12 @@ export const assistantOperations: Record<string, Operation> = {
     query: 'admin=models',
     admin: true,
   },
-  assistant_settings: { ...operation('查询助手模型配置', 'GET', 'assistant-ai-settings', ''), admin: true },
+  assistant_settings: {
+    ...operation('read', '查询助手模型配置', 'GET', 'assistant-ai-settings', ''),
+    admin: true,
+  },
   memory_models: {
-    ...operation('查询记忆模型配置', 'GET', 'memories', '', ''),
+    ...operation('read', '查询记忆模型配置', 'GET', 'memories', '', ''),
     query: 'admin=models',
     admin: true,
   },
@@ -639,7 +798,8 @@ export function operationCatalog(user: User) {
     .map(([id, op]) => ({
       id,
       title: op.title,
-      mode: op.method === 'GET' ? 'read' : 'confirm',
+      mode: op.risk,
+      risk: op.risk,
       fields: [...op.path.matchAll(/:([A-Za-z]+)/g)]
         .map(m => m[1])
         .concat(op.fields.split(' ').filter(Boolean)),
@@ -744,7 +904,7 @@ export async function runOperation(input: unknown, user: User, write = false) {
   if (response.ok && response.headers.get('content-type')?.includes('text/csv'))
     return { downloadUrl: url.pathname + url.search, title: '下载账本 CSV' };
   const result = await response.json();
-  if (!response.ok) throw new Failure(result.error || '操作未完成', response.status);
+  if (!response.ok) throw new Failure(result.error || '操作未完成', response.status, result.code);
   if (path[0] === 'personal-profile' && Array.isArray(result.places))
     result.places = result.places.map((p: any) => ({ id: p.id, name: p.name }));
   return result;

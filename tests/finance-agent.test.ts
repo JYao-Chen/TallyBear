@@ -463,7 +463,7 @@ test('明确操作请求可连续准备并执行，保留已执行结果而非�
   });
   const model: typeof chatCompletion = async (messages, tools, delta) => {
     assert.ok(tools.some((t: any) => t.function.name === 'execute_action'));
-    assert.match(String(messages[0].content), /不要强制用户再点击确认/);
+    assert.match(String(messages[0].content), /仅 write 级可直接 execute_action/);
     if (round++ === 0)
       return {
         model: 'test',

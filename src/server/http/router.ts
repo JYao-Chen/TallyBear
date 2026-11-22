@@ -18,6 +18,7 @@ import { routes as familyFinance } from './routes/family-finance';
 import { routes as searchOptions } from './routes/search-options';
 import { routes as search } from './routes/search';
 import { routes as queueSettings } from './routes/queue-settings';
+import { routes as assistantActions } from './routes/assistant-actions';
 import { routes as jobs } from './routes/jobs';
 import { routes as users } from './routes/users';
 import { routes as installments } from './routes/installments';
@@ -66,6 +67,7 @@ export const routes: Route<unknown, unknown>[] = [
   ...searchOptions,
   ...search,
   ...queueSettings,
+  ...assistantActions,
   ...jobs,
   ...users,
   ...installments,

@@ -4,7 +4,7 @@ import { changeMemorySelection, resolveMemoryField } from '@/lib/memory-fields';
 import { MemorySuggestions } from './MemorySuggestions';
 import { ChatActionEditor } from './ChatActionEditor';
 import { LineItemsView } from './LineItems';
-import { formatMoney } from '@/lib/deployment';
+import { Button, Money, Chip } from '@/ui';
 import { useState } from 'react';
 import {
   Check,
@@ -17,6 +17,7 @@ import {
   ArrowRightLeft,
   FilePenLine,
 } from 'lucide-react';
+import type { LoggedChatAction } from '@/server/chat-actions';
 import { actionNames, type ChatAction } from '@/lib/chat-actions';
 import { useI18n } from './LanguageProvider';
 import { SymbolIcon, AccountIcon } from './VisualSelect';
@@ -34,6 +35,8 @@ const icons = {
   repayment: ArrowRightLeft,
 };
 export function ChatActionCards({
+  onUndo,
+  undone,
   onEdit,
   actions,
   disabled,
@@ -42,8 +45,10 @@ export function ChatActionCards({
   onCancel,
   onRevise,
 }: {
+  onUndo?: (id: string) => void;
+  undone?: Set<string>;
   onEdit: (id: string, data: Record<string, any>) => Promise<void>;
-  actions: ChatAction[];
+  actions: LoggedChatAction[];
   disabled: boolean;
   confirmable: boolean;
   onConfirm: (id: string, ack: boolean) => Promise<void>;
@@ -70,6 +75,7 @@ export function ChatActionCards({
   return (
     <div className="chat-action-list">
       {actions.map(a => {
+        const { actionLogId, canUndo } = a;
         const Icon = icons[a.kind];
         const pending = a.status === 'pending',
           deleting = a.kind === 'transaction' && a.data.operation === 'delete';
@@ -110,7 +116,7 @@ export function ChatActionCards({
             {editing !== a.id && typeof a.data.amount === 'number' && (
               <div className="receipt-card-amount">
                 <span>{tr('金额')}</span>
-                <strong>{formatMoney(a.data.amount)}</strong>
+                <Money value={a.data.amount} size="large" />
               </div>
             )}
             {pending && a.missing.length > 0 && (
@@ -229,6 +235,17 @@ export function ChatActionCards({
                 onCancel={() => setEditing('')}
               />
             )}
+            {a.status === 'confirmed' &&
+              actionLogId &&
+              (undone?.has(actionLogId) ? (
+                <Chip>{tr('已撤销')}</Chip>
+              ) : canUndo && onUndo ? (
+                <Button size="sm" disabled={disabled} onClick={() => onUndo(actionLogId)}>
+                  {tr('撤销')}
+                </Button>
+              ) : (
+                <small>{tr('不可撤销')}</small>
+              ))}
             {pending
               ? editing !== a.id && (
                   <div className="receipt-card-actions">

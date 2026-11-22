@@ -1,4 +1,22 @@
 {
+  "失败": "Failed",
+  "修改账目": "Edit transaction",
+  "删除账目": "Delete transaction",
+  "确认家庭收款": "Confirm family payment receipt",
+  "设置费用份额": "Set expense shares",
+  "记录家庭往来": "Record family movement",
+  "保存财务记忆": "Save financial memory",
+  "共享财务记忆": "Share financial memory",
+  "遗忘财务记忆": "Forget financial memory",
+  "修改记忆状态": "Change memory status",
+  "认领邀请对象": "Claim recipient",
+  "助手操作记录": "Assistant action history",
+  "撤销助手操作": "Undo assistant action",
+  "确认撤销这次账目变更？": "Undo this transaction change?",
+  "暂无操作记录": "No actions yet",
+  "账目已被修改，无法撤销": "The transaction has changed and cannot be undone.",
+  "操作记录不存在": "Action record not found",
+  "需要用户在卡片上确认": "Please confirm this action on the card.",
   "概览": "Overview",
   "讨论": "Discussion",
   "附件": "Attachments",
@@ -2226,5 +2244,6 @@
   "当期分摊 · 不重复扣款": "Allocated cost · no wallet debit",
   "{0} 付款 · {1} 认领": "{0} paid · {1} claimed",
   "所选分类 · 整单": "Matched categories · order total",
-  "余额": "Balance"
+  "余额": "Balance",
+  "最近的记录": "Recent entries"
 }

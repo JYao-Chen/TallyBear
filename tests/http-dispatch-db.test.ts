@@ -91,7 +91,7 @@ test('internal dispatch and login / me / logout', { skip: !process.env.HTTP_TEST
       keys(finance, 'userId', 'people', 'wallets', 'movements', 'expenses', 'books', 'defaultBookId');
       assert.deepEqual(finance.movements, []);
       assert.deepEqual(await api('GET', 'expense-claims/inbox'), { rows: [], total: 0 });
-      await c.query("INSERT INTO ai_jobs(id,user_id,kind,payload) VALUES($1,$2,'assistant','{}')", [
+      await c.query("INSERT INTO ai_jobs(id,user_id,kind,payload) VALUES($1,$2,'connection','{}')", [
         randomUUID(),
         actor.id,
       ]);
@@ -109,13 +109,16 @@ test('internal dispatch and login / me / logout', { skip: !process.env.HTTP_TEST
         'started_at',
         'finished_at',
       );
-      assert.deepEqual(await api('POST', 'jobs/' + job.id + '/cancel', {}, 404), {
-        error: '操作不存在',
-        code: 'not_found',
-      });
-      assert.deepEqual(await api('POST', 'jobs/' + job.id + '/cancel', { operation: 'cancel' }), {
-        ok: true,
-      });
+      const { runOperation } = await import('../src/server/assistant-operations');
+      for (const [operation, status] of [
+        ['job_cancel', 'cancelled'],
+        ['job_retry', 'queued'],
+      ]) {
+        assert.deepEqual(await runOperation({ operation, params: { id: job.id } }, actor, true), {
+          ok: true,
+        });
+        assert.equal((await api('GET', 'jobs/' + job.id)).status, status);
+      }
       keys(await api('GET', 'search?q=现金'), 'total', 'totals', 'groups', 'rows');
 
       // Supply the same request-local storage that Next uses for cookies() in route handlers.

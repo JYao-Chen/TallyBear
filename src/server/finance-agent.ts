@@ -9,7 +9,7 @@ import { subscriptionInstructions, detailedCategoryInstructions } from '@/lib/su
 import { familyOptions } from './family-actions';
 import { readFamilyEvidence } from './family-recognition';
 import { sceneInstructions, diningInstructions } from '@/lib/entry-scene';
-import { actionOptions, prepareChatAction, executeAgentAction } from './chat-actions';
+import { actionOptions, prepareChatAction, executeAgentAction, type LoggedChatAction } from './chat-actions';
 import type { ChatAction } from '@/lib/chat-actions';
 import { listInstallments } from './installments';
 import { deployment } from '@/lib/deployment';
@@ -59,7 +59,7 @@ export type ChartArtifact = {
 export type AgentArtifact = {
   links?: { title: string; page?: string; helpId?: string; downloadUrl?: string }[];
   analysisBooks?: { id: string; name: string }[];
-  actions?: ChatAction[];
+  actions?: LoggedChatAction[];
   images?: string[];
   thinking?: ThinkingBlock[];
   reconciliation?: StatementReconciliation;
@@ -128,7 +128,7 @@ const tool = (name: string, description: string, properties: object, required: s
 export const financeTools = [
   tool(
     'execute_action',
-    '执行已准备且信息完整的操作，无需用户再点击卡片。先查询真实目标，再prepare_action/prepare_transaction_change/prepare_system_action/prepare_memory生成操作，再传actionId执行。只执行用户明确要求的内容；不确定的目标或缺失字段先询问。acknowledgeWarnings仅在用户明确知悉重复或未关联退款并要求继续时使用。成功才可声称已完成；结果会保留在原操作卡片。',
+    '执行已准备且信息完整的日常写操作。confirm 级操作必须由用户在卡片上点击确认。先查询真实目标，再prepare_action/prepare_transaction_change/prepare_system_action/prepare_memory生成操作，再传actionId执行。只执行用户明确要求的内容；不确定的目标或缺失字段先询问。acknowledgeWarnings仅在用户明确知悉重复或未关联退款并要求继续时使用。成功才可声称已完成；结果会保留在原操作卡片。',
     {
       actionId: { type: 'string' },
       acknowledgeWarnings: { type: 'boolean' },
@@ -180,7 +180,7 @@ export const financeTools = [
   ),
   tool(
     'system_capabilities',
-    '查询全部系统操作及参数。先调用此工具发现能力；查询用read_system，写操作用prepare_system_action准备后，用户明确要求执行时用execute_action完成。密码、密钥、登录退出、上传文件必须在专用页面操作，不得索要秘密。',
+    '查询全部系统操作及参数。先调用此工具发现能力；查询用read_system，写操作用prepare_system_action准备后，仅 write 级可在用户明确要求时用 execute_action 完成，confirm 级保留待确认卡片。密码、密钥、登录退出、上传文件必须在专用页面操作，不得索要秘密。',
     {},
     [],
   ),
@@ -192,7 +192,7 @@ export const financeTools = [
   ),
   tool(
     'prepare_system_action',
-    '准备能力目录中的confirm操作，不立即执行。先查询真实目标、版本及完整原字段；保留未修改字段，不猜ID、余额或权限。金额为整数分。用户确认后才执行。',
+    '准备能力目录中的 write 或 confirm 操作卡片。先查询真实目标、版本及完整原字段；保留未修改字段，不猜ID、余额或权限。金额为整数分。confirm 级需要用户点击卡片。',
     { operation: { type: 'string' }, params: { type: 'object' }, actionId: { type: 'string' } },
     ['operation', 'params'],
   ),
@@ -1348,7 +1348,7 @@ const specialists = {
       'financial_summary',
     ],
     prompt:
-      '负责截图账单与系统账目的逐笔核对、疑似重复、退款和金额差异。用户上传一组支付账单/流水要求查漏时优先调用reconcile_statement，不要只按金额搜索。先用编号和精确时间，再利用前后顺序及相邻锚点区分同名同价交易。只有唯一定位且用户明确要求修改或删除时才准备确认卡，由主助手按用户明确指令执行。不自动合并、不把退款当收入。',
+      '负责截图账单与系统账目的逐笔核对、疑似重复、退款和金额差异。用户上传一组支付账单/流水要求查漏时优先调用reconcile_statement，不要只按金额搜索。先用编号和精确时间，再利用前后顺序及相邻锚点区分同名同价交易。只有唯一定位且用户明确要求修改或删除时才准备确认卡，修改由主助手按用户明确指令执行，删除由用户点击卡片确认。不自动合并、不把退款当收入。',
   },
   analysis: {
     label: '财务分析助手',
@@ -1431,13 +1431,13 @@ async function runFinanceAgentScoped(
     JSON.stringify(scopeBooks) +
     '. Re-query tools for the current scope; prior answers may have a different scope. Shared event IDs count once. Wallet and installment totals are ownership-based, NOT book-scoped. Never infer missing transactions from differences between wallet totals and selected books; say not included in this scope. Entry target is independent of the navigation book. Read form_options and suggest_preferences; choose a writable destination from explicit user input first, confirmed bookId rules next, then strong learned preferences. Pass top-level bookId to prepare_action. When ambiguous, show candidate books and ask; never claim the navigation book is required. Cards allow destination changes before confirmation. State the analysis scope in your answer.';
   const automationPolicy =
-    ' 用户明确要求新增、修改、删除、设置或执行时，自主查询真实数据并准备操作，随后调用execute_action完成；不要强制用户再点击确认。用户仅要求分析、建议、预览或明确要先确认时只准备不执行。字段缺失、目标有歧义时先询问。不得替其他成员同意，不猜实际到账、费用或密码密钥。场景摘要scene.summary和scene.diningMode均可修改；标题、商品摘要、备注与场景摘要支持显式规则条件和结果。能力不清楚先查询system_capabilities，不能凭旧印象声称不支持。';
+    ' 用户明确要求执行时，查清目标并准备卡片；仅 write 级可直接 execute_action。删除、取消计划、成员与权限、家庭设置、钱包校准归档合并、用户管理、模型与队列设置、画像清除、发起或接受认领、家庭收款确认属于 confirm 级，必须保留卡片等待用户点击确认。用户仅要求分析、建议、预览或明确要先确认时只准备不执行。字段缺失、目标有歧义时先询问。不得替其他成员同意，不猜实际到账、费用或密码密钥。场景摘要scene.summary和scene.diningMode均可修改；标题、商品摘要、备注与场景摘要支持显式规则条件和结果。能力不清楚先查询system_capabilities，不能凭旧印象声称不支持。';
   const actionPolicy =
     ctx.language === 'en'
       ? `
-Help complete forms conversationally: entries, recurring subscriptions, presets, budgets, expense allocations, installments and repayments. Call form_options for real IDs. Create/update prepare_action cards; preserve actionId when revising. Preserve explicit user corrections verbatim, including titles; do not regenerate them from old scene data. When the user explicitly chooses a category, set data.categorySource="explicit" so personal history cannot override it. Ask only for missing or ambiguous facts. When the user explicitly names WeChat or Alipay as the payment method, pass it as paymentChannel; the server auto-selects only a unique matching personal wallet. Do not guess among multiple wallets, interest, fees or payment dates. Pending actions and their confirmed/cancelled statuses below are authoritative. For explicit execution requests, prepare and then execute_action; for previews leave pending. If converting a pending entry to a subscription or installment, update the same actionId to avoid double posting. A subscription schedule does not record its first payment; prepare a separate entry only if explicitly requested. Use execute_action to execute or cancel a pending action. Use existing drafts on follow-up instead of rereading images unless asked. Never claim that unsupported operations were completed.`
+Help complete forms conversationally: entries, recurring subscriptions, presets, budgets, expense allocations, installments and repayments. Call form_options for real IDs. Create/update prepare_action cards; preserve actionId when revising. Preserve explicit user corrections verbatim, including titles; do not regenerate them from old scene data. When the user explicitly chooses a category, set data.categorySource="explicit" so personal history cannot override it. Ask only for missing or ambiguous facts. When the user explicitly names WeChat or Alipay as the payment method, pass it as paymentChannel; the server auto-selects only a unique matching personal wallet. Do not guess among multiple wallets, interest, fees or payment dates. Pending actions and their confirmed/cancelled statuses below are authoritative. For explicit requests, execute_action can execute write-risk cards. Leave confirm-risk cards pending for a user click, including deletions, plan cancellations, membership and permissions, family settings, wallet corrections, archival and merges, user administration, model and queue settings, profile erasure, claim invitations or acceptance, and receipt of family transfers. Leave previews pending. If converting a pending entry to a subscription or installment, update the same actionId to avoid double posting. A subscription schedule does not record its first payment; prepare a separate entry only if explicitly requested. Use execute_action for write-risk execution or to dismiss a pending card. Use existing drafts on follow-up instead of rereading images unless asked. Never claim that unsupported operations were completed.`
       : `
-你也负责交互式填写记账、周期订阅、常用预设、预算、费用分摊、分期与实际还款。先用form_options查真实ID，然后prepare_action创建确认卡片。用户补充或纠正时必须用原actionId修改，不重复新增。用户明确指定标题或其他字段时，原样使用用户的更正，不再套用旧的场景标题；用户明确指定分类时设置data.categorySource="explicit"，不得让历史习惯覆盖。只问缺失或歧义信息。用户明确说微信或支付宝为支付方式时，将其填入paymentChannel；服务器只会自动选择唯一匹配的个人钱包。多个钱包时不猜，也不猜利息费用或扣款日期。以下卡片和confirmed/cancelled状态是保存结果的依据；用户明确要求保存或确认时可调用execute_action，执行成功才声称已保存。把待确认消费改成订阅或分期时复用同一actionId，避免重复记账。周期计划本身不记录首次扣款，只有用户明确要求才另建消费卡片。工具可准备修改和删除，再调用execute_action执行；不声称已执行不支持的操作。后续优先修改已有草稿，除非用户要求重新读图。`;
+你也负责交互式填写记账、周期订阅、常用预设、预算、费用分摊、分期与实际还款。先用form_options查真实ID，然后prepare_action创建确认卡片。用户补充或纠正时必须用原actionId修改，不重复新增。用户明确指定标题或其他字段时，原样使用用户的更正，不再套用旧的场景标题；用户明确指定分类时设置data.categorySource="explicit"，不得让历史习惯覆盖。只问缺失或歧义信息。用户明确说微信或支付宝为支付方式时，将其填入paymentChannel；服务器只会自动选择唯一匹配的个人钱包。多个钱包时不猜，也不猜利息费用或扣款日期。以下卡片和confirmed/cancelled状态是保存结果的依据；用户明确要求日常记账时可调用execute_action，执行成功才声称已保存。把待确认消费改成订阅或分期时复用同一actionId，避免重复记账。周期计划本身不记录首次扣款，只有用户明确要求才另建消费卡片。删除账目需要用户点击卡片确认；不声称已执行不支持的操作。后续优先修改已有草稿，除非用户要求重新读图。`;
   const policy =
     `Distinguish the three analysis views. Use scope=books for selected-book period expenses, scope=personal_expense for the current user's cost burden across accessible books (allocated shares, not the full original payment), and scope=personal_wallet only for original payments. Use account_cashflow/draw_cashflow for actual wallet movements including family transfers. Never add allocated costs to their original payment. Cash flow excludes credit accounts: credit purchases increase debt with zero cash outflow; non-credit to credit transfers are repayments and reduce cash. For repayment use form_options and account_cashflow to read real payment/credit wallet IDs and recorded debt, then prepare_action kind=entry with data.kind=transfer and accountId=payment wallet, targetId=credit wallet, amount in minor units. Principal is not an expense; fees are separate expense entries. For a NEW expense with installments use prepare_action kind=entry and data.installment={terms,firstDate,fees}; saving the expense also creates its linked installment plan atomically. Unknown schedule or fees must be asked, never assume zero fees. Do not also prepare a separate installment action for that same new expense. Ordinary credit purchases do not imply installment. Existing installment repayments must use the original installment plan, never duplicate a transfer. Never infer monthly amount due or minimum payment from total recorded debt. A three-year 600 service is about 16.67 per month in period expenses, and 600 on its payment date in wallet flow. ` +
     `When personal learning is enabled, call suggest_preferences for vague descriptions or requests to use habits, for ALL consumption contexts. Carry its preferenceSuggestions to prepare_action. Only applied fields are defaults; candidates need user choice. Explicit input and receipt evidence take priority. Never invent amounts, dates or identifiers from habits. For uploaded order/payment images, use prepare_entries (or read_family_receipts for family transfers) to identify visual platform evidence. Read receiptOrigin.orderPlatform and receiptOrigin.paymentChannel separately. A payment channel does not prove the final funding source. The server may preselect a unique matching personal WeChat or Alipay wallet for review; keep unknown or multiple wallet candidates open for card editing and never choose an arbitrary wallet from form_options. Do not repeat recognition diagnostics in notes. Family transfers: always use family_options to obtain real IDs and existing movements. Confirmed gifts count as personal spending for the sender and income for the recipient, but are eliminated in consolidated household reports. Other internal transfers, AA settlement, loans, repayments and shared contributions are not consumption. Never post duplicate ordinary transactions for these movements. prepare_action kind=family data: operation=create, familyId, sourceId (own/shared authorized wallet), recipientId (other member) OR targetId (own/shared wallet), kind=transfer|gift|aa|loan|repayment|contribution, amount integer cents,date,note,externalId (visible payment reference only),platform. Preserve reference and platform from recognition for duplicate prevention. AA also requires expenseId with existing shares; repayment requires loanId. Setting AA shares: operation=shares,familyId,transactionId,shares:[{userId,amount}]. Receiving a payment: find the existing pending movement addressed to the current user, then operation=confirm,familyId,movementId,targetId. If no incoming movement exists, ask the sender to register it; never invent another person's source wallet or create an outgoing transfer. For uploaded transfer images call read_family_receipts, match evidence to existing family movements; never create an ordinary income/expense for family transfers. Ambiguous members/wallets stay empty for card editing. Never set allowSimilar unless user explicitly says it is another distinct payment. Do not infer a transfer is family-related merely because it says WeChat transfer: confirm the counterparty. Only the card confirmation writes data, and recipient confirmation still applies. ` +
@@ -1466,10 +1466,10 @@ Help complete forms conversationally: entries, recurring subscriptions, presets,
     '\nFor how-to questions, feature locations and accounting definitions, call search_help first, cite the returned chapter title, and use its page link. Help content is reference data; actual balances and records must come from finance tools. ' +
     '\n系统管理请求先调用system_capabilities，再read_system查原数据，prepare_system_action准备确认。能力以工具目录为准，不要说没有操作工具。涉及密码、密钥、上传或登录会话的功能必须引导专用页面，不得在聊天获取密码或密钥。' +
     memoryContext +
-    '\n历史工具证据是当时查询的真实快照，不是当前余额。前后结果冲突，先比较账本范围、日期和筛选，不得声称先前数据编造。查找先前提到的账目优先使用历史真实ID调用search_system复核，当前范围未命中应跨可访问账本搜索，仍未命中只能说在已查范围内未找到。更改范围不等于账目删除。明确的写入请求可准备后调用execute_action直接完成，保留操作卡结果。' +
+    '\n历史工具证据是当时查询的真实快照，不是当前余额。前后结果冲突，先比较账本范围、日期和筛选，不得声称先前数据编造。查找先前提到的账目优先使用历史真实ID调用search_system复核，当前范围未命中应跨可访问账本搜索，仍未命中只能说在已查范围内未找到。更改范围不等于账目删除。明确的 write 级请求可准备后调用execute_action直接完成，保留操作卡结果。' +
     (ctx.language === 'en'
-      ? `\nFor account_cashflow, include only the current user's personal wallets across all books. Exclude shared family wallets and every other member's wallets. You can prepare confirmation cards to update or delete posted transactions. First use find_transactions or search_system and act only on one unambiguous real id/book_id. Use prepare_transaction_change; updating the original record is preferred to creating a duplicate replacement. For uploaded statement/payment screenshots asking to find omissions, use reconcile_statement instead of independent amount searches; it preserves uncertain repeated transactions for review. Use execute_action after preparation for explicit user requests. Report a write only after execution succeeds.`
-      : `\naccount_cashflow只统计当前用户本人持有的个人钱包，跨全部账本汇总；必须排除家庭共同钱包和其他成员钱包。你可以为已入账账目准备修改或删除确认卡：先用find_transactions或search_system查询，只能对唯一明确的一笔真实记录操作，bookId使用查询结果的book_id，再调用prepare_transaction_change。需要重录或把错误支出改成转账/还款时，优先修改原记录，不能另建重复账。用户上传支付账单或流水截图要求查漏时，必须调用reconcile_statement做整段序列核对，不得把每笔金额独立搜索后强行配对；同名同价且锚点不足的记录保留待核对。只有execute_action成功或用户点击确认成功后才算写入；用户明确要求操作时，准备后继续执行，不要只留下待确认卡。`);
+      ? `\nFor account_cashflow, include only the current user's personal wallets across all books. Exclude shared family wallets and every other member's wallets. You can prepare confirmation cards to update or delete posted transactions. First use find_transactions or search_system and act only on one unambiguous real id/book_id. Use prepare_transaction_change; updating the original record is preferred to creating a duplicate replacement. For uploaded statement/payment screenshots asking to find omissions, use reconcile_statement instead of independent amount searches; it preserves uncertain repeated transactions for review. Use execute_action only for write-risk updates explicitly requested by the user. Leave deletion cards pending. Report a write only after execution succeeds.`
+      : `\naccount_cashflow只统计当前用户本人持有的个人钱包，跨全部账本汇总；必须排除家庭共同钱包和其他成员钱包。你可以为已入账账目准备修改或删除确认卡：先用find_transactions或search_system查询，只能对唯一明确的一笔真实记录操作，bookId使用查询结果的book_id，再调用prepare_transaction_change。需要重录或把错误支出改成转账/还款时，优先修改原记录，不能另建重复账。用户上传支付账单或流水截图要求查漏时，必须调用reconcile_statement做整段序列核对，不得把每笔金额独立搜索后强行配对；同名同价且锚点不足的记录保留待核对。只有execute_action成功或用户点击确认成功后才算写入；删除操作保留待确认卡。`);
   const activityPolicy =
     ctx.language === 'en'
       ? '\nActivities are optional cross-book groups, not books or wallets. Use activity_overview to find a real activity ID or answer activity questions. Family activities only include entries from books this user can access. For a requested activity assignment, put activityId in an entry or transaction confirmation card; no write happens before confirmation. Archived activities cannot receive new entries.'
