@@ -1536,12 +1536,20 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                 </>
                               ) : (
                                 <>
-                                  <Button variant="ghost" className={entryStyles.back} onClick={() => setEntryMode('ai')}>
+                                  <Button
+                                    variant="ghost"
+                                    className={entryStyles.back}
+                                    onClick={() => setEntryMode('ai')}
+                                  >
                                     <ArrowLeft size={18} />
                                     {tr('返回交给小熊')}
                                   </Button>
                                   <h2>{tr('导入已有账单')}</h2>
-                                  <small>{tr('选择从微信或支付宝导出的 CSV 账单（5MB 以内），逐笔生成草稿，核对后再入账。')}</small>
+                                  <small>
+                                    {tr(
+                                      '选择从微信或支付宝导出的 CSV 账单（5MB 以内），逐笔生成草稿，核对后再入账。',
+                                    )}
+                                  </small>
                                   <div className={entryStyles.row}>
                                     <label className={entryStyles.upload}>
                                       <Upload size={18} />
