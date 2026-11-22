@@ -975,10 +975,10 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                     <FamiliesPage
                       userId={user.id}
                       onChanged={init}
-                      onManageBooks={() => switchPage('books')}
+                      onManageBooks={() => router.push(pathForPage('books'))}
                       onOpenBook={id => {
                         setBook(id);
-                        switchPage('home');
+                        router.push(pathForPage('home'));
                       }}
                     />
                   )}

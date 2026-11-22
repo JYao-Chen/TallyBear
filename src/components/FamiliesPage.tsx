@@ -1,15 +1,18 @@
 'use client';
-import { FamilyFinance } from './FamilyFinance';
+import { participantAvatar } from '@/ui/participantAvatar';
+import { Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Sheet, TextArea, useToast } from '@/ui';
+import s from './FamiliesPage.module.css';
+import { HomeFamilyInbox } from './HomeFamilyInbox';
+import { FamilyFinance, FamilyOverview } from './FamilyFinance';
 import { PagedList } from './PagedList';
 
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
-import { Home, Plus, Users, BookOpen, ArrowLeft, Link2, Settings2, Mail } from 'lucide-react';
+import { Plus, Users, BookOpen, ArrowLeft, Link2, Settings2, Mail } from 'lucide-react';
 import { Avatar, AvatarField } from './ManagementPages';
 import { SymbolIcon } from './VisualSelect';
 import { FormSelect } from './FormSelect';
-import { Sheet } from './Sheet';
-import './families.css';
+
 type Person = { id: string; name: string; username: string; avatar?: string; disabled?: boolean };
 type Family = {
   avatar: string;
@@ -44,14 +47,19 @@ export function FamiliesPage({
   onOpenBook: (id: string) => void;
   onManageBooks: () => void;
 }) {
-  const { t: tr, locale } = useI18n();
+  const { t: tr } = useI18n();
+  const toast = useToast();
+  const [revision, setRevision] = useState(0);
+  async function refreshFinance() {
+    setRevision(v => v + 1);
+    await onChanged();
+  }
   const [items, setItems] = useState<Family[]>([]),
     [invitations, setInvitations] = useState<Invite[]>([]),
     [detail, setDetail] = useState<Detail | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [notice, setNotice] = useState(''),
     [edit, setEdit] = useState<'new' | 'edit' | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; text: string; action: () => Promise<void> } | null>(
     null,
@@ -59,15 +67,16 @@ export function FamiliesPage({
   const [avatar, setAvatar] = useState('🏡'),
     [uploading, setUploading] = useState(false);
   const owner = detail?.owner_id === userId;
-  async function load(id?: string) {
+  async function load(id?: string, initial = false) {
     const d = await api('');
     setItems(d.items);
     setInvitations(d.invitations);
+    if (initial) id = d.items[0]?.id;
     if (id && d.items.some((f: Family) => f.id === id)) setDetail(await api('/' + id));
     else setDetail(null);
   }
   useEffect(() => {
-    load()
+    load(undefined, true)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -75,7 +84,7 @@ export function FamiliesPage({
     if (busy) return;
     setBusy(true);
     setError('');
-    setNotice('');
+
     try {
       await action();
     } catch (e) {
@@ -87,35 +96,34 @@ export function FamiliesPage({
   async function mutate(path: string, method: string, body?: unknown, message = '已保存') {
     await api('/' + detail!.id + path, method, body);
     await load(detail!.id);
-    await onChanged();
-    setNotice(message);
+    await refreshFinance();
+    toast.show(tr(message));
   }
   function ask(title: string, text: string, action: () => Promise<void>) {
     setConfirm({ title, text, action });
   }
   return (
-    <div className="families-page">
-      <div className="panel-title">
+    <div className={s.page}>
+      <div className={s.heading}>
         <div>
           {detail && (
-            <button
-              className="text-button"
+            <Button
+              variant="ghost"
               onClick={() => {
                 setDetail(null);
                 setError('');
-                setNotice('');
               }}
             >
               <ArrowLeft size={16} />
               {tr('所有家庭')}
-            </button>
+            </Button>
           )}
           <h1>
             {detail && <Avatar value={detail.avatar} size={44} />} {detail?.name || tr('家庭管理')}
           </h1>
         </div>
         {!detail ? (
-          <button
+          <Button
             onClick={() => {
               setAvatar('🏡');
               setEdit('new');
@@ -123,11 +131,11 @@ export function FamiliesPage({
           >
             <Plus size={18} />
             {tr('创建家庭')}
-          </button>
+          </Button>
         ) : (
           owner && (
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               onClick={() => {
                 setAvatar(detail!.avatar || '🏡');
                 setEdit('edit');
@@ -135,79 +143,76 @@ export function FamiliesPage({
             >
               <Settings2 size={17} />
               {tr('家庭资料')}
-            </button>
+            </Button>
           )
         )}
       </div>
       {error && (
-        <p className="error" role="alert">
+        <p className={s.error} role="alert">
           {tr(error)}
         </p>
       )}
-      {notice && (
-        <p className="notice" role="status">
-          {tr(notice)}
-        </p>
+      {detail && <FamilyOverview key={detail.id} family={detail.id} revision={revision} />}
+      {!loading && <HomeFamilyInbox compact={false} revision={revision} onChanged={refreshFinance} />}
+      {invitations.length > 0 && (
+        <Card>
+          <h2>
+            <Mail size={21} />
+            {tr('待处理邀请')} <Chip tone="attention">{invitations.length}</Chip>
+          </h2>
+          {
+            <PagedList items={invitations}>
+              {i => (
+                <div className={s.row} key={i.id}>
+                  <Avatar value={i.avatar} size={44} />
+                  <span>
+                    <strong>{i.name}</strong>
+                    <small>
+                      {i.owner_name} {tr('邀请你加入')}
+                    </small>
+                  </span>
+                  <div className={s.actions}>
+                    <Button
+                      disabled={busy}
+                      onClick={() =>
+                        ask('加入家庭', tr('加入「{0}」？', [i.name]), async () => {
+                          await api('/' + i.id + '/invitation', 'POST', { accept: true });
+                          await load(i.id);
+                          toast.show(tr('已加入家庭；账本由所有者单独授权。'));
+                        })
+                      }
+                    >
+                      {tr('加入家庭')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await api('/' + i.id + '/invitation', 'POST', { accept: false });
+                          await load(detail?.id);
+                        })
+                      }
+                    >
+                      {tr('婉拒')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </PagedList>
+          }
+        </Card>
       )}
       {loading ? (
         <p role="status">{tr('正在读取家庭…')}</p>
       ) : !detail ? (
         <>
-          {invitations.length > 0 && (
-            <section className="panel">
-              <h2>
-                <Mail size={21} />
-                {tr('待处理邀请')}
-              </h2>
-              {
-                <PagedList items={invitations}>
-                  {i => (
-                    <div className="family-row" key={i.id}>
-                      <Avatar value={i.avatar} size={44} />
-                      <span>
-                        <strong>{i.name}</strong>
-                        <small>
-                          {i.owner_name} {tr('邀请你加入')}
-                        </small>
-                      </span>
-                      <div className="family-actions">
-                        <button
-                          disabled={busy}
-                          onClick={() =>
-                            run(async () => {
-                              await api('/' + i.id + '/invitation', 'POST', { accept: true });
-                              await load(i.id);
-                              setNotice('已加入家庭；账本由所有者单独授权。');
-                            })
-                          }
-                        >
-                          {tr('加入家庭')}
-                        </button>
-                        <button
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            run(async () => {
-                              await api('/' + i.id + '/invitation', 'POST', { accept: false });
-                              await load();
-                            })
-                          }
-                        >
-                          {tr('婉拒')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </PagedList>
-              }
-            </section>
-          )}
-          <div className="family-grid">
+          <div className={s.grid}>
             {
               <PagedList items={items}>
                 {f => (
-                  <button
-                    className="panel family-card"
+                  <Button
+                    className={s.family}
                     key={f.id}
                     disabled={busy}
                     onClick={() =>
@@ -224,34 +229,46 @@ export function FamiliesPage({
                       {f.owner_id === userId ? tr('我是负责人') : tr('家庭成员')}
                     </small>
                     {f.description && <p>{f.description}</p>}
-                    <span className="text-button">{tr('查看家庭 →')}</span>
-                  </button>
+                    <span className={s.link}>{tr('查看家庭 →')}</span>
+                  </Button>
                 )}
               </PagedList>
             }
           </div>
           {!items.length && (
-            <section className="panel family-empty">
-              <Home size={38} />
-              <h2>{tr('为共同生活建一个家庭')}</h2>
-              <p>{tr('你可以独立使用账号，也可以创建家庭或接受邀请。')}</p>
-              <button
-                onClick={() => {
-                  setAvatar('🏡');
-                  setEdit('new');
-                }}
+            <Card>
+              <EmptyState
+                title={tr('为共同生活建一个家庭')}
+                action={
+                  <Button
+                    onClick={() => {
+                      setAvatar('🏡');
+                      setEdit('new');
+                    }}
+                  >
+                    {tr('创建我的家庭')}
+                  </Button>
+                }
               >
-                {tr('创建我的家庭')}
-              </button>
-            </section>
+                {tr('你可以独立使用账号，也可以创建家庭或接受邀请。')}
+              </EmptyState>
+            </Card>
           )}
         </>
       ) : (
         <>
-          {detail.description && <p className="muted">{detail.description}</p>}
-          <div className="family-columns">
-            <section className="panel">
-              <div className="panel-title">
+          <FamilyFinance
+            key={detail.id}
+            family={detail.id}
+            userId={userId}
+            onChanged={refreshFinance}
+            revision={revision}
+            showOverviewTab={false}
+          />
+          {detail.description && <p className={s.muted}>{detail.description}</p>}
+          <div className={s.columns}>
+            <Card>
+              <div className={s.heading}>
                 <h2>
                   <Users size={21} />
                   {tr('家庭成员')}
@@ -264,8 +281,8 @@ export function FamiliesPage({
               {
                 <PagedList items={detail.members}>
                   {m => (
-                    <div className="family-row" key={m.id}>
-                      <Avatar value={m.avatar} />
+                    <div className={s.row} key={m.id}>
+                      <Avatar value={participantAvatar(m.avatar)} />
                       <span>
                         <strong>
                           {m.name}
@@ -277,8 +294,8 @@ export function FamiliesPage({
                         </small>
                       </span>
                       {owner && m.id !== userId && (
-                        <button
-                          className="text-button"
+                        <Button
+                          variant="ghost"
                           disabled={busy}
                           onClick={() =>
                             ask(
@@ -292,7 +309,7 @@ export function FamiliesPage({
                           }
                         >
                           {tr('移出')}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -301,43 +318,54 @@ export function FamiliesPage({
               {owner && (
                 <>
                   <form
-                    className="family-invite-form"
+                    className={s.form}
                     onSubmit={e => {
                       e.preventDefault();
                       const form = e.currentTarget;
                       const username = String(new FormData(form).get('username'));
-                      run(async () => {
+                      ask('发送邀请', tr('邀请 {0} 加入家庭？', [username]), async () => {
                         await mutate('/invitations', 'POST', { username }, '邀请已发送，等待对方登录后接受');
                         form.reset();
                       });
                     }}
                   >
-                    <label>
-                      {tr('邀请已有账号')}
-                      <input name="username" placeholder={tr('输入登录账号')} required maxLength={80} />
-                    </label>
-                    <button disabled={busy}>{tr('发送邀请')}</button>
+                    <Field label={tr('邀请已有账号')}>
+                      {control => (
+                        <Input
+                          {...control}
+                          name="username"
+                          placeholder={tr('输入登录账号')}
+                          required
+                          maxLength={80}
+                        />
+                      )}
+                    </Field>
+                    <Button type="submit" variant="primary" disabled={busy}>
+                      {tr('发送邀请')}
+                    </Button>
                   </form>
                   {detail.invitations.length > 0 && (
-                    <div className="family-pending">
+                    <div className={s.pending}>
                       <h3>{tr('等待接受')}</h3>
                       {
                         <PagedList items={detail.invitations}>
                           {i => (
-                            <div className="family-row" key={i.id}>
+                            <div className={s.row} key={i.id}>
                               <span>
                                 {i.name}
                                 <small>@{i.username}</small>
                               </span>
-                              <button
-                                className="text-button"
+                              <Button
+                                variant="ghost"
                                 disabled={busy}
                                 onClick={() =>
-                                  run(() => mutate('/invitations', 'DELETE', { userId: i.id }, '已撤回邀请'))
+                                  ask('撤回', tr('撤回发给 {0} 的邀请？', [i.name]), () =>
+                                    mutate('/invitations', 'DELETE', { userId: i.id }, '已撤回邀请'),
+                                  )
                                 }
                               >
                                 {tr('撤回')}
-                              </button>
+                              </Button>
                             </div>
                           )}
                         </PagedList>
@@ -346,21 +374,21 @@ export function FamiliesPage({
                   )}
                 </>
               )}
-            </section>
-            <section className="panel">
-              <div className="panel-title">
+            </Card>
+            <Card>
+              <div className={s.heading}>
                 <h2>
                   <BookOpen size={21} />
                   {tr('家庭账本')}
                 </h2>
-                <button className="text-button" onClick={onManageBooks}>
+                <Button variant="ghost" onClick={onManageBooks}>
                   {tr('管理账本')}
-                </button>
+                </Button>
               </div>
               {detail.books.length ? (
                 <PagedList items={detail.books}>
                   {b => (
-                    <div className="family-row" key={b.id}>
+                    <div className={s.row} key={b.id}>
                       <SymbolIcon icon={b.icon || '📒'} size={38} />
                       <span>
                         <strong>{b.name}</strong>
@@ -372,13 +400,13 @@ export function FamiliesPage({
                               : tr('只读')}
                         </small>
                       </span>
-                      <div className="family-actions">
-                        <button className="secondary" onClick={() => onOpenBook(b.id)}>
+                      <div className={s.actions}>
+                        <Button variant="secondary" onClick={() => onOpenBook(b.id)}>
                           {tr('打开')}
-                        </button>
+                        </Button>
                         {(owner || b.role === 'owner') && (
-                          <button
-                            className="text-button"
+                          <Button
+                            variant="ghost"
                             disabled={busy}
                             onClick={() =>
                               ask(
@@ -389,18 +417,18 @@ export function FamiliesPage({
                             }
                           >
                             {tr('解除关联')}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
                   )}
                 </PagedList>
               ) : (
-                <p className="muted">{tr('暂无已授权给你的家庭账本。')}</p>
+                <p className={s.muted}>{tr('暂无已授权给你的家庭账本。')}</p>
               )}
               {detail.availableBooks.length > 0 ? (
                 <form
-                  className="family-invite-form"
+                  className={s.form}
                   onSubmit={e => {
                     e.preventDefault();
                     const bookId = String(new FormData(e.currentTarget).get('bookId'));
@@ -417,25 +445,37 @@ export function FamiliesPage({
                       ))}
                     </FormSelect>
                   </label>
-                  <button disabled={busy}>
+                  <Button type="submit" disabled={busy}>
                     <Link2 size={17} />
                     {tr('关联')}
-                  </button>
+                  </Button>
                 </form>
               ) : (
-                <button className="secondary" onClick={onManageBooks}>
+                <Button variant="secondary" onClick={onManageBooks}>
                   <Plus size={17} />
                   {tr('前往创建共享账本')}
-                </button>
+                </Button>
               )}
               {detail.books.some(b => b.role === 'owner') && detail.members.some(m => m.id !== userId) && (
-                <details className="context-details">
+                <details className={s.details}>
                   <summary>{tr('为家庭成员设置账本权限')}</summary>
                   <form
                     onSubmit={e => {
                       e.preventDefault();
                       const values = Object.fromEntries(new FormData(e.currentTarget));
-                      run(() => mutate('/access', 'PUT', values, '账本权限已更新'));
+                      const member = detail.members.find(m => m.id === values.userId)!;
+                      const book = detail.books.find(b => b.id === values.bookId)!;
+                      const role =
+                        values.role === 'editor'
+                          ? tr('可记账')
+                          : values.role === 'viewer'
+                            ? tr('只读')
+                            : tr('撤销访问');
+                      ask(
+                        '保存账本权限',
+                        tr('将{0}对「{1}」的权限设为「{2}」？', [member.name, book.name, role]),
+                        () => mutate('/access', 'PUT', values, '账本权限已更新'),
+                      );
                     }}
                   >
                     <label>
@@ -456,8 +496,8 @@ export function FamiliesPage({
                         {detail.members
                           .filter(m => m.id !== userId)
                           .map(m => (
-                            <option key={m.id} value={m.id} data-icon={m.avatar || '👤'}>
-                              {m.name}（{m.username}）
+                            <option key={m.id} value={m.id} data-icon={participantAvatar(m.avatar)}>
+                              {tr('{0}（{1}）', [m.name, m.username])}
                             </option>
                           ))}
                       </FormSelect>
@@ -470,19 +510,21 @@ export function FamiliesPage({
                         <option value="none">{tr('撤销访问')}</option>
                       </FormSelect>
                     </label>
-                    <button disabled={busy}>{tr('保存账本权限')}</button>
+                    <Button type="submit" variant="primary" disabled={busy}>
+                      {tr('保存账本权限')}
+                    </Button>
                   </form>
                 </details>
               )}
-            </section>
+            </Card>
           </div>
-          <></>
-          <details className="context-details">
+
+          <details className={s.details}>
             <summary>{owner ? tr('转交或解散家庭') : tr('退出家庭')}</summary>
             {owner ? (
               <>
                 <form
-                  className="family-invite-form"
+                  className={s.form}
                   onSubmit={e => {
                     e.preventDefault();
                     const userId = String(new FormData(e.currentTarget).get('userId'));
@@ -500,21 +542,22 @@ export function FamiliesPage({
                       {detail.members
                         .filter(m => m.id !== userId && !m.disabled)
                         .map(m => (
-                          <option key={m.id} value={m.id} data-icon={m.avatar || '👤'}>
+                          <option key={m.id} value={m.id} data-icon={participantAvatar(m.avatar)}>
                             {m.name}
                           </option>
                         ))}
                     </FormSelect>
                   </label>
-                  <button
-                    className="secondary"
+                  <Button
+                    type="submit"
+                    variant="secondary"
                     disabled={busy || !detail.members.some(m => m.id !== userId && !m.disabled)}
                   >
                     {tr('转交家庭')}
-                  </button>
+                  </Button>
                 </form>
-                <button
-                  className="text-button"
+                <Button
+                  variant="ghost"
                   disabled={busy}
                   onClick={() =>
                     ask(
@@ -525,11 +568,11 @@ export function FamiliesPage({
                   }
                 >
                   {tr('解散家庭')}
-                </button>
+                </Button>
               </>
             ) : (
-              <button
-                className="secondary"
+              <Button
+                variant="secondary"
                 disabled={busy}
                 onClick={() =>
                   ask(
@@ -540,15 +583,16 @@ export function FamiliesPage({
                 }
               >
                 {tr('退出家庭')}
-              </button>
+              </Button>
             )}
           </details>
         </>
       )}
-      <></>
-      {detail && <FamilyFinance key={detail.id} family={detail.id} userId={userId} onChanged={onChanged} />}
+
       {edit && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={edit === 'new' ? tr('创建家庭') : tr('家庭资料')}
           onClose={() => {
             if (!busy && !uploading) setEdit(null);
@@ -572,56 +616,58 @@ export function FamiliesPage({
             }}
           >
             <AvatarField value={avatar} onChange={setAvatar} onProcessing={setUploading} />
-            <label>
-              {tr('家庭名称')}
-              <input
-                name="name"
-                defaultValue={edit === 'edit' ? detail?.name : ''}
-                maxLength={80}
-                required
-                placeholder={tr('例如：我们的小家')}
-              />
-            </label>
-            <label>
-              {tr('家庭简介（选填）')}
-              <textarea
-                name="description"
-                defaultValue={edit === 'edit' ? detail?.description : ''}
-                maxLength={500}
-              />
-            </label>
-            {error && <p className="error">{tr(error)}</p>}
-            <button disabled={busy || uploading}>{tr('保存家庭')}</button>
+            <Field label={tr('家庭名称')}>
+              {control => (
+                <Input
+                  {...control}
+                  name="name"
+                  defaultValue={edit === 'edit' ? detail?.name : ''}
+                  maxLength={80}
+                  required
+                  placeholder={tr('例如：我们的小家')}
+                />
+              )}
+            </Field>
+            <Field label={tr('家庭简介（选填）')}>
+              {control => (
+                <TextArea
+                  {...control}
+                  name="description"
+                  defaultValue={edit === 'edit' ? detail?.description : ''}
+                  maxLength={500}
+                />
+              )}
+            </Field>
+            {error && <p className={s.error}>{tr(error)}</p>}
+            <Button type="submit" variant="primary" disabled={busy || uploading}>
+              {tr('保存家庭')}
+            </Button>
           </form>
         </Sheet>
       )}
       {confirm && (
-        <Sheet
-          title={confirm.title}
-          onClose={() => {
+        <ConfirmDialog
+          open
+          busy={busy}
+          title={tr(confirm.title)}
+          confirmLabel={tr('确认') + tr(confirm.title)}
+          onCancel={() => {
             if (!busy) setConfirm(null);
           }}
+          onConfirm={() =>
+            run(async () => {
+              await confirm.action();
+              setConfirm(null);
+            })
+          }
         >
-          <p>{confirm.text}</p>
-          {error && <p className="error">{tr(error)}</p>}
-          <div className="family-actions">
-            <button className="secondary" disabled={busy} onClick={() => setConfirm(null)}>
-              {tr('取消')}
-            </button>
-            <button
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  await confirm.action();
-                  setConfirm(null);
-                })
-              }
-            >
-              {tr('确认')}
-              {confirm.title}
-            </button>
-          </div>
-        </Sheet>
+          <p>{tr(confirm.text)}</p>
+          {error && (
+            <p role="alert" className={s.error}>
+              {tr(error)}
+            </p>
+          )}
+        </ConfirmDialog>
       )}
     </div>
   );

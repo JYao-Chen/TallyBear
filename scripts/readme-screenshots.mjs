@@ -316,6 +316,51 @@ async function seed(db, lang) {
     "INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,kind,amount,date,note,status) VALUES($1,$2,$3,$4,$5,'aa',8400,$6,$7,'pending')",
     [movement, family, user, sam, wallets[0], month + '-24', label('周末晚餐AA', 'Weekend dinner split')],
   );
+  const samWallet = randomUUID();
+  await db.query(
+    "INSERT INTO accounts(id,name,type,owner_id,ownership,opening) VALUES($1,$2,'cash',$3,'personal',90000)",
+    [samWallet, label('日用现金', 'Pocket money'), sam],
+  );
+  for (const [payer, source, amount] of [
+    [user, wallets[0], 50000],
+    [sam, samWallet, 30000],
+  ]) {
+    await db.query(
+      "INSERT INTO family_movements(id,family_id,sender_id,source_id,target_id,kind,amount,date,status) VALUES($1,$2,$3,$4,$5,'contribution',$6,$7,'confirmed')",
+      [randomUUID(), family, payer, source, sharedWallet, amount, month + '-01'],
+    );
+  }
+  for (const amount of [2000, 3500]) {
+    await db.query(
+      "INSERT INTO family_movements(id,family_id,sender_id,recipient_id,source_id,kind,amount,date,status) VALUES($1,$2,$3,$4,$5,'transfer',$6,$7,'pending')",
+      [randomUUID(), family, sam, user, samWallet, amount, month + '-02'],
+    );
+  }
+  for (const [zh, english, amount, category] of [
+    ['厨房用品', 'Kitchen supplies', 4800, 7],
+    ['周末车票', 'Weekend fare', 3200, 2],
+  ]) {
+    const id = randomUUID(),
+      title = label(zh, english),
+      date = month + '-03';
+    await db.query(
+      "INSERT INTO transactions(id,book_id,account_id,kind,amount,date,title,category,created_by) VALUES($1,$2,$3,'expense',$4,$5,$6,$7,$8)",
+      [
+        id,
+        book,
+        sharedWallet,
+        amount,
+        date,
+        title,
+        label(categories[category][0], categories[category][1]),
+        sam,
+      ],
+    );
+    await db.query(
+      "INSERT INTO expense_claims(id,event_id,source_id,sender_id,recipient_id,status,snapshot) VALUES($1,$2,$2,$3,$4,'pending',$5)",
+      [randomUUID(), id, sam, user, JSON.stringify({ title, amount, date })],
+    );
+  }
   const conversation = randomUUID();
   await db.query('INSERT INTO finance_conversations(id,book_id,user_id,title) VALUES($1,$2,$3,$4)', [
     conversation,
@@ -974,10 +1019,10 @@ try {
         await navigate('记一笔');
         await page.getByRole('button', { name: t('家庭往来'), exact: true }).click();
         await settle();
-        await page.locator('.family-finance').waitFor();
-        await chooseSort(page.locator('.family-finance'), 'amount_desc');
+        await page.getByRole('region', { name: t('家庭资金往来'), exact: true }).waitFor();
+        await chooseSort(page.getByRole('region', { name: t('家庭资金往来'), exact: true }), 'amount_desc');
         await page
-          .locator('.family-finance')
+          .getByRole('region', { name: t('家庭资金往来'), exact: true })
           .getByRole('combobox', { name: t('明细排序') })
           .evaluate(el => el.scrollIntoView({ block: 'start' }));
         await shot('family-sorted');
@@ -1140,7 +1185,52 @@ try {
         ['使用说明', 'help'],
       ]) {
         await navigate(name);
+        if (key === 'family') {
+          const overview = page.getByRole('region', { name: t('家庭总览') });
+          for (const label of ['上月', '近 3 月', '本月']) {
+            const response = page.waitForResponse(r => r.url().includes('/family-finance/overview?'));
+            await overview.getByRole('button', { name: t(label), exact: true }).click();
+            const url = new URL((await response).url());
+            const start = new Date(month + '-01T00:00:00Z');
+            start.setUTCMonth(start.getUTCMonth() - (label === '上月' ? 1 : label === '近 3 月' ? 2 : 0));
+            const end = new Date(month + '-01T00:00:00Z');
+            end.setUTCMonth(end.getUTCMonth() + (label === '上月' ? 0 : 1), 0);
+            assert.equal(url.searchParams.get('from'), start.toISOString().slice(0, 10));
+            assert.equal(url.searchParams.get('to'), end.toISOString().slice(0, 10));
+            await overview.getByText(t('本期结余'), { exact: true }).waitFor();
+          }
+        }
         await shot(key);
+        if (key === 'overview') {
+          const tasks = page.getByRole('region', { name: t('家庭待办') });
+          assert.equal(await tasks.getByRole('button', { name: t('收款'), exact: true }).count(), 2);
+          assert.equal(await tasks.getByRole('button', { name: t('查看并认领'), exact: true }).count(), 1);
+          assert.equal(
+            await tasks.getByRole('link', { name: t('查看全部') }).getAttribute('href'),
+            '/family',
+          );
+          await tasks.evaluate(el => el.scrollIntoView({ block: 'start' }));
+          await shot('family-inbox');
+        }
+        if (key === 'family') {
+          const tasks = page.getByRole('region', { name: t('家庭待办') });
+          const claims = tasks.getByRole('button', { name: t('查看并认领'), exact: true });
+          assert.equal(await claims.count(), 2);
+          await claims.first().click();
+          const detail = page.getByRole('dialog', { name: t('账单认领') });
+          await detail.getByRole('button', { name: t('确认认领') }).waitFor();
+          await shot('family-claim');
+          await detail.getByRole('button', { name: t('关闭弹窗') }).click();
+          await page.getByRole('button', { name: t('移出'), exact: true }).click();
+          const confirm = page.getByRole('dialog', { name: t('移出家庭') });
+          await confirm.getByRole('button', { name: t('取消'), exact: true }).click();
+          await page.getByText(t('为家庭成员设置账本权限'), { exact: true }).click();
+          await page.getByRole('button', { name: t('保存账本权限'), exact: true }).click();
+          await page
+            .getByRole('dialog', { name: t('保存账本权限') })
+            .getByRole('button', { name: t('取消'), exact: true })
+            .click();
+        }
         if (key === 'entries') {
           const records = page.getByRole('region', { name: t('收支明细') });
           const lastMonth = new Date(month + '-01T00:00:00Z');

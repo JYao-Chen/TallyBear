@@ -1,11 +1,13 @@
 'use client';
+import { participantAvatar } from '@/ui/participantAvatar';
+import { Button, Card, Chip, ConfirmDialog, Field, Input, ListRow, Money, Sheet, TextArea } from '@/ui';
+import s from './ExpenseClaims.module.css';
 import { useCallback, useEffect, useState } from 'react';
 import { LedgerEntryContent } from './LedgerEntryDetail';
 import { ReceiptAttachments } from './ReceiptAttachments';
 import { useEntryDetail } from './EntryDetailContext';
 import { Inbox } from 'lucide-react';
 import { Avatar } from './ManagementPages';
-import { Sheet } from './Sheet';
 import { VisualSelect } from './VisualSelect';
 import { ClaimRecipientSelect } from './ClaimRecipientSelect';
 import { Discussion } from './Discussion';
@@ -31,8 +33,8 @@ export function ExpenseClaimDetail({
   onClose: () => void;
   onChanged: () => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr, locale } = useI18n();
+  const [confirmation, setConfirmation] = useState<'cancel' | 'withdraw' | null>(null);
   const openEntry = useEntryDetail();
   const [editingRecord, setEditingRecord] = useState<{
     title: string;
@@ -59,6 +61,7 @@ export function ExpenseClaimDetail({
     setError('');
     try {
       await claimRequest(id, { operation, version: data.claim.version, bookId: book || undefined });
+      setConfirmation(null);
       await load();
       onChanged();
       window.dispatchEvent(new Event('expense-claims-changed'));
@@ -75,16 +78,15 @@ export function ExpenseClaimDetail({
   if (editingRecord)
     return (
       <Sheet
-        title={l('修改记录', 'Edit record')}
+        open
+        closeLabel={tr('关闭弹窗')}
+        title={tr(locale === 'en' ? 'Edit record' : '修改记录')}
         onClose={() => {
           if (!busy) setEditingRecord(null);
         }}
       >
-        <p className="muted">
-          {l(
-            '修改你账单中的标题、分类和备注；实际付款金额、日期和钱包由付款人维护。',
-            'Edit your title, category and note. The payer maintains the payment amount, date and wallet.',
-          )}
+        <p className={s.muted}>
+          {tr('修改你账单中的标题、分类和备注；实际付款金额、日期和钱包由付款人维护。')}
         </p>
         <form
           onSubmit={async e => {
@@ -108,92 +110,92 @@ export function ExpenseClaimDetail({
             }
           }}
         >
-          <label>
-            {l('账目标题', 'Title')}
-            <input
-              value={editingRecord.title}
-              maxLength={200}
-              onChange={e => setEditingRecord({ ...editingRecord, title: e.target.value })}
-            />
-          </label>
-          <label>
-            {l('分类', 'Category')}
-            <input
-              value={editingRecord.category}
-              required
-              maxLength={60}
-              onChange={e => setEditingRecord({ ...editingRecord, category: e.target.value })}
-            />
-          </label>
-          <label>
-            {l('备注', 'Note')}
-            <textarea
-              aria-label={l('备注', 'Note')}
-              value={editingRecord.note}
-              maxLength={2000}
-              onChange={e => setEditingRecord({ ...editingRecord, note: e.target.value })}
-            />
-          </label>
+          <Field label={tr(locale === 'en' ? 'Title' : '账目标题')}>
+            {control => (
+              <Input
+                {...control}
+                value={editingRecord.title}
+                maxLength={200}
+                onChange={e => setEditingRecord({ ...editingRecord, title: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field label={tr('分类')}>
+            {control => (
+              <Input
+                {...control}
+                value={editingRecord.category}
+                required
+                maxLength={60}
+                onChange={e => setEditingRecord({ ...editingRecord, category: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field label={tr(locale === 'en' ? 'Note' : '备注')}>
+            {control => (
+              <TextArea
+                {...control}
+                aria-label={tr(locale === 'en' ? 'Note' : '备注')}
+                value={editingRecord.note}
+                maxLength={2000}
+                onChange={e => setEditingRecord({ ...editingRecord, note: e.target.value })}
+              />
+            )}
+          </Field>
           {error && (
-            <p className="error" role="alert">
+            <p className={s.error} role="alert">
               {error}
             </p>
           )}
-          <div className="sheet-actions">
-            <button disabled={busy}>{l('保存修改', 'Save changes')}</button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={() => setEditingRecord(null)}
-            >
-              {l('取消修改', 'Cancel changes')}
-            </button>
+          <div className={s.actions}>
+            <Button type="submit" variant="primary" disabled={busy}>
+              {tr('保存修改')}
+            </Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditingRecord(null)}>
+              {tr(locale === 'en' ? 'Cancel changes' : '取消修改')}
+            </Button>
           </div>
         </form>
       </Sheet>
     );
   return (
     <Sheet
-      title={l('账单认领', 'Purchase claim')}
+      open
+      closeLabel={tr('关闭弹窗')}
+      title={tr('账单认领')}
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <button
-        className="text-button"
-        disabled={busy}
-        onClick={() => void load().catch(e => setError(e.message))}
-      >
-        {l('刷新账单', 'Refresh purchase')}
-      </button>
-      {!data && !error && <p role="status">{l('正在读取…', 'Loading…')}</p>}
+      <Button variant="ghost" disabled={busy} onClick={() => void load().catch(e => setError(e.message))}>
+        {tr('刷新账单')}
+      </Button>
+      {!data && !error && <p role="status">{tr('正在读取…')}</p>}
       {error && (
-        <p role="alert" className="error">
+        <p role="alert" className={s.error}>
           {error}
         </p>
       )}
       {data && (
         <>
-          <div className="claim-heading">
-            <Avatar value={person(c.sender_id)?.avatar} size={40} />
+          <div className={s.person}>
+            <Avatar value={participantAvatar(person(c.sender_id)?.avatar)} size={40} />
             <div>
-              <strong>
-                {person(c.sender_id)?.name} {l('为', 'bought for')} {person(c.recipient_id)?.name}{' '}
-                {l('购买', '')}
-              </strong>
-              <p>
+              <strong>{tr('{0}为{1}购买', [person(c.sender_id)?.name, person(c.recipient_id)?.name])}</strong>
+              <Chip
+                tone={c.status === 'pending' ? 'attention' : c.status === 'accepted' ? 'income' : 'neutral'}
+              >
                 {
                   (
                     {
-                      pending: l('待认领', 'Awaiting claim'),
-                      accepted: l('已认领', 'Claimed'),
-                      declined: l('已拒绝', 'Declined'),
-                      withdrawn: l('已撤回或取消', 'Withdrawn or cancelled'),
+                      pending: tr('待认领'),
+                      accepted: tr('已认领'),
+                      declined: tr('已拒绝'),
+                      withdrawn: tr('已撤回或取消'),
                     } as Record<string, string>
                   )[c.status]
                 }
-              </p>
+              </Chip>
             </div>
           </div>
           <LedgerEntryContent
@@ -222,13 +224,13 @@ export function ExpenseClaimDetail({
           />
           {data.source.refunded > 0 && (
             <p>
-              {l('已到账退款', 'Refund received')} {formatMoney(data.source.refunded)} ·{' '}
-              {l('净消费', 'Net purchase')} {formatMoney(data.source.amount - data.source.refunded)}
+              {tr('已到账退款')} {formatMoney(data.source.refunded)} · {tr('净消费')}{' '}
+              {formatMoney(data.source.amount - data.source.refunded)}
             </p>
           )}
           {(data.canEditSource || data.canEditOwn) && (
-            <div className="sheet-actions">
-              <button
+            <div className={s.actions}>
+              <Button
                 type="button"
                 disabled={busy}
                 onClick={() => {
@@ -243,97 +245,84 @@ export function ExpenseClaimDetail({
                     });
                 }}
               >
-                {l('修改记录', 'Edit record')}
-              </button>
+                {tr(locale === 'en' ? 'Edit record' : '修改记录')}
+              </Button>
             </div>
           )}
-          <p className="muted">
-            {l(
+          <p className={s.muted}>
+            {tr(
               '认领后，消费只归入所选账本，原付款人仍可从“为他人购买”查看单据和讨论。不表示欠款，也不会从认领人的钱包扣款。',
-              'After acceptance, the purchase belongs only to the chosen book. The payer can still view the bill and discussion under Purchases for others. This creates no debt and does not charge the recipient’s wallet.',
             )}
           </p>
           {recipient && active && (
             <>
               <label>
-                {l('归入我的哪个账本', 'Choose my destination book')}
+                {tr('归入我的哪个账本')}
                 <VisualSelect
-                  label={l('认领账本', 'Claim destination')}
+                  label={tr('认领账本')}
                   value={book}
                   onChange={setBook}
                   disabled={busy}
                   options={[
-                    { value: '', label: l('请选择账本', 'Choose a book') },
+                    { value: '', label: tr('请选择账本') },
                     ...data.books.map((b: any) => ({
                       value: b.id,
-                      label:
-                        b.name + ' · ' + (b.kind === 'shared' ? l('公账', 'Shared') : l('私账', 'Private')),
+                      label: b.name + ' · ' + (b.kind === 'shared' ? tr('公账') : tr('私账')),
                       icon: b.icon,
                     })),
                   ]}
                 />
               </label>
-              <p className="muted">
-                {l(
-                  '选择公账后，该账本成员可查看这笔记录；对方不会获得你的私账权限。',
-                  'Members of a shared book can see this record. The sender receives no access to your private book.',
-                )}
+              <p className={s.muted}>
+                {tr('选择公账后，该账本成员可查看这笔记录；对方不会获得你的私账权限。')}
               </p>
-              <div className="claim-actions">
-                <button
+              <div className={s.actions}>
+                <Button
                   disabled={busy || !book || (c.status === 'accepted' && book === data.targetBookId)}
                   onClick={() => void act('accept')}
                 >
-                  {c.status === 'pending'
-                    ? l('确认认领', 'Accept claim')
-                    : l('调整归入账本', 'Change destination')}
-                </button>
+                  {c.status === 'pending' ? tr('确认认领') : tr('调整归入账本')}
+                </Button>
                 {c.status === 'pending' ? (
-                  <button className="secondary" disabled={busy} onClick={() => void act('decline')}>
-                    {l('拒绝认领', 'Decline')}
-                  </button>
+                  <Button variant="secondary" disabled={busy} onClick={() => void act('decline')}>
+                    {tr('拒绝认领')}
+                  </Button>
                 ) : (
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          l(
-                            '取消认领并移除由认领添加的账本关联？',
-                            'Cancel the claim and remove the copies it added?',
-                          ),
-                        )
-                      )
-                        void act('cancel');
-                    }}
-                  >
-                    {l('取消认领', 'Cancel claim')}
-                  </button>
+                  <Button variant="ghost" disabled={busy} onClick={() => setConfirmation('cancel')}>
+                    {tr('取消认领')}
+                  </Button>
                 )}
               </div>
             </>
           )}
           {!recipient && active && (
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    l(
-                      '撤回邀请及由认领添加的账本关联，并通知对方？',
-                      'Withdraw the invitation and its added copies, and notify the recipient?',
-                    ),
-                  )
-                )
-                  void act('withdraw');
-              }}
-            >
-              {l('撤回认领邀请', 'Withdraw invitation')}
-            </button>
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirmation('withdraw')}>
+              {tr('撤回认领邀请')}
+            </Button>
           )}
         </>
+      )}
+      {confirmation && (
+        <ConfirmDialog
+          open
+          busy={busy}
+          title={confirmation === 'cancel' ? tr('取消认领') : tr('撤回认领邀请')}
+          onCancel={() => {
+            if (!busy) setConfirmation(null);
+          }}
+          onConfirm={() => void act(confirmation)}
+        >
+          <p>
+            {confirmation === 'cancel'
+              ? tr('取消认领并移除由认领添加的账本关联？')
+              : tr('撤回邀请及由认领添加的账本关联，并通知对方？')}
+          </p>
+          {error && (
+            <p role="alert" className={s.error}>
+              {tr(error)}
+            </p>
+          )}
+        </ConfirmDialog>
       )}
     </Sheet>
   );
@@ -343,14 +332,15 @@ export function ExpenseClaimsInbox({
   onChanged,
   onCount,
   compact = false,
+  limit,
 }: {
   revision: number;
   onChanged: () => void;
   onCount?: (count: number) => void;
   compact?: boolean;
+  limit?: number;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [data, setData] = useState<any>(null),
     [offset, setOffset] = useState(0),
     [error, setError] = useState(''),
@@ -386,77 +376,78 @@ export function ExpenseClaimsInbox({
       window.removeEventListener('expense-claims-changed', refresh);
     };
   }, [revision, load]);
+  const Group = compact ? 'div' : Card;
   const events: Record<string, string> = {
-    membership_removed: l('家庭关系已变化，认领已撤回', 'Family membership changed; claim withdrawn'),
-    invited: l('邀请你认领', 'Invited you to claim'),
-    accepted: l('已认领账单', 'Claim accepted'),
-    source_changed: l('原账单有修改，请核对', 'Original bill changed; review it'),
-    source_deleted: l('原账单已删除，认领已撤回', 'Original bill removed; claim withdrawn'),
-    withdrawn: l('已撤回认领邀请', 'Invitation withdrawn'),
-    cancel: l('已取消认领', 'Claim cancelled'),
-    decline: l('已拒绝认领', 'Claim declined'),
+    membership_removed: tr('家庭关系已变化，认领已撤回'),
+    invited: tr('邀请你认领'),
+    accepted: tr('已认领账单'),
+    source_changed: tr('原账单有修改，请核对'),
+    source_deleted: tr('原账单已删除，认领已撤回'),
+    withdrawn: tr('已撤回认领邀请'),
+    cancel: tr('已取消认领'),
+    decline: tr('已拒绝认领'),
   };
   return (
     <>
       {(!!data?.total || !!error) && (
-        <section className="panel home-inbox">
-          <div className="panel-title">
-            <h2>
-              <Inbox size={22} />
-              {l('待认领与账单动态', 'Purchase claims & updates')} <small>{data?.total || ''}</small>
-            </h2>
-            <button className="text-button" onClick={() => void load().catch(e => setError(e.message))}>
-              {l('刷新', 'Refresh')}
-            </button>
-          </div>
+        <Group className={compact ? undefined : s.inbox} hidden={limit === 0 && !error}>
+          {!compact && (
+            <div className={s.heading}>
+              <h2>
+                <Inbox size={22} />
+                {tr('待认领与账单动态')} <Chip tone="attention">{data?.total || 0}</Chip>
+              </h2>
+              <Button variant="ghost" onClick={() => void load().catch(e => setError(e.message))}>
+                {tr('刷新')}
+              </Button>
+            </div>
+          )}
           {error && (
-            <p role="alert" className="error">
+            <p role="alert" className={s.error}>
               {error}
             </p>
           )}
-          {data?.rows.map((r: any) => (
-            <article className="home-inbox-row" key={r.id}>
-              <div>
-                <div className="claim-heading">
-                  <Avatar value={r.avatar} size={36} />
-                  <strong>
-                    {r.name} ·{' '}
-                    {events[r.event] ||
-                      (r.status === 'pending'
-                        ? l('待你认领', 'Awaiting your claim')
-                        : l('账单动态', 'Bill update'))}
-                  </strong>
-                </div>
-                <p>
-                  {r.title || r.product || r.payee || l('消费账单', 'Purchase')} · {formatMoney(r.amount)}
-                </p>
-                <small>{r.date}</small>
-              </div>
-              <button onClick={() => setSelected(r.id)}>
-                {r.status === 'pending' && r.side === 'recipient'
-                  ? l('查看并认领', 'Review & claim')
-                  : l('查看动态', 'View update')}
-              </button>
-            </article>
+          {data?.rows.slice(0, limit).map((r: any) => (
+            <ListRow
+              key={r.id}
+              className={s.claimRow}
+              leading={<Avatar value={participantAvatar(r.avatar)} size={32} />}
+              title={r.title || r.product || r.payee || tr('消费账单')}
+              meta={
+                <>
+                  {r.name} · {r.date}
+                  <br />
+                  <Chip tone={r.status === 'pending' ? 'attention' : 'neutral'}>
+                    {events[r.event] || (r.status === 'pending' ? tr('待你认领') : tr('账单动态'))}
+                  </Chip>
+                </>
+              }
+              end={<Money value={r.amount} />}
+              endMeta={
+                <Button variant="ghost" onClick={() => setSelected(r.id)}>
+                  {r.status === 'pending' && r.side === 'recipient' ? tr('查看并认领') : tr('查看动态')}
+                </Button>
+              }
+            />
           ))}
-          {data?.total > 5 && (
-            <div className="claim-actions">
-              <button className="secondary" disabled={!offset} onClick={() => setOffset(v => v - 5)}>
-                {l('上一页', 'Previous')}
-              </button>
+          {limit === undefined && data?.total > 5 && (
+            <div className={s.actions}>
+              <Button variant="secondary" disabled={!offset} onClick={() => setOffset(v => v - 5)}>
+                {tr('上一页')}
+              </Button>
               <span>
                 {offset + 1}–{Math.min(offset + 5, data.total)} / {data.total}
               </span>
-              <button
-                className="secondary"
+              <Button
+                variant="secondary"
                 disabled={offset + 5 >= data.total}
                 onClick={() => setOffset(v => v + 5)}
               >
-                {l('下一页', 'Next')}
-              </button>
+                {tr('下一页')}
+              </Button>
             </div>
           )}
-        </section>
+        </Group>
       )}
       {selected && (
         <ExpenseClaimDetail
@@ -482,8 +473,7 @@ export function ExpenseClaimsSent({
   onCount?: (count: number) => void;
   compact?: boolean;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [data, setData] = useState<any>(null),
     [offset, setOffset] = useState(0),
     [expanded, setExpanded] = useState(compact),
@@ -519,95 +509,92 @@ export function ExpenseClaimsSent({
     };
   }, [revision, load]);
   const labels: Record<string, string> = {
-    pending: l('待对方认领', 'Awaiting their claim'),
-    accepted: l('已转入对方选择的账本', 'Moved to their chosen book'),
-    declined: l('对方已拒绝', 'Declined'),
-    withdrawn: l('已撤回或取消', 'Withdrawn or cancelled'),
+    pending: tr('待对方认领'),
+    accepted: tr('已转入对方选择的账本'),
+    declined: tr('对方已拒绝'),
+    withdrawn: tr('已撤回或取消'),
   };
   return (
     <>
       {(!!data?.total || !!error) && (
-        <section className="panel home-inbox claim-sent">
-          <div className="panel-title">
+        <Card>
+          <div className={s.heading}>
             <h2>
-              {l('为他人购买', 'Purchases for others')} <small>{data?.total || ''}</small>
+              {tr('为他人购买')} <small>{data?.total || ''}</small>
             </h2>
-            <button
+            <Button
               type="button"
-              className="text-button"
+              variant="ghost"
               aria-expanded={expanded}
               onClick={() => setExpanded(v => !v)}
             >
-              {expanded ? l('收起记录', 'Hide records') : l('查看记录', 'View records')}
-            </button>
+              {expanded ? tr('收起记录') : tr('查看记录')}
+            </Button>
           </div>
-          <p className="muted">
-            {l(
-              '认领后消费归入对方选择的账本；这里保留你实际付款的单据与讨论，已读后仍可查看。',
-              'After acceptance the purchase belongs to their chosen book. Your payment record and discussion remain available here after reading.',
-            )}
+          <p className={s.muted}>
+            {tr('认领后消费归入对方选择的账本；这里保留你实际付款的单据与讨论，已读后仍可查看。')}
           </p>
           {error && (
-            <p role="alert" className="error">
+            <p role="alert" className={s.error}>
               {error}
-              <button
+              <Button
                 type="button"
-                className="text-button"
+                variant="ghost"
                 onClick={() => void load().catch(e => setError(e.message))}
               >
-                {l('重试', 'Retry')}
-              </button>
+                {tr('重试')}
+              </Button>
             </p>
           )}
           {expanded && (
             <>
               {data?.rows.map((r: any) => (
-                <article className="home-inbox-row" key={r.id}>
-                  <div>
-                    <div className="claim-heading">
-                      <Avatar value={r.avatar} size={36} />
-                      <strong>
-                        {l('为', 'For')} {r.name} {l('购买', '')}
-                      </strong>
-                    </div>
-                    <p>
-                      {r.title} · {formatMoney(r.amount)}
-                    </p>
-                    <small>
-                      {r.date} · {labels[r.status]}
-                    </small>
-                  </div>
-                  <button type="button" className="secondary" onClick={() => setSelected(r.id)}>
-                    {l('查看单据与讨论', 'View bill & discussion')}
-                  </button>
-                </article>
+                <ListRow
+                  key={r.id}
+                  className={s.claimRow}
+                  leading={<Avatar value={participantAvatar(r.avatar)} size={32} />}
+                  title={r.title}
+                  meta={
+                    <>
+                      {tr('为{0}购买', [r.name])} · {r.date}
+                      <br />
+                      <Chip tone={r.status === 'pending' ? 'attention' : 'neutral'}>{labels[r.status]}</Chip>
+                    </>
+                  }
+                  end={<Money value={r.amount} />}
+                  endMeta={
+                    <Button variant="ghost" onClick={() => setSelected(r.id)}>
+                      {tr('查看单据与讨论')}
+                    </Button>
+                  }
+                />
               ))}
               {data?.total > 5 && (
-                <div className="claim-actions">
-                  <button
+                <div className={s.actions}>
+                  <Button
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     disabled={!offset}
                     onClick={() => setOffset(v => v - 5)}
                   >
-                    {l('上一页', 'Previous')}
-                  </button>
+                    {tr('上一页')}
+                  </Button>
                   <span>
                     {offset + 1}–{Math.min(offset + 5, data.total)} / {data.total}
                   </span>
-                  <button
+                  <Button
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     disabled={offset + 5 >= data.total}
                     onClick={() => setOffset(v => v + 5)}
                   >
-                    {l('下一页', 'Next')}
-                  </button>
+                    {tr('下一页')}
+                  </Button>
                 </div>
               )}
             </>
           )}
-        </section>
+        </Card>
       )}
       {selected && (
         <ExpenseClaimDetail
@@ -631,8 +618,7 @@ export function ExpenseClaimRecord({
   onChanged?: () => void;
   onPermission?: (canEdit: boolean) => void;
 }) {
-  const { locale } = useI18n(),
-    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const { t: tr } = useI18n();
   const [data, setData] = useState<any>(null),
     [recipient, setRecipient] = useState(''),
     [selfBook, setSelfBook] = useState(''),
@@ -651,19 +637,20 @@ export function ExpenseClaimRecord({
   }, [load]);
   const chooseBook = data?.selfBooks && recipient === data.userId;
   return (
-    <section className="expense-claim-record">
+    <section className={s.record}>
       {data?.claim && (
         <>
           <p>
-            {l('认领对象', 'Purchase recipient')}：{data.claim.recipient_name} ·{' '}
-            {data.familyId ? l('发起人', 'Assigned by') : l('实际付款人', 'Paid by')}：
-            {data.claim.sender_name} ·{' '}
-            {data.claim.status === 'accepted' ? l('已认领', 'Claimed') : l('待认领', 'Pending claim')}
+            {tr('认领对象')}：{data.claim.recipient_name} · {data.familyId ? tr('发起人') : tr('实际付款人')}
+            ：{data.claim.sender_name} ·{' '}
+            <Chip tone={data.claim.status === 'accepted' ? 'income' : 'attention'}>
+              {data.claim.status === 'accepted' ? tr('已认领') : tr('待认领')}
+            </Chip>
           </p>
           {data.canOpen && (
-            <button className="secondary" onClick={() => setOpen(data.claim.id)}>
-              {l('查看认领与讨论', 'Claim details & discussion')}
-            </button>
+            <Button variant="secondary" onClick={() => setOpen(data.claim.id)}>
+              {tr('查看认领与讨论')}
+            </Button>
           )}
         </>
       )}
@@ -677,18 +664,18 @@ export function ExpenseClaimRecord({
           />
           {chooseBook && (
             <VisualSelect
-              label={l('归入我的哪个账本', 'Choose my destination book')}
+              label={tr('归入我的哪个账本')}
               value={selfBook}
               onChange={setSelfBook}
               disabled={busy}
               options={[
-                { value: '', label: l('请选择账本', 'Choose a book') },
+                { value: '', label: tr('请选择账本') },
                 ...data.selfBooks.map((b: { id: string; name: string }) => ({ value: b.id, label: b.name })),
               ]}
             />
           )}
-          <button
-            className="secondary"
+          <Button
+            variant="secondary"
             disabled={busy || (chooseBook && !selfBook) || recipient === (data.claim?.recipient_id || '')}
             onClick={async () => {
               setBusy(true);
@@ -709,14 +696,12 @@ export function ExpenseClaimRecord({
               }
             }}
           >
-            {data.familyId
-              ? l('指给家庭成员', 'Assign to family member')
-              : l('保存消费对象', 'Save purchase recipient')}
-          </button>
+            {data.familyId ? tr('指给家庭成员') : tr('保存消费对象')}
+          </Button>
         </>
       )}
       {error && (
-        <p className="error" role="alert">
+        <p className={s.error} role="alert">
           {error}
         </p>
       )}

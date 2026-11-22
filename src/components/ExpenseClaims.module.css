@@ -1,0 +1,54 @@
+.actions,
+.heading,
+.heading h2,
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.heading {
+  justify-content: space-between;
+}
+.heading h2 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+.inbox {
+  border-inline-start: 3px solid var(--attention);
+}
+.actions {
+  margin-block: var(--space-3);
+}
+.person {
+  margin-block: var(--space-3);
+}
+.person strong {
+  display: block;
+}
+.record {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.muted {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.error {
+  color: var(--expense);
+}
+.claimRow > span:nth-child(2) > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.claimRow > span:nth-child(2) > span > span {
+  white-space: normal;
+}
+@media (max-width: 640px) {
+  .claimRow button {
+    white-space: normal;
+    max-width: 8rem;
+    padding-inline: var(--space-2);
+  }
+}

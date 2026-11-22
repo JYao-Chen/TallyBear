@@ -68,21 +68,24 @@ try {
   await page
     .context()
     .addCookies([{ name: 'bubu_session', value: token, domain: new URL(origin).hostname, path: '/' }]);
-  await page.goto(origin);
-  await page.locator('#primary-navigation').getByRole('button', { name: '记一笔', exact: true }).click();
+  await page.goto(origin + '/entry');
   await page.getByRole('button', { name: '家庭往来', exact: true }).click();
   await page.getByLabel('搜索往来').waitFor();
   assert.equal(await page.getByRole('dialog').count(), 0);
-  await page.locator('.family-finance').getByRole('button', { name: '下一页', exact: true }).click();
+  await page
+    .getByRole('region', { name: '家庭资金往来' })
+    .getByRole('button', { name: '下一页', exact: true })
+    .click();
   await page.getByText('11–13 / 13', { exact: true }).waitFor();
   await page.getByLabel('搜索往来').fill('TEST-ORDER-12');
   await page.getByText('共 1 笔往来', { exact: false }).waitFor();
   await page.getByRole('button', { name: '查看详情', exact: true }).click();
+  await page.getByRole('tab', { name: '我的记录', exact: true }).click();
   await page.getByText('流水号：TEST-ORDER-12').waitFor();
   assert.equal(await page.getByRole('dialog').count(), 0);
-  await page.getByRole('button', { name: '修改记录', exact: true }).click();
+  await page.getByRole('button', { name: '修改私人记录', exact: true }).click();
   await page.getByLabel('记录标题', { exact: true }).fill('周末旅行车费');
-  await page.getByRole('button', { name: '保存修改', exact: true }).click();
+  await page.getByRole('button', { name: '保存私人记录', exact: true }).click();
   await page.getByLabel('搜索往来').waitFor();
   await page.getByLabel('搜索往来').fill('周末旅行车费');
   await page.getByText('共 1 笔往来', { exact: false }).waitFor();
@@ -128,8 +131,10 @@ try {
   );
   await page.getByRole('button', { name: '费用分担 / AA', exact: true }).click();
   await page.getByText('还没有设置分担的家庭消费。').waitFor();
-  await page.getByRole('button', { name: '共同入金', exact: true }).click();
-  await page.getByText('测试小熊 · 共同入金').waitFor();
+  await page.getByRole('button', { name: '家庭总览', exact: true }).click();
+  const overview = page.getByRole('region', { name: '家庭总览' });
+  await overview.getByText('测试小熊', { exact: true }).waitFor();
+  await overview.getByText('本期结余', { exact: true }).waitFor();
   assert.deepEqual(errors, []);
   console.log(
     'PASS: family page, pagination, search, private detail editing, create, tabs and 1440/390/360 layouts',

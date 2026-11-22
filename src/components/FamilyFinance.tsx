@@ -1,8 +1,24 @@
 'use client';
+import { participantAvatar } from '@/ui/participantAvatar';
+import {
+  Button,
+  Card,
+  ChipButton,
+  ConfirmDialog,
+  Field,
+  Input,
+  ListRow,
+  Money,
+  Segmented,
+  Select,
+  Stat,
+  TextArea,
+} from '@/ui';
+import s from './FamilyFinance.module.css';
 import { DetailSortSelect } from './DetailSortSelect';
 import { sortDetails, type DetailSort } from '@/lib/detail-sort';
 import { useI18n } from './LanguageProvider';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, Plus, Check, Gift } from 'lucide-react';
 import { VisualSelect } from './VisualSelect';
 import { FamilyMovementDetails } from './FamilyMovementDetails';
@@ -26,13 +42,19 @@ export function FamilyFinance({
   family,
   userId,
   onChanged,
+  showOverviewTab = true,
+  revision = 0,
 }: {
+  showOverviewTab?: boolean;
+  revision?: number;
   family: string;
   userId: string;
   onChanged: () => Promise<void>;
 }) {
+  const section = useRef<HTMLElement>(null);
+  const [cancelId, setCancelId] = useState('');
   const [sort, setSort] = useState<DetailSort>('date_desc');
-  const { t: tr, locale } = useI18n();
+  const { t: tr } = useI18n();
   const [receiverType, setReceiverType] = useState('member');
   const [view, setView] = useState('records'),
     [query, setQuery] = useState(''),
@@ -56,7 +78,7 @@ export function FamilyFinance({
     [shares, setShares] = useState<Record<string, string>>({});
   useEffect(() => {
     if (open || confirm || split || organize || selected)
-      document.querySelector('.family-finance')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      section.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
   }, [open, confirm, split, organize, selected]);
   async function api(body?: unknown) {
     const r = await fetch('/api/family-finance/' + family, {
@@ -73,7 +95,7 @@ export function FamilyFinance({
   }
   useEffect(() => {
     load().catch(e => setError(e.message));
-  }, [family]);
+  }, [family, revision]);
   async function save(body: unknown) {
     if (busy) return;
     setBusy(true);
@@ -85,31 +107,14 @@ export function FamilyFinance({
       setOpen(false);
       setConfirm(null);
       setSplit(null);
+      setCancelId('');
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
-  const [month, setMonth] = useState(() => recordingDate().slice(0, 7));
-  const [overview, setOverview] = useState<Awaited<ReturnType<typeof familyOverview>> | null>(null);
-  useEffect(() => {
-    setOverview(null);
-    if (view !== 'contributions' || !month) return;
-    const controller = new AbortController();
-    const params = new URLSearchParams({ familyId: family, ...monthRange(month) });
-    fetch('/api/family-finance/overview?' + params, { signal: controller.signal })
-      .then(async r => {
-        const value = await r.json();
-        if (!r.ok) throw Error(value.error);
-        if (!controller.signal.aborted) setOverview(value);
-      })
-      .catch(e => {
-        if (!controller.signal.aborted) setError(e.message);
-      });
-    return () => controller.abort();
-  }, [family, month, view, data]);
-  if (!data) return <section className="panel">{error || tr('正在读取家庭资金往来…')}</section>;
+  if (!data) return <Card role="status">{tr(error || '正在读取家庭资金往来…')}</Card>;
   const wallets = data.wallets.map((a: any) => ({
     value: a.id,
     label: a.name + (a.family_id ? tr(' · 家庭共有') : ''),
@@ -118,8 +123,8 @@ export function FamilyFinance({
   }));
   const people = data.people
     .filter((p: any) => p.id !== userId)
-    .map((p: any) => ({ value: p.id, label: p.name, icon: p.avatar }));
-  const contributionLabel = locale === 'en' ? 'Family contribution' : '家庭缴款';
+    .map((p: any) => ({ value: p.id, label: p.name, icon: participantAvatar(p.avatar) }));
+  const contributionLabel = tr('家庭缴款');
   const kindLabel = (value: string) => (value === 'contribution' ? contributionLabel : tr(kinds[value]));
   const isContribution =
     kind === 'transfer' &&
@@ -159,7 +164,7 @@ export function FamilyFinance({
   );
   if (selected)
     return (
-      <section className="panel family-finance">
+      <section ref={section} className={s.finance} aria-label={tr('家庭资金往来')}>
         <FamilyMovementDetails
           embedded
           row={{
@@ -178,15 +183,16 @@ export function FamilyFinance({
       </section>
     );
   return (
-    <section className="panel family-finance">
+    <section ref={section} className={s.finance} aria-label={tr('家庭资金往来')}>
       {!editingPanel && (
         <>
-          <div className="panel-title">
+          <div className={s.heading}>
             <h2>
               <ArrowLeftRight size={22} />
               {tr('家庭资金往来')}
             </h2>
-            <button
+            <Button
+              variant="primary"
               onClick={() => {
                 setDisplayBook(data.defaultBookId);
                 setRequestId(crypto.randomUUID());
@@ -202,76 +208,26 @@ export function FamilyFinance({
             >
               <Plus size={18} />
               {tr('记一笔往来')}
-            </button>
+            </Button>
           </div>
-          <></>
-          {error && !open && !confirm && !split && <p className="error">{error}</p>}
-          <nav className="family-tabs" aria-label={tr('家庭往来栏目')}>
-            {[
-              ['records', tr('往来记录')],
-              ['aa', tr('费用分担 / AA')],
-              ['contributions', locale === 'en' ? 'Family overview' : '家庭总览'],
-            ].map(([key, label]) => (
-              <button
-                type="button"
-                className="secondary"
-                key={key}
-                aria-pressed={view === key}
-                onClick={() => setView(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-          {view === 'contributions' && (
-            <>
-              <label>
-                {tr('月份')}
-                <input type="month" value={month} onChange={e => setMonth(e.target.value)} />
-              </label>
-              {overview && (
-                <>
-                  <h3>{contributionLabel}</h3>
-                  <div className="wallet-groups">
-                    {overview.contributions.map(c => (
-                      <article key={c.id}>
-                        <small>{c.name}</small>
-                        <strong>{formatMoney(c.amount)}</strong>
-                      </article>
-                    ))}
-                  </div>
-                  <div className="wallet-groups">
-                    {(
-                      [
-                        [locale === 'en' ? 'Common expenses' : '共同费用', overview.commonExpense],
-                        [
-                          locale === 'en' ? 'Claimed personal expenses' : '已认领个人费用',
-                          overview.claimedExpense,
-                        ],
-                        [locale === 'en' ? 'Opening balance' : '期初余额', overview.openingBalance],
-                        [locale === 'en' ? 'Closing balance' : '期末余额', overview.closingBalance],
-                        [locale === 'en' ? 'Period balance change' : '本期结余', overview.surplus],
-                      ] as const
-                    ).map(([label, value]) => (
-                      <article key={label}>
-                        <small>{tr(label)}</small>
-                        <strong>{formatMoney(value)}</strong>
-                      </article>
-                    ))}
-                  </div>
-                  {overview.categories.map(c => (
-                    <p key={c.name}>
-                      {c.name} · {formatMoney(c.amount)}
-                    </p>
-                  ))}
-                </>
-              )}
-            </>
-          )}
+
+          {error && !open && !confirm && !split && <p className={s.error}>{error}</p>}
+          <Segmented
+            className={s.tabs}
+            label={tr('家庭往来栏目')}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'records', label: tr('往来记录') },
+              { value: 'aa', label: tr('费用分担 / AA') },
+              ...(showOverviewTab ? [{ value: 'contributions', label: tr('家庭总览') }] : []),
+            ]}
+          />
+          {view === 'contributions' && <FamilyOverview family={family} revision={revision} />}
           {view === 'aa' && (
             <section>
               <h3>{tr('费用分担 / AA')}</h3>
-              <p className="muted">{tr('由实际付款人设置承担金额；成员完成结算后更新进度。')}</p>
+              <p className={s.muted}>{tr('由实际付款人设置承担金额；成员完成结算后更新进度。')}</p>
               {data.expenses.filter((e: any) => e.owner_id === userId).length > 0 && (
                 <VisualSelect
                   label={tr('设置费用分担')}
@@ -302,7 +258,7 @@ export function FamilyFinance({
               )}
               <PagedList items={aa}>
                 {(e: any) => (
-                  <article className="schedule-card" key={e.id}>
+                  <article className={s.share} key={e.id}>
                     <strong>
                       {e.title || e.payee} · {formatMoney(e.amount)}
                     </strong>
@@ -326,91 +282,99 @@ export function FamilyFinance({
                   </article>
                 )}
               </PagedList>
-              {!aa.length && <p className="muted">{tr('还没有设置分担的家庭消费。')}</p>}
+              {!aa.length && <p className={s.muted}>{tr('还没有设置分担的家庭消费。')}</p>}
             </section>
           )}
           {view === 'records' && (
             <>
-              <div className="family-record-filters">
-                <label>
-                  {tr('搜索往来')}
-                  <input
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    placeholder={tr('成员、备注、用途、流水号…')}
-                  />
-                </label>
+              <div className={s.filters}>
+                <Field label={tr('搜索往来')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                      placeholder={tr('成员、备注、用途、流水号…')}
+                    />
+                  )}
+                </Field>
                 <label>
                   {tr('往来状态')}
-                  <select value={filter} onChange={e => setFilter(e.target.value)}>
+                  <Select value={filter} onChange={e => setFilter(e.target.value)}>
                     <option value="">{tr('全部状态')}</option>
                     <option value="pending">{tr('待收款人确认')}</option>
                     <option value="confirmed">{tr('已确认')}</option>
                     <option value="cancelled">{tr('已取消')}</option>
-                  </select>
+                  </Select>
                 </label>
               </div>
-              <p className="muted">
+              <p className={s.muted}>
                 {tr('共 ')}
                 {filtered.length} {tr(' 笔往来 · 内部资金流动不计家庭消费')}
               </p>
               <DetailSortSelect value={sort} onChange={setSort} />
               <PagedList items={filtered} resetKey={query + filter + sort}>
                 {(m: any) => (
-                  <article className="schedule-card" key={m.id}>
-                    <div>
-                      <strong>
-                        {m.details?.title && <span>{m.details.title} · </span>}
-                        {m.kind === 'gift' ? <Gift size={16} /> : <ArrowLeftRight size={16} />}{' '}
-                        {m.sender_name} → {m.recipient_name || m.target_name} · {kindLabel(m.kind)}
-                      </strong>
-                      <small>
-                        {m.date} ·{' '}
-                        {m.status === 'pending'
-                          ? tr('待收款人确认')
-                          : m.status === 'confirmed'
-                            ? tr('已确认')
-                            : tr('已取消')}
-                        {m.note ? ' · ' + (locale === 'en' ? 'Transfer note: ' : '转账留言：') + m.note : ''}
-                        {m.details?.note && m.details.note !== m.note
-                          ? ' · ' + (locale === 'en' ? 'Private note: ' : '私人备注：') + m.details.note
-                          : ''}
-                      </small>
-                      {m.kind === 'loan' && m.status === 'confirmed' && (
-                        <small>
-                          {tr('未归还 ')}
-                          {formatMoney(
-                            Math.max(
-                              0,
-                              m.amount -
-                                data.movements
-                                  .filter((v: any) => v.loan_id === m.id && v.status === 'confirmed')
-                                  .reduce((n: number, v: any) => n + v.amount, 0),
-                            ),
+                  <article className={s.movement} key={m.id}>
+                    <ListRow
+                      leading={m.kind === 'gift' ? <Gift size={16} /> : <ArrowLeftRight size={16} />}
+                      title={
+                        <>
+                          {m.details?.title && <span>{m.details.title} · </span>}
+                          {m.sender_name} → {m.recipient_name || m.target_name} · {kindLabel(m.kind)}
+                        </>
+                      }
+                      meta={
+                        <>
+                          <span>
+                            {m.date} ·{' '}
+                            {m.status === 'pending'
+                              ? tr('待收款人确认')
+                              : m.status === 'confirmed'
+                                ? tr('已确认')
+                                : tr('已取消')}
+                            {m.note ? ' · ' + tr('转账留言：{0}', [m.note]) : ''}
+                            {m.details?.note && m.details.note !== m.note
+                              ? ' · ' + tr('私人备注：{0}', [m.details.note])
+                              : ''}
+                          </span>
+                          {m.kind === 'loan' && m.status === 'confirmed' && (
+                            <small>
+                              {tr('未归还 ')}
+                              {formatMoney(
+                                Math.max(
+                                  0,
+                                  m.amount -
+                                    data.movements
+                                      .filter((v: any) => v.loan_id === m.id && v.status === 'confirmed')
+                                      .reduce((n: number, v: any) => n + v.amount, 0),
+                                ),
+                              )}
+                            </small>
                           )}
-                        </small>
-                      )}
-                    </div>
-                    <strong>{formatMoney(m.amount)}</strong>
-                    <div className="family-row-actions">
-                      <button type="button" className="secondary" onClick={() => setSelected(m)}>
+                        </>
+                      }
+                      end={<Money value={m.amount} />}
+                    />
+                    <div className={s.actions}>
+                      <Button type="button" variant="secondary" onClick={() => setSelected(m)}>
                         {tr('查看详情')}
-                      </button>
+                      </Button>
                       {[m.sender_id, m.recipient_id].includes(userId) && (
-                        <button
-                          className="text-button"
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             setOrganize(m);
                             setDisplayBook(m.displayBookId);
                           }}
                         >
                           {tr('展示账本')}
-                        </button>
+                        </Button>
                       )}
                       {m.status === 'pending' && (
-                        <div className="inline">
+                        <div className={s.actions}>
                           {m.recipient_id === userId && (
-                            <button
+                            <Button
                               disabled={busy}
                               onClick={() => {
                                 setDisplayBook(data.defaultBookId);
@@ -422,19 +386,18 @@ export function FamilyFinance({
                             >
                               <Check size={16} />
                               {tr('确认到账')}
-                            </button>
+                            </Button>
                           )}
                           {[m.sender_id, m.recipient_id].includes(userId) && (
-                            <button
-                              className="text-button"
+                            <Button
+                              variant="ghost"
                               disabled={busy}
                               onClick={() => {
-                                if (window.confirm(tr('取消这笔待确认往来？')))
-                                  void save({ operation: 'cancel', id: m.id });
+                                setCancelId(m.id);
                               }}
                             >
                               {tr('取消往来')}
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}
@@ -443,7 +406,7 @@ export function FamilyFinance({
                 )}
               </PagedList>
               {!filtered.length && (
-                <p className="muted">{tr('没有符合条件的往来记录，可以调整筛选或记一笔往来。')}</p>
+                <p className={s.muted}>{tr('没有符合条件的往来记录，可以调整筛选或记一笔往来。')}</p>
               )}
             </>
           )}
@@ -465,7 +428,7 @@ export function FamilyFinance({
               ...(data.books || []).map((b: any) => ({ value: b.id, label: b.name, icon: b.icon })),
             ]}
           />
-          <button
+          <Button
             disabled={busy}
             onClick={async () => {
               try {
@@ -482,8 +445,8 @@ export function FamilyFinance({
             }}
           >
             {tr('保存展示位置')}
-          </button>
-          {error && <p className="error">{error}</p>}
+          </Button>
+          {error && <p className={s.error}>{error}</p>}
         </FamilyPanel>
       )}
 
@@ -552,7 +515,7 @@ export function FamilyFinance({
               {kind === 'transfer' && (
                 <label>
                   {tr('收款对象')}
-                  <select
+                  <Select
                     value={receiverType}
                     onChange={e => {
                       setReceiverType(e.target.value);
@@ -562,7 +525,7 @@ export function FamilyFinance({
                   >
                     <option value="member">{tr('家庭成员（由对方确认到账）')}</option>
                     <option value="wallet">{tr('自己的钱包 / 家庭共同钱包')}</option>
-                  </select>
+                  </Select>
                 </label>
               )}
               {kind !== 'contribution' && receiverType === 'member' && (
@@ -634,19 +597,13 @@ export function FamilyFinance({
                   />
                 </label>
               )}
-              <div className="form-grid">
-                <label>
-                  {tr('金额')}
-                  <input name="amount" inputMode="decimal" required />
-                </label>
+              <div className={s.filters}>
+                <Field label={tr('金额')}>
+                  {control => <Input {...control} name="amount" inputMode="decimal" required />}
+                </Field>
                 <label>
                   {tr('日期')}
-                  <DateField
-                    name="date"
-                    type="date"
-                    defaultValue={new Date().toLocaleDateString('sv-SE')}
-                    required
-                  />
+                  <DateField name="date" type="date" defaultValue={recordingDate()} required />
                 </label>
               </div>
               <label>
@@ -661,18 +618,19 @@ export function FamilyFinance({
                   ]}
                 />
               </label>
-              <label>
-                {locale === 'en' ? 'Transfer note · visible to both' : '转账留言 · 双方可见'}
-                <input name="note" maxLength={500} />
-              </label>
-              {error && <p className="error">{error}</p>}
+              <Field label={tr('转账留言 · 双方可见')}>
+                {control => <Input {...control} name="note" maxLength={500} />}
+              </Field>
+              {error && <p className={s.error}>{error}</p>}
               {/同日|same date/i.test(error) && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" name="allowSimilar" style={{ width: 18, flex: '0 0 18px' }} />
+                <label className={s.checkbox}>
+                  <input type="checkbox" name="allowSimilar" />
                   {tr('已核对，确实是另一笔转账')}
                 </label>
               )}
-              <button disabled={!source || (!target && !recipient)}>{tr('保存往来')}</button>
+              <Button type="submit" variant="primary" disabled={!source || (!target && !recipient)}>
+                {tr('保存往来')}
+              </Button>
             </fieldset>
           </form>
         </FamilyPanel>
@@ -707,18 +665,20 @@ export function FamilyFinance({
               ),
             ]}
           />
-          {error && <p className="error">{error}</p>}
-          <label>
-            {locale === 'en' ? 'Reply to sender (optional)' : '回复转账人（选填，对方可见）'}
-            <textarea
-              maxLength={2000}
-              rows={2}
-              value={reply}
-              disabled={busy}
-              onChange={e => setReply(e.target.value)}
-            />
-          </label>
-          <button
+          {error && <p className={s.error}>{error}</p>}
+          <Field label={tr('回复转账人（选填，对方可见）')}>
+            {control => (
+              <TextArea
+                {...control}
+                maxLength={2000}
+                rows={2}
+                value={reply}
+                disabled={busy}
+                onChange={e => setReply(e.target.value)}
+              />
+            )}
+          </Field>
+          <Button
             disabled={busy || !target}
             onClick={() =>
               save({
@@ -731,7 +691,7 @@ export function FamilyFinance({
             }
           >
             {tr('确认到账')}
-          </button>
+          </Button>
         </FamilyPanel>
       )}
       {split && (
@@ -744,8 +704,8 @@ export function FamilyFinance({
           <p>
             {split.title || split.payee} · {formatMoney(split.amount)}
           </p>
-          <button
-            className="secondary"
+          <Button
+            variant="secondary"
             onClick={() => {
               const base = Math.floor(split.amount / data.people.length);
               setShares(
@@ -759,19 +719,19 @@ export function FamilyFinance({
             }}
           >
             {tr('所有成员平均分担')}
-          </button>
+          </Button>
           {data.people.map((p: any) => (
             <label key={p.id}>
               {p.name}
-              <input
+              <Input
                 inputMode="decimal"
                 value={shares[p.id] || ''}
                 onChange={e => setShares(v => ({ ...v, [p.id]: e.target.value }))}
               />
             </label>
           ))}
-          {error && <p className="error">{error}</p>}
-          <button
+          {error && <p className={s.error}>{error}</p>}
+          <Button
             disabled={busy}
             onClick={() => {
               try {
@@ -789,8 +749,26 @@ export function FamilyFinance({
             }}
           >
             {tr('保存分担')}
-          </button>
+          </Button>
         </FamilyPanel>
+      )}
+      {cancelId && (
+        <ConfirmDialog
+          open
+          title={tr('取消往来')}
+          busy={busy}
+          onCancel={() => {
+            if (!busy) setCancelId('');
+          }}
+          onConfirm={() => void save({ operation: 'cancel', id: cancelId })}
+        >
+          <p>{tr('取消这笔待确认往来？')}</p>
+          {error && (
+            <p role="alert" className={s.error}>
+              {tr(error)}
+            </p>
+          )}
+        </ConfirmDialog>
       )}
     </section>
   );
@@ -805,14 +783,110 @@ function FamilyPanel({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const { t: tr, locale } = useI18n();
+  const { t: tr } = useI18n();
   return (
-    <section className="family-inline-editor">
-      <button type="button" className="text-button" onClick={onClose}>
+    <section className={s.editor}>
+      <Button type="button" variant="ghost" onClick={onClose}>
         {tr('← 返回家庭往来')}
-      </button>
+      </Button>
       <h2>{title}</h2>
       {children}
     </section>
+  );
+}
+
+export function FamilyOverview({ family, revision }: { family: string; revision: number }) {
+  const { t: tr } = useI18n();
+  const [period, setPeriod] = useState('本月');
+  const [overview, setOverview] = useState<Awaited<ReturnType<typeof familyOverview>> | null>(null);
+  const [error, setError] = useState('');
+  const current = monthRange(recordingDate().slice(0, 7));
+  const start = new Date(current.from + 'T00:00:00Z');
+  start.setUTCMonth(start.getUTCMonth() - (period === '上月' ? 1 : period === '近 3 月' ? 2 : 0));
+  const from = start.toISOString().slice(0, 10);
+  const to = period === '上月' ? monthRange(from.slice(0, 7)).to : current.to;
+  useEffect(() => {
+    const controller = new AbortController();
+    setOverview(null);
+    setError('');
+    const params = new URLSearchParams({ familyId: family, from, to });
+    fetch('/api/family-finance/overview?' + params, { signal: controller.signal })
+      .then(async r => {
+        const value = await r.json();
+        if (!r.ok) throw Error(value.error);
+        if (!controller.signal.aborted) setOverview(value);
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) setError(e.message);
+      });
+    return () => controller.abort();
+  }, [family, from, to, revision]);
+  const maximum = Math.max(1, ...(overview?.contributions.map(c => c.amount) || []));
+  return (
+    <Card aria-label={tr('家庭总览')} title={tr('家庭总览')}>
+      <div className={s.period} role="group" aria-label={tr('统计周期')}>
+        {['本月', '上月', '近 3 月'].map(p => (
+          <ChipButton key={p} selected={period === p} onClick={() => setPeriod(p)}>
+            {tr(p)}
+          </ChipButton>
+        ))}
+        <small>
+          {from} — {to}
+        </small>
+      </div>
+      {error ? (
+        <p role="alert" className={s.error}>
+          {tr(error)}
+        </p>
+      ) : !overview ? (
+        <p role="status">{tr('正在读取…')}</p>
+      ) : (
+        <>
+          <div className={s.balances}>
+            <Stat label={tr('期初余额')}>
+              <Money value={overview.openingBalance} />
+            </Stat>
+            <Stat label={tr('期末余额')}>
+              <Money value={overview.closingBalance} />
+            </Stat>
+            <Stat label={tr('本期结余')}>
+              <Money value={overview.surplus} tone="signed" />
+            </Stat>
+          </div>
+          <div className={s.breakdown}>
+            <section>
+              <h3>{tr('家庭缴款')}</h3>
+              {overview.contributions.map(c => (
+                <div className={s.contribution} key={c.id}>
+                  <span>{c.name}</span>
+                  <Money value={c.amount} className={s.income} />
+                  <progress aria-hidden="true" max={maximum} value={c.amount} />
+                </div>
+              ))}
+            </section>
+            <section>
+              <div className={s.total}>
+                <h3>{tr('共同费用')}</h3>
+                <Money value={overview.commonExpense} className={s.expense} />
+              </div>
+              {overview.categories.length ? (
+                overview.categories.map(c => (
+                  <div className={s.category} key={c.name}>
+                    <span>{tr(c.name)}</span>
+                    <Money value={c.amount} />
+                  </div>
+                ))
+              ) : (
+                <p className={s.muted}>{tr('本期暂无共同费用')}</p>
+              )}
+              <div className={s.claimed}>
+                <span>{tr('已认领个人费用')}</span>
+                <Money value={overview.claimedExpense} />
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
