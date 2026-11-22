@@ -164,6 +164,9 @@ export function BudgetPanel({
   );
   const total = budgets.reduce((sum, b) => sum + b.amount, 0);
   const used = budgets.reduce((sum, b) => sum + (spending.find(s => s.name === b.category)?.value ?? 0), 0);
+  const outside = spending
+    .filter(item => !budgets.some(b => b.category === item.name))
+    .reduce((sum, item) => sum + Math.max(0, item.value), 0);
   const progressColor = (spent: number, amount: number) =>
     spent > amount ? 'var(--expense)' : spent * 5 > amount * 4 ? 'var(--attention)' : 'var(--accent)';
   async function run(fn: () => Promise<void>) {
@@ -224,6 +227,11 @@ export function BudgetPanel({
             value={Math.max(0, Math.min(used, total))}
             style={{ accentColor: progressColor(used, total) }}
           />
+          {outside > 0.005 && (
+            <small className={s.outside}>
+              {tr('已用只计有预算的分类；其他分类本月另有支出')} {yuan(outside)}
+            </small>
+          )}
         </div>
       )}
       <PagedList container={rows => <div className={s.cards}>{rows}</div>} items={budgets} resetKey={month}>

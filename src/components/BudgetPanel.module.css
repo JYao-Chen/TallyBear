@@ -88,6 +88,11 @@
   width: 100%;
   height: var(--space-2);
 }
+.outside {
+  grid-column: 1/-1;
+  text-align: start;
+  color: var(--muted);
+}
 
 @media (max-width: 640px) {
   .summary {

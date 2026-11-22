@@ -2817,5 +2817,6 @@
   "这笔算我的": "Count this as mine",
   "保存后，这笔支出直接计入你的费用。": "This expense will count as yours immediately.",
   "成员接受后，这笔支出从家庭共同费用转入其个人费用。": "The expense stays shared until the member accepts.",
-  "对方将收到待认领消息，确认后自己选择账本。付款仍记在你的钱包；只分享这笔账的信息，不分享私人附图或其他账目。": "The member receives an invitation and chooses their own book. Payment stays in your wallet. Only this bill’s details are shared; private photos and other records stay private."
+  "对方将收到待认领消息，确认后自己选择账本。付款仍记在你的钱包；只分享这笔账的信息，不分享私人附图或其他账目。": "The member receives an invitation and chooses their own book. Payment stays in your wallet. Only this bill’s details are shared; private photos and other records stay private.",
+  "已用只计有预算的分类；其他分类本月另有支出": "Used counts budgeted categories only. Other categories spent"
 }
