@@ -1,24 +1,92 @@
 import assert from 'node:assert/strict';
-import {build} from 'esbuild';
-import {createServer} from 'node:http';
-import {readFile,mkdir} from 'node:fs/promises';
-import {resolve} from 'node:path';
-const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');const out=process.env.TEST_ARTIFACT_DIR;assert.ok(out);await mkdir(out,{recursive:true});
-const fixture=`import {createRoot} from 'react-dom/client';import {useState} from 'react';import {QuickEntry} from './src/components/QuickEntry';import {DraftReview} from './src/components/DraftReview';import {ChatActionEditor} from './src/components/ChatActionEditor';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';
+import { build } from 'esbuild';
+import { createServer } from 'node:http';
+import { readFile, mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const out = process.env.TEST_ARTIFACT_DIR;
+assert.ok(out);
+await mkdir(out, { recursive: true });
+const fixture = `import {createRoot} from 'react-dom/client';import {useState} from 'react';import {QuickEntry} from './src/components/QuickEntry';import {DraftReview} from './src/components/DraftReview';import {ChatActionEditor} from './src/components/ChatActionEditor';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';
 const book='11111111-1111-4111-8111-111111111111';const accounts=[{id:'credit',name:'信用卡',type:'credit'}],categories=[{name:'其他',icon:'📒',archived:false}],books=[{id:book,name:'测试账本',kind:'private',role:'owner'}];const draft={id:'22222222-2222-4222-8222-222222222222',kind:'expense',accountId:'credit',amount:35228,date:'2026-11-20',title:'购物分期',category:'其他',payee:'',note:'',installment:{terms:6,firstDate:'2026-12-19',fees:0}};window.options={bookId:book,books,accounts,categories,activities:[]};const mode=new URLSearchParams(location.search).get('mode');function App(){const [drafts,setDrafts]=useState([draft]);return <LanguageProvider initial='zh-CN'><ThemeProvider initial='bear'><main style={{maxWidth:900,margin:'auto',padding:16}}>{mode==='draft'?<DraftReview book={book} books={books} drafts={drafts} setDrafts={setDrafts} accounts={accounts} originals={[]} busy={false} focusRequest={{id:draft.id,key:1}} onReview={()=>{}} onSave={()=>{window.saved=drafts[0];}}/>:mode==='chat'?<ChatActionEditor action={{id:draft.id,bookId:book,kind:'entry',status:'pending',data:draft,summary:[],missing:[],warnings:[]}} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>:<QuickEntry book={book} books={books} categories={categories} accounts={accounts} originals={[]} initial={draft} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>}</main></ThemeProvider></LanguageProvider>};createRoot(document.getElementById('root')).render(<App/>);`;
-const bundle=await build({stdin:{contents:fixture,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',platform:'browser',jsx:'automatic',define:{'process.env.NODE_ENV':'"development"'},logLevel:'silent'});const js=bundle.outputFiles.find(f=>f.path.endsWith('.js')).contents;
-const layout=await readFile('src/app/layout.tsx','utf8');const css=(await Promise.all([...layout.matchAll(/import ['"]\.\/(.+?\.css)['"]/g)].map(m=>readFile('src/app/'+m[1],'utf8')))).join('\n')+bundle.outputFiles.filter(f=>f.path.endsWith('.css')).map(f=>f.text).join('\n');
-const server=createServer((req,res)=>{if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);}else if(req.url==='/style.css'){res.setHeader('Content-Type','text/css');res.end(css);}else res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({headless:true,executablePath:process.env.TEST_CHROMIUM_PATH});
-try{
- const page=await browser.newPage(),errors=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/api/**',async route=>{const url=route.request().url();await route.fulfill({json:url.includes('chat?')?await page.evaluate(()=>window.options):url.includes('activities/entry')?{activityId:null}:url.includes('for-record')?{canInvite:false,claim:null}:[]});});
- for(const width of [1440,390])for(const mode of ['manual','draft','chat']){
- await page.setViewportSize({width,height:1000});await page.goto('http://127.0.0.1:'+server.address().port+'/?mode='+mode);
- await page.getByRole('checkbox',{name:'这笔支出分期还款'}).waitFor();assert.equal(await page.getByRole('checkbox',{name:'这笔支出分期还款'}).isChecked(),true);
- await page.getByLabel('分期期数',{exact:true}).fill('12');await page.getByLabel('总手续费（元）',{exact:true}).fill('6.00');
- await page.screenshot({path:out+'/installment-'+mode+'-'+width+'.png',fullPage:true});
- await page.getByRole('button',{name:mode==='manual'?'保存修改':mode==='chat'?'更新卡片':/确认保存 · 新增/}).click();await page.waitForFunction(()=>!!window.saved);
- const saved=await page.evaluate(()=>window.saved);assert.equal(saved.installment.terms,12);assert.equal(saved.installment.fees,600);assert.equal(saved.installment.firstDate,'2026-12-19');assert.equal(saved.kind,'expense');assert.equal(saved.amount,35228);
- }
- assert.deepEqual(errors,[]);console.log('PASS: inline installments in manual, recognized draft and assistant editor on desktop/mobile');
-}finally{await browser.close();server.close();}
+const bundle = await build({
+  stdin: { contents: fixture, resolveDir: process.cwd(), loader: 'tsx' },
+  bundle: true,
+  write: false,
+  outdir: 'fixture',
+  platform: 'browser',
+  jsx: 'automatic',
+  define: { 'process.env.NODE_ENV': '"development"' },
+  logLevel: 'silent',
+});
+const js = bundle.outputFiles.find(f => f.path.endsWith('.js')).contents;
+const layout = await readFile('src/app/layout.tsx', 'utf8');
+const css =
+  (
+    await Promise.all(
+      [...layout.matchAll(/import ['"]\.\/(.+?\.css)['"]/g)].map(m => readFile('src/app/' + m[1], 'utf8')),
+    )
+  ).join('\n') +
+  bundle.outputFiles
+    .filter(f => f.path.endsWith('.css'))
+    .map(f => f.text)
+    .join('\n');
+const server = createServer((req, res) => {
+  if (req.url === '/app.js') {
+    res.setHeader('Content-Type', 'text/javascript');
+    res.end(js);
+  } else if (req.url === '/style.css') {
+    res.setHeader('Content-Type', 'text/css');
+    res.end(css);
+  } else
+    res.end(
+      '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>',
+    );
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const browser = await chromium.launch({ headless: true, executablePath: process.env.TEST_CHROMIUM_PATH });
+try {
+  const page = await browser.newPage(),
+    errors = [];
+  page.setDefaultTimeout(15000);
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/api/**', async route => {
+    const url = route.request().url();
+    await route.fulfill({
+      json: url.includes('chat?')
+        ? await page.evaluate(() => window.options)
+        : url.includes('activities/entry')
+          ? { activityId: null }
+          : url.includes('for-record')
+            ? { canInvite: false, claim: null }
+            : [],
+    });
+  });
+  for (const width of [1440, 390])
+    for (const mode of ['manual', 'draft', 'chat']) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto('http://127.0.0.1:' + server.address().port + '/?mode=' + mode);
+      await page.getByRole('checkbox', { name: '这笔支出分期还款' }).waitFor();
+      assert.equal(await page.getByRole('checkbox', { name: '这笔支出分期还款' }).isChecked(), true);
+      await page.getByLabel('分期期数', { exact: true }).fill('12');
+      await page.getByLabel('总手续费（元）', { exact: true }).fill('6.00');
+      await page.screenshot({ path: out + '/installment-' + mode + '-' + width + '.png', fullPage: true });
+      await page
+        .getByRole('button', {
+          name: mode === 'manual' ? '保存修改' : mode === 'chat' ? '更新卡片' : /确认保存 · 新增/,
+        })
+        .click();
+      await page.waitForFunction(() => !!window.saved);
+      const saved = await page.evaluate(() => window.saved);
+      assert.equal(saved.installment.terms, 12);
+      assert.equal(saved.installment.fees, 600);
+      assert.equal(saved.installment.firstDate, '2026-12-19');
+      assert.equal(saved.kind, 'expense');
+      assert.equal(saved.amount, 35228);
+    }
+  assert.deepEqual(errors, []);
+  console.log('PASS: inline installments in manual, recognized draft and assistant editor on desktop/mobile');
+} finally {
+  await browser.close();
+  server.close();
+}

@@ -1,20 +1,36 @@
-import {applyMemory,memoryEnabled} from './memory';
-import {applyPersonalPreferences} from './personal-preferences';
-import {saveProfileContext} from './personal-profile';
-import {randomUUID} from 'node:crypto';
-import {preserveSubscriptionCategory} from '@/lib/subscription-category';
-import {normalizeDining} from '@/lib/purchase-memory';
-import type {PoolClient} from 'pg';
-import {db} from './db';
-import {listCategories} from './categories';
-import {recommendCategory,type CategoryEvidence,type CategoryInput,type CategorySuggestion} from '@/lib/category-learning';
-import {sceneTitle} from '@/lib/entry-scene';
-import type {ModelProgress} from './ai';
+import { applyMemory, memoryEnabled } from './memory';
+import { applyPersonalPreferences } from './personal-preferences';
+import { saveProfileContext } from './personal-profile';
+import { randomUUID } from 'node:crypto';
+import { preserveSubscriptionCategory } from '@/lib/subscription-category';
+import { normalizeDining } from '@/lib/purchase-memory';
+import type { PoolClient } from 'pg';
+import { db } from './db';
+import { listCategories } from './categories';
+import {
+  recommendCategory,
+  type CategoryEvidence,
+  type CategoryInput,
+  type CategorySuggestion,
+} from '@/lib/category-learning';
+import { sceneTitle } from '@/lib/entry-scene';
+import type { ModelProgress } from './ai';
 
-type LearnedEntry=CategoryInput&{accountId?:string;receiptOrigin?:import('@/lib/receipt-origin').ReceiptOrigin;preferenceSuggestions?:import('@/lib/preference-learning').PreferenceSuggestion[]}&{title:string;lineItems?:import('@/lib/line-items').LineItem[];categorySuggestion?:CategorySuggestion;memorySuggestions?:import("@/lib/memory").MemorySuggestion[]};
+type LearnedEntry = CategoryInput & {
+  accountId?: string;
+  receiptOrigin?: import('@/lib/receipt-origin').ReceiptOrigin;
+  preferenceSuggestions?: import('@/lib/preference-learning').PreferenceSuggestion[];
+} & {
+  title: string;
+  lineItems?: import('@/lib/line-items').LineItem[];
+  categorySuggestion?: CategorySuggestion;
+  memorySuggestions?: import('@/lib/memory').MemorySuggestion[];
+};
 
-async function learningEvidence(book:string,userId:string):Promise<CategoryEvidence[]>{
- const rows=(await db.query(`SELECT * FROM (
+async function learningEvidence(book: string, userId: string): Promise<CategoryEvidence[]> {
+  const rows = (
+    await db.query(
+      `SELECT * FROM (
   SELECT DISTINCT ON (COALESCE(t.event_id,t.id)) t.id,t.category,t.kind,t.payee,t.scene,t.title,t.product,t.platform,t.line_items AS "lineItems",
    CASE WHEN f.corrected THEN 'correction' WHEN f.source='manual' THEN 'manual' WHEN f.transaction_id IS NOT NULL THEN 'accepted' ELSE 'legacy' END AS source,
    COALESCE(f.confirmed_at,t.updated_at,t.created_at) AS at
@@ -24,33 +40,125 @@ async function learningEvidence(book:string,userId:string):Promise<CategoryEvide
   WHERE NOT t.deleted AND t.kind IN ('expense','income') AND (f.user_id=$2 OR (t.created_by=$2 AND NOT EXISTS(SELECT 1 FROM category_feedback other WHERE other.transaction_id=t.id AND other.user_id<>$2)))
    AND NOT EXISTS(SELECT 1 FROM memory_exclusions x JOIN transactions forgotten ON forgotten.id=x.source_id WHERE x.user_id=$2 AND x.source_type='transaction' AND COALESCE(forgotten.event_id,forgotten.id)=COALESCE(t.event_id,t.id))
   ORDER BY COALESCE(t.event_id,t.id),(t.book_id=$1) DESC,COALESCE(f.confirmed_at,t.updated_at,t.created_at) DESC
- ) history ORDER BY at DESC NULLS LAST LIMIT 2000`,[book,userId])).rows as CategoryEvidence[];
- const templates=(await db.query(`SELECT e.id,(e.value->>'category') AS category,(e.value->>'kind') AS kind,COALESCE(e.value->>'payee','') AS payee,COALESCE(e.value->'scene','{}'::jsonb) AS scene,COALESCE(e.value->>'title','') AS title,COALESCE(e.value->>'product','') AS product,COALESCE(e.value->'lineItems','[]'::jsonb) AS "lineItems",'template' AS source,e.created_at AS at FROM entry_templates e JOIN members m ON m.book_id=e.book_id AND m.user_id=$1 WHERE e.user_id=$1`,[userId])).rows as CategoryEvidence[];
- return [...templates,...rows];
+ ) history ORDER BY at DESC NULLS LAST LIMIT 2000`,
+      [book, userId],
+    )
+  ).rows as CategoryEvidence[];
+  const templates = (
+    await db.query(
+      `SELECT e.id,(e.value->>'category') AS category,(e.value->>'kind') AS kind,COALESCE(e.value->>'payee','') AS payee,COALESCE(e.value->'scene','{}'::jsonb) AS scene,COALESCE(e.value->>'title','') AS title,COALESCE(e.value->>'product','') AS product,COALESCE(e.value->'lineItems','[]'::jsonb) AS "lineItems",'template' AS source,e.created_at AS at FROM entry_templates e JOIN members m ON m.book_id=e.book_id AND m.user_id=$1 WHERE e.user_id=$1`,
+      [userId],
+    )
+  ).rows as CategoryEvidence[];
+  return [...templates, ...rows];
 }
 
-export async function applyPreferences<T extends LearnedEntry>(book:string,entries:T[],enabled:boolean,english:boolean,progress:ModelProgress={},userId?:string,query=''):Promise<(T&LearnedEntry)[]>{
- enabled=enabled&&!!userId&&await memoryEnabled(userId!);
- const valid=new Set((await listCategories(userId)).filter(row=>!row.archived).map(row=>row.name));
- const evidence=enabled&&userId?await learningEvidence(book,userId):[];const result:(T&{categorySuggestion?:CategorySuggestion;memorySuggestions?:import('@/lib/memory').MemorySuggestion[]})[]=[];
- for(const raw of entries){progress.signal?.throwIfAborted();const entry=normalizeDining({...raw,lineItems:raw.lineItems?.map(i=>({...i,id:(i as {id?:string}).id||randomUUID()}))},english);const subscription=preserveSubscriptionCategory(raw,valid);if(subscription)entry.category=raw.category;const suggestion=enabled&&!subscription?recommendCategory(entry,evidence,valid):null;const enriched=enabled&&userId?await applyMemory(userId,{...entry,...(suggestion?{category:suggestion.category}:{})},progress.signal):entry;result.push({...enriched,title:sceneTitle(enriched.scene,english)||enriched.title,...(suggestion&&enriched.category===suggestion.category?{categorySuggestion:suggestion}:{})});}
- const filled=enabled&&userId?await applyPersonalPreferences(userId,result,{query,signal:progress.signal,contexts:entries}):result;
- return filled.map(e=>({...e,title:sceneTitle(e.scene,english)||e.title}));
+export async function applyPreferences<T extends LearnedEntry>(
+  book: string,
+  entries: T[],
+  enabled: boolean,
+  english: boolean,
+  progress: ModelProgress = {},
+  userId?: string,
+  query = '',
+): Promise<(T & LearnedEntry)[]> {
+  enabled = enabled && !!userId && (await memoryEnabled(userId!));
+  const valid = new Set((await listCategories(userId)).filter(row => !row.archived).map(row => row.name));
+  const evidence = enabled && userId ? await learningEvidence(book, userId) : [];
+  const result: (T & {
+    categorySuggestion?: CategorySuggestion;
+    memorySuggestions?: import('@/lib/memory').MemorySuggestion[];
+  })[] = [];
+  for (const raw of entries) {
+    progress.signal?.throwIfAborted();
+    const entry = normalizeDining(
+      {
+        ...raw,
+        lineItems: raw.lineItems?.map(i => ({ ...i, id: (i as { id?: string }).id || randomUUID() })),
+      },
+      english,
+    );
+    const subscription = preserveSubscriptionCategory(raw, valid);
+    if (subscription) entry.category = raw.category;
+    const suggestion = enabled && !subscription ? recommendCategory(entry, evidence, valid) : null;
+    const enriched =
+      enabled && userId
+        ? await applyMemory(
+            userId,
+            { ...entry, ...(suggestion ? { category: suggestion.category } : {}) },
+            progress.signal,
+          )
+        : entry;
+    result.push({
+      ...enriched,
+      title: sceneTitle(enriched.scene, english) || enriched.title,
+      ...(suggestion && enriched.category === suggestion.category ? { categorySuggestion: suggestion } : {}),
+    });
+  }
+  const filled =
+    enabled && userId
+      ? await applyPersonalPreferences(userId, result, { query, signal: progress.signal, contexts: entries })
+      : result;
+  return filled.map(e => ({ ...e, title: sceneTitle(e.scene, english) || e.title }));
 }
 
-export async function recordCategoryFeedback(c:PoolClient,book:string,userId:string,entry:{id:string;category:string;categorySource?:'explicit'|'model';categorySuggestion?:CategorySuggestion;profileContext?:import('@/lib/personal-profile').ProfileContext},previousCategory=''){
- const suggestion=entry.categorySuggestion;const proposed=suggestion?.category||previousCategory;const original=suggestion?.originalCategory||previousCategory;const corrected=!!proposed&&entry.category!==proposed;
- await c.query(`INSERT INTO category_feedback(transaction_id,book_id,user_id,proposed_category,original_category,final_category,source,corrected,confidence,basis,evidence_count,confirmed_at)
+export async function recordCategoryFeedback(
+  c: PoolClient,
+  book: string,
+  userId: string,
+  entry: {
+    id: string;
+    category: string;
+    categorySource?: 'explicit' | 'model';
+    categorySuggestion?: CategorySuggestion;
+    profileContext?: import('@/lib/personal-profile').ProfileContext;
+  },
+  previousCategory = '',
+) {
+  const suggestion = entry.categorySuggestion;
+  const proposed = suggestion?.category || previousCategory;
+  const original = suggestion?.originalCategory || previousCategory;
+  const corrected = !!proposed && entry.category !== proposed;
+  await c.query(
+    `INSERT INTO category_feedback(transaction_id,book_id,user_id,proposed_category,original_category,final_category,source,corrected,confidence,basis,evidence_count,confirmed_at)
   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())
-  ON CONFLICT(transaction_id) DO UPDATE SET book_id=$2,user_id=$3,proposed_category=$4,original_category=$5,final_category=$6,source=$7,corrected=$8,confidence=$9,basis=$10,evidence_count=$11,confirmed_at=now()`,[entry.id,book,userId,proposed,original,entry.category,suggestion||entry.categorySource==='model'?'confirmed':'manual',corrected,suggestion?.confidence||null,suggestion?.basis||null,suggestion?.evidenceCount||0]);
- await persistMemoryFeedback(c,entry);
- await saveProfileContext(c,userId,entry.id,entry.profileContext);
+  ON CONFLICT(transaction_id) DO UPDATE SET book_id=$2,user_id=$3,proposed_category=$4,original_category=$5,final_category=$6,source=$7,corrected=$8,confidence=$9,basis=$10,evidence_count=$11,confirmed_at=now()`,
+    [
+      entry.id,
+      book,
+      userId,
+      proposed,
+      original,
+      entry.category,
+      suggestion || entry.categorySource === 'model' ? 'confirmed' : 'manual',
+      corrected,
+      suggestion?.confidence || null,
+      suggestion?.basis || null,
+      suggestion?.evidenceCount || 0,
+    ],
+  );
+  await persistMemoryFeedback(c, entry);
+  await saveProfileContext(c, userId, entry.id, entry.profileContext);
 }
-export async function persistMemoryFeedback(c:PoolClient,entry:{id:string;memorySuggestions?:unknown[];preferenceSuggestions?:unknown[]}){
- if(entry.preferenceSuggestions)await c.query('UPDATE transactions SET preference_suggestions=$1 WHERE id=$2',[JSON.stringify(entry.preferenceSuggestions),entry.id]);
- const suggestions=entry.memorySuggestions;
- if(suggestions)await c.query('UPDATE transactions SET memory_suggestions=$1 WHERE id=$2',[JSON.stringify(suggestions),entry.id]);
- const row=(await c.query('SELECT line_items FROM transactions WHERE id=$1',[entry.id])).rows[0];
- if(row?.line_items?.some((i:any)=>!i.id))await c.query('UPDATE transactions SET line_items=$1 WHERE id=$2',[JSON.stringify(row.line_items.map((i:any)=>({...i,id:i.id||randomUUID()}))),entry.id]);
-
+export async function persistMemoryFeedback(
+  c: PoolClient,
+  entry: { id: string; memorySuggestions?: unknown[]; preferenceSuggestions?: unknown[] },
+) {
+  if (entry.preferenceSuggestions)
+    await c.query('UPDATE transactions SET preference_suggestions=$1 WHERE id=$2', [
+      JSON.stringify(entry.preferenceSuggestions),
+      entry.id,
+    ]);
+  const suggestions = entry.memorySuggestions;
+  if (suggestions)
+    await c.query('UPDATE transactions SET memory_suggestions=$1 WHERE id=$2', [
+      JSON.stringify(suggestions),
+      entry.id,
+    ]);
+  const row = (await c.query('SELECT line_items FROM transactions WHERE id=$1', [entry.id])).rows[0];
+  if (row?.line_items?.some((i: any) => !i.id))
+    await c.query('UPDATE transactions SET line_items=$1 WHERE id=$2', [
+      JSON.stringify(row.line_items.map((i: any) => ({ ...i, id: i.id || randomUUID() }))),
+      entry.id,
+    ]);
 }

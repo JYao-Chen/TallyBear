@@ -1,69 +1,740 @@
 'use client';
-import {deployment,formatMoney,currencySymbol} from '@/lib/deployment';
-import {useI18n} from './LanguageProvider';
-import {uploadReceipt} from '@/lib/upload-receipt';
-import {useEffect,useRef,useState,useContext,type ReactNode} from 'react';
-import {hasItemCategories,categoryAmounts,itemCategoryError} from '@/lib/item-categories';
-import {VisualSelect,CategoryIcons,CategoryIcon} from './VisualSelect';
-import {Plus,Trash2,Camera,Calculator} from 'lucide-react';
-import {itemTotals,settlementTotals,verifyItemTotal,lineItemKind,type LineItem} from '@/lib/line-items';
-import {recommendedItemAmount,editCalculatedItem,canUseSettlementTotal} from '@/lib/item-calculator';
-import {amountToCents} from '@/server/model';
-import {askAssistant} from '@/lib/assistant-client';
-import type {Draft} from './DraftReview';
-const money=(n:number)=>formatMoney(n);
-function cents(s:string){return s===''?null:(s.startsWith('-')?-amountToCents(s.slice(1)):amountToCents(s));}
-function Verification({items,total}:{items:LineItem[];total:number}){const {t:tr,locale}=useI18n();const check=verifyItemTotal(items,total);if(check.status==='none')return null;return <span className={check.status==='verified'?'income':'muted'} role="status">{check.status==='verified'?tr("✓ 明细合计与实付一致"):check.status==='incomplete'?tr("部分明细未展示金额：{0}项",[check.missing]):tr("已展示明细与实付相差 {0}，可能未展示完整结算信息",[money(check.difference)])}</span>;}
-function Settlement({items,total}:{items:LineItem[];total:number}){const {t:tr,locale}=useI18n();const s=settlementTotals(items);return <dl className="settlement-summary"><div><dt>{tr("商品合计")}{s.missing?tr("（待补全）"):''}</dt><dd>{money(s.goods)}</dd></div>{s.discount!==0&&<div><dt>{tr("优惠 / 抹零")}</dt><dd className="income">−{money(s.discount)}</dd></div>}{s.fees!==0&&<div><dt>{tr("包装 / 配送等费用")}</dt><dd>{money(s.fees)}</dd></div>}<div><dt>{tr("已展示明细合计")}</dt><dd>{money(s.net)}</dd></div><div><dt>{tr("实际支付")}</dt><dd>{money(total)}</dd></div></dl>;}
-
-type IndexedItem={item:LineItem;index:number};
-function ItemRegion({title,rows,children,render,pageSize=6}:{pageSize?:number;title:string;rows:IndexedItem[];children?:ReactNode;render:(item:LineItem,index:number)=>ReactNode}){
- const {t:tr}=useI18n();const [page,setPage]=useState(1),previous=useRef(rows.length);
- useEffect(()=>{if(rows.length>previous.current)setPage(Math.ceil(rows.length/pageSize));previous.current=rows.length;},[rows.length,pageSize]);
- const pages=Math.max(1,Math.ceil(rows.length/pageSize)),current=Math.min(page,pages);
- return <section className="line-item-region" aria-label={title}><h4>{title} <span className="muted">· {rows.length}</span></h4>
- {rows.length?rows.slice((current-1)*pageSize,current*pageSize).map(({item,index})=>render(item,index)):<p className="muted">{tr('未填写')}</p>}
- {pages>1&&<div className="item-region-pager"><button type="button" className="secondary" disabled={current===1} onClick={()=>setPage(current-1)}>{tr('上一页')}</button><span>{current} / {pages}</span><button type="button" className="secondary" disabled={current===pages} onClick={()=>setPage(current+1)}>{tr('下一页')}</button></div>}
- {children}</section>;
+import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
+import { useI18n } from './LanguageProvider';
+import { uploadReceipt } from '@/lib/upload-receipt';
+import { useEffect, useRef, useState, useContext, type ReactNode } from 'react';
+import { hasItemCategories, categoryAmounts, itemCategoryError } from '@/lib/item-categories';
+import { VisualSelect, CategoryIcons, CategoryIcon } from './VisualSelect';
+import { Plus, Trash2, Camera, Calculator } from 'lucide-react';
+import { itemTotals, settlementTotals, verifyItemTotal, lineItemKind, type LineItem } from '@/lib/line-items';
+import { recommendedItemAmount, editCalculatedItem, canUseSettlementTotal } from '@/lib/item-calculator';
+import { amountToCents } from '@/server/model';
+import { askAssistant } from '@/lib/assistant-client';
+import type { Draft } from './DraftReview';
+const money = (n: number) => formatMoney(n);
+function cents(s: string) {
+  return s === '' ? null : s.startsWith('-') ? -amountToCents(s.slice(1)) : amountToCents(s);
 }
-function groupedItems(items:LineItem[]){const indexed=items.map((item,index)=>({item,index}));return {goods:indexed.filter(v=>lineItemKind(v.item)==='item'),adjustments:indexed.filter(v=>lineItemKind(v.item)!=='item')};}
-
-export function LineItemsView({items,total,category}:{items:LineItem[];total:number;category?:string}){
- const {t:tr}=useI18n();const groups=groupedItems(items);if(!items.length)return null;
- const row=(i:LineItem,n:number)=><div className="item-summary-row" key={i.id||n}><span><strong>{i.name}</strong>{i.category&&(lineItemKind(i)==='item'||items.some(g=>lineItemKind(g)==='item'&&(g.category||category)===i.category))&&<small><CategoryIcon name={i.category} size={18}/>{i.category}</small>}{lineItemKind(i)==='item'&&<small>{i.quantity!=null?tr("数量 {0}",[i.quantity]):''}{i.unitPrice!=null?tr(" · 单价 {0}",[money(i.unitPrice)]):''}</small>}</span><strong>{i.amount==null?tr("待补充"):money(i.amount)}</strong></div>;
- return <section className="item-summary">{groups.goods.length>0&&<ItemRegion title={tr('商品明细')} rows={groups.goods} render={row}/>}
- {groups.adjustments.length>0&&<ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={row}/>}
- {category&&hasItemCategories(items)&&<CategoryBreakdown items={items} total={total} category={category}/>}<Settlement items={items} total={total}/><div className="item-reconciliation"><Verification items={items} total={total}/></div></section>;
+function Verification({ items, total }: { items: LineItem[]; total: number }) {
+  const { t: tr, locale } = useI18n();
+  const check = verifyItemTotal(items, total);
+  if (check.status === 'none') return null;
+  return (
+    <span className={check.status === 'verified' ? 'income' : 'muted'} role="status">
+      {check.status === 'verified'
+        ? tr('✓ 明细合计与实付一致')
+        : check.status === 'incomplete'
+          ? tr('部分明细未展示金额：{0}项', [check.missing])
+          : tr('已展示明细与实付相差 {0}，可能未展示完整结算信息', [money(check.difference)])}
+    </span>
+  );
 }
-export function LineItemsEditor({items,onChange,total,onTotal,book,onBusyChange,onAttachments,onRecognized,category,categories}:{category?:string;categories?:{name:string;archived?:boolean}[];items:LineItem[];onChange:(items:LineItem[])=>void;total:number;onTotal?:(amount:number)=>void;book?:string;onRecognized?:(draft:Draft)=>void;onAttachments?:(ids:string[])=>void;onBusyChange?:(busy:boolean)=>void}){const {t:tr,locale}=useI18n();
- const contextCategories=useContext(CategoryIcons),available=(categories||contextCategories as {name:string;archived?:boolean}[]).filter(c=>!c.archived),[splitWanted,setSplitWanted]=useState(false);const split=splitWanted||hasItemCategories(items),fallback=category||available[0]?.name||'其他';
- const [busy,setBusy]=useState(false),[error,setError]=useState(''),[found,setFound]=useState<Draft[]>([]),[photos,setPhotos]=useState<{name:string;data:string}[]>([]);const abort=useRef<AbortController|null>(null);useEffect(()=>()=>abort.current?.abort(),[]);const sum=itemTotals(items);
- const change=(index:number,patch:Partial<LineItem>)=>onChange(items.map((i,n)=>n===index?editCalculatedItem(i,patch):i));
- async function addPhotos(files:File[]){setError('');setFound([]);try{for(const file of files){const added=await uploadReceipt(book!,file);setPhotos(current=>[...current,added]);onAttachments?.([added.data.split('/').at(-1)!]);}}catch{setError('图片读取失败');}}
- async function photo(){if(!photos.length)return;setError('');setFound([]);setBusy(true);onBusyChange?.(true);const controller=new AbortController();abort.current=controller;try{const result=await askAssistant(`books/${book}/assistant`,{text:'这些图片属于同一笔订单，可能有重叠或是长截图。完整归并所有菜品/商品明细、数量、单价及小计，不要把商品拆成多笔交易。',images:photos.map(p=>p.data)},controller.signal,()=>{});const choices=result.entries.filter(e=>e.lineItems?.length);if(!choices.length)throw new Error('没有识别到商品明细，请换一张清晰图片或手动填写。');setFound(choices);}catch(e){if(!controller.signal.aborted)setError((e as Error).message);}finally{setBusy(false);onBusyChange?.(false);}}
-
- const groups=groupedItems(items),goodsCategories=[...new Set(items.filter(i=>lineItemKind(i)==='item').map(i=>i.category||fallback))];
- const add=(kind:LineItem['kind'])=>onChange([...items,{id:crypto.randomUUID(),kind,...(split&&kind==='item'?{category:fallback}:{}),name:kind==='item'?'':kind==='discount'?'结算优惠':'手续费',quantity:null,unitPrice:null,amount:null}]);
- const renderExpandedRow=(i:LineItem,n:number)=>{const recommended=recommendedItemAmount(i);return <div className={lineItemKind(i)!=='item'?'line-item-edit settlement-edit':'line-item-edit'} key={i.id||n}><label className="item-kind">{tr("明细类型")}<VisualSelect label={tr("明细类型")} value={lineItemKind(i)} onChange={kind=>change(n,{kind:kind as LineItem['kind'],...(kind!=='item'?{quantity:null,unitPrice:null}:{}),amount:i.amount===null?null:kind==='discount'?-Math.abs(i.amount):Math.abs(i.amount)})} options={[{value:'item',label:tr('商品')},{value:'discount',label:tr('优惠 / 抹零')},{value:'fee',label:tr('附加费用')}]}/></label><label className="item-name">{lineItemKind(i)==='discount'?tr("优惠 / 抹零名称"):i.kind==='fee'?tr("附加费用名称"):tr("菜品 / 商品")}<input aria-label={tr("第{0}项名称",[n+1])} maxLength={160} placeholder={tr("例如：牛肉面")} value={i.name} onChange={e=>change(n,{name:e.target.value})}/></label>{lineItemKind(i)==='item'?<><label className="item-quantity">{tr("数量")}<input aria-label={tr("第{0}项数量",[n+1])} type="number" min="0.001" step="any" placeholder={tr("选填")} value={(i.quantity ?? '')} onChange={e=>change(n,{quantity:e.target.value===''?null:Number(e.target.value)})}/></label><label className="item-price">{tr("单价（元）")}<input aria-label={tr("第{0}项单价",[n+1])} type="number" step="0.01" placeholder={tr("选填")} value={i.unitPrice===null?'':i.unitPrice/100} onChange={e=>{try{change(n,{unitPrice:cents(e.target.value)});}catch{}}}/></label></>:null}<label className="item-amount">{lineItemKind(i)==='discount'?tr("减免金额（元）"):tr("小计（元）")}<input aria-label={tr("第{0}项小计",[n+1])} type="number" step="0.01" placeholder={tr("待补充")} min="0" value={i.amount===null?'':lineItemKind(i)==='discount'?Math.abs(i.amount)/100:i.amount/100} onChange={e=>{try{const v=cents(e.target.value);change(n,{amount:v===null?null:lineItemKind(i)==='discount'?-Math.abs(v):v});}catch{}}}/></label>{recommended!==null&&i.amount!==recommended&&<div className="item-calculation"><button type="button" className="text-button" onClick={()=>change(n,{amount:recommended})}>{tr('采用推荐小计')} {money(recommended)}</button></div>}{split&&<label className="item-category">{lineItemKind(i)==='item'?(locale==='en'?'Category':'分类'):(locale==='en'?'Apply to merchandise':'跟随商品')}<VisualSelect label={locale==='en'?`Item ${n+1} category`:`第${n+1}项分类`} value={lineItemKind(i)==='item'||goodsCategories.includes(i.category||'')?i.category||'':''} onChange={category=>change(n,{category})} options={[{value:'',label:lineItemKind(i)!=='item'?(locale==='en'?'All merchandise proportionally':'按全部商品比例分摊'):(locale==='en'?'Use order category':'沿用整单分类')},...(lineItemKind(i)==='item'?Array.from(new Set([...(i.category?[i.category]:[]),...available.map(c=>c.name)])):goodsCategories).map(name=>({value:name,label:name}))]}/></label>}<div className="item-edit-actions"><button type="button" className="text-button" aria-label={tr("删除第{0}项",[n+1])} onClick={()=>onChange(items.filter((_,j)=>j!==n))}><Trash2 size={16} aria-hidden="true"/>{tr('删除明细')}</button></div></div>;};
-
- const renderRow=(i:LineItem,n:number)=><CompactItem key={i.id||n} item={i} index={n} category={split?(lineItemKind(i)==='item'?i.category||fallback:goodsCategories.includes(i.category||'')?i.category:(locale==='en'?'Follows merchandise':'随商品分摊')):undefined}>{renderExpandedRow(i,n)}</CompactItem>;
- return <details className="line-items-editor compact-items" open={((((items.length>0 || photos.length>0) || busy) || found.length>0) || undefined)}><summary>{tr("商品与优惠费用")}{items.length?tr(" · {0}件商品",[groups.goods.length]):tr(" · 选填")}</summary><fieldset disabled={busy}>
- <div className="item-category-mode"><label>{locale==='en'?'Classification':'分类方式'}<VisualSelect label={locale==='en'?'Classification':'分类方式'} value={split?'items':'order'} onChange={mode=>{setSplitWanted(mode==='items');onChange(items.map(i=>{const {category:old,...rest}=i;return mode==='items'&&lineItemKind(i)==='item'?{...rest,category:old||fallback}:rest;}));}} options={[{value:'order',label:locale==='en'?'One category for the order':'整单统一分类'},{value:'items',label:locale==='en'?'Classify each item':'按商品分别分类'}]}/></label><p className="muted">{split?(locale==='en'?'Classify merchandise only. Discounts and shipping follow merchandise proportionally unless assigned to an existing merchandise category.':'只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。'):(locale==='en'?`All items use ${fallback}.`:`所有商品统一计入「${fallback}」。切换为按商品分类后，可逐项选择。`)}</p></div>
-
- <ItemRegion title={tr('商品明细')} rows={groups.goods} render={renderRow} pageSize={6}><button type="button" className="secondary" disabled={items.length>=200} onClick={()=>add('item')}><Plus size={16} aria-hidden="true"/>{tr('添加商品')}</button></ItemRegion>
- <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={renderRow} pageSize={6}><p className="muted">{tr('满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。')}</p><div className="inline"><button type="button" className="secondary" disabled={items.length>=200} onClick={()=>add('discount')}>{tr('添加优惠 / 抹零')}</button><button type="button" className="secondary" disabled={items.length>=200} onClick={()=>add('fee')}>{tr('添加附加费用')}</button></div></ItemRegion>
- <div className="inline">{book&&<label className="upload"><Camera size={16}/>{tr("添加小票图片")}<input aria-label={tr("上传同一订单的小票图片")} type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';addPhotos(files);}}/></label>}</div>{photos.length>0&&<div className="receipt-photo-queue">{photos.map((p,n)=><div key={n}><span>{(n + 1)}. {p.name}</span><button type="button" className="text-button" disabled={n===0} onClick={()=>{setFound([]);setPhotos(v=>{const a=[...v];[a[n-1],a[n]]=[a[n],a[n-1]];return a;});}}>{tr("上移")}</button><button type="button" className="text-button" onClick={()=>{setFound([]);setPhotos(v=>v.filter((_,i)=>i!==n));}}>{tr("移除")}</button></div>)}<button type="button" onClick={photo}>{tr("合并识别 ·")}{photos.length}{tr("张")}</button></div>}</fieldset>
- {busy&&<p role="status">{tr("正在识别小票…")}<button type="button" className="text-button" onClick={()=>abort.current?.abort()}>{tr("取消")}</button></p>}{error&&<p className="error">{tr(error)}</p>}{found.map(d=><div className="item-photo-result" key={d.id}><LineItemsView category={d.category} items={(d.lineItems || [])} total={d.amount}/><button type="button" className="secondary" onClick={()=>{onChange(d.lineItems||[]);onRecognized?.(d);setFound([]);setPhotos([]);}}>{tr("使用这份明细")}{items.length?tr("（替换当前明细）"):''}</button></div>)}
- {split&&items.length>0&&<details className="category-breakdown-toggle"><summary>{locale==='en'?'Category totals':'分类计入金额'}</summary><CategoryBreakdown items={items} total={total} category={fallback}/></details>}
- {items.length>0&&<Settlement items={items} total={total}/>}
- {items.length>0&&<details className="settlement-calculator"><summary>{locale==='en'?'Check and calculate payment':'核对与计算实付'}</summary><div className="settlement-calculator-heading"><Calculator size={18} aria-hidden="true"/><strong>{tr('推荐实付（按当前明细）')}</strong></div><p className="settlement-equation">{tr('商品 {0} − 优惠 {1} + 费用 {2} = {3}',[money(settlementTotals(items).goods),money(settlementTotals(items).discount),money(settlementTotals(items).fees),money(sum.known)])}</p><Verification items={items} total={total}/><p>{tr('推荐值不覆盖实付；采用后仍可手动修改。')}</p>{sum.missing>0&&<p>{tr('还有 {0} 项金额未填写，当前仅为已知部分合计。',[sum.missing])}</p>}{!sum.missing&&!canUseSettlementTotal(sum.known,sum.missing)&&<p className="error">{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>}{onTotal&&<button type="button" className="secondary" disabled={busy||!canUseSettlementTotal(sum.known,sum.missing)} onClick={()=>onTotal(sum.known)}>{tr('采用推荐实付')}</button>}</details>}
- <></></details>;
+function Settlement({ items, total }: { items: LineItem[]; total: number }) {
+  const { t: tr, locale } = useI18n();
+  const s = settlementTotals(items);
+  return (
+    <dl className="settlement-summary">
+      <div>
+        <dt>
+          {tr('商品合计')}
+          {s.missing ? tr('（待补全）') : ''}
+        </dt>
+        <dd>{money(s.goods)}</dd>
+      </div>
+      {s.discount !== 0 && (
+        <div>
+          <dt>{tr('优惠 / 抹零')}</dt>
+          <dd className="income">−{money(s.discount)}</dd>
+        </div>
+      )}
+      {s.fees !== 0 && (
+        <div>
+          <dt>{tr('包装 / 配送等费用')}</dt>
+          <dd>{money(s.fees)}</dd>
+        </div>
+      )}
+      <div>
+        <dt>{tr('已展示明细合计')}</dt>
+        <dd>{money(s.net)}</dd>
+      </div>
+      <div>
+        <dt>{tr('实际支付')}</dt>
+        <dd>{money(total)}</dd>
+      </div>
+    </dl>
+  );
 }
 
-function CategoryBreakdown({items,total,category}:{items:LineItem[];total:number;category:string}){
- const {locale}=useI18n(),error=itemCategoryError(items,total,category);return <div className="item-category-breakdown" aria-live="polite"><h4>{locale==='en'?'Category totals':'分类计入金额'}</h4>{error?<p className="error" role="alert">{locale==='en'?'Complete and reconcile all item amounts before using item categories.':error}</p>:<dl className="settlement-summary">{categoryAmounts(items,total,category).map(p=><div key={p.category}><dt><CategoryIcon name={p.category} size={22}/>{p.category}</dt><dd>{money(p.amount)}</dd></div>)}</dl>}</div>;
+type IndexedItem = { item: LineItem; index: number };
+function ItemRegion({
+  title,
+  rows,
+  children,
+  render,
+  pageSize = 6,
+}: {
+  pageSize?: number;
+  title: string;
+  rows: IndexedItem[];
+  children?: ReactNode;
+  render: (item: LineItem, index: number) => ReactNode;
+}) {
+  const { t: tr } = useI18n();
+  const [page, setPage] = useState(1),
+    previous = useRef(rows.length);
+  useEffect(() => {
+    if (rows.length > previous.current) setPage(Math.ceil(rows.length / pageSize));
+    previous.current = rows.length;
+  }, [rows.length, pageSize]);
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize)),
+    current = Math.min(page, pages);
+  return (
+    <section className="line-item-region" aria-label={title}>
+      <h4>
+        {title} <span className="muted">· {rows.length}</span>
+      </h4>
+      {rows.length ? (
+        rows.slice((current - 1) * pageSize, current * pageSize).map(({ item, index }) => render(item, index))
+      ) : (
+        <p className="muted">{tr('未填写')}</p>
+      )}
+      {pages > 1 && (
+        <div className="item-region-pager">
+          <button
+            type="button"
+            className="secondary"
+            disabled={current === 1}
+            onClick={() => setPage(current - 1)}
+          >
+            {tr('上一页')}
+          </button>
+          <span>
+            {current} / {pages}
+          </span>
+          <button
+            type="button"
+            className="secondary"
+            disabled={current === pages}
+            onClick={() => setPage(current + 1)}
+          >
+            {tr('下一页')}
+          </button>
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+function groupedItems(items: LineItem[]) {
+  const indexed = items.map((item, index) => ({ item, index }));
+  return {
+    goods: indexed.filter(v => lineItemKind(v.item) === 'item'),
+    adjustments: indexed.filter(v => lineItemKind(v.item) !== 'item'),
+  };
 }
 
-function CompactItem({item,index,category,children}:{item:LineItem;index:number;category?:string;children:ReactNode}){
- const {locale}=useI18n(),[open,setOpen]=useState(!item.name);return <div className={`compact-item${open?' is-open':''}`}><button type="button" className="compact-item-summary" aria-expanded={open} aria-label={locale==='en'?`Edit item ${index+1}`:`编辑第${index+1}项`} onClick={()=>setOpen(v=>!v)}><span><strong>{item.name||(locale==='en'?'New item':'新明细')}</strong><small>{category|| (lineItemKind(item)==='discount'?(locale==='en'?'Discount':'优惠'):'')}{item.quantity!=null?` · × ${item.quantity}`:''}</small></span><b>{item.amount==null?(locale==='en'?'Missing amount':'待补金额'):money(item.amount)}</b><span aria-hidden="true">{open?'−':'＋'}</span></button><div className="compact-item-editor">{children}</div></div>;
+export function LineItemsView({
+  items,
+  total,
+  category,
+}: {
+  items: LineItem[];
+  total: number;
+  category?: string;
+}) {
+  const { t: tr } = useI18n();
+  const groups = groupedItems(items);
+  if (!items.length) return null;
+  const row = (i: LineItem, n: number) => (
+    <div className="item-summary-row" key={i.id || n}>
+      <span>
+        <strong>{i.name}</strong>
+        {i.category &&
+          (lineItemKind(i) === 'item' ||
+            items.some(g => lineItemKind(g) === 'item' && (g.category || category) === i.category)) && (
+            <small>
+              <CategoryIcon name={i.category} size={18} />
+              {i.category}
+            </small>
+          )}
+        {lineItemKind(i) === 'item' && (
+          <small>
+            {i.quantity != null ? tr('数量 {0}', [i.quantity]) : ''}
+            {i.unitPrice != null ? tr(' · 单价 {0}', [money(i.unitPrice)]) : ''}
+          </small>
+        )}
+      </span>
+      <strong>{i.amount == null ? tr('待补充') : money(i.amount)}</strong>
+    </div>
+  );
+  return (
+    <section className="item-summary">
+      {groups.goods.length > 0 && <ItemRegion title={tr('商品明细')} rows={groups.goods} render={row} />}
+      {groups.adjustments.length > 0 && (
+        <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={row} />
+      )}
+      {category && hasItemCategories(items) && (
+        <CategoryBreakdown items={items} total={total} category={category} />
+      )}
+      <Settlement items={items} total={total} />
+      <div className="item-reconciliation">
+        <Verification items={items} total={total} />
+      </div>
+    </section>
+  );
+}
+export function LineItemsEditor({
+  items,
+  onChange,
+  total,
+  onTotal,
+  book,
+  onBusyChange,
+  onAttachments,
+  onRecognized,
+  category,
+  categories,
+}: {
+  category?: string;
+  categories?: { name: string; archived?: boolean }[];
+  items: LineItem[];
+  onChange: (items: LineItem[]) => void;
+  total: number;
+  onTotal?: (amount: number) => void;
+  book?: string;
+  onRecognized?: (draft: Draft) => void;
+  onAttachments?: (ids: string[]) => void;
+  onBusyChange?: (busy: boolean) => void;
+}) {
+  const { t: tr, locale } = useI18n();
+  const contextCategories = useContext(CategoryIcons),
+    available = (categories || (contextCategories as { name: string; archived?: boolean }[])).filter(
+      c => !c.archived,
+    ),
+    [splitWanted, setSplitWanted] = useState(false);
+  const split = splitWanted || hasItemCategories(items),
+    fallback = category || available[0]?.name || '其他';
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [found, setFound] = useState<Draft[]>([]),
+    [photos, setPhotos] = useState<{ name: string; data: string }[]>([]);
+  const abort = useRef<AbortController | null>(null);
+  useEffect(() => () => abort.current?.abort(), []);
+  const sum = itemTotals(items);
+  const change = (index: number, patch: Partial<LineItem>) =>
+    onChange(items.map((i, n) => (n === index ? editCalculatedItem(i, patch) : i)));
+  async function addPhotos(files: File[]) {
+    setError('');
+    setFound([]);
+    try {
+      for (const file of files) {
+        const added = await uploadReceipt(book!, file);
+        setPhotos(current => [...current, added]);
+        onAttachments?.([added.data.split('/').at(-1)!]);
+      }
+    } catch {
+      setError('图片读取失败');
+    }
+  }
+  async function photo() {
+    if (!photos.length) return;
+    setError('');
+    setFound([]);
+    setBusy(true);
+    onBusyChange?.(true);
+    const controller = new AbortController();
+    abort.current = controller;
+    try {
+      const result = await askAssistant(
+        `books/${book}/assistant`,
+        {
+          text: '这些图片属于同一笔订单，可能有重叠或是长截图。完整归并所有菜品/商品明细、数量、单价及小计，不要把商品拆成多笔交易。',
+          images: photos.map(p => p.data),
+        },
+        controller.signal,
+        () => {},
+      );
+      const choices = result.entries.filter(e => e.lineItems?.length);
+      if (!choices.length) throw new Error('没有识别到商品明细，请换一张清晰图片或手动填写。');
+      setFound(choices);
+    } catch (e) {
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      onBusyChange?.(false);
+    }
+  }
+
+  const groups = groupedItems(items),
+    goodsCategories = [
+      ...new Set(items.filter(i => lineItemKind(i) === 'item').map(i => i.category || fallback)),
+    ];
+  const add = (kind: LineItem['kind']) =>
+    onChange([
+      ...items,
+      {
+        id: crypto.randomUUID(),
+        kind,
+        ...(split && kind === 'item' ? { category: fallback } : {}),
+        name: kind === 'item' ? '' : kind === 'discount' ? '结算优惠' : '手续费',
+        quantity: null,
+        unitPrice: null,
+        amount: null,
+      },
+    ]);
+  const renderExpandedRow = (i: LineItem, n: number) => {
+    const recommended = recommendedItemAmount(i);
+    return (
+      <div
+        className={lineItemKind(i) !== 'item' ? 'line-item-edit settlement-edit' : 'line-item-edit'}
+        key={i.id || n}
+      >
+        <label className="item-kind">
+          {tr('明细类型')}
+          <VisualSelect
+            label={tr('明细类型')}
+            value={lineItemKind(i)}
+            onChange={kind =>
+              change(n, {
+                kind: kind as LineItem['kind'],
+                ...(kind !== 'item' ? { quantity: null, unitPrice: null } : {}),
+                amount:
+                  i.amount === null ? null : kind === 'discount' ? -Math.abs(i.amount) : Math.abs(i.amount),
+              })
+            }
+            options={[
+              { value: 'item', label: tr('商品') },
+              { value: 'discount', label: tr('优惠 / 抹零') },
+              { value: 'fee', label: tr('附加费用') },
+            ]}
+          />
+        </label>
+        <label className="item-name">
+          {lineItemKind(i) === 'discount'
+            ? tr('优惠 / 抹零名称')
+            : i.kind === 'fee'
+              ? tr('附加费用名称')
+              : tr('菜品 / 商品')}
+          <input
+            aria-label={tr('第{0}项名称', [n + 1])}
+            maxLength={160}
+            placeholder={tr('例如：牛肉面')}
+            value={i.name}
+            onChange={e => change(n, { name: e.target.value })}
+          />
+        </label>
+        {lineItemKind(i) === 'item' ? (
+          <>
+            <label className="item-quantity">
+              {tr('数量')}
+              <input
+                aria-label={tr('第{0}项数量', [n + 1])}
+                type="number"
+                min="0.001"
+                step="any"
+                placeholder={tr('选填')}
+                value={i.quantity ?? ''}
+                onChange={e => change(n, { quantity: e.target.value === '' ? null : Number(e.target.value) })}
+              />
+            </label>
+            <label className="item-price">
+              {tr('单价（元）')}
+              <input
+                aria-label={tr('第{0}项单价', [n + 1])}
+                type="number"
+                step="0.01"
+                placeholder={tr('选填')}
+                value={i.unitPrice === null ? '' : i.unitPrice / 100}
+                onChange={e => {
+                  try {
+                    change(n, { unitPrice: cents(e.target.value) });
+                  } catch {}
+                }}
+              />
+            </label>
+          </>
+        ) : null}
+        <label className="item-amount">
+          {lineItemKind(i) === 'discount' ? tr('减免金额（元）') : tr('小计（元）')}
+          <input
+            aria-label={tr('第{0}项小计', [n + 1])}
+            type="number"
+            step="0.01"
+            placeholder={tr('待补充')}
+            min="0"
+            value={
+              i.amount === null
+                ? ''
+                : lineItemKind(i) === 'discount'
+                  ? Math.abs(i.amount) / 100
+                  : i.amount / 100
+            }
+            onChange={e => {
+              try {
+                const v = cents(e.target.value);
+                change(n, { amount: v === null ? null : lineItemKind(i) === 'discount' ? -Math.abs(v) : v });
+              } catch {}
+            }}
+          />
+        </label>
+        {recommended !== null && i.amount !== recommended && (
+          <div className="item-calculation">
+            <button type="button" className="text-button" onClick={() => change(n, { amount: recommended })}>
+              {tr('采用推荐小计')} {money(recommended)}
+            </button>
+          </div>
+        )}
+        {split && (
+          <label className="item-category">
+            {lineItemKind(i) === 'item'
+              ? locale === 'en'
+                ? 'Category'
+                : '分类'
+              : locale === 'en'
+                ? 'Apply to merchandise'
+                : '跟随商品'}
+            <VisualSelect
+              label={locale === 'en' ? `Item ${n + 1} category` : `第${n + 1}项分类`}
+              value={
+                lineItemKind(i) === 'item' || goodsCategories.includes(i.category || '')
+                  ? i.category || ''
+                  : ''
+              }
+              onChange={category => change(n, { category })}
+              options={[
+                {
+                  value: '',
+                  label:
+                    lineItemKind(i) !== 'item'
+                      ? locale === 'en'
+                        ? 'All merchandise proportionally'
+                        : '按全部商品比例分摊'
+                      : locale === 'en'
+                        ? 'Use order category'
+                        : '沿用整单分类',
+                },
+                ...(lineItemKind(i) === 'item'
+                  ? Array.from(new Set([...(i.category ? [i.category] : []), ...available.map(c => c.name)]))
+                  : goodsCategories
+                ).map(name => ({ value: name, label: name })),
+              ]}
+            />
+          </label>
+        )}
+        <div className="item-edit-actions">
+          <button
+            type="button"
+            className="text-button"
+            aria-label={tr('删除第{0}项', [n + 1])}
+            onClick={() => onChange(items.filter((_, j) => j !== n))}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            {tr('删除明细')}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRow = (i: LineItem, n: number) => (
+    <CompactItem
+      key={i.id || n}
+      item={i}
+      index={n}
+      category={
+        split
+          ? lineItemKind(i) === 'item'
+            ? i.category || fallback
+            : goodsCategories.includes(i.category || '')
+              ? i.category
+              : locale === 'en'
+                ? 'Follows merchandise'
+                : '随商品分摊'
+          : undefined
+      }
+    >
+      {renderExpandedRow(i, n)}
+    </CompactItem>
+  );
+  return (
+    <details
+      className="line-items-editor compact-items"
+      open={items.length > 0 || photos.length > 0 || busy || found.length > 0 || undefined}
+    >
+      <summary>
+        {tr('商品与优惠费用')}
+        {items.length ? tr(' · {0}件商品', [groups.goods.length]) : tr(' · 选填')}
+      </summary>
+      <fieldset disabled={busy}>
+        <div className="item-category-mode">
+          <label>
+            {locale === 'en' ? 'Classification' : '分类方式'}
+            <VisualSelect
+              label={locale === 'en' ? 'Classification' : '分类方式'}
+              value={split ? 'items' : 'order'}
+              onChange={mode => {
+                setSplitWanted(mode === 'items');
+                onChange(
+                  items.map(i => {
+                    const { category: old, ...rest } = i;
+                    return mode === 'items' && lineItemKind(i) === 'item'
+                      ? { ...rest, category: old || fallback }
+                      : rest;
+                  }),
+                );
+              }}
+              options={[
+                { value: 'order', label: locale === 'en' ? 'One category for the order' : '整单统一分类' },
+                { value: 'items', label: locale === 'en' ? 'Classify each item' : '按商品分别分类' },
+              ]}
+            />
+          </label>
+          <p className="muted">
+            {split
+              ? locale === 'en'
+                ? 'Classify merchandise only. Discounts and shipping follow merchandise proportionally unless assigned to an existing merchandise category.'
+                : '只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。'
+              : locale === 'en'
+                ? `All items use ${fallback}.`
+                : `所有商品统一计入「${fallback}」。切换为按商品分类后，可逐项选择。`}
+          </p>
+        </div>
+
+        <ItemRegion title={tr('商品明细')} rows={groups.goods} render={renderRow} pageSize={6}>
+          <button
+            type="button"
+            className="secondary"
+            disabled={items.length >= 200}
+            onClick={() => add('item')}
+          >
+            <Plus size={16} aria-hidden="true" />
+            {tr('添加商品')}
+          </button>
+        </ItemRegion>
+        <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={renderRow} pageSize={6}>
+          <p className="muted">
+            {tr('满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。')}
+          </p>
+          <div className="inline">
+            <button
+              type="button"
+              className="secondary"
+              disabled={items.length >= 200}
+              onClick={() => add('discount')}
+            >
+              {tr('添加优惠 / 抹零')}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={items.length >= 200}
+              onClick={() => add('fee')}
+            >
+              {tr('添加附加费用')}
+            </button>
+          </div>
+        </ItemRegion>
+        <div className="inline">
+          {book && (
+            <label className="upload">
+              <Camera size={16} />
+              {tr('添加小票图片')}
+              <input
+                aria-label={tr('上传同一订单的小票图片')}
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/webp"
+                onChange={e => {
+                  const files = Array.from(e.target.files || []);
+                  e.target.value = '';
+                  addPhotos(files);
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {photos.length > 0 && (
+          <div className="receipt-photo-queue">
+            {photos.map((p, n) => (
+              <div key={n}>
+                <span>
+                  {n + 1}. {p.name}
+                </span>
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={n === 0}
+                  onClick={() => {
+                    setFound([]);
+                    setPhotos(v => {
+                      const a = [...v];
+                      [a[n - 1], a[n]] = [a[n], a[n - 1]];
+                      return a;
+                    });
+                  }}
+                >
+                  {tr('上移')}
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setFound([]);
+                    setPhotos(v => v.filter((_, i) => i !== n));
+                  }}
+                >
+                  {tr('移除')}
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={photo}>
+              {tr('合并识别 ·')}
+              {photos.length}
+              {tr('张')}
+            </button>
+          </div>
+        )}
+      </fieldset>
+      {busy && (
+        <p role="status">
+          {tr('正在识别小票…')}
+          <button type="button" className="text-button" onClick={() => abort.current?.abort()}>
+            {tr('取消')}
+          </button>
+        </p>
+      )}
+      {error && <p className="error">{tr(error)}</p>}
+      {found.map(d => (
+        <div className="item-photo-result" key={d.id}>
+          <LineItemsView category={d.category} items={d.lineItems || []} total={d.amount} />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              onChange(d.lineItems || []);
+              onRecognized?.(d);
+              setFound([]);
+              setPhotos([]);
+            }}
+          >
+            {tr('使用这份明细')}
+            {items.length ? tr('（替换当前明细）') : ''}
+          </button>
+        </div>
+      ))}
+      {split && items.length > 0 && (
+        <details className="category-breakdown-toggle">
+          <summary>{locale === 'en' ? 'Category totals' : '分类计入金额'}</summary>
+          <CategoryBreakdown items={items} total={total} category={fallback} />
+        </details>
+      )}
+      {items.length > 0 && <Settlement items={items} total={total} />}
+      {items.length > 0 && (
+        <details className="settlement-calculator">
+          <summary>{locale === 'en' ? 'Check and calculate payment' : '核对与计算实付'}</summary>
+          <div className="settlement-calculator-heading">
+            <Calculator size={18} aria-hidden="true" />
+            <strong>{tr('推荐实付（按当前明细）')}</strong>
+          </div>
+          <p className="settlement-equation">
+            {tr('商品 {0} − 优惠 {1} + 费用 {2} = {3}', [
+              money(settlementTotals(items).goods),
+              money(settlementTotals(items).discount),
+              money(settlementTotals(items).fees),
+              money(sum.known),
+            ])}
+          </p>
+          <Verification items={items} total={total} />
+          <p>{tr('推荐值不覆盖实付；采用后仍可手动修改。')}</p>
+          {sum.missing > 0 && <p>{tr('还有 {0} 项金额未填写，当前仅为已知部分合计。', [sum.missing])}</p>}
+          {!sum.missing && !canUseSettlementTotal(sum.known, sum.missing) && (
+            <p className="error">{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>
+          )}
+          {onTotal && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || !canUseSettlementTotal(sum.known, sum.missing)}
+              onClick={() => onTotal(sum.known)}
+            >
+              {tr('采用推荐实付')}
+            </button>
+          )}
+        </details>
+      )}
+      <></>
+    </details>
+  );
+}
+
+function CategoryBreakdown({
+  items,
+  total,
+  category,
+}: {
+  items: LineItem[];
+  total: number;
+  category: string;
+}) {
+  const { locale } = useI18n(),
+    error = itemCategoryError(items, total, category);
+  return (
+    <div className="item-category-breakdown" aria-live="polite">
+      <h4>{locale === 'en' ? 'Category totals' : '分类计入金额'}</h4>
+      {error ? (
+        <p className="error" role="alert">
+          {locale === 'en' ? 'Complete and reconcile all item amounts before using item categories.' : error}
+        </p>
+      ) : (
+        <dl className="settlement-summary">
+          {categoryAmounts(items, total, category).map(p => (
+            <div key={p.category}>
+              <dt>
+                <CategoryIcon name={p.category} size={22} />
+                {p.category}
+              </dt>
+              <dd>{money(p.amount)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function CompactItem({
+  item,
+  index,
+  category,
+  children,
+}: {
+  item: LineItem;
+  index: number;
+  category?: string;
+  children: ReactNode;
+}) {
+  const { locale } = useI18n(),
+    [open, setOpen] = useState(!item.name);
+  return (
+    <div className={`compact-item${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="compact-item-summary"
+        aria-expanded={open}
+        aria-label={locale === 'en' ? `Edit item ${index + 1}` : `编辑第${index + 1}项`}
+        onClick={() => setOpen(v => !v)}
+      >
+        <span>
+          <strong>{item.name || (locale === 'en' ? 'New item' : '新明细')}</strong>
+          <small>
+            {category || (lineItemKind(item) === 'discount' ? (locale === 'en' ? 'Discount' : '优惠') : '')}
+            {item.quantity != null ? ` · × ${item.quantity}` : ''}
+          </small>
+        </span>
+        <b>{item.amount == null ? (locale === 'en' ? 'Missing amount' : '待补金额') : money(item.amount)}</b>
+        <span aria-hidden="true">{open ? '−' : '＋'}</span>
+      </button>
+      <div className="compact-item-editor">{children}</div>
+    </div>
+  );
 }

@@ -1,54 +1,708 @@
 'use client';
-import {useCallback,useEffect,useState} from 'react';
-import {LedgerEntryContent} from './LedgerEntryDetail';
-import {ReceiptAttachments} from './ReceiptAttachments';
-import {useEntryDetail} from './EntryDetailContext';
-import {Inbox} from 'lucide-react';
-import {Avatar} from './ManagementPages';
-import {Sheet} from './Sheet';
-import {VisualSelect} from './VisualSelect';
-import {ClaimRecipientSelect} from './ClaimRecipientSelect';
-import {Discussion} from './Discussion';
-import {useI18n} from './LanguageProvider';
-import {formatMoney} from '@/lib/deployment';
-export async function claimRequest(path:string,body?:unknown,signal?:AbortSignal){const r=await fetch('/api/expense-claims/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d;}
-export function ExpenseClaimDetail({id,onClose,onChanged}:{id:string;onClose:()=>void;onChanged:()=>void}){
- const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
- const openEntry=useEntryDetail();
- const [editingRecord,setEditingRecord]=useState<{title:string;category:string;note:string}|null>(null);
- const [data,setData]=useState<any>(null),[book,setBook]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const load=useCallback(async()=>{const d=await claimRequest(id);setData(d);setBook(d.targetBookId||'');setError('');await claimRequest(id,{operation:'read',version:d.claim.version});window.dispatchEvent(new Event('expense-claims-changed'));},[id]);
- useEffect(()=>{void load().catch(e=>setError(e.message));},[load]);
- async function act(operation:string){setBusy(true);setError('');try{await claimRequest(id,{operation,version:data.claim.version,bookId:book||undefined});await load();onChanged();window.dispatchEvent(new Event('expense-claims-changed'));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
- const c=data?.claim,recipient=c?.recipient_id===data?.userId,active=c&&['pending','accepted'].includes(c.status),person=(id:string)=>data.people.find((p:any)=>p.id===id);
- if(editingRecord)return <Sheet title={l('修改记录','Edit record')} onClose={()=>{if(!busy)setEditingRecord(null);}}><p className="muted">{l('修改你账单中的标题、分类和备注；实际付款金额、日期和钱包由付款人维护。','Edit your title, category and note. The payer maintains the payment amount, date and wallet.')}</p><form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await claimRequest(id,{operation:'edit-record',version:c.version,recordVersion:data.ownRecord.version,...editingRecord});setEditingRecord(null);await load();onChanged();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><label>{l('账目标题','Title')}<input value={editingRecord.title} maxLength={200} onChange={e=>setEditingRecord({...editingRecord,title:e.target.value})}/></label><label>{l('分类','Category')}<input value={editingRecord.category} required maxLength={60} onChange={e=>setEditingRecord({...editingRecord,category:e.target.value})}/></label><label>{l('备注','Note')}<textarea aria-label={l('备注','Note')} value={editingRecord.note} maxLength={2000} onChange={e=>setEditingRecord({...editingRecord,note:e.target.value})}/></label>{error&&<p className="error" role="alert">{error}</p>}<div className="sheet-actions"><button disabled={busy}>{l('保存修改','Save changes')}</button><button type="button" className="secondary" disabled={busy} onClick={()=>setEditingRecord(null)}>{l('取消修改','Cancel changes')}</button></div></form></Sheet>;
- return <Sheet title={l('账单认领','Purchase claim')} onClose={()=>{if(!busy)onClose();}}><button className="text-button" disabled={busy} onClick={()=>void load().catch(e=>setError(e.message))}>{l('刷新账单','Refresh purchase')}</button>{!data&&!error&&<p role="status">{l('正在读取…','Loading…')}</p>}{error&&<p role="alert" className="error">{error}</p>}{data&&<><div className="claim-heading"><Avatar value={person(c.sender_id)?.avatar} size={40}/><div><strong>{person(c.sender_id)?.name} {l('为','bought for')} {person(c.recipient_id)?.name} {l('购买','')}</strong><p>{({pending:l('待认领','Awaiting claim'),accepted:l('已认领','Claimed'),declined:l('已拒绝','Declined'),withdrawn:l('已撤回或取消','Withdrawn or cancelled')} as Record<string,string>)[c.status]}</p></div></div><LedgerEntryContent discussion={<Discussion key={id} target={{kind:'claim',id}}/>} row={{...data.source,...(recipient&&data.ownRecord?{title:data.ownRecord.title,category:data.ownRecord.category,note:data.ownRecord.note}:{})}} detailBook={recipient?data.books.find((b:any)=>b.id===data.targetBookId):data.sourceBook} attachments={<ReceiptAttachments book={data.source.book_id||''} transaction={data.source.id||''} claimId={id} showEmpty allowRecognize={false} canWrite={!!data.canEditSource}/>}/>{data.source.refunded>0&&<p>{l('已到账退款','Refund received')} {formatMoney(data.source.refunded)} · {l('净消费','Net purchase')} {formatMoney(data.source.amount-data.source.refunded)}</p>}{(data.canEditSource||data.canEditOwn)&&<div className="sheet-actions"><button type="button" disabled={busy} onClick={()=>{if(data.canEditSource){onClose();openEntry?.(data.source,{edit:true});}else setEditingRecord({title:data.ownRecord.title||'',category:data.ownRecord.category,note:data.ownRecord.note||''});}}>{l('修改记录','Edit record')}</button></div>}<p className="muted">{l('认领后，消费只归入所选账本，原付款人仍可从“为他人购买”查看单据和讨论。不表示欠款，也不会从认领人的钱包扣款。','After acceptance, the purchase belongs only to the chosen book. The payer can still view the bill and discussion under Purchases for others. This creates no debt and does not charge the recipient’s wallet.')}</p>
- {recipient&&active&&<><label>{l('归入我的哪个账本','Choose my destination book')}<VisualSelect label={l('认领账本','Claim destination')} value={book} onChange={setBook} disabled={busy} options={[{value:'',label:l('请选择账本','Choose a book')},...data.books.map((b:any)=>({value:b.id,label:b.name+' · '+(b.kind==='shared'?l('公账','Shared'):l('私账','Private')),icon:b.icon}))]}/></label><p className="muted">{l('选择公账后，该账本成员可查看这笔记录；对方不会获得你的私账权限。','Members of a shared book can see this record. The sender receives no access to your private book.')}</p><div className="claim-actions"><button disabled={busy||!book||c.status==='accepted'&&book===data.targetBookId} onClick={()=>void act('accept')}>{c.status==='pending'?l('确认认领','Accept claim'):l('调整归入账本','Change destination')}</button>{c.status==='pending'?<button className="secondary" disabled={busy} onClick={()=>void act('decline')}>{l('拒绝认领','Decline')}</button>:<button className="text-button" disabled={busy} onClick={()=>{if(window.confirm(l('取消认领并移除由认领添加的账本关联？','Cancel the claim and remove the copies it added?')))void act('cancel');}}>{l('取消认领','Cancel claim')}</button>}</div></>}
- {!recipient&&active&&<button className="secondary" disabled={busy} onClick={()=>{if(window.confirm(l('撤回邀请及由认领添加的账本关联，并通知对方？','Withdraw the invitation and its added copies, and notify the recipient?')))void act('withdraw');}}>{l('撤回认领邀请','Withdraw invitation')}</button>}
- </>}</Sheet>;
+import { useCallback, useEffect, useState } from 'react';
+import { LedgerEntryContent } from './LedgerEntryDetail';
+import { ReceiptAttachments } from './ReceiptAttachments';
+import { useEntryDetail } from './EntryDetailContext';
+import { Inbox } from 'lucide-react';
+import { Avatar } from './ManagementPages';
+import { Sheet } from './Sheet';
+import { VisualSelect } from './VisualSelect';
+import { ClaimRecipientSelect } from './ClaimRecipientSelect';
+import { Discussion } from './Discussion';
+import { useI18n } from './LanguageProvider';
+import { formatMoney } from '@/lib/deployment';
+export async function claimRequest(path: string, body?: unknown, signal?: AbortSignal) {
+  const r = await fetch('/api/expense-claims/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    signal,
+  });
+  const d = await r.json();
+  if (!r.ok) throw Error(d.error || 'Request failed');
+  return d;
 }
-export function ExpenseClaimsInbox({revision,onChanged,onCount,compact=false}:{revision:number;onChanged:()=>void;onCount?:(count:number)=>void;compact?:boolean}){
- const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
- const [data,setData]=useState<any>(null),[offset,setOffset]=useState(0),[error,setError]=useState(''),[selected,setSelected]=useState('');
- useEffect(()=>{onCount?.(error?-1:data?.total||0);},[data?.total,error,onCount]);
- const load=useCallback(async()=>{const d=await claimRequest('inbox?offset='+offset);if(!d.rows.length&&offset){setOffset(0);return;}setData(d);setError('');},[offset]);
- useEffect(()=>{let live=true;const refresh=()=>{if(live&&document.visibilityState==='visible')void load().catch(e=>{if(live)setError(e.message);});};refresh();const timer=setInterval(refresh,30000);window.addEventListener('focus',refresh);window.addEventListener('expense-claims-changed',refresh);return()=>{live=false;clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('expense-claims-changed',refresh);};},[revision,load]);
- const events:Record<string,string>={membership_removed:l('家庭关系已变化，认领已撤回','Family membership changed; claim withdrawn'),invited:l('邀请你认领','Invited you to claim'),accepted:l('已认领账单','Claim accepted'),source_changed:l('原账单有修改，请核对','Original bill changed; review it'),source_deleted:l('原账单已删除，认领已撤回','Original bill removed; claim withdrawn'),withdrawn:l('已撤回认领邀请','Invitation withdrawn'),cancel:l('已取消认领','Claim cancelled'),decline:l('已拒绝认领','Claim declined')};
- return <>{(!!data?.total||!!error)&&<section className="panel home-inbox"><div className="panel-title"><h2><Inbox size={22}/>{l('待认领与账单动态','Purchase claims & updates')} <small>{data?.total||''}</small></h2><button className="text-button" onClick={()=>void load().catch(e=>setError(e.message))}>{l('刷新','Refresh')}</button></div>{error&&<p role="alert" className="error">{error}</p>}{data?.rows.map((r:any)=><article className="home-inbox-row" key={r.id}><div><div className="claim-heading"><Avatar value={r.avatar} size={36}/><strong>{r.name} · {events[r.event]||(r.status==='pending'?l('待你认领','Awaiting your claim'):l('账单动态','Bill update'))}</strong></div><p>{r.title||r.product||r.payee||l('消费账单','Purchase')} · {formatMoney(r.amount)}</p><small>{r.date}</small></div><button onClick={()=>setSelected(r.id)}>{r.status==='pending'&&r.side==='recipient'?l('查看并认领','Review & claim'):l('查看动态','View update')}</button></article>)}{data?.total>5&&<div className="claim-actions"><button className="secondary" disabled={!offset} onClick={()=>setOffset(v=>v-5)}>{l('上一页','Previous')}</button><span>{offset+1}–{Math.min(offset+5,data.total)} / {data.total}</span><button className="secondary" disabled={offset+5>=data.total} onClick={()=>setOffset(v=>v+5)}>{l('下一页','Next')}</button></div>}</section>}{selected&&<ExpenseClaimDetail id={selected} onClose={()=>setSelected('')} onChanged={()=>{onChanged();void load().catch(e=>setError(e.message));}}/>}</>;
+export function ExpenseClaimDetail({
+  id,
+  onClose,
+  onChanged,
+}: {
+  id: string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const { locale } = useI18n(),
+    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const openEntry = useEntryDetail();
+  const [editingRecord, setEditingRecord] = useState<{
+    title: string;
+    category: string;
+    note: string;
+  } | null>(null);
+  const [data, setData] = useState<any>(null),
+    [book, setBook] = useState(''),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const d = await claimRequest(id);
+    setData(d);
+    setBook(d.targetBookId || '');
+    setError('');
+    await claimRequest(id, { operation: 'read', version: d.claim.version });
+    window.dispatchEvent(new Event('expense-claims-changed'));
+  }, [id]);
+  useEffect(() => {
+    void load().catch(e => setError(e.message));
+  }, [load]);
+  async function act(operation: string) {
+    setBusy(true);
+    setError('');
+    try {
+      await claimRequest(id, { operation, version: data.claim.version, bookId: book || undefined });
+      await load();
+      onChanged();
+      window.dispatchEvent(new Event('expense-claims-changed'));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const c = data?.claim,
+    recipient = c?.recipient_id === data?.userId,
+    active = c && ['pending', 'accepted'].includes(c.status),
+    person = (id: string) => data.people.find((p: any) => p.id === id);
+  if (editingRecord)
+    return (
+      <Sheet
+        title={l('修改记录', 'Edit record')}
+        onClose={() => {
+          if (!busy) setEditingRecord(null);
+        }}
+      >
+        <p className="muted">
+          {l(
+            '修改你账单中的标题、分类和备注；实际付款金额、日期和钱包由付款人维护。',
+            'Edit your title, category and note. The payer maintains the payment amount, date and wallet.',
+          )}
+        </p>
+        <form
+          onSubmit={async e => {
+            e.preventDefault();
+            setBusy(true);
+            setError('');
+            try {
+              await claimRequest(id, {
+                operation: 'edit-record',
+                version: c.version,
+                recordVersion: data.ownRecord.version,
+                ...editingRecord,
+              });
+              setEditingRecord(null);
+              await load();
+              onChanged();
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label>
+            {l('账目标题', 'Title')}
+            <input
+              value={editingRecord.title}
+              maxLength={200}
+              onChange={e => setEditingRecord({ ...editingRecord, title: e.target.value })}
+            />
+          </label>
+          <label>
+            {l('分类', 'Category')}
+            <input
+              value={editingRecord.category}
+              required
+              maxLength={60}
+              onChange={e => setEditingRecord({ ...editingRecord, category: e.target.value })}
+            />
+          </label>
+          <label>
+            {l('备注', 'Note')}
+            <textarea
+              aria-label={l('备注', 'Note')}
+              value={editingRecord.note}
+              maxLength={2000}
+              onChange={e => setEditingRecord({ ...editingRecord, note: e.target.value })}
+            />
+          </label>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="sheet-actions">
+            <button disabled={busy}>{l('保存修改', 'Save changes')}</button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => setEditingRecord(null)}
+            >
+              {l('取消修改', 'Cancel changes')}
+            </button>
+          </div>
+        </form>
+      </Sheet>
+    );
+  return (
+    <Sheet
+      title={l('账单认领', 'Purchase claim')}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <button
+        className="text-button"
+        disabled={busy}
+        onClick={() => void load().catch(e => setError(e.message))}
+      >
+        {l('刷新账单', 'Refresh purchase')}
+      </button>
+      {!data && !error && <p role="status">{l('正在读取…', 'Loading…')}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      {data && (
+        <>
+          <div className="claim-heading">
+            <Avatar value={person(c.sender_id)?.avatar} size={40} />
+            <div>
+              <strong>
+                {person(c.sender_id)?.name} {l('为', 'bought for')} {person(c.recipient_id)?.name}{' '}
+                {l('购买', '')}
+              </strong>
+              <p>
+                {
+                  (
+                    {
+                      pending: l('待认领', 'Awaiting claim'),
+                      accepted: l('已认领', 'Claimed'),
+                      declined: l('已拒绝', 'Declined'),
+                      withdrawn: l('已撤回或取消', 'Withdrawn or cancelled'),
+                    } as Record<string, string>
+                  )[c.status]
+                }
+              </p>
+            </div>
+          </div>
+          <LedgerEntryContent
+            discussion={<Discussion key={id} target={{ kind: 'claim', id }} />}
+            row={{
+              ...data.source,
+              ...(recipient && data.ownRecord
+                ? {
+                    title: data.ownRecord.title,
+                    category: data.ownRecord.category,
+                    note: data.ownRecord.note,
+                  }
+                : {}),
+            }}
+            detailBook={recipient ? data.books.find((b: any) => b.id === data.targetBookId) : data.sourceBook}
+            attachments={
+              <ReceiptAttachments
+                book={data.source.book_id || ''}
+                transaction={data.source.id || ''}
+                claimId={id}
+                showEmpty
+                allowRecognize={false}
+                canWrite={!!data.canEditSource}
+              />
+            }
+          />
+          {data.source.refunded > 0 && (
+            <p>
+              {l('已到账退款', 'Refund received')} {formatMoney(data.source.refunded)} ·{' '}
+              {l('净消费', 'Net purchase')} {formatMoney(data.source.amount - data.source.refunded)}
+            </p>
+          )}
+          {(data.canEditSource || data.canEditOwn) && (
+            <div className="sheet-actions">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (data.canEditSource) {
+                    onClose();
+                    openEntry?.(data.source, { edit: true });
+                  } else
+                    setEditingRecord({
+                      title: data.ownRecord.title || '',
+                      category: data.ownRecord.category,
+                      note: data.ownRecord.note || '',
+                    });
+                }}
+              >
+                {l('修改记录', 'Edit record')}
+              </button>
+            </div>
+          )}
+          <p className="muted">
+            {l(
+              '认领后，消费只归入所选账本，原付款人仍可从“为他人购买”查看单据和讨论。不表示欠款，也不会从认领人的钱包扣款。',
+              'After acceptance, the purchase belongs only to the chosen book. The payer can still view the bill and discussion under Purchases for others. This creates no debt and does not charge the recipient’s wallet.',
+            )}
+          </p>
+          {recipient && active && (
+            <>
+              <label>
+                {l('归入我的哪个账本', 'Choose my destination book')}
+                <VisualSelect
+                  label={l('认领账本', 'Claim destination')}
+                  value={book}
+                  onChange={setBook}
+                  disabled={busy}
+                  options={[
+                    { value: '', label: l('请选择账本', 'Choose a book') },
+                    ...data.books.map((b: any) => ({
+                      value: b.id,
+                      label:
+                        b.name + ' · ' + (b.kind === 'shared' ? l('公账', 'Shared') : l('私账', 'Private')),
+                      icon: b.icon,
+                    })),
+                  ]}
+                />
+              </label>
+              <p className="muted">
+                {l(
+                  '选择公账后，该账本成员可查看这笔记录；对方不会获得你的私账权限。',
+                  'Members of a shared book can see this record. The sender receives no access to your private book.',
+                )}
+              </p>
+              <div className="claim-actions">
+                <button
+                  disabled={busy || !book || (c.status === 'accepted' && book === data.targetBookId)}
+                  onClick={() => void act('accept')}
+                >
+                  {c.status === 'pending'
+                    ? l('确认认领', 'Accept claim')
+                    : l('调整归入账本', 'Change destination')}
+                </button>
+                {c.status === 'pending' ? (
+                  <button className="secondary" disabled={busy} onClick={() => void act('decline')}>
+                    {l('拒绝认领', 'Decline')}
+                  </button>
+                ) : (
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          l(
+                            '取消认领并移除由认领添加的账本关联？',
+                            'Cancel the claim and remove the copies it added?',
+                          ),
+                        )
+                      )
+                        void act('cancel');
+                    }}
+                  >
+                    {l('取消认领', 'Cancel claim')}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          {!recipient && active && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    l(
+                      '撤回邀请及由认领添加的账本关联，并通知对方？',
+                      'Withdraw the invitation and its added copies, and notify the recipient?',
+                    ),
+                  )
+                )
+                  void act('withdraw');
+              }}
+            >
+              {l('撤回认领邀请', 'Withdraw invitation')}
+            </button>
+          )}
+        </>
+      )}
+    </Sheet>
+  );
 }
-export function ExpenseClaimsSent({revision,onChanged,onCount,compact=false}:{revision:number;onChanged:()=>void;onCount?:(count:number)=>void;compact?:boolean}){
- const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
- const [data,setData]=useState<any>(null),[offset,setOffset]=useState(0),[expanded,setExpanded]=useState(compact),[selected,setSelected]=useState(''),[error,setError]=useState('');
- useEffect(()=>{onCount?.(error?-1:data?.total||0);},[data?.total,error,onCount]);
- const load=useCallback(async()=>{const d=await claimRequest('sent?offset='+offset);if(!d.rows.length&&offset){setOffset(0);return;}setData(d);setError('');},[offset]);
- useEffect(()=>{const controller=new AbortController();const refresh=()=>{if(!controller.signal.aborted)void load().catch(e=>{if(!controller.signal.aborted)setError(e.message);});};refresh();window.addEventListener('expense-claims-changed',refresh);window.addEventListener('focus',refresh);return()=>{controller.abort();window.removeEventListener('expense-claims-changed',refresh);window.removeEventListener('focus',refresh);};},[revision,load]);
- const labels:Record<string,string>={pending:l('待对方认领','Awaiting their claim'),accepted:l('已转入对方选择的账本','Moved to their chosen book'),declined:l('对方已拒绝','Declined'),withdrawn:l('已撤回或取消','Withdrawn or cancelled')};
- return <>{(!!data?.total||!!error)&&<section className="panel home-inbox claim-sent"><div className="panel-title"><h2>{l('为他人购买','Purchases for others')} <small>{data?.total||''}</small></h2><button type="button" className="text-button" aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)}>{expanded?l('收起记录','Hide records'):l('查看记录','View records')}</button></div><p className="muted">{l('认领后消费归入对方选择的账本；这里保留你实际付款的单据与讨论，已读后仍可查看。','After acceptance the purchase belongs to their chosen book. Your payment record and discussion remain available here after reading.')}</p>{error&&<p role="alert" className="error">{error}<button type="button" className="text-button" onClick={()=>void load().catch(e=>setError(e.message))}>{l('重试','Retry')}</button></p>}{expanded&&<>{data?.rows.map((r:any)=><article className="home-inbox-row" key={r.id}><div><div className="claim-heading"><Avatar value={r.avatar} size={36}/><strong>{l('为','For')} {r.name} {l('购买','')}</strong></div><p>{r.title} · {formatMoney(r.amount)}</p><small>{r.date} · {labels[r.status]}</small></div><button type="button" className="secondary" onClick={()=>setSelected(r.id)}>{l('查看单据与讨论','View bill & discussion')}</button></article>)}{data?.total>5&&<div className="claim-actions"><button type="button" className="secondary" disabled={!offset} onClick={()=>setOffset(v=>v-5)}>{l('上一页','Previous')}</button><span>{offset+1}–{Math.min(offset+5,data.total)} / {data.total}</span><button type="button" className="secondary" disabled={offset+5>=data.total} onClick={()=>setOffset(v=>v+5)}>{l('下一页','Next')}</button></div>}</>}</section>}{selected&&<ExpenseClaimDetail id={selected} onClose={()=>setSelected('')} onChanged={()=>{onChanged();void load().catch(e=>setError(e.message));}}/>}</>;
+export function ExpenseClaimsInbox({
+  revision,
+  onChanged,
+  onCount,
+  compact = false,
+}: {
+  revision: number;
+  onChanged: () => void;
+  onCount?: (count: number) => void;
+  compact?: boolean;
+}) {
+  const { locale } = useI18n(),
+    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const [data, setData] = useState<any>(null),
+    [offset, setOffset] = useState(0),
+    [error, setError] = useState(''),
+    [selected, setSelected] = useState('');
+  useEffect(() => {
+    onCount?.(error ? -1 : data?.total || 0);
+  }, [data?.total, error, onCount]);
+  const load = useCallback(async () => {
+    const d = await claimRequest('inbox?offset=' + offset);
+    if (!d.rows.length && offset) {
+      setOffset(0);
+      return;
+    }
+    setData(d);
+    setError('');
+  }, [offset]);
+  useEffect(() => {
+    let live = true;
+    const refresh = () => {
+      if (live && document.visibilityState === 'visible')
+        void load().catch(e => {
+          if (live) setError(e.message);
+        });
+    };
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('expense-claims-changed', refresh);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('expense-claims-changed', refresh);
+    };
+  }, [revision, load]);
+  const events: Record<string, string> = {
+    membership_removed: l('家庭关系已变化，认领已撤回', 'Family membership changed; claim withdrawn'),
+    invited: l('邀请你认领', 'Invited you to claim'),
+    accepted: l('已认领账单', 'Claim accepted'),
+    source_changed: l('原账单有修改，请核对', 'Original bill changed; review it'),
+    source_deleted: l('原账单已删除，认领已撤回', 'Original bill removed; claim withdrawn'),
+    withdrawn: l('已撤回认领邀请', 'Invitation withdrawn'),
+    cancel: l('已取消认领', 'Claim cancelled'),
+    decline: l('已拒绝认领', 'Claim declined'),
+  };
+  return (
+    <>
+      {(!!data?.total || !!error) && (
+        <section className="panel home-inbox">
+          <div className="panel-title">
+            <h2>
+              <Inbox size={22} />
+              {l('待认领与账单动态', 'Purchase claims & updates')} <small>{data?.total || ''}</small>
+            </h2>
+            <button className="text-button" onClick={() => void load().catch(e => setError(e.message))}>
+              {l('刷新', 'Refresh')}
+            </button>
+          </div>
+          {error && (
+            <p role="alert" className="error">
+              {error}
+            </p>
+          )}
+          {data?.rows.map((r: any) => (
+            <article className="home-inbox-row" key={r.id}>
+              <div>
+                <div className="claim-heading">
+                  <Avatar value={r.avatar} size={36} />
+                  <strong>
+                    {r.name} ·{' '}
+                    {events[r.event] ||
+                      (r.status === 'pending'
+                        ? l('待你认领', 'Awaiting your claim')
+                        : l('账单动态', 'Bill update'))}
+                  </strong>
+                </div>
+                <p>
+                  {r.title || r.product || r.payee || l('消费账单', 'Purchase')} · {formatMoney(r.amount)}
+                </p>
+                <small>{r.date}</small>
+              </div>
+              <button onClick={() => setSelected(r.id)}>
+                {r.status === 'pending' && r.side === 'recipient'
+                  ? l('查看并认领', 'Review & claim')
+                  : l('查看动态', 'View update')}
+              </button>
+            </article>
+          ))}
+          {data?.total > 5 && (
+            <div className="claim-actions">
+              <button className="secondary" disabled={!offset} onClick={() => setOffset(v => v - 5)}>
+                {l('上一页', 'Previous')}
+              </button>
+              <span>
+                {offset + 1}–{Math.min(offset + 5, data.total)} / {data.total}
+              </span>
+              <button
+                className="secondary"
+                disabled={offset + 5 >= data.total}
+                onClick={() => setOffset(v => v + 5)}
+              >
+                {l('下一页', 'Next')}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+      {selected && (
+        <ExpenseClaimDetail
+          id={selected}
+          onClose={() => setSelected('')}
+          onChanged={() => {
+            onChanged();
+            void load().catch(e => setError(e.message));
+          }}
+        />
+      )}
+    </>
+  );
 }
-export function ExpenseClaimRecord({transactionId,onChanged,onPermission}:{transactionId:string;onChanged?:()=>void;onPermission?:(canEdit:boolean)=>void}){
- const {locale}=useI18n(),l=(zh:string,en:string)=>locale==='en'?en:zh;
- const [data,setData]=useState<any>(null),[recipient,setRecipient]=useState(''),[open,setOpen]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- const load=useCallback(async()=>{const d=await claimRequest('for-record?id='+transactionId);setData(d);setRecipient(d.claim?.recipient_id||'');onPermission?.(d.canEdit);},[transactionId]);
- useEffect(()=>{void load().catch(e=>setError(e.message));},[load]);
- return <section className="expense-claim-record">{data?.claim&&<><p>{l('认领对象','Purchase recipient')}：{data.claim.recipient_name} · {l('实际付款人','Paid by')}：{data.claim.sender_name} · {data.claim.status==='accepted'?l('已认领','Claimed'):l('待认领','Pending claim')}</p>{data.canOpen&&<button className="secondary" onClick={()=>setOpen(data.claim.id)}>{l('查看认领与讨论','Claim details & discussion')}</button>}</>}{data?.canInvite&&data.canEdit&&(!data.claim||data.claim.status==='pending')&&<><ClaimRecipientSelect value={recipient} onChange={setRecipient} disabled={busy}/><button className="secondary" disabled={busy||recipient===(data.claim?.recipient_id||'')} onClick={async()=>{setBusy(true);setError('');try{await claimRequest('invite',{sourceId:transactionId,recipientId:recipient||null});await load();onChanged?.();window.dispatchEvent(new Event('expense-claims-changed'));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{l('保存消费对象','Save purchase recipient')}</button></>}{error&&<p className="error" role="alert">{error}</p>}{open&&<ExpenseClaimDetail id={open} onClose={()=>setOpen('')} onChanged={()=>{void load().catch(e=>setError(e.message));onChanged?.();}}/>}</section>;
+export function ExpenseClaimsSent({
+  revision,
+  onChanged,
+  onCount,
+  compact = false,
+}: {
+  revision: number;
+  onChanged: () => void;
+  onCount?: (count: number) => void;
+  compact?: boolean;
+}) {
+  const { locale } = useI18n(),
+    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const [data, setData] = useState<any>(null),
+    [offset, setOffset] = useState(0),
+    [expanded, setExpanded] = useState(compact),
+    [selected, setSelected] = useState(''),
+    [error, setError] = useState('');
+  useEffect(() => {
+    onCount?.(error ? -1 : data?.total || 0);
+  }, [data?.total, error, onCount]);
+  const load = useCallback(async () => {
+    const d = await claimRequest('sent?offset=' + offset);
+    if (!d.rows.length && offset) {
+      setOffset(0);
+      return;
+    }
+    setData(d);
+    setError('');
+  }, [offset]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => {
+      if (!controller.signal.aborted)
+        void load().catch(e => {
+          if (!controller.signal.aborted) setError(e.message);
+        });
+    };
+    refresh();
+    window.addEventListener('expense-claims-changed', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      controller.abort();
+      window.removeEventListener('expense-claims-changed', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [revision, load]);
+  const labels: Record<string, string> = {
+    pending: l('待对方认领', 'Awaiting their claim'),
+    accepted: l('已转入对方选择的账本', 'Moved to their chosen book'),
+    declined: l('对方已拒绝', 'Declined'),
+    withdrawn: l('已撤回或取消', 'Withdrawn or cancelled'),
+  };
+  return (
+    <>
+      {(!!data?.total || !!error) && (
+        <section className="panel home-inbox claim-sent">
+          <div className="panel-title">
+            <h2>
+              {l('为他人购买', 'Purchases for others')} <small>{data?.total || ''}</small>
+            </h2>
+            <button
+              type="button"
+              className="text-button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded(v => !v)}
+            >
+              {expanded ? l('收起记录', 'Hide records') : l('查看记录', 'View records')}
+            </button>
+          </div>
+          <p className="muted">
+            {l(
+              '认领后消费归入对方选择的账本；这里保留你实际付款的单据与讨论，已读后仍可查看。',
+              'After acceptance the purchase belongs to their chosen book. Your payment record and discussion remain available here after reading.',
+            )}
+          </p>
+          {error && (
+            <p role="alert" className="error">
+              {error}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void load().catch(e => setError(e.message))}
+              >
+                {l('重试', 'Retry')}
+              </button>
+            </p>
+          )}
+          {expanded && (
+            <>
+              {data?.rows.map((r: any) => (
+                <article className="home-inbox-row" key={r.id}>
+                  <div>
+                    <div className="claim-heading">
+                      <Avatar value={r.avatar} size={36} />
+                      <strong>
+                        {l('为', 'For')} {r.name} {l('购买', '')}
+                      </strong>
+                    </div>
+                    <p>
+                      {r.title} · {formatMoney(r.amount)}
+                    </p>
+                    <small>
+                      {r.date} · {labels[r.status]}
+                    </small>
+                  </div>
+                  <button type="button" className="secondary" onClick={() => setSelected(r.id)}>
+                    {l('查看单据与讨论', 'View bill & discussion')}
+                  </button>
+                </article>
+              ))}
+              {data?.total > 5 && (
+                <div className="claim-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={!offset}
+                    onClick={() => setOffset(v => v - 5)}
+                  >
+                    {l('上一页', 'Previous')}
+                  </button>
+                  <span>
+                    {offset + 1}–{Math.min(offset + 5, data.total)} / {data.total}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={offset + 5 >= data.total}
+                    onClick={() => setOffset(v => v + 5)}
+                  >
+                    {l('下一页', 'Next')}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+      {selected && (
+        <ExpenseClaimDetail
+          id={selected}
+          onClose={() => setSelected('')}
+          onChanged={() => {
+            onChanged();
+            void load().catch(e => setError(e.message));
+          }}
+        />
+      )}
+    </>
+  );
+}
+export function ExpenseClaimRecord({
+  transactionId,
+  onChanged,
+  onPermission,
+}: {
+  transactionId: string;
+  onChanged?: () => void;
+  onPermission?: (canEdit: boolean) => void;
+}) {
+  const { locale } = useI18n(),
+    l = (zh: string, en: string) => (locale === 'en' ? en : zh);
+  const [data, setData] = useState<any>(null),
+    [recipient, setRecipient] = useState(''),
+    [open, setOpen] = useState(''),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const d = await claimRequest('for-record?id=' + transactionId);
+    setData(d);
+    setRecipient(d.claim?.recipient_id || '');
+    onPermission?.(d.canEdit);
+  }, [transactionId]);
+  useEffect(() => {
+    void load().catch(e => setError(e.message));
+  }, [load]);
+  return (
+    <section className="expense-claim-record">
+      {data?.claim && (
+        <>
+          <p>
+            {l('认领对象', 'Purchase recipient')}：{data.claim.recipient_name} · {l('实际付款人', 'Paid by')}
+            ：{data.claim.sender_name} ·{' '}
+            {data.claim.status === 'accepted' ? l('已认领', 'Claimed') : l('待认领', 'Pending claim')}
+          </p>
+          {data.canOpen && (
+            <button className="secondary" onClick={() => setOpen(data.claim.id)}>
+              {l('查看认领与讨论', 'Claim details & discussion')}
+            </button>
+          )}
+        </>
+      )}
+      {data?.canInvite && data.canEdit && (!data.claim || data.claim.status === 'pending') && (
+        <>
+          <ClaimRecipientSelect value={recipient} onChange={setRecipient} disabled={busy} />
+          <button
+            className="secondary"
+            disabled={busy || recipient === (data.claim?.recipient_id || '')}
+            onClick={async () => {
+              setBusy(true);
+              setError('');
+              try {
+                await claimRequest('invite', { sourceId: transactionId, recipientId: recipient || null });
+                await load();
+                onChanged?.();
+                window.dispatchEvent(new Event('expense-claims-changed'));
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {l('保存消费对象', 'Save purchase recipient')}
+          </button>
+        </>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {open && (
+        <ExpenseClaimDetail
+          id={open}
+          onClose={() => setOpen('')}
+          onChanged={() => {
+            void load().catch(e => setError(e.message));
+            onChanged?.();
+          }}
+        />
+      )}
+    </section>
+  );
 }

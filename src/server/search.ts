@@ -1,28 +1,89 @@
-import {claimBookVisibility} from './claim-visibility';
-import {deployment} from '@/lib/deployment';
-import {detailSorts} from '@/lib/detail-sort';
-import {memoryVisibility} from './memory';
-import {accountAccess} from './accounts';
-import {textMatch} from './search-match';
-import {defaultCategories,listCategories} from './categories';
-import {z} from 'zod';
-import {db} from './db';
-import {Failure} from './access';
-import {LIST_PAGE_SIZE} from '@/lib/pagination';
-const day=z.string().refine(s=>s===''||(/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s),'日期无效').default('');
-export const searchSchema=z.object({sort:z.enum(['relevance',...detailSorts]).default('relevance'),id:z.string().uuid().optional(),exclude:z.string().uuid().optional(),group:z.string().uuid().optional(),q:z.string().trim().max(200).default(''),mode:z.enum(['contains','exact']).default('contains'),entity:z.enum(['all','profile','cost_project','memory','transaction','account','book','activity','category','schedule','template','report','conversation','budget']).default('all'),book:z.union([z.literal('all'),z.string().uuid()]).default('all'),field:z.enum(['all','payee','product','note','order','item','platform']).default('all'),category:z.string().max(60).default(''),account:z.union([z.literal('all'),z.string().uuid()]).default('all'),kind:z.enum(['all','expense','income','refund','transfer']).default('all'),from:day,to:day,min:z.coerce.number().int().min(-100000000000).max(100000000000).optional(),max:z.coerce.number().int().min(-100000000000).max(100000000000).optional(),amountScope:z.enum(['order','item','either']).default('order'),state:z.enum(['active','trash','all']).default('active'),offset:z.coerce.number().int().min(0).default(0)});
-export function parseSearch(params:URLSearchParams){const p=searchSchema.parse(Object.fromEntries(params));if(p.from&&p.to&&p.to<p.from)throw new Failure('结束日期不能早于开始日期');if(p.min!==undefined&&p.max!==undefined&&p.max<p.min)throw new Failure('最高金额不能低于最低金额');return p;}
-export async function search(user:string,params:URLSearchParams){
- const p=parseSearch(params),availableCategories=await listCategories(user);
- const values:any[]=[user];const arg=(v:any)=>{values.push(v);return '$'+values.length;};
- const exclude=arg(p.exclude||null);const field=arg(p.field),defaults=arg(availableCategories.map(c=>c.name)),available=arg(JSON.stringify(availableCategories));
- const sources=`WITH visible AS MATERIALIZED (SELECT b.*,m.role FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1), available_categories AS(SELECT * FROM jsonb_to_recordset(${available}::jsonb) AS c(name text,icon text,archived boolean)), categories AS(SELECT v.id AS book_id,n.name,COALESCE(c.icon,'🧸') AS icon,COALESCE(c.archived,false) AS archived FROM visible v CROSS JOIN LATERAL (SELECT unnest(${defaults}::text[]) AS name UNION SELECT name FROM category_preferences WHERE user_id=$1 UNION SELECT category FROM transactions WHERE book_id=v.id UNION SELECT category FROM budgets WHERE book_id=v.id) n LEFT JOIN available_categories c ON c.name=n.name WHERE NOT EXISTS(SELECT 1 FROM category_preferences hidden WHERE hidden.user_id=$1 AND hidden.name=n.name AND hidden.deleted)), sources AS (
+import { claimBookVisibility } from './claim-visibility';
+import { deployment } from '@/lib/deployment';
+import { detailSorts } from '@/lib/detail-sort';
+import { memoryVisibility } from './memory';
+import { accountAccess } from './accounts';
+import { textMatch } from './search-match';
+import { defaultCategories, listCategories } from './categories';
+import { z } from 'zod';
+import { db } from './db';
+import { Failure } from './access';
+import { LIST_PAGE_SIZE } from '@/lib/pagination';
+const day = z
+  .string()
+  .refine(
+    s =>
+      s === '' ||
+      (/^\d{4}-\d{2}-\d{2}$/.test(s) &&
+        !Number.isNaN(Date.parse(s)) &&
+        new Date(s).toISOString().slice(0, 10) === s),
+    '日期无效',
+  )
+  .default('');
+export const searchSchema = z.object({
+  sort: z.enum(['relevance', ...detailSorts]).default('relevance'),
+  id: z.string().uuid().optional(),
+  exclude: z.string().uuid().optional(),
+  group: z.string().uuid().optional(),
+  q: z.string().trim().max(200).default(''),
+  mode: z.enum(['contains', 'exact']).default('contains'),
+  entity: z
+    .enum([
+      'all',
+      'profile',
+      'cost_project',
+      'memory',
+      'transaction',
+      'account',
+      'book',
+      'activity',
+      'category',
+      'schedule',
+      'template',
+      'report',
+      'conversation',
+      'budget',
+    ])
+    .default('all'),
+  book: z.union([z.literal('all'), z.string().uuid()]).default('all'),
+  field: z.enum(['all', 'payee', 'product', 'note', 'order', 'item', 'platform']).default('all'),
+  category: z.string().max(60).default(''),
+  account: z.union([z.literal('all'), z.string().uuid()]).default('all'),
+  kind: z.enum(['all', 'expense', 'income', 'refund', 'transfer']).default('all'),
+  from: day,
+  to: day,
+  min: z.coerce.number().int().min(-100000000000).max(100000000000).optional(),
+  max: z.coerce.number().int().min(-100000000000).max(100000000000).optional(),
+  amountScope: z.enum(['order', 'item', 'either']).default('order'),
+  state: z.enum(['active', 'trash', 'all']).default('active'),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+export function parseSearch(params: URLSearchParams) {
+  const p = searchSchema.parse(Object.fromEntries(params));
+  if (p.from && p.to && p.to < p.from) throw new Failure('结束日期不能早于开始日期');
+  if (p.min !== undefined && p.max !== undefined && p.max < p.min)
+    throw new Failure('最高金额不能低于最低金额');
+  return p;
+}
+export async function search(user: string, params: URLSearchParams) {
+  const p = parseSearch(params),
+    availableCategories = await listCategories(user);
+  const values: any[] = [user];
+  const arg = (v: any) => {
+    values.push(v);
+    return '$' + values.length;
+  };
+  const exclude = arg(p.exclude || null);
+  const field = arg(p.field),
+    defaults = arg(availableCategories.map(c => c.name)),
+    available = arg(JSON.stringify(availableCategories));
+  const sources = `WITH visible AS MATERIALIZED (SELECT b.*,m.role FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1), available_categories AS(SELECT * FROM jsonb_to_recordset(${available}::jsonb) AS c(name text,icon text,archived boolean)), categories AS(SELECT v.id AS book_id,n.name,COALESCE(c.icon,'🧸') AS icon,COALESCE(c.archived,false) AS archived FROM visible v CROSS JOIN LATERAL (SELECT unnest(${defaults}::text[]) AS name UNION SELECT name FROM category_preferences WHERE user_id=$1 UNION SELECT category FROM transactions WHERE book_id=v.id UNION SELECT category FROM budgets WHERE book_id=v.id) n LEFT JOIN available_categories c ON c.name=n.name WHERE NOT EXISTS(SELECT 1 FROM category_preferences hidden WHERE hidden.user_id=$1 AND hidden.name=n.name AND hidden.deleted)), sources AS (
  SELECT 'transaction'::text AS entity,t.id::text AS id,t.book_id,COALESCE(NULLIF(t.title,''),NULLIF(t.payee,''),NULLIF(t.product,''),t.category) AS title,
  CASE ${field} WHEN 'payee' THEN ARRAY[t.payee] WHEN 'product' THEN ARRAY[t.product] WHEN 'note' THEN ARRAY[t.note] WHEN 'order' THEN ARRAY[t.order_id,t.external_id] WHEN 'platform' THEN ARRAY[t.platform] WHEN 'item' THEN ARRAY(SELECT x->>'name' FROM jsonb_array_elements(t.line_items) x) ELSE ARRAY[to_char(t.date,'YYYY-MM-DD'),trim_scale(t.amount::numeric/100)::text,to_char(t.amount::numeric/100,'FM999999999999990.00'),v.name,t.title,t.scene->>'summary',t.scene->>'merchant',t.scene->>'origin',t.scene->>'destination',t.scene->>'branch',t.payee,t.product,t.note,t.category,t.platform,t.order_id,t.external_id,a.name,a.holder,a.institution,a.suffix,u.name,COALESCE(dest.name,'')]||ARRAY(SELECT x->>'name' FROM jsonb_array_elements(t.line_items) x)||ARRAY(SELECT f.name FROM transaction_receipts r JOIN receipt_files f ON f.id=r.file_id WHERE r.transaction_id=t.id) END AS fields,
  t.category,t.account_id,t.target_id,t.kind,t.date AS day,t.amount AS money,t.line_items AS items,t.deleted,t.created_at AS stamp,
  to_jsonb(t)||jsonb_build_object('date',to_char(t.date,'YYYY-MM-DD'),'amount',t.amount::float8,'account_name',a.name,'creator_name',u.name,'account_ownership',a.ownership,'writable',v.role<>'viewer','remaining',t.amount-COALESCE((SELECT sum(r.amount) FROM transactions r WHERE r.refund_of=t.id AND NOT r.deleted AND r.id IS DISTINCT FROM ${exclude}::uuid),0)) AS detail
  FROM transactions t JOIN visible v ON v.id=t.book_id JOIN accounts a ON a.id=t.account_id JOIN users u ON u.id=t.created_by LEFT JOIN accounts dest ON dest.id=t.target_id
- WHERE (${claimBookVisibility()}${params.get('purpose')==='refund'?" OR (t.kind='expense' AND a.owner_id=$1)":''})${params.get('purpose')==='refund'?" AND NOT EXISTS(SELECT 1 FROM expense_claim_links refund_claim_copy WHERE refund_claim_copy.target_id=t.id AND refund_claim_copy.managed)":''}
+ WHERE (${claimBookVisibility()}${params.get('purpose') === 'refund' ? " OR (t.kind='expense' AND a.owner_id=$1)" : ''})${params.get('purpose') === 'refund' ? ' AND NOT EXISTS(SELECT 1 FROM expense_claim_links refund_claim_copy WHERE refund_claim_copy.target_id=t.id AND refund_claim_copy.managed)' : ''}
  UNION ALL SELECT 'book',v.id::text,v.id,v.name,ARRAY[v.name,v.description],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,v.created_at,jsonb_build_object('description',v.description) FROM visible v
  UNION ALL SELECT 'activity',a.id::text,NULL::uuid,a.name,ARRAY[a.name,a.category,a.description,COALESCE(f.name,'')],a.category,NULL,NULL,NULL,a.starts_on,NULL,'[]',false,a.created_at,jsonb_build_object('description',a.description,'category',a.category,'familyName',f.name,'archived',a.archived) FROM activities a LEFT JOIN families f ON f.id=a.family_id WHERE (a.family_id IS NULL AND a.owner_id=$1) OR EXISTS(SELECT 1 FROM family_members fm WHERE fm.family_id=a.family_id AND fm.user_id=$1)
  UNION ALL SELECT 'cost_project',p.id::text,NULL::uuid,p.title,ARRAY[p.title,COALESCE(p.active_plan->>'category',p.proposed_plan->>'category')],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,p.updated_at,jsonb_build_object('archived',p.archived) FROM cost_projects p WHERE p.owner_id=$1 OR EXISTS(SELECT 1 FROM cost_project_members cm JOIN family_members fm ON fm.family_id=p.family_id AND fm.user_id=cm.user_id WHERE cm.project_id=p.id AND cm.user_id=$1)
@@ -32,26 +93,86 @@ export async function search(user:string,params:URLSearchParams){
  UNION ALL SELECT 'template',s.id::text,s.book_id,s.name,ARRAY[s.name,s.value->>'payee',s.value->>'note',s.value->>'product',s.value->>'category']||ARRAY(SELECT x->>'name' FROM jsonb_array_elements(COALESCE(s.value->'lineItems','[]')) x),s.value->>'category',(s.value->>'accountId')::uuid,NULL,s.value->>'kind',NULL,(s.value->>'amount')::bigint,COALESCE(s.value->'lineItems','[]'),false,now(),to_jsonb(s) FROM entry_templates s JOIN visible v ON v.id=s.book_id WHERE s.user_id=$1
  UNION ALL SELECT 'report',r.id::text,r.book_id,r.title,ARRAY[r.title,r.content],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,r.created_at,jsonb_build_object('content',r.content) FROM finance_reports r JOIN visible v ON v.id=r.book_id WHERE r.user_id=$1
  UNION ALL SELECT 'conversation',c.id::text,c.book_id,c.title,ARRAY[c.title]||ARRAY(SELECT f.text FROM finance_turns t CROSS JOIN LATERAL (VALUES(t.question),(t.answer)) f(text) WHERE t.conversation_id=c.id),NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,c.updated_at,jsonb_build_object('content',(SELECT string_agg(concat_ws(E'\n',t.question,t.answer),E'\n\n' ORDER BY t.created_at) FROM finance_turns t WHERE t.conversation_id=c.id)) FROM finance_conversations c JOIN visible v ON v.id=c.book_id WHERE c.user_id=$1
- UNION ALL SELECT 'budget',b.book_id::text||':'||b.month||':'||b.category,b.book_id,b.category||'${deployment().language==='en'?' budget':'预算'}',ARRAY[b.category],b.category,NULL,NULL,NULL,(b.month||'-01')::date,b.amount,'[]',false,now(),jsonb_build_object('month',b.month) FROM budgets b JOIN visible v ON v.id=b.book_id
+ UNION ALL SELECT 'budget',b.book_id::text||':'||b.month||':'||b.category,b.book_id,b.category||'${deployment().language === 'en' ? ' budget' : '预算'}',ARRAY[b.category],b.category,NULL,NULL,NULL,(b.month||'-01')::date,b.amount,'[]',false,now(),jsonb_build_object('month',b.month) FROM budgets b JOIN visible v ON v.id=b.book_id
  UNION ALL SELECT 'profile',r.id::text,NULL,COALESCE(a.name,r.value),ARRAY[r.value,COALESCE(a.name,''),r.condition::text],NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,r.updated_at,jsonb_build_object('content',r.condition,'profileId',r.id) FROM profile_rules r LEFT JOIN accounts a ON r.field='accountId' AND a.id::text=r.value AND a.owner_id=$1 WHERE r.user_id=$1 AND r.state='confirmed'
  UNION ALL SELECT 'memory',m.id::text,NULL,m.title,ARRAY[m.title,m.content]||ARRAY(SELECT jsonb_array_elements_text(m.aliases)),NULL,NULL,NULL,NULL,NULL,NULL,'[]',false,m.updated_at,jsonb_build_object('content',m.content,'memoryId',m.id) FROM memories m WHERE ${memoryVisibility} AND m.status='active'
  )`;
- const filters:string[]=[];
- if(p.id)filters.push('s.id='+arg(p.id));
- if(p.group){const group=arg(p.group);const related=`SELECT t.id::text FROM transactions t JOIN visible v ON v.id=t.book_id WHERE COALESCE(t.scene->>'purchaseGroup',t.id::text)=${group} OR EXISTS(SELECT 1 FROM memory_sources ms JOIN memories m ON m.id=ms.memory_id JOIN memory_sources origin ON origin.memory_id=m.id JOIN transactions ot ON ot.id=origin.source_id AND ot.version=origin.source_version JOIN visible ov ON ov.id=ot.book_id WHERE ${memoryVisibility} AND m.status='active' AND NOT ot.deleted AND origin.source_type='transaction' AND origin.source_id::text=${group} AND ms.source_type='transaction' AND ms.source_id=t.id AND ms.source_version=t.version)`;filters.push(`s.entity='transaction' AND (s.id IN (${related}) OR s.detail->>'refund_of' IN (${related}))`);}
- if(p.book!=='all')filters.push('s.book_id='+arg(p.book)+'::uuid');
- if(p.entity!=='all')filters.push('s.entity='+arg(p.entity));
- if(p.field!=='all'&&p.entity!=='activity')filters.push("s.entity='transaction'");
- if(p.state==='trash')filters.push('s.deleted');else if(p.state==='active')filters.push('NOT s.deleted');
- if(p.category){const category=arg(p.category);filters.push(`(CASE WHEN s.entity='transaction' AND EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(i->>'category','')<>'') THEN EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(NULLIF(i->>'category',''),s.category)=${category}) ELSE s.category=${category} END)`);}
- if(p.account!=='all'){const a=arg(p.account);filters.push(`(s.account_id=${a}::uuid OR s.target_id=${a}::uuid)`);}
- if(p.kind!=='all')filters.push('s.kind='+arg(p.kind));
- if(p.from)filters.push('s.day>='+arg(p.from)+'::date');if(p.to)filters.push('s.day<='+arg(p.to)+'::date');
- if(p.min!==undefined||p.max!==undefined){const lo=arg(p.min??-100000000000),hi=arg(p.max??100000000000);const order=`s.money BETWEEN ${lo} AND ${hi}`,item=`EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) x WHERE (x->>'amount')::bigint BETWEEN ${lo} AND ${hi})`;filters.push(p.amountScope==='order'?order:p.amountScope==='item'?item:`(${order} OR ${item})`);}
- const keyword=p.q||p.sort==='relevance'?arg(p.q):"''::text";if(p.q)filters.push(textMatch('s.fields',keyword,p.mode));
- const direction=p.sort.endsWith('_asc')?'ASC':'DESC';
- const ordering=p.sort==='relevance'?`EXISTS(SELECT 1 FROM unnest(fields) f WHERE lower(btrim(f))=lower(${keyword}) AND ${keyword}<>'') DESC,COALESCE(day::timestamptz,stamp) DESC,stamp DESC,entity,id`:p.sort.startsWith('amount')?`abs(money) ${direction} NULLS LAST,COALESCE(day::timestamptz,stamp) DESC,stamp DESC,entity,id`:`COALESCE(day, (stamp AT TIME ZONE 'Asia/Shanghai')::date) ${direction},COALESCE(NULLIF(detail->>'occurred_at',''),to_char(stamp AT TIME ZONE 'Asia/Shanghai','HH24:MI:SS')) ${direction},stamp ${direction},entity,id`;
- const result=await db.query(`${sources}, filtered AS MATERIALIZED(SELECT s.*,COALESCE(v.name,'资金资产') AS book_name FROM sources s LEFT JOIN visible v ON v.id=s.book_id ${filters.length?'WHERE '+filters.join(' AND '):''}), page AS(SELECT * FROM filtered ORDER BY ${ordering} LIMIT ${LIST_PAGE_SIZE} OFFSET ${arg(p.offset)}) SELECT json_build_object('total',(SELECT count(*) FROM filtered),'totals',(SELECT json_build_object('expense',COALESCE(sum(money) FILTER(WHERE kind='expense'),0),'refund',COALESCE(sum(money) FILTER(WHERE kind='refund'),0)) FROM (SELECT DISTINCT ON(COALESCE(detail->>'event_id',id)) * FROM filtered WHERE entity='transaction' ORDER BY COALESCE(detail->>'event_id',id),stamp DESC) facts),'groups',(SELECT COALESCE(json_object_agg(entity,n),'{}') FROM (SELECT entity,count(*) AS n FROM filtered GROUP BY entity) g),'rows',(SELECT COALESCE(json_agg(to_jsonb(page)-'fields'),'[]') FROM page)) AS result`,values);
- return result.rows[0].result;
+  const filters: string[] = [];
+  if (p.id) filters.push('s.id=' + arg(p.id));
+  if (p.group) {
+    const group = arg(p.group);
+    const related = `SELECT t.id::text FROM transactions t JOIN visible v ON v.id=t.book_id WHERE COALESCE(t.scene->>'purchaseGroup',t.id::text)=${group} OR EXISTS(SELECT 1 FROM memory_sources ms JOIN memories m ON m.id=ms.memory_id JOIN memory_sources origin ON origin.memory_id=m.id JOIN transactions ot ON ot.id=origin.source_id AND ot.version=origin.source_version JOIN visible ov ON ov.id=ot.book_id WHERE ${memoryVisibility} AND m.status='active' AND NOT ot.deleted AND origin.source_type='transaction' AND origin.source_id::text=${group} AND ms.source_type='transaction' AND ms.source_id=t.id AND ms.source_version=t.version)`;
+    filters.push(
+      `s.entity='transaction' AND (s.id IN (${related}) OR s.detail->>'refund_of' IN (${related}))`,
+    );
+  }
+  if (p.book !== 'all') filters.push('s.book_id=' + arg(p.book) + '::uuid');
+  if (p.entity !== 'all') filters.push('s.entity=' + arg(p.entity));
+  if (p.field !== 'all' && p.entity !== 'activity') filters.push("s.entity='transaction'");
+  if (p.state === 'trash') filters.push('s.deleted');
+  else if (p.state === 'active') filters.push('NOT s.deleted');
+  if (p.category) {
+    const category = arg(p.category);
+    filters.push(
+      `(CASE WHEN s.entity='transaction' AND EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(i->>'category','')<>'') THEN EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) i WHERE COALESCE(NULLIF(i->>'category',''),s.category)=${category}) ELSE s.category=${category} END)`,
+    );
+  }
+  if (p.account !== 'all') {
+    const a = arg(p.account);
+    filters.push(`(s.account_id=${a}::uuid OR s.target_id=${a}::uuid)`);
+  }
+  if (p.kind !== 'all') filters.push('s.kind=' + arg(p.kind));
+  if (p.from) filters.push('s.day>=' + arg(p.from) + '::date');
+  if (p.to) filters.push('s.day<=' + arg(p.to) + '::date');
+  if (p.min !== undefined || p.max !== undefined) {
+    const lo = arg(p.min ?? -100000000000),
+      hi = arg(p.max ?? 100000000000);
+    const order = `s.money BETWEEN ${lo} AND ${hi}`,
+      item = `EXISTS(SELECT 1 FROM jsonb_array_elements(s.items) x WHERE (x->>'amount')::bigint BETWEEN ${lo} AND ${hi})`;
+    filters.push(
+      p.amountScope === 'order' ? order : p.amountScope === 'item' ? item : `(${order} OR ${item})`,
+    );
+  }
+  const keyword = p.q || p.sort === 'relevance' ? arg(p.q) : "''::text";
+  if (p.q) filters.push(textMatch('s.fields', keyword, p.mode));
+  const direction = p.sort.endsWith('_asc') ? 'ASC' : 'DESC';
+  const ordering =
+    p.sort === 'relevance'
+      ? `EXISTS(SELECT 1 FROM unnest(fields) f WHERE lower(btrim(f))=lower(${keyword}) AND ${keyword}<>'') DESC,COALESCE(day::timestamptz,stamp) DESC,stamp DESC,entity,id`
+      : p.sort.startsWith('amount')
+        ? `abs(money) ${direction} NULLS LAST,COALESCE(day::timestamptz,stamp) DESC,stamp DESC,entity,id`
+        : `COALESCE(day, (stamp AT TIME ZONE 'Asia/Shanghai')::date) ${direction},COALESCE(NULLIF(detail->>'occurred_at',''),to_char(stamp AT TIME ZONE 'Asia/Shanghai','HH24:MI:SS')) ${direction},stamp ${direction},entity,id`;
+  const result = await db.query(
+    `${sources}, filtered AS MATERIALIZED(SELECT s.*,COALESCE(v.name,'资金资产') AS book_name FROM sources s LEFT JOIN visible v ON v.id=s.book_id ${filters.length ? 'WHERE ' + filters.join(' AND ') : ''}), page AS(SELECT * FROM filtered ORDER BY ${ordering} LIMIT ${LIST_PAGE_SIZE} OFFSET ${arg(p.offset)}) SELECT json_build_object('total',(SELECT count(*) FROM filtered),'totals',(SELECT json_build_object('expense',COALESCE(sum(money) FILTER(WHERE kind='expense'),0),'refund',COALESCE(sum(money) FILTER(WHERE kind='refund'),0)) FROM (SELECT DISTINCT ON(COALESCE(detail->>'event_id',id)) * FROM filtered WHERE entity='transaction' ORDER BY COALESCE(detail->>'event_id',id),stamp DESC) facts),'groups',(SELECT COALESCE(json_object_agg(entity,n),'{}') FROM (SELECT entity,count(*) AS n FROM filtered GROUP BY entity) g),'rows',(SELECT COALESCE(json_agg(to_jsonb(page)-'fields'),'[]') FROM page)) AS result`,
+    values,
+  );
+  return result.rows[0].result;
 }
-export async function searchOptions(user:string,params:URLSearchParams){const p=parseSearch(params);const visible=`SELECT b.id,b.name FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND ($2::uuid IS NULL OR b.id=$2)`;const args=[user,p.book==='all'?null:p.book];const accounts=(await db.query(`WITH visible AS(${visible}) SELECT a.id,a.name,a.institution,a.type,a.suffix,a.holder,COALESCE(f.name,u.name) AS book_name FROM accounts a LEFT JOIN families f ON f.id=a.family_id LEFT JOIN users u ON u.id=a.owner_id WHERE ${accountAccess('$1')} OR EXISTS(SELECT 1 FROM transactions t JOIN visible v ON v.id=t.book_id WHERE t.account_id=a.id OR t.target_id=a.id) ORDER BY a.name,a.id`,args)).rows;const availableCategories=await listCategories(user);const categories=(await db.query(`WITH available_categories AS(SELECT * FROM jsonb_to_recordset($3::jsonb) AS c(name text,icon text)), visible AS(${visible}) SELECT n.name,array_agg(DISTINCT c.icon) FILTER (WHERE c.icon IS NOT NULL) AS icons FROM visible v CROSS JOIN LATERAL(SELECT name FROM available_categories UNION SELECT name FROM category_preferences WHERE user_id=$1 UNION SELECT category FROM transactions WHERE book_id=v.id UNION SELECT category FROM budgets WHERE book_id=v.id) n LEFT JOIN available_categories c ON c.name=n.name WHERE NOT EXISTS(SELECT 1 FROM category_preferences hidden WHERE hidden.user_id=$1 AND hidden.name=n.name AND hidden.deleted) GROUP BY n.name ORDER BY n.name`,[...args,JSON.stringify(availableCategories)])).rows;const categoryOptions=categories.map(r=>({name:r.name,icon:r.icons?.length===1?r.icons[0]:r.icons?.length>1?'🏷️':defaultCategories.find(c=>c[0]===r.name)?.[1]||'🏷️'}));return {accounts,categories:categoryOptions.map(c=>c.name),categoryOptions};}
+export async function searchOptions(user: string, params: URLSearchParams) {
+  const p = parseSearch(params);
+  const visible = `SELECT b.id,b.name FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND ($2::uuid IS NULL OR b.id=$2)`;
+  const args = [user, p.book === 'all' ? null : p.book];
+  const accounts = (
+    await db.query(
+      `WITH visible AS(${visible}) SELECT a.id,a.name,a.institution,a.type,a.suffix,a.holder,COALESCE(f.name,u.name) AS book_name FROM accounts a LEFT JOIN families f ON f.id=a.family_id LEFT JOIN users u ON u.id=a.owner_id WHERE ${accountAccess('$1')} OR EXISTS(SELECT 1 FROM transactions t JOIN visible v ON v.id=t.book_id WHERE t.account_id=a.id OR t.target_id=a.id) ORDER BY a.name,a.id`,
+      args,
+    )
+  ).rows;
+  const availableCategories = await listCategories(user);
+  const categories = (
+    await db.query(
+      `WITH available_categories AS(SELECT * FROM jsonb_to_recordset($3::jsonb) AS c(name text,icon text)), visible AS(${visible}) SELECT n.name,array_agg(DISTINCT c.icon) FILTER (WHERE c.icon IS NOT NULL) AS icons FROM visible v CROSS JOIN LATERAL(SELECT name FROM available_categories UNION SELECT name FROM category_preferences WHERE user_id=$1 UNION SELECT category FROM transactions WHERE book_id=v.id UNION SELECT category FROM budgets WHERE book_id=v.id) n LEFT JOIN available_categories c ON c.name=n.name WHERE NOT EXISTS(SELECT 1 FROM category_preferences hidden WHERE hidden.user_id=$1 AND hidden.name=n.name AND hidden.deleted) GROUP BY n.name ORDER BY n.name`,
+      [...args, JSON.stringify(availableCategories)],
+    )
+  ).rows;
+  const categoryOptions = categories.map(r => ({
+    name: r.name,
+    icon:
+      r.icons?.length === 1
+        ? r.icons[0]
+        : r.icons?.length > 1
+          ? '🏷️'
+          : defaultCategories.find(c => c[0] === r.name)?.[1] || '🏷️',
+  }));
+  return { accounts, categories: categoryOptions.map(c => c.name), categoryOptions };
+}

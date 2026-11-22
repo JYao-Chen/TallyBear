@@ -1,210 +1,994 @@
-import {hasItemCategories} from '@/lib/item-categories';
-import {operationSummary} from '@/lib/assistant-operation-display';
-import {separateReceiptNote} from './receipt-note';
-import {resolveOperation,runOperation,prepareOperation} from './assistant-operations';
-import {withDeviceTime} from '@/lib/entry-time';
-import {memoryRoute,prepareMemoryChange} from './memory';
-import {normalizeDining} from '@/lib/purchase-memory';
-import {matchReceiptWallet,receiptOriginSchema,usableClue} from '@/lib/receipt-origin';
-import {familyFinance} from './family-finance';
-import {familyActionSchema,prepareFamilySummary} from './family-actions';
-import {sceneSchema} from '@/lib/entry-scene';
-import type {PoolClient} from 'pg';
-import {randomUUID} from 'node:crypto';
-import {z} from 'zod';
-import {db,transaction,lockBook,withConnection} from './db';
-import {Failure,member,type User} from './access';
-import {entry} from './model';
-import {insertEntry} from './ledger';
-import {listAccounts} from './accounts';
-import {listCategories,checkCategory} from './categories';
-import {review} from './recognize';
-import {checkVerification} from '@/lib/verification';
-import {schedules} from './schedules';
-import {templates} from './templates';
-import {allocations} from './allocations';
-import {inclusivePeriodDays,periodLastDay,periodShare} from '@/lib/period';
-import {changeInstallment,listInstallments} from './installments';
-import {deployment} from '@/lib/deployment';
-import {translate} from '@/lib/i18n';
-import {actionNames,type ChatAction,type ChatActionKind} from '@/lib/chat-actions';
-import {applyPreferences} from './receipt-preferences';
-import {applyPersonalPreferences} from './personal-preferences';
-import {applyTransactionChange,transactionEntry,transactionForAction} from './transaction-changes';
-import {accessibleActivity,entryActivity,listActivities} from './activities';
-const uuid=z.string().uuid(),money=z.number().int().positive().max(100000000000),nonnegative=money.or(z.literal(0));
-const date=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s=>Number.isFinite(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s);
-const name=z.string().trim().min(1).max(80),category=z.string().trim().min(1).max(60);
-const units=z.enum(['day','week','month','year']),frequency=z.enum(['daily','weekly','monthly','yearly']);
+import { hasItemCategories } from '@/lib/item-categories';
+import { operationSummary } from '@/lib/assistant-operation-display';
+import { separateReceiptNote } from './receipt-note';
+import { resolveOperation, runOperation, prepareOperation } from './assistant-operations';
+import { withDeviceTime } from '@/lib/entry-time';
+import { memoryRoute, prepareMemoryChange } from './memory';
+import { normalizeDining } from '@/lib/purchase-memory';
+import { matchReceiptWallet, receiptOriginSchema, usableClue } from '@/lib/receipt-origin';
+import { familyFinance } from './family-finance';
+import { familyActionSchema, prepareFamilySummary } from './family-actions';
+import { sceneSchema } from '@/lib/entry-scene';
+import type { PoolClient } from 'pg';
+import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
+import { db, transaction, lockBook, withConnection } from './db';
+import { Failure, member, type User } from './access';
+import { entry } from './model';
+import { insertEntry } from './ledger';
+import { listAccounts } from './accounts';
+import { listCategories, checkCategory } from './categories';
+import { review } from './recognize';
+import { checkVerification } from '@/lib/verification';
+import { schedules } from './schedules';
+import { templates } from './templates';
+import { allocations } from './allocations';
+import { inclusivePeriodDays, periodLastDay, periodShare } from '@/lib/period';
+import { changeInstallment, listInstallments } from './installments';
+import { deployment } from '@/lib/deployment';
+import { translate } from '@/lib/i18n';
+import { actionNames, type ChatAction, type ChatActionKind } from '@/lib/chat-actions';
+import { applyPreferences } from './receipt-preferences';
+import { applyPersonalPreferences } from './personal-preferences';
+import { applyTransactionChange, transactionEntry, transactionForAction } from './transaction-changes';
+import { accessibleActivity, entryActivity, listActivities } from './activities';
+const uuid = z.string().uuid(),
+  money = z.number().int().positive().max(100000000000),
+  nonnegative = money.or(z.literal(0));
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(s => Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s);
+const name = z.string().trim().min(1).max(80),
+  category = z.string().trim().min(1).max(60);
+const units = z.enum(['day', 'week', 'month', 'year']),
+  frequency = z.enum(['daily', 'weekly', 'monthly', 'yearly']);
 // Preparation and execution share validation for both user clicks and assistant tools.
-export function parseAction(a:ChatAction){
- const d=a.data;
- switch(a.kind){
- case 'management':return d;
- case 'memory':return d;
- case 'family':return {...familyActionSchema.parse(d),id:d.movementId||a.id};
- case 'entry':z.object({title:name}).parse(d);return entry.parse({...d,id:a.id});
- case 'transaction':{const p=z.object({operation:z.enum(['update','delete']),transactionId:uuid,version:z.number().int().nonnegative()}).parse(d);return p.operation==='delete'?p:{...p,value:entry.parse({...d,id:p.transactionId})};}
- case 'schedule':return {...z.object({name,frequency,nextDate:date,intervalCount:z.number().int().positive().safe(),amortize:z.boolean().default(false)}).parse(d),value:entry.parse({...d,id:a.id,date:d.nextDate}),operation:'save'};
- case 'template':return {name:name.parse(d.name),value:entry.parse({...d,id:a.id})};
- case 'budget':return z.object({month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),category,amount:nonnegative}).parse(d);
- case 'allocation':{if(d.endDate!=null||(d.periodUnit==null&&d.periodCount==null)){const p=z.object({transactionId:uuid,version:z.number().int().nonnegative(),startDate:date,endDate:date}).parse(d);return {...p,id:p.transactionId,periodUnit:'day' as const,periodCount:inclusivePeriodDays(p.startDate,p.endDate)};}return {...z.object({transactionId:uuid,version:z.number().int().nonnegative(),startDate:date,periodUnit:units,periodCount:z.number().int().positive().safe()}).parse(d),id:d.transactionId};}
- case 'installment':{const p=z.object({name,terms:z.number().int().min(1).max(600),firstDate:date,fees:nonnegative,transactionId:uuid.optional(),allocate:z.boolean().default(false),allocationStart:date.optional(),allocationMonths:z.number().int().positive().max(1200).optional()}).superRefine((p,c)=>{if(p.allocate){if(!p.allocationStart)c.addIssue({code:'custom',path:['allocationStart'],message:'请填写费用分摊起始月份'});if(!p.allocationMonths)c.addIssue({code:'custom',path:['allocationMonths'],message:'请填写费用分摊月数'});}}).parse(d);return {...p,operation:'create',requestId:a.id,book:a.bookId,...(!p.transactionId?{purchase:entry.parse({...d,id:a.id,kind:'expense'})}:{})};}
- case 'repayment':return {...z.object({planId:uuid,version:z.number().int().nonnegative(),accountId:uuid,date,principal:nonnegative,fee:nonnegative,feeCategory:category,settle:z.boolean().default(false)}).parse(d),id:d.planId,operation:'pay',requestId:a.id,book:a.bookId};
- }
-}
-const fieldNames:Record<string,string>={installment:'分期信息（期数、首次还款日、总手续费）',familyId:'家庭',sourceId:'转出钱包',recipientId:'收款成员',movementId:'待收款记录',expenseId:'原消费',loanId:'原借款',operation:'操作',shares:'费用份额',refundOf:'原消费',title:'账目标题',accountId:'付款／收款钱包',targetId:'转入钱包',amount:'金额',date:'交易日期',kind:'收支类型',category:'分类',name:'名称',nextDate:'首次扣款日期',frequency:'重复周期',intervalCount:'周期间隔',transactionId:'原账单',version:'最新记录版本',startDate:'分摊开始日期',endDate:'结束日期（含当天）',allocationStart:'费用分摊起始月份',allocationMonths:'费用分摊月数',periodUnit:'分摊单位',periodCount:'覆盖周期',month:'预算月份',terms:'分期期数',firstDate:'首次还款日期',fees:'总手续费',planId:'分期计划',principal:'本次还款本金',fee:'本次手续费',feeCategory:'手续费分类'};
-export function actionMissing(a:ChatAction){try{parseAction(a);return [];}catch(e){if(e instanceof z.ZodError)return [...new Set(e.issues.map(i=>i.path[0]==='lineItems'&&typeof i.path[1]!=='number'?i.message:i.path[0]==='lineItems'?`第${Number(i.path[1])+1}项商品：${({kind:'明细类型（商品、优惠或附加费）',name:'商品名称',amount:'小计金额',quantity:'数量',unitPrice:'单价'} as Record<string,string>)[String(i.path[2])]||i.message}`:fieldNames[String(i.path[0])]||String(i.path.join('.'))||i.message))];return [e instanceof Error?e.message:'信息不完整'];}}
-export async function actionOptions(book:string,user:User){await member(book,user);return {bookId:book,books:(await db.query("SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[user.id])).rows,accounts:(await listAccounts(book,user.id)).filter(a=>a.usable&&!a.archived).map(({id,name,type,institution,suffix,owner_id,family_id,owner_name}:any)=>({id,name,type,institution,suffix,owner_id,family_id,owner_name})),categories:(await listCategories(user.id)).filter(c=>!c.archived),activities:await listActivities(user.id)};}
-export async function prepareChatAction(input:unknown,ctx:{book:string;user:User;deviceTime?:string;profileContext?:import("@/lib/personal-profile").ProfileContext;question?:string;useHistory?:boolean;language?:'en'|'zh-CN';generated?:boolean},actions:ChatAction[],recognizedId?:string){
- const b=z.object({actionId:uuid.optional(),kind:z.enum(['management','memory','family','entry','transaction','schedule','template','budget','allocation','installment','repayment']),bookId:uuid.optional(),data:z.record(z.unknown())}).parse(input);
- const old=b.actionId?actions.find(a=>a.id===b.actionId):undefined;if(b.actionId&&(!old||old.status!=='pending'))throw new Failure('只能修改仍待确认的操作，请读取当前待办');
- let book=b.bookId||old?.bookId||ctx.book;
- let bookSuggestions:import('@/lib/preference-learning').PreferenceSuggestion[]=[];
- if(b.kind==='entry'&&!b.bookId&&!old&&ctx.useHistory){
-  const [preferred]=await applyPersonalPreferences(ctx.user.id,[{...b.data,bookId:undefined as string|undefined,kind:String(b.data.kind||'expense'),category:String(b.data.category||''),payee:String(b.data.payee||''),scene:sceneSchema.parse(b.data.scene||{})}],{query:ctx.question,semantic:false});
-  bookSuggestions=preferred.preferenceSuggestions?.filter(s=>s.field==='bookId')||[];
-  if(preferred.bookId)book=preferred.bookId;
- }
- if(!b.bookId&&!old&&!['family','management','memory'].includes(b.kind)){
-  const writable=(await db.query("SELECT b.id FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",[ctx.user.id])).rows.map(r=>r.id);
-  if(!writable.includes(book))book=writable[0]||book;
- }
- await member(book,ctx.user,!['family','management'].includes(b.kind));
- const a:ChatAction={id:old?.id||(recognizedId?uuid.parse(recognizedId):randomUUID()),kind:b.kind,bookId:book,title:actionNames[b.kind],status:'pending',data:{...(old?.data||{}),...b.data,...(b.kind==='entry'?{bookId:book}:{}),...(bookSuggestions.length?{preferenceSuggestions:bookSuggestions}:{})},missing:[],warnings:[],summary:[]};
- if(a.kind==='management'){
-  const prepared=await prepareOperation({operation:a.data.operation,params:{...(old&&old.data.operation===a.data.operation?old.data.params:{}),...a.data.params}},ctx.user);
-  const {op,p}=resolveOperation({operation:prepared.operation,params:prepared.params},ctx.user);
-  if(op.method==='GET')throw new Failure('查询操作不需要确认卡');
-  a.data=p;a.title=op.title;
-  a.summary=operationSummary(op.title,p.params);if(prepared.targetName)a.summary.splice(1,0,{label:'目标',value:prepared.targetName});
-  a.warnings=['确认后执行上述操作。请核对目标、影响范围和金额。'];
-  if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
- }
- if(a.kind==='memory'){
-  a.data=await prepareMemoryChange(ctx.user.id,a.data);
-  a.summary=[{label:'操作',value:({save:'保存记忆',status:'更改记忆状态',forget:'遗忘记忆',share:'共享独立记忆'} as Record<string,string>)[a.data.operation]},{label:'记忆',value:a.data.title}];
-  if(a.data.content)a.summary.push({label:'内容',value:a.data.content});
-  if(a.data.status)a.summary.push({label:'目标状态',value:a.data.status});
-  if(a.data.shared)a.summary.push({label:'共享内容',value:JSON.stringify(a.data.shared)});
-  a.warnings=['仅在确认后更新记忆，不修改原始账单。'];
-  if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
- }
- if(bookSuggestions.some(s=>s.state==='candidate'))a.warnings.push(ctx.language==='en'?'Several destination books match your habits. Choose a book before saving.':'有多个账本符合记账习惯，请在保存前选择记入账本。');
- const d=a.data;const changedContext=!!old&&['payee','product','scene','kind','accountId','platform'].some(key=>Object.prototype.hasOwnProperty.call(b.data,key)&&JSON.stringify(old.data[key])!==JSON.stringify(b.data[key]));if(changedContext&&b.data.categorySource!=='explicit')delete d.categorySuggestion;if(a.kind==='entry'&&!d.categorySource)d.categorySource='model';if(d.scene&&a.kind!=='transaction')d.scene=sceneSchema.parse(d.scene);for(const key of ['id','action','matches','missing','refundCandidates'])delete d[key];if(!d.title&&d.name)d.title=d.name;if(['entry','template'].includes(a.kind))Object.assign(d,withDeviceTime({date:d.date||'',occurredAt:d.occurredAt},ctx.deviceTime));
- if(a.kind==='transaction'){
-  const operation=z.enum(['update','delete']).parse(d.operation),row=await transactionForAction(db,book,uuid.parse(d.transactionId));
-  row.activityId=(await entryActivity(ctx.user.id,book,row.id)).activityId;
-  a.data=operation==='delete'?{operation,transactionId:row.id,version:row.version}:{...transactionEntry(row),...d,scene:sceneSchema.parse({...row.scene,...d.scene}),operation,transactionId:row.id,version:row.version,id:undefined};
- }
- const data=a.data;if(a.kind==='entry'&&ctx.profileContext)data.profileContext=ctx.profileContext;else if(a.kind==='entry'&&!old)delete data.profileContext;
- if(ctx.generated&&typeof data.note==='string'){
-  const separated=separateReceiptNote(data.note);data.note=separated.note;
-  data.processingHints=[...new Set([...(Array.isArray(data.processingHints)?data.processingHints.filter((v:unknown)=>typeof v==='string'):[]),...separated.hints])];
- }
- if(Array.isArray(data.processingHints))a.warnings.push(...data.processingHints.filter((v:unknown)=>typeof v==='string'));
- if(a.kind==='entry'&&(!old||b.data.title===undefined))Object.assign(data,normalizeDining({scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',lineItems:data.lineItems||[]},ctx.language==='en'));
- if(a.kind==='entry'&&data.activityId){const activity=await accessibleActivity(ctx.user.id,String(data.activityId));if(activity.archived)throw new Failure('归档活动不能新增账目，请先重新启用');}
- if(a.kind==='family'){for(const key of Object.keys(d))if(key!=='displayBookId'&&(d[key]===null||d[key]===''))delete d[key];if(!d.date&&ctx.deviceTime)d.date=ctx.deviceTime.slice(0,10);await prepareFamilySummary(a,ctx.user.id);a.missing=[...new Set([...actionMissing(a),...a.missing])];if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;}
- if(d.refundOf&&a.kind==='entry'){const original=(await db.query("SELECT title,payee,category,line_items,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",[uuid.parse(d.refundOf),book])).rows[0]||actions.find(v=>v.id===d.refundOf&&v.bookId===book&&v.kind==='entry'&&v.data.kind==='expense'&&v.status!=='cancelled')?.data;if(!original)throw new Failure('关联的原消费不存在');d.category=original.category;if(!d.lineItems?.length&&d.amount===original.amount&&hasItemCategories(original.line_items||original.lineItems||[]))d.lineItems=original.line_items||original.lineItems;d.refundTitle=original.title||original.payee;}
- const options=await actionOptions(book,ctx.user);
- const parsedOrigin=receiptOriginSchema.safeParse(data.receiptOrigin);
- const explicitChannel=typeof data.paymentChannel==='string'?data.paymentChannel.trim():'';
- const matchedOrigin=parsedOrigin.success?parsedOrigin:explicitChannel?receiptOriginSchema.safeParse({paymentChannel:{name:explicitChannel,basis:'explicit',cues:['用户输入的支付方式']}}):parsedOrigin;
- if(!data.accountId&&['entry','schedule','template'].includes(a.kind)&&matchedOrigin.success){const match=matchReceiptWallet(matchedOrigin.data,options.accounts,ctx.user.id);data.walletCandidates=match.candidates;if(match.accountId){data.accountId=match.accountId;data.walletMatch=match.basis;}}
- if(a.kind==='entry'&&ctx.useHistory&&(!old||changedContext)&&data.kind){const preferred=(await applyPreferences(book,[{bookId:book,date:data.date,occurredAt:data.occurredAt,profileContext:data.profileContext,kind:data.kind,accountId:data.accountId,receiptOrigin:matchedOrigin.success?matchedOrigin.data:undefined,payee:data.payee||'',category:data.category||'其他',scene:sceneSchema.parse(data.scene||{}),title:data.title||'',product:data.product||'',note:data.note||'',platform:data.platform||'',lineItems:data.lineItems||[],categorySource:data.categorySource}],true,ctx.language==='en',{},ctx.user.id,ctx.question||''))[0];Object.assign(data,{preferenceSuggestions:changedContext?preferred.preferenceSuggestions:(data.preferenceSuggestions||preferred.preferenceSuggestions),accountId:preferred.accountId,memorySuggestions:preferred.memorySuggestions,category:preferred.category,payee:preferred.payee,platform:preferred.platform,title:preferred.title,scene:preferred.scene,product:preferred.product,note:preferred.note,lineItems:preferred.lineItems});if(preferred.categorySuggestion)data.categorySuggestion=preferred.categorySuggestion;}
- if(a.kind==='allocation'&&data.endDate!=null){try{const days=inclusivePeriodDays(data.startDate,data.endDate);data.periodUnit='day';data.periodCount=days;}catch{}}
- if(a.kind==='allocation'&&data.endDate==null&&['month','year'].includes(data.periodUnit)&&date.safeParse(data.startDate).success)data.startDate=data.startDate.slice(0,7)+'-01';
- a.missing=actionMissing(a);const tr=(s:string)=>translate(s,deployment().language);
- const fmt=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat(deployment().language,{style:'currency',currency:deployment().currency}).format(v/100):tr('待补充');
- const add=(label:string,value:unknown,extra:object={})=>{if(value!==undefined&&value!==null&&value!=='')a.summary.push({label:tr(label),value:String(value),...extra});};
- const target=options.books.find(b=>b.id===book);add('记入账本',target?.name,{icon:target?.icon||'📒'});
- const d2=a.data;const origin=matchedOrigin;if(origin.success){for(const [label,clue] of [['订单平台',origin.data.orderPlatform],['支付渠道',origin.data.paymentChannel]] as const)if(usableClue(clue))add(label,clue.name);if(!d2.accountId&&d2.walletCandidates?.length>1)a.warnings.push(tr('找到多个符合付款信息的钱包，请选择实际扣款账户。'));}
- if(d2.activityId)add('所属活动',options.activities.find(a=>a.id===d2.activityId)?.name);
- if(d2.accountId&&d2.walletMatch==='channel')a.warnings.push(tr('已按支付渠道自动选择，请核对是否为实际扣款账户。'));
- if(a.kind==='transaction')add('操作',tr(d2.operation==='delete'?'删除已入账账目':'修改已入账账目'));
- add('账目标题',d2.title||d2.name);add('收支类型',d2.kind?tr(({expense:'支出',income:'收入',refund:'退款',transfer:'转账'} as any)[d2.kind]||d2.kind):undefined);
- for(const [key,label] of [['accountId','资金钱包'],['targetId','转入钱包']]){const wallet=options.accounts.find(v=>v.id===d2[key]);if(d2[key]&&!wallet)a.missing.push(label);if(wallet)add(label,[wallet.name,wallet.suffix].filter(Boolean).join(' · '),{account:[wallet.institution,wallet.name,wallet.type].filter(Boolean).join(' ')});}
- if(d2.category){const c=options.categories.find(c=>c.name===d2.category);if(!c)a.missing.push('分类');add('分类',d2.category,{icon:c?.icon||'🏷️'});if(d2.categorySuggestion){const basis=tr(({template:'常用一笔',route:'相同路线',merchant_context:'相同商家与商品',merchant:'相同商家',context:'相似商品'} as Record<string,string>)[d2.categorySuggestion.basis]||'个人分类习惯');add('分类依据',`${basis} · ${tr('匹配度')} ${Math.round(d2.categorySuggestion.confidence*100)}% · ${d2.categorySuggestion.evidenceCount}${tr('条个人记录')}`);}}
- for(const [key,label] of [['amount','金额'],['principal','本次还款本金'],['fee','本次手续费'],['fees','总手续费']])if(d2[key]!==undefined)add(label,fmt(d2[key]));
- for(const [key,label] of [['date','交易日期'],['occurredAt','交易时间'],['payee','商家'],['nextDate','首次扣款日期'],['month','预算月份'],['startDate','分摊开始日期'],['endDate','结束日期（含当天）'],['firstDate','首次还款日期'],['terms','分期期数'],['allocationStart','分摊开始日期'],['allocationMonths','分摊月数'],['product','商品摘要'],['note','备注']])add(label,key==='occurredAt'&&d2[key]&&Number.isFinite(Date.parse(d2[key]))?new Date(d2[key]).toLocaleString(deployment().language,{timeZone:'Asia/Shanghai',hour12:false}):d2[key]);
- if(d2.installment){add('分期期数',d2.installment.terms);add('首次还款日期',d2.installment.firstDate);add('总手续费',fmt(d2.installment.fees));a.warnings.push(tr('保存支出同时建立分期排期，不重复记消费或立即还款。'));if(options.accounts.find(v=>v.id===d2.accountId)?.type!=='credit')a.missing.push(tr('分期需要信用账户'));}
- if(d2.scene)for(const [key,label] of [['summary','场景摘要'],['diningMode','用餐方式'],['transport','交通方式'],['origin','始发站'],['destination','终点站'],['merchant','商家简称'],['branch','门店'],['meal','用餐类型']])add(label,d2.scene[key]);
- if(d2.frequency)add('重复周期',`${d2.intervalCount??'?'} ${tr(({daily:'天',weekly:'周',monthly:'月',yearly:'年'} as any)[d2.frequency]||d2.frequency)}`);
- if(d2.periodUnit)add('覆盖周期',`${d2.periodCount??'?'} ${tr(({day:'天',week:'周',month:'月',year:'年'} as any)[d2.periodUnit]||d2.periodUnit)}`);
- add('关联原消费',d2.refundTitle);add('核验说明',d2.verificationReason);if(d2.attachmentIds?.length)add('保留图片凭证',tr(d2.retainReceipts?'是':'否'));
- if(a.kind==='schedule'){add('费用分摊',tr(d2.amortize?'按覆盖周期分摊':'不分摊'));a.warnings.push(tr('创建周期计划不会立即记账，到期后核对实际扣款。'));}
- if(a.kind==='allocation'&&d2.endDate!=null)a.warnings.push(tr('按实际覆盖天数分摊，包含开始和结束当天，不会再次扣款或改变钱包余额。'));
- if(a.kind==='installment'){add('本金费用分摊',tr(d2.allocate?'是':'否'));if(d2.allocate)a.warnings.push(tr('还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。'));}
- if(a.kind==='template')a.warnings.push(tr('只保存常用预设，本次不会产生收支。'));
- if(a.kind==='transaction')a.warnings.push(tr(d2.operation==='delete'?'确认后会删除这笔已入账账目，并重新计算相关余额。':'确认后会直接修改这笔已入账账目，并重新计算相关余额。'));
- if(a.kind==='entry'&&!a.missing.length){const item=entry.parse({...d,id:a.id});const r=await review(book,{entries:[item]});const checked=r.entries[0] as any;if(checked?.matches?.length)a.warnings.push(tr('发现疑似重复账单，请核对是否为另一笔。'));try{checkVerification(item.lineItems,item.amount,item.verificationReason);}catch(e){a.missing.push((e as Error).message);}if(item.kind==='refund'&&!item.refundOf)a.warnings.push(tr('退款尚未关联原消费。'));}
- if(d.transactionId){const row=(await db.query("SELECT title,payee,amount::float8 AS amount,version,to_char(date,'YYYY-MM-DD') AS date,category FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted",[uuid.parse(d.transactionId),book])).rows[0];if(!row)a.missing.push('原账单');else{add('原账单',`${row.title||row.payee} · ${fmt(row.amount)}`);if(a.kind==='allocation'){
-  a.data.version=row.version;a.data.name=row.title||row.payee||tr('费用分摊');
-  add('原付款日期',row.date);add('分类',row.category);
-  if(!actionMissing(a).length){
-   const p=parseAction(a) as {startDate:string;periodUnit:'day'|'week'|'month'|'year';periodCount:number};
-   add('覆盖截止日期',periodLastDay(p.startDate,p.periodUnit,p.periodCount));
-   const refunded=Number((await db.query("SELECT COALESCE(sum(amount),0)::float8 AS amount FROM transactions WHERE refund_of=$1 AND book_id=$2 AND kind='refund' AND NOT deleted",[d.transactionId,book])).rows[0]?.amount||0),net=row.amount-refunded;
-   add('首月费用',fmt(Math.sign(net)*periodShare(Math.abs(net),p.startDate,p.periodUnit,p.periodCount,p.startDate.slice(0,7))));
+export function parseAction(a: ChatAction) {
+  const d = a.data;
+  switch (a.kind) {
+    case 'management':
+      return d;
+    case 'memory':
+      return d;
+    case 'family':
+      return { ...familyActionSchema.parse(d), id: d.movementId || a.id };
+    case 'entry':
+      z.object({ title: name }).parse(d);
+      return entry.parse({ ...d, id: a.id });
+    case 'transaction': {
+      const p = z
+        .object({
+          operation: z.enum(['update', 'delete']),
+          transactionId: uuid,
+          version: z.number().int().nonnegative(),
+        })
+        .parse(d);
+      return p.operation === 'delete' ? p : { ...p, value: entry.parse({ ...d, id: p.transactionId }) };
+    }
+    case 'schedule':
+      return {
+        ...z
+          .object({
+            name,
+            frequency,
+            nextDate: date,
+            intervalCount: z.number().int().positive().safe(),
+            amortize: z.boolean().default(false),
+          })
+          .parse(d),
+        value: entry.parse({ ...d, id: a.id, date: d.nextDate }),
+        operation: 'save',
+      };
+    case 'template':
+      return { name: name.parse(d.name), value: entry.parse({ ...d, id: a.id }) };
+    case 'budget':
+      return z
+        .object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), category, amount: nonnegative })
+        .parse(d);
+    case 'allocation': {
+      if (d.endDate != null || (d.periodUnit == null && d.periodCount == null)) {
+        const p = z
+          .object({
+            transactionId: uuid,
+            version: z.number().int().nonnegative(),
+            startDate: date,
+            endDate: date,
+          })
+          .parse(d);
+        return {
+          ...p,
+          id: p.transactionId,
+          periodUnit: 'day' as const,
+          periodCount: inclusivePeriodDays(p.startDate, p.endDate),
+        };
+      }
+      return {
+        ...z
+          .object({
+            transactionId: uuid,
+            version: z.number().int().nonnegative(),
+            startDate: date,
+            periodUnit: units,
+            periodCount: z.number().int().positive().safe(),
+          })
+          .parse(d),
+        id: d.transactionId,
+      };
+    }
+    case 'installment': {
+      const p = z
+        .object({
+          name,
+          terms: z.number().int().min(1).max(600),
+          firstDate: date,
+          fees: nonnegative,
+          transactionId: uuid.optional(),
+          allocate: z.boolean().default(false),
+          allocationStart: date.optional(),
+          allocationMonths: z.number().int().positive().max(1200).optional(),
+        })
+        .superRefine((p, c) => {
+          if (p.allocate) {
+            if (!p.allocationStart)
+              c.addIssue({ code: 'custom', path: ['allocationStart'], message: '请填写费用分摊起始月份' });
+            if (!p.allocationMonths)
+              c.addIssue({ code: 'custom', path: ['allocationMonths'], message: '请填写费用分摊月数' });
+          }
+        })
+        .parse(d);
+      return {
+        ...p,
+        operation: 'create',
+        requestId: a.id,
+        book: a.bookId,
+        ...(!p.transactionId ? { purchase: entry.parse({ ...d, id: a.id, kind: 'expense' }) } : {}),
+      };
+    }
+    case 'repayment':
+      return {
+        ...z
+          .object({
+            planId: uuid,
+            version: z.number().int().nonnegative(),
+            accountId: uuid,
+            date,
+            principal: nonnegative,
+            fee: nonnegative,
+            feeCategory: category,
+            settle: z.boolean().default(false),
+          })
+          .parse(d),
+        id: d.planId,
+        operation: 'pay',
+        requestId: a.id,
+        book: a.bookId,
+      };
   }
- }}}
- if(a.kind==='repayment'&&d.planId){const plan=(await listInstallments(ctx.user.id)).plans.find(p=>p.id===d.planId);if(!plan)a.missing.push('分期计划');else{a.data.version=plan.version;add('分期计划',plan.name);add('剩余本金',fmt(plan.remaining));add('提前结清',tr(d.settle?'是':'否'));}}
- if(a.kind==='budget'&&!a.missing.length){const old=(await db.query('SELECT amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2 AND category=$3',[book,d.month,d.category])).rows[0];a.data.previousAmount=old?.amount??null;if(old)add('当前预算',fmt(old.amount));}
- a.missing=Array.from(new Set([...actionMissing(a),...a.missing.filter(m=>m!=='最新记录版本')]));if(old)actions.splice(actions.indexOf(old),1,a);else actions.push(a);return a;
 }
-export async function confirmChatAction(book:string,user:User,body:unknown){
- const b=z.object({id:uuid,turnId:uuid,actionId:uuid,operation:z.enum(['confirm_action','cancel_action','edit_action']),data:z.record(z.unknown()).optional(),acknowledgeWarnings:z.boolean().default(false)}).parse(body);
- return transaction(async c=>{
-  const conversation=(await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE',[b.id,user.id])).rows[0];if(!conversation)throw new Failure('对话不存在',404);
-  if((await c.query("SELECT 1 FROM ai_jobs WHERE kind='chat' AND payload->>'id'=$1 AND status IN ('queued','running')",[b.id])).rowCount)throw new Failure('助手正在更新内容，请完成后确认',409);
-  const t=(await c.query('SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE',[b.id])).rows[0];if(!t||t.id!==b.turnId)throw new Failure('已有更新的对话，请核对最新确认卡片',409);
-  const a=(t.artifacts.actions as ChatAction[]|undefined)?.find(a=>a.id===b.actionId);if(!a)throw new Failure('待确认操作不存在',404);if(a.status!=='pending')return {ok:true,status:a.status,result:a.result};
-  if(b.operation==='edit_action'){if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');const edited={...(b.data||{})};if(edited.targetBook){edited.bookId=edited.targetBook;if(a.kind==='entry')edited.preferenceSuggestions=(edited.preferenceSuggestions||a.data.preferenceSuggestions||[]).map((s:any)=>s.field==='bookId'?{...s,state:s.value===edited.targetBook?'applied':'dismissed',confirmed:s.value===edited.targetBook}:s);}if(Object.prototype.hasOwnProperty.call(edited,'category')&&edited.category!==a.data.category)edited.categorySource='explicit';await prepareChatAction({actionId:a.id,kind:a.kind,bookId:['entry','schedule','template','budget'].includes(a.kind)&&edited.targetBook?uuid.parse(edited.targetBook):a.bookId,data:edited},{book,user},t.artifacts.actions);await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true};}
-  if(b.operation==='cancel_action')a.status='cancelled';else{
-   if(t.status!=='complete')throw new Failure('请先让助手完成本轮整理');
-   await executePreparedAction(c,a,user,b.id,b.acknowledgeWarnings);
+const fieldNames: Record<string, string> = {
+  installment: '分期信息（期数、首次还款日、总手续费）',
+  familyId: '家庭',
+  sourceId: '转出钱包',
+  recipientId: '收款成员',
+  movementId: '待收款记录',
+  expenseId: '原消费',
+  loanId: '原借款',
+  operation: '操作',
+  shares: '费用份额',
+  refundOf: '原消费',
+  title: '账目标题',
+  accountId: '付款／收款钱包',
+  targetId: '转入钱包',
+  amount: '金额',
+  date: '交易日期',
+  kind: '收支类型',
+  category: '分类',
+  name: '名称',
+  nextDate: '首次扣款日期',
+  frequency: '重复周期',
+  intervalCount: '周期间隔',
+  transactionId: '原账单',
+  version: '最新记录版本',
+  startDate: '分摊开始日期',
+  endDate: '结束日期（含当天）',
+  allocationStart: '费用分摊起始月份',
+  allocationMonths: '费用分摊月数',
+  periodUnit: '分摊单位',
+  periodCount: '覆盖周期',
+  month: '预算月份',
+  terms: '分期期数',
+  firstDate: '首次还款日期',
+  fees: '总手续费',
+  planId: '分期计划',
+  principal: '本次还款本金',
+  fee: '本次手续费',
+  feeCategory: '手续费分类',
+};
+export function actionMissing(a: ChatAction) {
+  try {
+    parseAction(a);
+    return [];
+  } catch (e) {
+    if (e instanceof z.ZodError)
+      return [
+        ...new Set(
+          e.issues.map(i =>
+            i.path[0] === 'lineItems' && typeof i.path[1] !== 'number'
+              ? i.message
+              : i.path[0] === 'lineItems'
+                ? `第${Number(i.path[1]) + 1}项商品：${({ kind: '明细类型（商品、优惠或附加费）', name: '商品名称', amount: '小计金额', quantity: '数量', unitPrice: '单价' } as Record<string, string>)[String(i.path[2])] || i.message}`
+                : fieldNames[String(i.path[0])] || String(i.path.join('.')) || i.message,
+          ),
+        ),
+      ];
+    return [e instanceof Error ? e.message : '信息不完整'];
   }
-  await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2',[t.artifacts,t.id]);return {ok:true,status:a.status,result:a.result};
- });
+}
+export async function actionOptions(book: string, user: User) {
+  await member(book, user);
+  return {
+    bookId: book,
+    books: (
+      await db.query(
+        "SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",
+        [user.id],
+      )
+    ).rows,
+    accounts: (await listAccounts(book, user.id))
+      .filter(a => a.usable && !a.archived)
+      .map(({ id, name, type, institution, suffix, owner_id, family_id, owner_name }: any) => ({
+        id,
+        name,
+        type,
+        institution,
+        suffix,
+        owner_id,
+        family_id,
+        owner_name,
+      })),
+    categories: (await listCategories(user.id)).filter(c => !c.archived),
+    activities: await listActivities(user.id),
+  };
+}
+export async function prepareChatAction(
+  input: unknown,
+  ctx: {
+    book: string;
+    user: User;
+    deviceTime?: string;
+    profileContext?: import('@/lib/personal-profile').ProfileContext;
+    question?: string;
+    useHistory?: boolean;
+    language?: 'en' | 'zh-CN';
+    generated?: boolean;
+  },
+  actions: ChatAction[],
+  recognizedId?: string,
+) {
+  const b = z
+    .object({
+      actionId: uuid.optional(),
+      kind: z.enum([
+        'management',
+        'memory',
+        'family',
+        'entry',
+        'transaction',
+        'schedule',
+        'template',
+        'budget',
+        'allocation',
+        'installment',
+        'repayment',
+      ]),
+      bookId: uuid.optional(),
+      data: z.record(z.unknown()),
+    })
+    .parse(input);
+  const old = b.actionId ? actions.find(a => a.id === b.actionId) : undefined;
+  if (b.actionId && (!old || old.status !== 'pending'))
+    throw new Failure('只能修改仍待确认的操作，请读取当前待办');
+  let book = b.bookId || old?.bookId || ctx.book;
+  let bookSuggestions: import('@/lib/preference-learning').PreferenceSuggestion[] = [];
+  if (b.kind === 'entry' && !b.bookId && !old && ctx.useHistory) {
+    const [preferred] = await applyPersonalPreferences(
+      ctx.user.id,
+      [
+        {
+          ...b.data,
+          bookId: undefined as string | undefined,
+          kind: String(b.data.kind || 'expense'),
+          category: String(b.data.category || ''),
+          payee: String(b.data.payee || ''),
+          scene: sceneSchema.parse(b.data.scene || {}),
+        },
+      ],
+      { query: ctx.question, semantic: false },
+    );
+    bookSuggestions = preferred.preferenceSuggestions?.filter(s => s.field === 'bookId') || [];
+    if (preferred.bookId) book = preferred.bookId;
+  }
+  if (!b.bookId && !old && !['family', 'management', 'memory'].includes(b.kind)) {
+    const writable = (
+      await db.query(
+        "SELECT b.id FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.created_at",
+        [ctx.user.id],
+      )
+    ).rows.map(r => r.id);
+    if (!writable.includes(book)) book = writable[0] || book;
+  }
+  await member(book, ctx.user, !['family', 'management'].includes(b.kind));
+  const a: ChatAction = {
+    id: old?.id || (recognizedId ? uuid.parse(recognizedId) : randomUUID()),
+    kind: b.kind,
+    bookId: book,
+    title: actionNames[b.kind],
+    status: 'pending',
+    data: {
+      ...(old?.data || {}),
+      ...b.data,
+      ...(b.kind === 'entry' ? { bookId: book } : {}),
+      ...(bookSuggestions.length ? { preferenceSuggestions: bookSuggestions } : {}),
+    },
+    missing: [],
+    warnings: [],
+    summary: [],
+  };
+  if (a.kind === 'management') {
+    const prepared = await prepareOperation(
+      {
+        operation: a.data.operation,
+        params: {
+          ...(old && old.data.operation === a.data.operation ? old.data.params : {}),
+          ...a.data.params,
+        },
+      },
+      ctx.user,
+    );
+    const { op, p } = resolveOperation({ operation: prepared.operation, params: prepared.params }, ctx.user);
+    if (op.method === 'GET') throw new Failure('查询操作不需要确认卡');
+    a.data = p;
+    a.title = op.title;
+    a.summary = operationSummary(op.title, p.params);
+    if (prepared.targetName) a.summary.splice(1, 0, { label: '目标', value: prepared.targetName });
+    a.warnings = ['确认后执行上述操作。请核对目标、影响范围和金额。'];
+    if (old) actions.splice(actions.indexOf(old), 1, a);
+    else actions.push(a);
+    return a;
+  }
+  if (a.kind === 'memory') {
+    a.data = await prepareMemoryChange(ctx.user.id, a.data);
+    a.summary = [
+      {
+        label: '操作',
+        value: (
+          { save: '保存记忆', status: '更改记忆状态', forget: '遗忘记忆', share: '共享独立记忆' } as Record<
+            string,
+            string
+          >
+        )[a.data.operation],
+      },
+      { label: '记忆', value: a.data.title },
+    ];
+    if (a.data.content) a.summary.push({ label: '内容', value: a.data.content });
+    if (a.data.status) a.summary.push({ label: '目标状态', value: a.data.status });
+    if (a.data.shared) a.summary.push({ label: '共享内容', value: JSON.stringify(a.data.shared) });
+    a.warnings = ['仅在确认后更新记忆，不修改原始账单。'];
+    if (old) actions.splice(actions.indexOf(old), 1, a);
+    else actions.push(a);
+    return a;
+  }
+  if (bookSuggestions.some(s => s.state === 'candidate'))
+    a.warnings.push(
+      ctx.language === 'en'
+        ? 'Several destination books match your habits. Choose a book before saving.'
+        : '有多个账本符合记账习惯，请在保存前选择记入账本。',
+    );
+  const d = a.data;
+  const changedContext =
+    !!old &&
+    ['payee', 'product', 'scene', 'kind', 'accountId', 'platform'].some(
+      key =>
+        Object.prototype.hasOwnProperty.call(b.data, key) &&
+        JSON.stringify(old.data[key]) !== JSON.stringify(b.data[key]),
+    );
+  if (changedContext && b.data.categorySource !== 'explicit') delete d.categorySuggestion;
+  if (a.kind === 'entry' && !d.categorySource) d.categorySource = 'model';
+  if (d.scene && a.kind !== 'transaction') d.scene = sceneSchema.parse(d.scene);
+  for (const key of ['id', 'action', 'matches', 'missing', 'refundCandidates']) delete d[key];
+  if (!d.title && d.name) d.title = d.name;
+  if (['entry', 'template'].includes(a.kind))
+    Object.assign(d, withDeviceTime({ date: d.date || '', occurredAt: d.occurredAt }, ctx.deviceTime));
+  if (a.kind === 'transaction') {
+    const operation = z.enum(['update', 'delete']).parse(d.operation),
+      row = await transactionForAction(db, book, uuid.parse(d.transactionId));
+    row.activityId = (await entryActivity(ctx.user.id, book, row.id)).activityId;
+    a.data =
+      operation === 'delete'
+        ? { operation, transactionId: row.id, version: row.version }
+        : {
+            ...transactionEntry(row),
+            ...d,
+            scene: sceneSchema.parse({ ...row.scene, ...d.scene }),
+            operation,
+            transactionId: row.id,
+            version: row.version,
+            id: undefined,
+          };
+  }
+  const data = a.data;
+  if (a.kind === 'entry' && ctx.profileContext) data.profileContext = ctx.profileContext;
+  else if (a.kind === 'entry' && !old) delete data.profileContext;
+  if (ctx.generated && typeof data.note === 'string') {
+    const separated = separateReceiptNote(data.note);
+    data.note = separated.note;
+    data.processingHints = [
+      ...new Set([
+        ...(Array.isArray(data.processingHints)
+          ? data.processingHints.filter((v: unknown) => typeof v === 'string')
+          : []),
+        ...separated.hints,
+      ]),
+    ];
+  }
+  if (Array.isArray(data.processingHints))
+    a.warnings.push(...data.processingHints.filter((v: unknown) => typeof v === 'string'));
+  if (a.kind === 'entry' && (!old || b.data.title === undefined))
+    Object.assign(
+      data,
+      normalizeDining(
+        {
+          scene: sceneSchema.parse(data.scene || {}),
+          title: data.title || '',
+          product: data.product || '',
+          lineItems: data.lineItems || [],
+        },
+        ctx.language === 'en',
+      ),
+    );
+  if (a.kind === 'entry' && data.activityId) {
+    const activity = await accessibleActivity(ctx.user.id, String(data.activityId));
+    if (activity.archived) throw new Failure('归档活动不能新增账目，请先重新启用');
+  }
+  if (a.kind === 'family') {
+    for (const key of Object.keys(d))
+      if (key !== 'displayBookId' && (d[key] === null || d[key] === '')) delete d[key];
+    if (!d.date && ctx.deviceTime) d.date = ctx.deviceTime.slice(0, 10);
+    await prepareFamilySummary(a, ctx.user.id);
+    a.missing = [...new Set([...actionMissing(a), ...a.missing])];
+    if (old) actions.splice(actions.indexOf(old), 1, a);
+    else actions.push(a);
+    return a;
+  }
+  if (d.refundOf && a.kind === 'entry') {
+    const original =
+      (
+        await db.query(
+          "SELECT title,payee,category,line_items,amount::float8 AS amount FROM transactions WHERE id=$1 AND book_id=$2 AND kind='expense' AND NOT deleted",
+          [uuid.parse(d.refundOf), book],
+        )
+      ).rows[0] ||
+      actions.find(
+        v =>
+          v.id === d.refundOf &&
+          v.bookId === book &&
+          v.kind === 'entry' &&
+          v.data.kind === 'expense' &&
+          v.status !== 'cancelled',
+      )?.data;
+    if (!original) throw new Failure('关联的原消费不存在');
+    d.category = original.category;
+    if (
+      !d.lineItems?.length &&
+      d.amount === original.amount &&
+      hasItemCategories(original.line_items || original.lineItems || [])
+    )
+      d.lineItems = original.line_items || original.lineItems;
+    d.refundTitle = original.title || original.payee;
+  }
+  const options = await actionOptions(book, ctx.user);
+  const parsedOrigin = receiptOriginSchema.safeParse(data.receiptOrigin);
+  const explicitChannel = typeof data.paymentChannel === 'string' ? data.paymentChannel.trim() : '';
+  const matchedOrigin = parsedOrigin.success
+    ? parsedOrigin
+    : explicitChannel
+      ? receiptOriginSchema.safeParse({
+          paymentChannel: { name: explicitChannel, basis: 'explicit', cues: ['用户输入的支付方式'] },
+        })
+      : parsedOrigin;
+  if (!data.accountId && ['entry', 'schedule', 'template'].includes(a.kind) && matchedOrigin.success) {
+    const match = matchReceiptWallet(matchedOrigin.data, options.accounts, ctx.user.id);
+    data.walletCandidates = match.candidates;
+    if (match.accountId) {
+      data.accountId = match.accountId;
+      data.walletMatch = match.basis;
+    }
+  }
+  if (a.kind === 'entry' && ctx.useHistory && (!old || changedContext) && data.kind) {
+    const preferred = (
+      await applyPreferences(
+        book,
+        [
+          {
+            bookId: book,
+            date: data.date,
+            occurredAt: data.occurredAt,
+            profileContext: data.profileContext,
+            kind: data.kind,
+            accountId: data.accountId,
+            receiptOrigin: matchedOrigin.success ? matchedOrigin.data : undefined,
+            payee: data.payee || '',
+            category: data.category || '其他',
+            scene: sceneSchema.parse(data.scene || {}),
+            title: data.title || '',
+            product: data.product || '',
+            note: data.note || '',
+            platform: data.platform || '',
+            lineItems: data.lineItems || [],
+            categorySource: data.categorySource,
+          },
+        ],
+        true,
+        ctx.language === 'en',
+        {},
+        ctx.user.id,
+        ctx.question || '',
+      )
+    )[0];
+    Object.assign(data, {
+      preferenceSuggestions: changedContext
+        ? preferred.preferenceSuggestions
+        : data.preferenceSuggestions || preferred.preferenceSuggestions,
+      accountId: preferred.accountId,
+      memorySuggestions: preferred.memorySuggestions,
+      category: preferred.category,
+      payee: preferred.payee,
+      platform: preferred.platform,
+      title: preferred.title,
+      scene: preferred.scene,
+      product: preferred.product,
+      note: preferred.note,
+      lineItems: preferred.lineItems,
+    });
+    if (preferred.categorySuggestion) data.categorySuggestion = preferred.categorySuggestion;
+  }
+  if (a.kind === 'allocation' && data.endDate != null) {
+    try {
+      const days = inclusivePeriodDays(data.startDate, data.endDate);
+      data.periodUnit = 'day';
+      data.periodCount = days;
+    } catch {}
+  }
+  if (
+    a.kind === 'allocation' &&
+    data.endDate == null &&
+    ['month', 'year'].includes(data.periodUnit) &&
+    date.safeParse(data.startDate).success
+  )
+    data.startDate = data.startDate.slice(0, 7) + '-01';
+  a.missing = actionMissing(a);
+  const tr = (s: string) => translate(s, deployment().language);
+  const fmt = (v: unknown) =>
+    typeof v === 'number'
+      ? new Intl.NumberFormat(deployment().language, {
+          style: 'currency',
+          currency: deployment().currency,
+        }).format(v / 100)
+      : tr('待补充');
+  const add = (label: string, value: unknown, extra: object = {}) => {
+    if (value !== undefined && value !== null && value !== '')
+      a.summary.push({ label: tr(label), value: String(value), ...extra });
+  };
+  const target = options.books.find(b => b.id === book);
+  add('记入账本', target?.name, { icon: target?.icon || '📒' });
+  const d2 = a.data;
+  const origin = matchedOrigin;
+  if (origin.success) {
+    for (const [label, clue] of [
+      ['订单平台', origin.data.orderPlatform],
+      ['支付渠道', origin.data.paymentChannel],
+    ] as const)
+      if (usableClue(clue)) add(label, clue.name);
+    if (!d2.accountId && d2.walletCandidates?.length > 1)
+      a.warnings.push(tr('找到多个符合付款信息的钱包，请选择实际扣款账户。'));
+  }
+  if (d2.activityId) add('所属活动', options.activities.find(a => a.id === d2.activityId)?.name);
+  if (d2.accountId && d2.walletMatch === 'channel')
+    a.warnings.push(tr('已按支付渠道自动选择，请核对是否为实际扣款账户。'));
+  if (a.kind === 'transaction')
+    add('操作', tr(d2.operation === 'delete' ? '删除已入账账目' : '修改已入账账目'));
+  add('账目标题', d2.title || d2.name);
+  add(
+    '收支类型',
+    d2.kind
+      ? tr(({ expense: '支出', income: '收入', refund: '退款', transfer: '转账' } as any)[d2.kind] || d2.kind)
+      : undefined,
+  );
+  for (const [key, label] of [
+    ['accountId', '资金钱包'],
+    ['targetId', '转入钱包'],
+  ]) {
+    const wallet = options.accounts.find(v => v.id === d2[key]);
+    if (d2[key] && !wallet) a.missing.push(label);
+    if (wallet)
+      add(label, [wallet.name, wallet.suffix].filter(Boolean).join(' · '), {
+        account: [wallet.institution, wallet.name, wallet.type].filter(Boolean).join(' '),
+      });
+  }
+  if (d2.category) {
+    const c = options.categories.find(c => c.name === d2.category);
+    if (!c) a.missing.push('分类');
+    add('分类', d2.category, { icon: c?.icon || '🏷️' });
+    if (d2.categorySuggestion) {
+      const basis = tr(
+        (
+          {
+            template: '常用一笔',
+            route: '相同路线',
+            merchant_context: '相同商家与商品',
+            merchant: '相同商家',
+            context: '相似商品',
+          } as Record<string, string>
+        )[d2.categorySuggestion.basis] || '个人分类习惯',
+      );
+      add(
+        '分类依据',
+        `${basis} · ${tr('匹配度')} ${Math.round(d2.categorySuggestion.confidence * 100)}% · ${d2.categorySuggestion.evidenceCount}${tr('条个人记录')}`,
+      );
+    }
+  }
+  for (const [key, label] of [
+    ['amount', '金额'],
+    ['principal', '本次还款本金'],
+    ['fee', '本次手续费'],
+    ['fees', '总手续费'],
+  ])
+    if (d2[key] !== undefined) add(label, fmt(d2[key]));
+  for (const [key, label] of [
+    ['date', '交易日期'],
+    ['occurredAt', '交易时间'],
+    ['payee', '商家'],
+    ['nextDate', '首次扣款日期'],
+    ['month', '预算月份'],
+    ['startDate', '分摊开始日期'],
+    ['endDate', '结束日期（含当天）'],
+    ['firstDate', '首次还款日期'],
+    ['terms', '分期期数'],
+    ['allocationStart', '分摊开始日期'],
+    ['allocationMonths', '分摊月数'],
+    ['product', '商品摘要'],
+    ['note', '备注'],
+  ])
+    add(
+      label,
+      key === 'occurredAt' && d2[key] && Number.isFinite(Date.parse(d2[key]))
+        ? new Date(d2[key]).toLocaleString(deployment().language, {
+            timeZone: 'Asia/Shanghai',
+            hour12: false,
+          })
+        : d2[key],
+    );
+  if (d2.installment) {
+    add('分期期数', d2.installment.terms);
+    add('首次还款日期', d2.installment.firstDate);
+    add('总手续费', fmt(d2.installment.fees));
+    a.warnings.push(tr('保存支出同时建立分期排期，不重复记消费或立即还款。'));
+    if (options.accounts.find(v => v.id === d2.accountId)?.type !== 'credit')
+      a.missing.push(tr('分期需要信用账户'));
+  }
+  if (d2.scene)
+    for (const [key, label] of [
+      ['summary', '场景摘要'],
+      ['diningMode', '用餐方式'],
+      ['transport', '交通方式'],
+      ['origin', '始发站'],
+      ['destination', '终点站'],
+      ['merchant', '商家简称'],
+      ['branch', '门店'],
+      ['meal', '用餐类型'],
+    ])
+      add(label, d2.scene[key]);
+  if (d2.frequency)
+    add(
+      '重复周期',
+      `${d2.intervalCount ?? '?'} ${tr(({ daily: '天', weekly: '周', monthly: '月', yearly: '年' } as any)[d2.frequency] || d2.frequency)}`,
+    );
+  if (d2.periodUnit)
+    add(
+      '覆盖周期',
+      `${d2.periodCount ?? '?'} ${tr(({ day: '天', week: '周', month: '月', year: '年' } as any)[d2.periodUnit] || d2.periodUnit)}`,
+    );
+  add('关联原消费', d2.refundTitle);
+  add('核验说明', d2.verificationReason);
+  if (d2.attachmentIds?.length) add('保留图片凭证', tr(d2.retainReceipts ? '是' : '否'));
+  if (a.kind === 'schedule') {
+    add('费用分摊', tr(d2.amortize ? '按覆盖周期分摊' : '不分摊'));
+    a.warnings.push(tr('创建周期计划不会立即记账，到期后核对实际扣款。'));
+  }
+  if (a.kind === 'allocation' && d2.endDate != null)
+    a.warnings.push(tr('按实际覆盖天数分摊，包含开始和结束当天，不会再次扣款或改变钱包余额。'));
+  if (a.kind === 'installment') {
+    add('本金费用分摊', tr(d2.allocate ? '是' : '否'));
+    if (d2.allocate)
+      a.warnings.push(
+        tr(
+          '还款日期和期数只决定还款排期。费用分摊另设使用月份与月数，按自然月等额归属；只建立还款计划可关闭。',
+        ),
+      );
+  }
+  if (a.kind === 'template') a.warnings.push(tr('只保存常用预设，本次不会产生收支。'));
+  if (a.kind === 'transaction')
+    a.warnings.push(
+      tr(
+        d2.operation === 'delete'
+          ? '确认后会删除这笔已入账账目，并重新计算相关余额。'
+          : '确认后会直接修改这笔已入账账目，并重新计算相关余额。',
+      ),
+    );
+  if (a.kind === 'entry' && !a.missing.length) {
+    const item = entry.parse({ ...d, id: a.id });
+    const r = await review(book, { entries: [item] });
+    const checked = r.entries[0] as any;
+    if (checked?.matches?.length) a.warnings.push(tr('发现疑似重复账单，请核对是否为另一笔。'));
+    try {
+      checkVerification(item.lineItems, item.amount, item.verificationReason);
+    } catch (e) {
+      a.missing.push((e as Error).message);
+    }
+    if (item.kind === 'refund' && !item.refundOf) a.warnings.push(tr('退款尚未关联原消费。'));
+  }
+  if (d.transactionId) {
+    const row = (
+      await db.query(
+        "SELECT title,payee,amount::float8 AS amount,version,to_char(date,'YYYY-MM-DD') AS date,category FROM transactions WHERE id=$1 AND book_id=$2 AND NOT deleted",
+        [uuid.parse(d.transactionId), book],
+      )
+    ).rows[0];
+    if (!row) a.missing.push('原账单');
+    else {
+      add('原账单', `${row.title || row.payee} · ${fmt(row.amount)}`);
+      if (a.kind === 'allocation') {
+        a.data.version = row.version;
+        a.data.name = row.title || row.payee || tr('费用分摊');
+        add('原付款日期', row.date);
+        add('分类', row.category);
+        if (!actionMissing(a).length) {
+          const p = parseAction(a) as {
+            startDate: string;
+            periodUnit: 'day' | 'week' | 'month' | 'year';
+            periodCount: number;
+          };
+          add('覆盖截止日期', periodLastDay(p.startDate, p.periodUnit, p.periodCount));
+          const refunded = Number(
+              (
+                await db.query(
+                  "SELECT COALESCE(sum(amount),0)::float8 AS amount FROM transactions WHERE refund_of=$1 AND book_id=$2 AND kind='refund' AND NOT deleted",
+                  [d.transactionId, book],
+                )
+              ).rows[0]?.amount || 0,
+            ),
+            net = row.amount - refunded;
+          add(
+            '首月费用',
+            fmt(
+              Math.sign(net) *
+                periodShare(Math.abs(net), p.startDate, p.periodUnit, p.periodCount, p.startDate.slice(0, 7)),
+            ),
+          );
+        }
+      }
+    }
+  }
+  if (a.kind === 'repayment' && d.planId) {
+    const plan = (await listInstallments(ctx.user.id)).plans.find(p => p.id === d.planId);
+    if (!plan) a.missing.push('分期计划');
+    else {
+      a.data.version = plan.version;
+      add('分期计划', plan.name);
+      add('剩余本金', fmt(plan.remaining));
+      add('提前结清', tr(d.settle ? '是' : '否'));
+    }
+  }
+  if (a.kind === 'budget' && !a.missing.length) {
+    const old = (
+      await db.query(
+        'SELECT amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2 AND category=$3',
+        [book, d.month, d.category],
+      )
+    ).rows[0];
+    a.data.previousAmount = old?.amount ?? null;
+    if (old) add('当前预算', fmt(old.amount));
+  }
+  a.missing = Array.from(new Set([...actionMissing(a), ...a.missing.filter(m => m !== '最新记录版本')]));
+  if (old) actions.splice(actions.indexOf(old), 1, a);
+  else actions.push(a);
+  return a;
+}
+export async function confirmChatAction(book: string, user: User, body: unknown) {
+  const b = z
+    .object({
+      id: uuid,
+      turnId: uuid,
+      actionId: uuid,
+      operation: z.enum(['confirm_action', 'cancel_action', 'edit_action']),
+      data: z.record(z.unknown()).optional(),
+      acknowledgeWarnings: z.boolean().default(false),
+    })
+    .parse(body);
+  return transaction(async c => {
+    const conversation = (
+      await c.query('SELECT id FROM finance_conversations WHERE id=$1 AND user_id=$2 FOR UPDATE', [
+        b.id,
+        user.id,
+      ])
+    ).rows[0];
+    if (!conversation) throw new Failure('对话不存在', 404);
+    if (
+      (
+        await c.query(
+          "SELECT 1 FROM ai_jobs WHERE kind='chat' AND payload->>'id'=$1 AND status IN ('queued','running')",
+          [b.id],
+        )
+      ).rowCount
+    )
+      throw new Failure('助手正在更新内容，请完成后确认', 409);
+    const t = (
+      await c.query(
+        'SELECT * FROM finance_turns WHERE conversation_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE',
+        [b.id],
+      )
+    ).rows[0];
+    if (!t || t.id !== b.turnId) throw new Failure('已有更新的对话，请核对最新确认卡片', 409);
+    const a = (t.artifacts.actions as ChatAction[] | undefined)?.find(a => a.id === b.actionId);
+    if (!a) throw new Failure('待确认操作不存在', 404);
+    if (a.status !== 'pending') return { ok: true, status: a.status, result: a.result };
+    if (b.operation === 'edit_action') {
+      if (t.status !== 'complete') throw new Failure('请先让助手完成本轮整理');
+      const edited = { ...(b.data || {}) };
+      if (edited.targetBook) {
+        edited.bookId = edited.targetBook;
+        if (a.kind === 'entry')
+          edited.preferenceSuggestions = (
+            edited.preferenceSuggestions ||
+            a.data.preferenceSuggestions ||
+            []
+          ).map((s: any) =>
+            s.field === 'bookId'
+              ? {
+                  ...s,
+                  state: s.value === edited.targetBook ? 'applied' : 'dismissed',
+                  confirmed: s.value === edited.targetBook,
+                }
+              : s,
+          );
+      }
+      if (Object.prototype.hasOwnProperty.call(edited, 'category') && edited.category !== a.data.category)
+        edited.categorySource = 'explicit';
+      await prepareChatAction(
+        {
+          actionId: a.id,
+          kind: a.kind,
+          bookId:
+            ['entry', 'schedule', 'template', 'budget'].includes(a.kind) && edited.targetBook
+              ? uuid.parse(edited.targetBook)
+              : a.bookId,
+          data: edited,
+        },
+        { book, user },
+        t.artifacts.actions,
+      );
+      await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2', [t.artifacts, t.id]);
+      return { ok: true };
+    }
+    if (b.operation === 'cancel_action') a.status = 'cancelled';
+    else {
+      if (t.status !== 'complete') throw new Failure('请先让助手完成本轮整理');
+      await executePreparedAction(c, a, user, b.id, b.acknowledgeWarnings);
+    }
+    await c.query('UPDATE finance_turns SET artifacts=$1 WHERE id=$2', [t.artifacts, t.id]);
+    return { ok: true, status: a.status, result: a.result };
+  });
 }
 
-async function executePreparedAction(c:PoolClient,a:ChatAction,user:User,conversationId:string,acknowledgeWarnings:boolean){
- if(a.status!=='pending')return;
-   if(a.kind!=='family'&&a.kind!=='memory'&&a.kind!=='management'){await lockBook(c,a.bookId);const role=(await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2',[a.bookId,user.id])).rows[0]?.role;if(!role||role==='viewer')throw new Failure('没有目标账本的记账权限',403);}
-   if(a.missing.length)throw new Failure('请先补充：'+a.missing.join('、'));
-   const data=parseAction(a) as any;
-   if(data.category||data.value?.category)await checkCategory(c,user.id,data.category||data.value.category);
-   if(a.kind==='management'){if(data.operation==='conversation_delete'&&data.params.id===conversationId)throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');a.result=await withConnection(c,()=>runOperation(data,user,true));}
-   else if(a.kind==='memory')a.result=await memoryRoute(user,'POST',new URLSearchParams(),data,c);
-   else if(a.kind==='entry'){
-    const checked=(await review(a.bookId,{entries:[data]})).entries[0] as any;
-    if((checked?.matches?.length||data.kind==='refund'&&!data.refundOf)&&!acknowledgeWarnings)throw new Failure('请核对重复或退款关联，再勾选核对确认后保存',409);
-    const count=await insertEntry(c,a.bookId,user.id,data);if(!count)throw new Failure('这条账单已存在，请核对已有记录',409);a.result={id:data.id};
-   }else if(a.kind==='transaction')a.result=await applyTransactionChange(c,a.bookId,user.id,data);
-   else if(a.kind==='family')a.result=await familyFinance(user.id,data.familyId,'POST',data,c);
-   else if(a.kind==='schedule')a.result=await schedules(a.bookId,user.id,'POST',data,c);
-   else if(a.kind==='template')a.result=await templates(a.bookId,user.id,'POST',data,c);
-   else if(a.kind==='allocation')a.result=await allocations(a.bookId,'PUT',data,new URLSearchParams(),c);
-   else if(a.kind==='installment'||a.kind==='repayment')a.result=await changeInstallment(user.id,data,c);
-   else if(a.kind==='budget'){
-    const current=(await c.query('SELECT amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2 AND category=$3',[a.bookId,data.month,data.category])).rows[0];if((current?.amount??null)!==a.data.previousAmount)throw new Failure('预算已改变，请让助手读取最新预算后重新准备',409);
-    await c.query('INSERT INTO budgets VALUES($1,$2,$3,$4) ON CONFLICT(book_id,month,category) DO UPDATE SET amount=$4',[a.bookId,data.month,data.category,data.amount]);a.result={ok:true};
-   }
-   a.status='confirmed';a.confirmedAt=new Date().toISOString();
+async function executePreparedAction(
+  c: PoolClient,
+  a: ChatAction,
+  user: User,
+  conversationId: string,
+  acknowledgeWarnings: boolean,
+) {
+  if (a.status !== 'pending') return;
+  if (a.kind !== 'family' && a.kind !== 'memory' && a.kind !== 'management') {
+    await lockBook(c, a.bookId);
+    const role = (
+      await c.query('SELECT role FROM members WHERE book_id=$1 AND user_id=$2', [a.bookId, user.id])
+    ).rows[0]?.role;
+    if (!role || role === 'viewer') throw new Failure('没有目标账本的记账权限', 403);
+  }
+  if (a.missing.length) throw new Failure('请先补充：' + a.missing.join('、'));
+  const data = parseAction(a) as any;
+  if (data.category || data.value?.category)
+    await checkCategory(c, user.id, data.category || data.value.category);
+  if (a.kind === 'management') {
+    if (data.operation === 'conversation_delete' && data.params.id === conversationId)
+      throw new Failure('请在历史列表删除当前对话，以免删除本确认记录');
+    a.result = await withConnection(c, () => runOperation(data, user, true));
+  } else if (a.kind === 'memory') a.result = await memoryRoute(user, 'POST', new URLSearchParams(), data, c);
+  else if (a.kind === 'entry') {
+    const checked = (await review(a.bookId, { entries: [data] })).entries[0] as any;
+    if ((checked?.matches?.length || (data.kind === 'refund' && !data.refundOf)) && !acknowledgeWarnings)
+      throw new Failure('请核对重复或退款关联，再勾选核对确认后保存', 409);
+    const count = await insertEntry(c, a.bookId, user.id, data);
+    if (!count) throw new Failure('这条账单已存在，请核对已有记录', 409);
+    a.result = { id: data.id };
+  } else if (a.kind === 'transaction') a.result = await applyTransactionChange(c, a.bookId, user.id, data);
+  else if (a.kind === 'family') a.result = await familyFinance(user.id, data.familyId, 'POST', data, c);
+  else if (a.kind === 'schedule') a.result = await schedules(a.bookId, user.id, 'POST', data, c);
+  else if (a.kind === 'template') a.result = await templates(a.bookId, user.id, 'POST', data, c);
+  else if (a.kind === 'allocation')
+    a.result = await allocations(a.bookId, 'PUT', data, new URLSearchParams(), c);
+  else if (a.kind === 'installment' || a.kind === 'repayment')
+    a.result = await changeInstallment(user.id, data, c);
+  else if (a.kind === 'budget') {
+    const current = (
+      await c.query(
+        'SELECT amount::float8 AS amount FROM budgets WHERE book_id=$1 AND month=$2 AND category=$3',
+        [a.bookId, data.month, data.category],
+      )
+    ).rows[0];
+    if ((current?.amount ?? null) !== a.data.previousAmount)
+      throw new Failure('预算已改变，请让助手读取最新预算后重新准备', 409);
+    await c.query(
+      'INSERT INTO budgets VALUES($1,$2,$3,$4) ON CONFLICT(book_id,month,category) DO UPDATE SET amount=$4',
+      [a.bookId, data.month, data.category, data.amount],
+    );
+    a.result = { ok: true };
+  }
+  a.status = 'confirmed';
+  a.confirmedAt = new Date().toISOString();
 }
 
 // Execution and its visible audit record commit together, including interrupted turns.
-export async function executeAgentAction(turnId:string,user:User,actions:ChatAction[],actionId:string,acknowledgeWarnings=false,operation:'execute'|'cancel'='execute'){
- return transaction(async c=>{
-  const turn=(await c.query('SELECT t.id,t.conversation_id FROM finance_turns t JOIN finance_conversations v ON v.id=t.conversation_id WHERE t.id=$1 AND v.user_id=$2 FOR UPDATE OF t',[uuid.parse(turnId),user.id])).rows[0];
-  if(!turn)throw new Failure('对话不存在',404);
-  const a=actions.find(a=>a.id===uuid.parse(actionId));if(!a)throw new Failure('操作不存在',404);
-  const saved=(await c.query('SELECT artifacts FROM finance_turns WHERE id=$1',[turn.id])).rows[0]?.artifacts?.actions?.find((v:ChatAction)=>v.id===a.id);
-  if(saved?.status==='confirmed'){Object.assign(a,saved);return {ok:true,status:a.status,result:a.result};}
-  const next=structuredClone(a);
-  if(operation==='cancel'){if(next.status==='pending')next.status='cancelled';}else {await withConnection(c,()=>executePreparedAction(c,next,user,turn.conversation_id,acknowledgeWarnings));if(next.status==='confirmed')next.executedBy='assistant';}
-  await c.query("UPDATE finance_turns SET artifacts=jsonb_set(COALESCE(artifacts,'{}'::jsonb),'{actions}',$1::jsonb) WHERE id=$2",[JSON.stringify(actions.map(v=>v.id===next.id?next:v)),turn.id]);
-  Object.assign(a,next);return {ok:true,status:a.status,result:a.result};
- });
+export async function executeAgentAction(
+  turnId: string,
+  user: User,
+  actions: ChatAction[],
+  actionId: string,
+  acknowledgeWarnings = false,
+  operation: 'execute' | 'cancel' = 'execute',
+) {
+  return transaction(async c => {
+    const turn = (
+      await c.query(
+        'SELECT t.id,t.conversation_id FROM finance_turns t JOIN finance_conversations v ON v.id=t.conversation_id WHERE t.id=$1 AND v.user_id=$2 FOR UPDATE OF t',
+        [uuid.parse(turnId), user.id],
+      )
+    ).rows[0];
+    if (!turn) throw new Failure('对话不存在', 404);
+    const a = actions.find(a => a.id === uuid.parse(actionId));
+    if (!a) throw new Failure('操作不存在', 404);
+    const saved = (
+      await c.query('SELECT artifacts FROM finance_turns WHERE id=$1', [turn.id])
+    ).rows[0]?.artifacts?.actions?.find((v: ChatAction) => v.id === a.id);
+    if (saved?.status === 'confirmed') {
+      Object.assign(a, saved);
+      return { ok: true, status: a.status, result: a.result };
+    }
+    const next = structuredClone(a);
+    if (operation === 'cancel') {
+      if (next.status === 'pending') next.status = 'cancelled';
+    } else {
+      await withConnection(c, () =>
+        executePreparedAction(c, next, user, turn.conversation_id, acknowledgeWarnings),
+      );
+      if (next.status === 'confirmed') next.executedBy = 'assistant';
+    }
+    await c.query(
+      "UPDATE finance_turns SET artifacts=jsonb_set(COALESCE(artifacts,'{}'::jsonb),'{actions}',$1::jsonb) WHERE id=$2",
+      [JSON.stringify(actions.map(v => (v.id === next.id ? next : v))), turn.id],
+    );
+    Object.assign(a, next);
+    return { ok: true, status: a.status, result: a.result };
+  });
 }

@@ -1,37 +1,545 @@
 'use client';
-import {PagedList} from './PagedList';
+import { PagedList } from './PagedList';
 
-import {deployment,formatMoney,currencySymbol} from '@/lib/deployment';
-import {getLocale} from '@/lib/i18n';
-import {useI18n} from './LanguageProvider';
-import {FormSelect} from './FormSelect';
+import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
+import { getLocale } from '@/lib/i18n';
+import { useI18n } from './LanguageProvider';
+import { FormSelect } from './FormSelect';
 
+import {
+  accountTypes,
+  accountLabel,
+  walletOwnership,
+  type WalletOwnership,
+  type AccountType,
+} from '@/lib/accounts';
+import { AccountStatistics } from './AccountStatistics';
+import { VisualSelect, SymbolIcon, AccountIcon, CategoryIcon, CategoryIcons } from './VisualSelect';
+import { useEffect, useRef, useState } from 'react';
+import { Wallet, Plus, ChevronRight, Archive, RotateCcw } from 'lucide-react';
+import { Sheet } from './Sheet';
+import { amountToCents } from '@/server/model';
+export type Account = {
+  owner_id?: string;
+  family_id?: string;
+  owner_name?: string;
+  usable?: boolean;
+  id: string;
+  ownership?: WalletOwnership;
+  name: string;
+  balance: number;
+  opening: number;
+  archived: boolean;
+  version: number;
+  type?: AccountType;
+  holder?: string;
+  institution?: string;
+  suffix?: string;
+};
+const yuan = (n: number) =>
+  new Intl.NumberFormat(getLocale(), { style: 'currency', currency: deployment().currency }).format(n / 100);
+const signedCents = (s: string) => (s.startsWith('-') ? -amountToCents(s.slice(1)) : amountToCents(s));
+export function AccountsPanel({
+  book,
+  month,
+  onChanged,
+}: {
+  book: string;
+  month: string;
+  onChanged: () => Promise<void>;
+}) {
+  const { t: tr } = useI18n();
+  const [loading, setLoading] = useState(true);
+  const [allAccounts, setAccounts] = useState<Account[]>([]),
+    [families, setFamilies] = useState<{ id: string; name: string }[]>([]),
+    [scope, setScope] = useState('personal');
+  const accounts = allAccounts.filter(a => (scope === 'personal' ? !!a.owner_id : a.family_id === scope)),
+    canWrite = true;
+  async function request(method: string, body?: unknown, historyId?: string, merge = false) {
+    const response = await fetch(
+      merge ? '/api/assets/merge' : historyId ? '/api/assets/history?account=' + historyId : '/api/assets',
+      {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        ...(method === 'GET' ? {} : { body: JSON.stringify(body) }),
+      },
+    );
+    const d = await response.json();
+    if (!response.ok) throw new Error(d.error);
+    return d;
+  }
+  async function reload() {
+    try {
+      setAccounts(await request('GET'));
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    reload().catch(e => setError(e.message));
+    fetch('/api/families')
+      .then(r => r.json())
+      .then(d => setFamilies(d.items || []))
+      .catch(e => setError(e.message));
+  }, []);
 
-import {accountTypes,accountLabel,walletOwnership,type WalletOwnership,type AccountType} from '@/lib/accounts';
-import {AccountStatistics} from './AccountStatistics';
-import {VisualSelect,SymbolIcon,AccountIcon,CategoryIcon,CategoryIcons} from './VisualSelect';
-import {useEffect,useRef,useState} from 'react';
-import {Wallet,Plus,ChevronRight,Archive,RotateCcw} from 'lucide-react';
-import {Sheet} from './Sheet';
-import {amountToCents} from '@/server/model';
-export type Account={owner_id?:string;family_id?:string;owner_name?:string;usable?:boolean;id:string;ownership?:WalletOwnership;name:string;balance:number;opening:number;archived:boolean;version:number;type?:AccountType;holder?:string;institution?:string;suffix?:string};
-const yuan=(n:number)=>new Intl.NumberFormat(getLocale(),{style:'currency',currency:deployment().currency}).format(n/100);
-const signedCents=(s:string)=>s.startsWith('-')?-amountToCents(s.slice(1)):amountToCents(s);
-export function AccountsPanel({book,month,onChanged}:{book:string;month:string;onChanged:()=>Promise<void>}){const {t:tr}=useI18n();
- const [loading,setLoading]=useState(true);
- const [allAccounts,setAccounts]=useState<Account[]>([]),[families,setFamilies]=useState<{id:string;name:string}[]>([]),[scope,setScope]=useState('personal');
- const accounts=allAccounts.filter(a=>scope==='personal'?!!a.owner_id:a.family_id===scope),canWrite=true;
- async function request(method:string,body?:unknown,historyId?:string,merge=false){const response=await fetch(merge?'/api/assets/merge':historyId?'/api/assets/history?account='+historyId:'/api/assets',{method,headers:{'Content-Type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)})});const d=await response.json();if(!response.ok)throw new Error(d.error);return d;}
- async function reload(){try{setAccounts(await request('GET'));}finally{setLoading(false);}}
- useEffect(()=>{reload().catch(e=>setError(e.message));fetch('/api/families').then(r=>r.json()).then(d=>setFamilies(d.items||[])).catch(e=>setError(e.message));},[]);
-
- const historyAccount=useRef('');
- const [mergeTarget,setMergeTarget]=useState(''),[mergeBalance,setMergeBalance]=useState('');
- const [selected,setSelected]=useState<Account|null>(null),[mode,setMode]=useState<'detail'|'edit'|'reconcile'|'new'|'delete'|'merge'>('detail'),[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[history,setHistory]=useState<{id:string;amount:number;note:string;created_at:string;creator:string}[]>([]),[showArchived,setShowArchived]=useState(false);
- const visible=accounts.filter(a=>showArchived||!a.archived);const total=accounts.reduce((n,a)=>n+a.balance,0);
- function show(a:Account){historyAccount.current=a.id;setSelected(a);setMode('detail');setError('');setHistory([]);setOpen(true);request('GET',undefined,a.id).then(data=>{if(historyAccount.current===a.id)setHistory(data as typeof history);}).catch(e=>setError(e.message));}
- async function submit(body:unknown,method='PATCH',merge=false){if(busy)return;setBusy(true);setError('');try{await request(method,body,undefined,merge);await reload();await onChanged();setOpen(false);}catch(e){setError(e instanceof Error?e.message:'操作未完成');}finally{setBusy(false);}}
- const scopeLabel=scope==='personal'?tr('我的资产'):families.find(f=>f.id===scope)?.name||tr('家庭资产');
- return <><div className="page-heading"><h1>{tr('资金资产')}</h1><VisualSelect label={tr('资产归属')} value={scope} onChange={setScope} options={[{value:'personal',label:tr('我的资产'),icon:'👤'},...families.map(f=>({value:f.id,label:f.name+' · '+tr('家庭资产'),icon:'🏡'}))]}/></div>{error&&!open&&<p className="error">{tr(error)}</p>}<section className="panel"><div className="panel-title"><h2>{tr("资金钱包")}</h2>{canWrite&&<button className="text-button" onClick={()=>{setSelected(null);setMode('new');setError('');setOpen(true);}}><Plus size={18}/>{tr("添加")}</button>}</div>{<PagedList items={visible} resetKey={scope}>{a=><button className="account-row" key={a.id} onClick={()=>show(a)}><span className="account-icon"><AccountIcon name={accountLabel(a)} size={30}/></span><span><strong>{accountLabel(a)}</strong>{a.archived&&<small>{tr("已归档 · 历史流水保留")}</small>}</span><strong>{yuan(a.balance)}</strong><ChevronRight size={18}/></button>}</PagedList>}{loading&&<p role="status" className="muted">{tr('正在读取钱包…')}</p>}{!loading&&!error&&!visible.length&&<p className="muted">{tr("还没有可用账户，添加或恢复一个账户即可开始记账。")}</p>}{accounts.some(a=>a.archived)&&<button className="text-button" onClick={()=>setShowArchived(s=>!s)}>{showArchived?tr("隐藏已归档账户"):tr("查看已归档账户")}</button>}</section><AccountStatistics book={book} month={month} revision={allAccounts} scope={scope} scopeLabel={scopeLabel} onChanged={async()=>{await reload();await onChanged();}}/>
- {open&&<Sheet title={mode==='delete'?tr('删除钱包'):mode==='merge'?tr('合并钱包'):mode==='new'?tr("添加资金账户"):mode==='edit'?tr("修改账户"):mode==='reconcile'?tr("核对实际余额"):(selected?.name || tr("账户"))} onClose={()=>{if(!busy)setOpen(false);}}>{error&&<p className="error" role="alert">{tr(error)}</p>}{mode==='delete'&&selected?<><p>{tr('删除钱包后，该钱包的余额将从资产总额中移除。')}</p><div className="detail-amount"><strong>{accountLabel(selected)}</strong><span>{yuan(selected.balance)}</span></div><div className="context-note"><p>{tr('有历史流水、余额校准或周期计划的钱包，请先合并到其他钱包；也可以归档保留历史。')}</p></div><div className="sheet-actions"><button className="secondary" disabled={busy} onClick={()=>setMode('detail')}>{tr('取消')}</button><button disabled={busy} onClick={()=>submit({operation:'delete',id:selected.id,version:selected.version,expectedBalance:selected.balance})}>{tr('确认删除钱包')}</button></div></>:mode==='merge'&&selected?<form onSubmit={e=>{e.preventDefault();const target=accounts.find(a=>a.id===mergeTarget);if(!target)return;try{submit({id:selected.id,targetId:target.id,version:selected.version,targetVersion:target.version,expectedBalance:selected.balance,expectedTargetBalance:target.balance,balance:signedCents(mergeBalance)},'POST',true);}catch(e){setError((e as Error).message);}}}><p>{accountLabel(selected)} · {yuan(selected.balance)}</p><label>{tr('合并到哪个钱包')}<VisualSelect label={tr('选择保留的钱包')} value={mergeTarget} disabled={busy} onChange={id=>{setMergeTarget(id);setMergeBalance(String((selected.balance+(accounts.find(a=>a.id===id)?.balance||0))/100));}} options={accounts.filter(a=>a.id!==selected.id&&!a.archived).map(a=>({value:a.id,label:accountLabel(a),account:true,accountName:[a.institution,a.name,a.type].filter(Boolean).join(' ')}))}/></label><label>{tr('合并后的实际余额')}<input inputMode="decimal" required value={mergeBalance} onChange={e=>setMergeBalance(e.target.value)}/></label><div className="context-note"><p>{tr('流水、校准、草稿与周期计划转入保留的钱包，原钱包删除。默认合计两个余额；如果余额曾重复录入，请填写真实余额。账本归属不变。')}</p></div><div className="sheet-actions"><button type="button" className="secondary" disabled={busy} onClick={()=>setMode('detail')}>{tr('取消')}</button><button disabled={busy||!mergeTarget}>{tr('确认合并钱包')}</button></div></form>:mode==='new'||mode==='edit'?<form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{const body={familyId:scope==='personal'?null:scope,name:String(f.get('name')),opening:signedCents(String(f.get('opening')||'0')),type:String(f.get('type')),holder:String(f.get('holder')||''),institution:String(f.get('institution')||''),suffix:String(f.get('suffix')||'')};submit(mode==='new'?body:{...body,id:selected!.id,version:selected!.version,operation:'edit'},mode==='new'?'POST':'PATCH');}catch(e){setError((e as Error).message);}}}><p className="entry-book-label">{scope==='personal'?tr('归属：我个人'):tr('归属家庭：')+families.find(f=>f.id===scope)?.name}</p><label>{tr("账户类型")}<FormSelect name="type" defaultValue={(selected?.type || 'bank')}>{Object.entries(accountTypes).map(([value,label])=><option key={value} value={value} data-account={value}>{tr(label)}</option>)}</FormSelect></label><label>{tr("账户名称")}<input name="name" defaultValue={selected?.name} maxLength={80} required placeholder={tr("例如：工资卡、日常微信、备用支付宝")}/></label><div className="form-grid"><label>{tr("持有人 / 账号备注")}<input name="holder" defaultValue={selected?.holder} maxLength={60} placeholder={tr("例如：自己、家人、工作号")}/></label><label>{tr("银行 / 机构")}<input name="institution" defaultValue={selected?.institution} maxLength={60} placeholder={tr("例如：招商银行")}/></label><label>{tr("卡号 / 手机号尾号")}<input name="suffix" defaultValue={selected?.suffix} inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder={tr("选填，4位数字")}/></label></div><label>{tr("开始记账前的余额（元）")}<input name="opening" inputMode="decimal" defaultValue={selected?selected.opening/100:'0'} required/></label><></><button disabled={busy}>{tr("保存账户")}</button></form>:mode==='reconcile'?<form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{submit({operation:'reconcile',id:selected!.id,version:selected!.version,expectedBalance:selected!.balance,balance:signedCents(String(f.get('balance'))),note:String(f.get('note'))});}catch(e){setError((e as Error).message);}}}><p>{tr("账面余额：")}<strong>{yuan(selected!.balance)}</strong></p><label>{tr("目前实际余额（元）")}<input name="balance" inputMode="decimal" defaultValue={selected!.balance/100} required/></label><label>{tr("调整原因")}<input name="note" maxLength={500} required placeholder={tr("例如：核对银行余额，补齐早期差额")}/></label><></><button disabled={busy}>{tr("确认校准余额")}</button></form>:selected&&<><div className="detail-amount"><small>{tr("当前余额")}</small><strong>{yuan(selected.balance)}</strong></div><div className="detail-fields"><div><dt>{tr("期初余额")}</dt><dd>{yuan(selected.opening)}</dd></div><div><dt>{tr("账户状态")}</dt><dd>{selected.archived?tr("已归档"):tr("使用中")}</dd></div></div>{canWrite&&<div className="account-actions"><button onClick={()=>setMode('edit')}>{tr("修改账户")}</button><button className="secondary" onClick={()=>setMode('reconcile')}>{tr("核对余额")}</button><button className="secondary" disabled={busy} onClick={()=>{setMergeTarget('');setMergeBalance('');setMode('merge');}}>{tr('合并钱包')}</button><button className="text-button" disabled={busy} onClick={()=>setMode('delete')}>{tr('删除钱包')}</button><button className="text-button" disabled={busy} onClick={()=>submit({operation:'archive',id:selected.id,version:selected.version,archived:!selected.archived})}>{selected.archived?<RotateCcw size={17}/>:<Archive size={17}/>} {selected.archived?tr("恢复使用"):tr("归档账户")}</button></div>}<></><h3>{tr("最近的余额校准")}</h3>{history.length?<PagedList items={history} resetKey={scope}>{h=><div className="adjustment" key={h.id}><strong>{h.amount>0?'+':''}{yuan(h.amount)}</strong><p>{h.note}</p><small>{new Date(h.created_at).toLocaleString(getLocale())} · {h.creator}</small></div>}</PagedList>:<p className="muted">{tr("暂无余额校准记录。")}</p>}</>}</Sheet>}</>;
+  const historyAccount = useRef('');
+  const [mergeTarget, setMergeTarget] = useState(''),
+    [mergeBalance, setMergeBalance] = useState('');
+  const [selected, setSelected] = useState<Account | null>(null),
+    [mode, setMode] = useState<'detail' | 'edit' | 'reconcile' | 'new' | 'delete' | 'merge'>('detail'),
+    [open, setOpen] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [history, setHistory] = useState<
+      { id: string; amount: number; note: string; created_at: string; creator: string }[]
+    >([]),
+    [showArchived, setShowArchived] = useState(false);
+  const visible = accounts.filter(a => showArchived || !a.archived);
+  const total = accounts.reduce((n, a) => n + a.balance, 0);
+  function show(a: Account) {
+    historyAccount.current = a.id;
+    setSelected(a);
+    setMode('detail');
+    setError('');
+    setHistory([]);
+    setOpen(true);
+    request('GET', undefined, a.id)
+      .then(data => {
+        if (historyAccount.current === a.id) setHistory(data as typeof history);
+      })
+      .catch(e => setError(e.message));
+  }
+  async function submit(body: unknown, method = 'PATCH', merge = false) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await request(method, body, undefined, merge);
+      await reload();
+      await onChanged();
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '操作未完成');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const scopeLabel =
+    scope === 'personal' ? tr('我的资产') : families.find(f => f.id === scope)?.name || tr('家庭资产');
+  return (
+    <>
+      <div className="page-heading">
+        <h1>{tr('资金资产')}</h1>
+        <VisualSelect
+          label={tr('资产归属')}
+          value={scope}
+          onChange={setScope}
+          options={[
+            { value: 'personal', label: tr('我的资产'), icon: '👤' },
+            ...families.map(f => ({ value: f.id, label: f.name + ' · ' + tr('家庭资产'), icon: '🏡' })),
+          ]}
+        />
+      </div>
+      {error && !open && <p className="error">{tr(error)}</p>}
+      <section className="panel">
+        <div className="panel-title">
+          <h2>{tr('资金钱包')}</h2>
+          {canWrite && (
+            <button
+              className="text-button"
+              onClick={() => {
+                setSelected(null);
+                setMode('new');
+                setError('');
+                setOpen(true);
+              }}
+            >
+              <Plus size={18} />
+              {tr('添加')}
+            </button>
+          )}
+        </div>
+        {
+          <PagedList items={visible} resetKey={scope}>
+            {a => (
+              <button className="account-row" key={a.id} onClick={() => show(a)}>
+                <span className="account-icon">
+                  <AccountIcon name={accountLabel(a)} size={30} />
+                </span>
+                <span>
+                  <strong>{accountLabel(a)}</strong>
+                  {a.archived && <small>{tr('已归档 · 历史流水保留')}</small>}
+                </span>
+                <strong>{yuan(a.balance)}</strong>
+                <ChevronRight size={18} />
+              </button>
+            )}
+          </PagedList>
+        }
+        {loading && (
+          <p role="status" className="muted">
+            {tr('正在读取钱包…')}
+          </p>
+        )}
+        {!loading && !error && !visible.length && (
+          <p className="muted">{tr('还没有可用账户，添加或恢复一个账户即可开始记账。')}</p>
+        )}
+        {accounts.some(a => a.archived) && (
+          <button className="text-button" onClick={() => setShowArchived(s => !s)}>
+            {showArchived ? tr('隐藏已归档账户') : tr('查看已归档账户')}
+          </button>
+        )}
+      </section>
+      <AccountStatistics
+        book={book}
+        month={month}
+        revision={allAccounts}
+        scope={scope}
+        scopeLabel={scopeLabel}
+        onChanged={async () => {
+          await reload();
+          await onChanged();
+        }}
+      />
+      {open && (
+        <Sheet
+          title={
+            mode === 'delete'
+              ? tr('删除钱包')
+              : mode === 'merge'
+                ? tr('合并钱包')
+                : mode === 'new'
+                  ? tr('添加资金账户')
+                  : mode === 'edit'
+                    ? tr('修改账户')
+                    : mode === 'reconcile'
+                      ? tr('核对实际余额')
+                      : selected?.name || tr('账户')
+          }
+          onClose={() => {
+            if (!busy) setOpen(false);
+          }}
+        >
+          {error && (
+            <p className="error" role="alert">
+              {tr(error)}
+            </p>
+          )}
+          {mode === 'delete' && selected ? (
+            <>
+              <p>{tr('删除钱包后，该钱包的余额将从资产总额中移除。')}</p>
+              <div className="detail-amount">
+                <strong>{accountLabel(selected)}</strong>
+                <span>{yuan(selected.balance)}</span>
+              </div>
+              <div className="context-note">
+                <p>{tr('有历史流水、余额校准或周期计划的钱包，请先合并到其他钱包；也可以归档保留历史。')}</p>
+              </div>
+              <div className="sheet-actions">
+                <button className="secondary" disabled={busy} onClick={() => setMode('detail')}>
+                  {tr('取消')}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    submit({
+                      operation: 'delete',
+                      id: selected.id,
+                      version: selected.version,
+                      expectedBalance: selected.balance,
+                    })
+                  }
+                >
+                  {tr('确认删除钱包')}
+                </button>
+              </div>
+            </>
+          ) : mode === 'merge' && selected ? (
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const target = accounts.find(a => a.id === mergeTarget);
+                if (!target) return;
+                try {
+                  submit(
+                    {
+                      id: selected.id,
+                      targetId: target.id,
+                      version: selected.version,
+                      targetVersion: target.version,
+                      expectedBalance: selected.balance,
+                      expectedTargetBalance: target.balance,
+                      balance: signedCents(mergeBalance),
+                    },
+                    'POST',
+                    true,
+                  );
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <p>
+                {accountLabel(selected)} · {yuan(selected.balance)}
+              </p>
+              <label>
+                {tr('合并到哪个钱包')}
+                <VisualSelect
+                  label={tr('选择保留的钱包')}
+                  value={mergeTarget}
+                  disabled={busy}
+                  onChange={id => {
+                    setMergeTarget(id);
+                    setMergeBalance(
+                      String((selected.balance + (accounts.find(a => a.id === id)?.balance || 0)) / 100),
+                    );
+                  }}
+                  options={accounts
+                    .filter(a => a.id !== selected.id && !a.archived)
+                    .map(a => ({
+                      value: a.id,
+                      label: accountLabel(a),
+                      account: true,
+                      accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+                    }))}
+                />
+              </label>
+              <label>
+                {tr('合并后的实际余额')}
+                <input
+                  inputMode="decimal"
+                  required
+                  value={mergeBalance}
+                  onChange={e => setMergeBalance(e.target.value)}
+                />
+              </label>
+              <div className="context-note">
+                <p>
+                  {tr(
+                    '流水、校准、草稿与周期计划转入保留的钱包，原钱包删除。默认合计两个余额；如果余额曾重复录入，请填写真实余额。账本归属不变。',
+                  )}
+                </p>
+              </div>
+              <div className="sheet-actions">
+                <button type="button" className="secondary" disabled={busy} onClick={() => setMode('detail')}>
+                  {tr('取消')}
+                </button>
+                <button disabled={busy || !mergeTarget}>{tr('确认合并钱包')}</button>
+              </div>
+            </form>
+          ) : mode === 'new' || mode === 'edit' ? (
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                try {
+                  const body = {
+                    familyId: scope === 'personal' ? null : scope,
+                    name: String(f.get('name')),
+                    opening: signedCents(String(f.get('opening') || '0')),
+                    type: String(f.get('type')),
+                    holder: String(f.get('holder') || ''),
+                    institution: String(f.get('institution') || ''),
+                    suffix: String(f.get('suffix') || ''),
+                  };
+                  submit(
+                    mode === 'new'
+                      ? body
+                      : { ...body, id: selected!.id, version: selected!.version, operation: 'edit' },
+                    mode === 'new' ? 'POST' : 'PATCH',
+                  );
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <p className="entry-book-label">
+                {scope === 'personal'
+                  ? tr('归属：我个人')
+                  : tr('归属家庭：') + families.find(f => f.id === scope)?.name}
+              </p>
+              <label>
+                {tr('账户类型')}
+                <FormSelect name="type" defaultValue={selected?.type || 'bank'}>
+                  {Object.entries(accountTypes).map(([value, label]) => (
+                    <option key={value} value={value} data-account={value}>
+                      {tr(label)}
+                    </option>
+                  ))}
+                </FormSelect>
+              </label>
+              <label>
+                {tr('账户名称')}
+                <input
+                  name="name"
+                  defaultValue={selected?.name}
+                  maxLength={80}
+                  required
+                  placeholder={tr('例如：工资卡、日常微信、备用支付宝')}
+                />
+              </label>
+              <div className="form-grid">
+                <label>
+                  {tr('持有人 / 账号备注')}
+                  <input
+                    name="holder"
+                    defaultValue={selected?.holder}
+                    maxLength={60}
+                    placeholder={tr('例如：自己、家人、工作号')}
+                  />
+                </label>
+                <label>
+                  {tr('银行 / 机构')}
+                  <input
+                    name="institution"
+                    defaultValue={selected?.institution}
+                    maxLength={60}
+                    placeholder={tr('例如：招商银行')}
+                  />
+                </label>
+                <label>
+                  {tr('卡号 / 手机号尾号')}
+                  <input
+                    name="suffix"
+                    defaultValue={selected?.suffix}
+                    inputMode="numeric"
+                    pattern="[0-9]{4}"
+                    maxLength={4}
+                    placeholder={tr('选填，4位数字')}
+                  />
+                </label>
+              </div>
+              <label>
+                {tr('开始记账前的余额（元）')}
+                <input
+                  name="opening"
+                  inputMode="decimal"
+                  defaultValue={selected ? selected.opening / 100 : '0'}
+                  required
+                />
+              </label>
+              <></>
+              <button disabled={busy}>{tr('保存账户')}</button>
+            </form>
+          ) : mode === 'reconcile' ? (
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                try {
+                  submit({
+                    operation: 'reconcile',
+                    id: selected!.id,
+                    version: selected!.version,
+                    expectedBalance: selected!.balance,
+                    balance: signedCents(String(f.get('balance'))),
+                    note: String(f.get('note')),
+                  });
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <p>
+                {tr('账面余额：')}
+                <strong>{yuan(selected!.balance)}</strong>
+              </p>
+              <label>
+                {tr('目前实际余额（元）')}
+                <input name="balance" inputMode="decimal" defaultValue={selected!.balance / 100} required />
+              </label>
+              <label>
+                {tr('调整原因')}
+                <input
+                  name="note"
+                  maxLength={500}
+                  required
+                  placeholder={tr('例如：核对银行余额，补齐早期差额')}
+                />
+              </label>
+              <></>
+              <button disabled={busy}>{tr('确认校准余额')}</button>
+            </form>
+          ) : (
+            selected && (
+              <>
+                <div className="detail-amount">
+                  <small>{tr('当前余额')}</small>
+                  <strong>{yuan(selected.balance)}</strong>
+                </div>
+                <div className="detail-fields">
+                  <div>
+                    <dt>{tr('期初余额')}</dt>
+                    <dd>{yuan(selected.opening)}</dd>
+                  </div>
+                  <div>
+                    <dt>{tr('账户状态')}</dt>
+                    <dd>{selected.archived ? tr('已归档') : tr('使用中')}</dd>
+                  </div>
+                </div>
+                {canWrite && (
+                  <div className="account-actions">
+                    <button onClick={() => setMode('edit')}>{tr('修改账户')}</button>
+                    <button className="secondary" onClick={() => setMode('reconcile')}>
+                      {tr('核对余额')}
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setMergeTarget('');
+                        setMergeBalance('');
+                        setMode('merge');
+                      }}
+                    >
+                      {tr('合并钱包')}
+                    </button>
+                    <button className="text-button" disabled={busy} onClick={() => setMode('delete')}>
+                      {tr('删除钱包')}
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() =>
+                        submit({
+                          operation: 'archive',
+                          id: selected.id,
+                          version: selected.version,
+                          archived: !selected.archived,
+                        })
+                      }
+                    >
+                      {selected.archived ? <RotateCcw size={17} /> : <Archive size={17} />}{' '}
+                      {selected.archived ? tr('恢复使用') : tr('归档账户')}
+                    </button>
+                  </div>
+                )}
+                <></>
+                <h3>{tr('最近的余额校准')}</h3>
+                {history.length ? (
+                  <PagedList items={history} resetKey={scope}>
+                    {h => (
+                      <div className="adjustment" key={h.id}>
+                        <strong>
+                          {h.amount > 0 ? '+' : ''}
+                          {yuan(h.amount)}
+                        </strong>
+                        <p>{h.note}</p>
+                        <small>
+                          {new Date(h.created_at).toLocaleString(getLocale())} · {h.creator}
+                        </small>
+                      </div>
+                    )}
+                  </PagedList>
+                ) : (
+                  <p className="muted">{tr('暂无余额校准记录。')}</p>
+                )}
+              </>
+            )
+          )}
+        </Sheet>
+      )}
+    </>
+  );
 }

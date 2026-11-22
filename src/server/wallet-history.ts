@@ -1,10 +1,13 @@
-import {db} from './db';
+import { db } from './db';
 
 /** Reconstruct book balances from all wallet events, never from the filtered report. */
-export async function attachWalletBalances<T extends {id:string;event_id?:string|null;cost_row_key?:string;cost_project_id?:string}>(user:string,rows:T[]):Promise<T[]>{
- const ids=rows.filter(r=>!r.cost_row_key).map(r=>r.event_id||r.id);
- if(!ids.length)return rows;
- const result=await db.query(`WITH owned AS (
+export async function attachWalletBalances<
+  T extends { id: string; event_id?: string | null; cost_row_key?: string; cost_project_id?: string },
+>(user: string, rows: T[]): Promise<T[]> {
+  const ids = rows.filter(r => !r.cost_row_key).map(r => r.event_id || r.id);
+  if (!ids.length) return rows;
+  const result = await db.query(
+    `WITH owned AS (
  SELECT a.* FROM accounts a WHERE a.owner_id=$1 OR EXISTS(SELECT 1 FROM family_members f WHERE f.family_id=a.family_id AND f.user_id=$1)
  ), entries AS (
  SELECT DISTINCT ON(COALESCE(t.event_id,t.id)) t.* FROM transactions t
@@ -24,6 +27,15 @@ export async function attachWalletBalances<T extends {id:string;event_id?:string
  ), running AS (
  SELECT e.*,a.name,a.opening+sum(e.delta) OVER(PARTITION BY e.account_id ORDER BY e.at,e.created_at,e.type,e.id ROWS UNBOUNDED PRECEDING) AS balance
  FROM events e JOIN owned a ON a.id=e.account_id
- ) SELECT id,account_id,name,balance::float8 AS balance FROM running WHERE id=ANY($2::uuid[])`,[user,ids]);
- return rows.map(r=>({...r,wallet_balances:r.cost_row_key?[]:result.rows.filter(b=>b.id===(r.event_id||r.id)).map(({account_id,name,balance})=>({account_id,name,balance}))}));
+ ) SELECT id,account_id,name,balance::float8 AS balance FROM running WHERE id=ANY($2::uuid[])`,
+    [user, ids],
+  );
+  return rows.map(r => ({
+    ...r,
+    wallet_balances: r.cost_row_key
+      ? []
+      : result.rows
+          .filter(b => b.id === (r.event_id || r.id))
+          .map(({ account_id, name, balance }) => ({ account_id, name, balance })),
+  }));
 }

@@ -1,75 +1,563 @@
-import test,{after,before} from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
-import {runFinanceAgent,type AgentArtifact} from '../src/server/finance-agent';
-import type {chatCompletion} from '../src/server/ai';
-import {db} from '../src/server/db';
-const originalQuery=db.query;
-before(()=>{(db as any).query=async(_sql:string,args:unknown[])=>({rows:[{id:(args?.[1] as string[]|undefined)?.[0]||'book',name:'测试账本'}],rowCount:1});});
-after(()=>{db.query=originalQuery;});
-const user={id:'user',name:'测试',username:'test',admin:false,avatar:'🧸',theme:'bear' as const};
-test('非流式返回仍保存回答，工具证据只作为独立参考上下文',async()=>{
- const events:{event:string;data:unknown}[]=[];
- const model:typeof chatCompletion=async messages=>{
-  assert.match(String(messages[0].content),/Historical evidence snapshots/);
-  assert.match(String(messages[0].content),/63160/);
-  assert.equal(messages.find(m=>m.role==='assistant'&&m.content==='上一条回复')?.content,'上一条回复');
-  return {model:'test',message:{role:'assistant',content:'请核对分摊卡片。'}};
- };
- const result=await runFinanceAgent({book:'book',user,question:'分摊',month:'2026-10',history:[{role:'assistant',content:'上一条回复'}],historyEvidence:[{amount:63160}],images:[],signal:new AbortController().signal,emit:(event,data)=>events.push({event,data})},model,async()=>({}));
- assert.equal(result.text,'请核对分摊卡片。');assert.ok(events.some(e=>e.event==='delta'&&e.data===result.text));
+import { runFinanceAgent, type AgentArtifact } from '../src/server/finance-agent';
+import type { chatCompletion } from '../src/server/ai';
+import { db } from '../src/server/db';
+const originalQuery = db.query;
+before(() => {
+  (db as any).query = async (_sql: string, args: unknown[]) => ({
+    rows: [{ id: (args?.[1] as string[] | undefined)?.[0] || 'book', name: '测试账本' }],
+    rowCount: 1,
+  });
 });
-test('真实工具循环先取数、执行图表工具、回灌结果再回答，固定账本范围',async()=>{let calls=0;const events:string[]=[];const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.equal(messages[0].role,'system');if(calls++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'draw',type:'function',function:{name:'draw_chart',arguments:JSON.stringify({from:'2026-09-01',to:'2026-09-30',type:'bar',dimension:'category',title:'支出'})}}]}};assert.equal(messages.at(-1)?.role,'tool');delta('支出共100元。');return {model:'test',message:{role:'assistant',content:'支出共100元。'}};};const result=await runFinanceAgent({book:'private-book',user,question:'画分类图',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:e=>events.push(e)},model,async(name,args,ctx,artifacts)=>{assert.equal(ctx.book,'private-book');if(name==='draw_chart')artifacts.charts.push({id:'chart',type:'bar',title:'支出',from:'2026-09-01',to:'2026-09-30',unit:'元',data:[{name:'餐饮',value:100}]});return {amount:10000};});assert.equal(result.artifacts.charts.length,1);assert.equal(result.artifacts.tools.length,2);assert.match(result.text,/100元/);assert.ok(events.includes('tool_result'));});
-test('模型不能调用未提供的工具或直接写账',async()=>{const model:typeof chatCompletion=async()=>({model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'x',type:'function',function:{name:'execute_sql',arguments:'{}'}}]}});await assert.rejects(runFinanceAgent({book:'b',user,question:'x',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async()=>({})),/不可用/);});
-test('中断保存部分回答与工具记录，不伪装成完整报告',async()=>{const model:typeof chatCompletion=async(_m,_t,delta)=>{delta('已经查到');throw new Error('中断');};try{await runFinanceAgent({book:'b',user,question:'x',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async()=>({}));assert.fail();}catch(e){assert.equal((e as any).partial.text,'已经查到');assert.equal((e as any).partial.artifacts.tools.length,1);}});
-import {financeChartData} from '../src/lib/finance-chart-data';
-test('图表按整数分换算，补零空白日期与月份，负退款不会丢失',()=>{const data={categories:[{name:'退款',value:-120}],daily:[{date:'2026-09-02',income:0,expense:-120}]};assert.deepEqual(financeChartData(data,'daily_expense','2026-09-01','2026-09-03').map(x=>x.value),[0,-1.2,0]);assert.deepEqual(financeChartData(data,'monthly_expense','2026-08-01','2026-10-31').map(x=>x.value),[0,-1.2,0]);assert.equal(financeChartData(data,'category','2026-09-01','2026-09-30')[0].value,-1.2);});
-test('LangGraph 总助手按需委派，专业助手独立取数后交回图表与结论',async()=>{
- const seen:string[]=[],events:string[]=[];let supervisor=0,specialist=0;
- const call=(name:string,args:any)=>({id:name,type:'function',function:{name,arguments:JSON.stringify(args)}});
- const model:typeof chatCompletion=async(messages,tools,delta)=>{
-  const isSpecialist=String(messages[0].content).includes('你是财务分析助手');
-  if(isSpecialist){assert.ok(!tools.some((t:any)=>t.function.name.startsWith('delegate_')));assert.ok(!tools.some((t:any)=>t.function.name==='prepare_entries'));if(specialist++===0)return {model:'configurable-model',message:{role:'assistant',content:null,tool_calls:[call('draw_chart',{from:'2026-09-01',to:'2026-09-30',type:'bar',dimension:'category',title:'支出'})]}};delta('有工具依据的分析 [[chart:chart-1]]');return {model:'configurable-model',message:{role:'assistant',content:'有工具依据的分析 [[chart:chart-1]]'}};}
-  if(supervisor++===0)return {model:'configurable-model',message:{role:'assistant',content:null,tool_calls:[call('delegate_analysis',{task:'分析本月支出并画图'})]}};
-  assert.match(String(messages.at(-1)?.content),/有工具依据的分析/);delta('这是完整报告 [[chart:chart-1]]');return {model:'configurable-model',message:{role:'assistant',content:'这是完整报告 [[chart:chart-1]]'}};
- };
- const result=await runFinanceAgent({book:'fixed-book',user,question:'分析本月并画图',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:e=>events.push(e)},model,async(name,args,ctx,artifacts)=>{assert.equal(ctx.book,'fixed-book');seen.push(name);if(name==='draw_chart')artifacts.charts.push({id:'chart-1',type:'bar',title:'支出',from:'2026-09-01',to:'2026-09-30',unit:'元',data:[{name:'餐饮',value:100}]});return {amount:10000};});
- assert.equal(result.artifacts.agents?.length,1);assert.equal(result.artifacts.agents?.[0].status,'complete');assert.equal(result.artifacts.charts.length,1);assert.ok(!result.text.includes('有工具依据的分析'));assert.ok(events.includes('agent_start')&&events.includes('agent_done'));assert.deepEqual(seen,['financial_summary','draw_chart']);
+after(() => {
+  db.query = originalQuery;
 });
-test('专业助手不能越过自己的工具范围，失败交回总助手',async()=>{
- let count=0,illegalExecuted=false;const model:typeof chatCompletion=async(messages,tools,delta)=>{if(String(messages[0].content).includes('你是账目核对助手'))return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'bad',type:'function',function:{name:'prepare_entries',arguments:'{}'}}]}};if(count++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'delegate',type:'function',function:{name:'delegate_reconciliation',arguments:JSON.stringify({task:'核对退款'})}}]}};assert.match(String(messages.at(-1)?.content),/不可用/);delta('核对未完成，请补充信息');return {model:'test',message:{role:'assistant',content:'核对未完成，请补充信息'}};};
- const result=await runFinanceAgent({book:'fixed',user,question:'核对',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async name=>{if(name==='prepare_entries')illegalExecuted=true;return {};});assert.equal(illegalExecuted,false);assert.equal(result.artifacts.agents?.[0].status,'error');
+const user = {
+  id: 'user',
+  name: '测试',
+  username: 'test',
+  admin: false,
+  avatar: '🧸',
+  theme: 'bear' as const,
+};
+test('非流式返回仍保存回答，工具证据只作为独立参考上下文', async () => {
+  const events: { event: string; data: unknown }[] = [];
+  const model: typeof chatCompletion = async messages => {
+    assert.match(String(messages[0].content), /Historical evidence snapshots/);
+    assert.match(String(messages[0].content), /63160/);
+    assert.equal(
+      messages.find(m => m.role === 'assistant' && m.content === '上一条回复')?.content,
+      '上一条回复',
+    );
+    return { model: 'test', message: { role: 'assistant', content: '请核对分摊卡片。' } };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'book',
+      user,
+      question: '分摊',
+      month: '2026-10',
+      history: [{ role: 'assistant', content: '上一条回复' }],
+      historyEvidence: [{ amount: 63160 }],
+      images: [],
+      signal: new AbortController().signal,
+      emit: (event, data) => events.push({ event, data }),
+    },
+    model,
+    async () => ({}),
+  );
+  assert.equal(result.text, '请核对分摊卡片。');
+  assert.ok(events.some(e => e.event === 'delta' && e.data === result.text));
 });
-test('对话沿用待确认卡片并按原ID修订，模型不持有确认工具',async()=>{
- const id='ef0fb54a-17ad-44b3-a7d2-69355522a98f';let round=0;
- const previous={id,kind:'entry' as const,bookId:'book',title:'记录账单',status:'pending' as const,data:{title:'午餐',amount:3200},missing:['钱包'],warnings:[],summary:[]};
- const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.ok(!tools.some((t:any)=>/confirm|execute_sql/.test(t.function.name)));if(round++===0){assert.ok(String(messages[0].content).includes(id));return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'edit',type:'function',function:{name:'prepare_action',arguments:JSON.stringify({actionId:id,kind:'entry',data:{amount:3000}})}}]}};}delta('已改为30元，请核对卡片后确认。');return {model:'test',message:{role:'assistant',content:'已改为30元，请核对卡片后确认。'}};};
- const result=await runFinanceAgent({book:'book',user,question:'改成30元，确认',month:'2026-09',history:[],previousActions:[previous],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args,ctx,artifacts)=>{if(name==='prepare_action'){assert.equal((args as any).actionId,id);artifacts.actions![0].data.amount=3000;return artifacts.actions![0];}return {};});
- assert.equal(result.artifacts.actions!.length,1);assert.equal(result.artifacts.actions![0].status,'pending');assert.equal(result.artifacts.actions![0].data.amount,3000);assert.equal(previous.data.amount,3200);
+test('真实工具循环先取数、执行图表工具、回灌结果再回答，固定账本范围', async () => {
+  let calls = 0;
+  const events: string[] = [];
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    assert.equal(messages[0].role, 'system');
+    if (calls++ === 0)
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            {
+              id: 'draw',
+              type: 'function',
+              function: {
+                name: 'draw_chart',
+                arguments: JSON.stringify({
+                  from: '2026-09-01',
+                  to: '2026-09-30',
+                  type: 'bar',
+                  dimension: 'category',
+                  title: '支出',
+                }),
+              },
+            },
+          ],
+        },
+      };
+    assert.equal(messages.at(-1)?.role, 'tool');
+    delta('支出共100元。');
+    return { model: 'test', message: { role: 'assistant', content: '支出共100元。' } };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'private-book',
+      user,
+      question: '画分类图',
+      month: '2026-09',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: e => events.push(e),
+    },
+    model,
+    async (name, args, ctx, artifacts) => {
+      assert.equal(ctx.book, 'private-book');
+      if (name === 'draw_chart')
+        artifacts.charts.push({
+          id: 'chart',
+          type: 'bar',
+          title: '支出',
+          from: '2026-09-01',
+          to: '2026-09-30',
+          unit: '元',
+          data: [{ name: '餐饮', value: 100 }],
+        });
+      return { amount: 10000 };
+    },
+  );
+  assert.equal(result.artifacts.charts.length, 1);
+  assert.equal(result.artifacts.tools.length, 2);
+  assert.match(result.text, /100元/);
+  assert.ok(events.includes('tool_result'));
 });
-test('助手准备账目变更并提供执行工具，执行成功后才报告写入',async()=>{
- const transactionId='00000000-0000-4000-8000-000000000001',bookId='00000000-0000-4000-8000-000000000002';let round=0,prepared=false;
- const model:typeof chatCompletion=async(messages,tools,delta)=>{assert.ok(!tools.some((t:any)=>/confirm_action|delete_transaction|update_transaction/.test(t.function.name)));assert.ok(tools.some((t:any)=>t.function.name==='prepare_transaction_change'));assert.match(String(messages[0].content),/execute_action成功/);assert.ok(tools.some((t:any)=>t.function.name==='execute_action'));if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'change',type:'function',function:{name:'prepare_transaction_change',arguments:JSON.stringify({operation:'update',bookId,transactionId,changes:{kind:'transfer'}})}}]}};delta('已准备修改卡片，请确认。');return {model:'test',message:{role:'assistant',content:'已准备修改卡片，请确认。'}};};
- await runFinanceAgent({book:bookId,user,question:'把这笔改成转账',month:'2026-09',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args)=>{if(name==='prepare_transaction_change'){prepared=true;assert.equal((args as any).transactionId,transactionId);}return {};});
- assert.equal(prepared,true);
+test('模型不能调用未提供的工具或直接写账', async () => {
+  const model: typeof chatCompletion = async () => ({
+    model: 'test',
+    message: {
+      role: 'assistant',
+      content: null,
+      tool_calls: [{ id: 'x', type: 'function', function: { name: 'execute_sql', arguments: '{}' } }],
+    },
+  });
+  await assert.rejects(
+    runFinanceAgent(
+      {
+        book: 'b',
+        user,
+        question: 'x',
+        month: '2026-09',
+        history: [],
+        images: [],
+        signal: new AbortController().signal,
+        emit: () => {},
+      },
+      model,
+      async () => ({}),
+    ),
+    /不可用/,
+  );
 });
-test('明确操作请求可连续准备并执行，保留已执行结果而非只留待确认卡',async()=>{
- const id='ef0fb54a-17ad-44b3-a7d2-69355522a98f';let round=0;
- const call=(name:string,args:any)=>({id:name,type:'function' as const,function:{name,arguments:JSON.stringify(args)}});
- const model:typeof chatCompletion=async(messages,tools,delta)=>{
-  assert.ok(tools.some((t:any)=>t.function.name==='execute_action'));
-  assert.match(String(messages[0].content),/不要强制用户再点击确认/);
-  if(round++===0)return {model:'test',message:{role:'assistant',content:null,tool_calls:[call('prepare_action',{kind:'budget',data:{month:'2026-10',category:'购物',amount:10000}})]}};
-  if(round===2)return {model:'test',message:{role:'assistant',content:null,tool_calls:[call('execute_action',{actionId:id})]}};
-  assert.match(String(messages.at(-1)?.content),/confirmed/);delta('预算已保存。');return {model:'test',message:{role:'assistant',content:'预算已保存。'}};
- };
- const result=await runFinanceAgent({book:'book',user,question:'将购物预算设为100元并保存',month:'2026-10',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async(name,args,ctx,artifacts)=>{
-  if(name==='prepare_action'){const action={id,kind:'budget' as const,bookId:'book',title:'预算',status:'pending' as const,data:{},missing:[],warnings:[],summary:[]};artifacts.actions!.push(action);return action;}
-  if(name==='execute_action'){assert.equal((args as any).actionId,id);artifacts.actions![0].status='confirmed';return {ok:true,status:'confirmed'};}
-  return {};
- });assert.equal(result.artifacts.actions![0].status,'confirmed');
+test('中断保存部分回答与工具记录，不伪装成完整报告', async () => {
+  const model: typeof chatCompletion = async (_m, _t, delta) => {
+    delta('已经查到');
+    throw new Error('中断');
+  };
+  try {
+    await runFinanceAgent(
+      {
+        book: 'b',
+        user,
+        question: 'x',
+        month: '2026-09',
+        history: [],
+        images: [],
+        signal: new AbortController().signal,
+        emit: () => {},
+      },
+      model,
+      async () => ({}),
+    );
+    assert.fail();
+  } catch (e) {
+    assert.equal((e as any).partial.text, '已经查到');
+    assert.equal((e as any).partial.artifacts.tools.length, 1);
+  }
 });
-test('多步自动操作可超过旧版六轮限制',async()=>{
- let round=0;
- const model:typeof chatCompletion=async()=>round++<8?{model:'test',message:{role:'assistant',content:null,tool_calls:[{id:'step-'+round,type:'function',function:{name:'read_system',arguments:JSON.stringify({operation:'books'})}}]}}:{model:'test',message:{role:'assistant',content:'多步完成'}};
- const result=await runFinanceAgent({book:'book',user,question:'连续处理多个操作',month:'2026-10',history:[],images:[],signal:new AbortController().signal,emit:()=>{}},model,async()=>({ok:true}));assert.equal(result.text,'多步完成');assert.equal(round,9);
+import { financeChartData } from '../src/lib/finance-chart-data';
+test('图表按整数分换算，补零空白日期与月份，负退款不会丢失', () => {
+  const data = {
+    categories: [{ name: '退款', value: -120 }],
+    daily: [{ date: '2026-09-02', income: 0, expense: -120 }],
+  };
+  assert.deepEqual(
+    financeChartData(data, 'daily_expense', '2026-09-01', '2026-09-03').map(x => x.value),
+    [0, -1.2, 0],
+  );
+  assert.deepEqual(
+    financeChartData(data, 'monthly_expense', '2026-08-01', '2026-10-31').map(x => x.value),
+    [0, -1.2, 0],
+  );
+  assert.equal(financeChartData(data, 'category', '2026-09-01', '2026-09-30')[0].value, -1.2);
+});
+test('LangGraph 总助手按需委派，专业助手独立取数后交回图表与结论', async () => {
+  const seen: string[] = [],
+    events: string[] = [];
+  let supervisor = 0,
+    specialist = 0;
+  const call = (name: string, args: any) => ({
+    id: name,
+    type: 'function',
+    function: { name, arguments: JSON.stringify(args) },
+  });
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    const isSpecialist = String(messages[0].content).includes('你是财务分析助手');
+    if (isSpecialist) {
+      assert.ok(!tools.some((t: any) => t.function.name.startsWith('delegate_')));
+      assert.ok(!tools.some((t: any) => t.function.name === 'prepare_entries'));
+      if (specialist++ === 0)
+        return {
+          model: 'configurable-model',
+          message: {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              call('draw_chart', {
+                from: '2026-09-01',
+                to: '2026-09-30',
+                type: 'bar',
+                dimension: 'category',
+                title: '支出',
+              }),
+            ],
+          },
+        };
+      delta('有工具依据的分析 [[chart:chart-1]]');
+      return {
+        model: 'configurable-model',
+        message: { role: 'assistant', content: '有工具依据的分析 [[chart:chart-1]]' },
+      };
+    }
+    if (supervisor++ === 0)
+      return {
+        model: 'configurable-model',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [call('delegate_analysis', { task: '分析本月支出并画图' })],
+        },
+      };
+    assert.match(String(messages.at(-1)?.content), /有工具依据的分析/);
+    delta('这是完整报告 [[chart:chart-1]]');
+    return {
+      model: 'configurable-model',
+      message: { role: 'assistant', content: '这是完整报告 [[chart:chart-1]]' },
+    };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'fixed-book',
+      user,
+      question: '分析本月并画图',
+      month: '2026-09',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: e => events.push(e),
+    },
+    model,
+    async (name, args, ctx, artifacts) => {
+      assert.equal(ctx.book, 'fixed-book');
+      seen.push(name);
+      if (name === 'draw_chart')
+        artifacts.charts.push({
+          id: 'chart-1',
+          type: 'bar',
+          title: '支出',
+          from: '2026-09-01',
+          to: '2026-09-30',
+          unit: '元',
+          data: [{ name: '餐饮', value: 100 }],
+        });
+      return { amount: 10000 };
+    },
+  );
+  assert.equal(result.artifacts.agents?.length, 1);
+  assert.equal(result.artifacts.agents?.[0].status, 'complete');
+  assert.equal(result.artifacts.charts.length, 1);
+  assert.ok(!result.text.includes('有工具依据的分析'));
+  assert.ok(events.includes('agent_start') && events.includes('agent_done'));
+  assert.deepEqual(seen, ['financial_summary', 'draw_chart']);
+});
+test('专业助手不能越过自己的工具范围，失败交回总助手', async () => {
+  let count = 0,
+    illegalExecuted = false;
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    if (String(messages[0].content).includes('你是账目核对助手'))
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            { id: 'bad', type: 'function', function: { name: 'prepare_entries', arguments: '{}' } },
+          ],
+        },
+      };
+    if (count++ === 0)
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            {
+              id: 'delegate',
+              type: 'function',
+              function: { name: 'delegate_reconciliation', arguments: JSON.stringify({ task: '核对退款' }) },
+            },
+          ],
+        },
+      };
+    assert.match(String(messages.at(-1)?.content), /不可用/);
+    delta('核对未完成，请补充信息');
+    return { model: 'test', message: { role: 'assistant', content: '核对未完成，请补充信息' } };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'fixed',
+      user,
+      question: '核对',
+      month: '2026-09',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: () => {},
+    },
+    model,
+    async name => {
+      if (name === 'prepare_entries') illegalExecuted = true;
+      return {};
+    },
+  );
+  assert.equal(illegalExecuted, false);
+  assert.equal(result.artifacts.agents?.[0].status, 'error');
+});
+test('对话沿用待确认卡片并按原ID修订，模型不持有确认工具', async () => {
+  const id = 'ef0fb54a-17ad-44b3-a7d2-69355522a98f';
+  let round = 0;
+  const previous = {
+    id,
+    kind: 'entry' as const,
+    bookId: 'book',
+    title: '记录账单',
+    status: 'pending' as const,
+    data: { title: '午餐', amount: 3200 },
+    missing: ['钱包'],
+    warnings: [],
+    summary: [],
+  };
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    assert.ok(!tools.some((t: any) => /confirm|execute_sql/.test(t.function.name)));
+    if (round++ === 0) {
+      assert.ok(String(messages[0].content).includes(id));
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            {
+              id: 'edit',
+              type: 'function',
+              function: {
+                name: 'prepare_action',
+                arguments: JSON.stringify({ actionId: id, kind: 'entry', data: { amount: 3000 } }),
+              },
+            },
+          ],
+        },
+      };
+    }
+    delta('已改为30元，请核对卡片后确认。');
+    return { model: 'test', message: { role: 'assistant', content: '已改为30元，请核对卡片后确认。' } };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'book',
+      user,
+      question: '改成30元，确认',
+      month: '2026-09',
+      history: [],
+      previousActions: [previous],
+      images: [],
+      signal: new AbortController().signal,
+      emit: () => {},
+    },
+    model,
+    async (name, args, ctx, artifacts) => {
+      if (name === 'prepare_action') {
+        assert.equal((args as any).actionId, id);
+        artifacts.actions![0].data.amount = 3000;
+        return artifacts.actions![0];
+      }
+      return {};
+    },
+  );
+  assert.equal(result.artifacts.actions!.length, 1);
+  assert.equal(result.artifacts.actions![0].status, 'pending');
+  assert.equal(result.artifacts.actions![0].data.amount, 3000);
+  assert.equal(previous.data.amount, 3200);
+});
+test('助手准备账目变更并提供执行工具，执行成功后才报告写入', async () => {
+  const transactionId = '00000000-0000-4000-8000-000000000001',
+    bookId = '00000000-0000-4000-8000-000000000002';
+  let round = 0,
+    prepared = false;
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    assert.ok(
+      !tools.some((t: any) => /confirm_action|delete_transaction|update_transaction/.test(t.function.name)),
+    );
+    assert.ok(tools.some((t: any) => t.function.name === 'prepare_transaction_change'));
+    assert.match(String(messages[0].content), /execute_action成功/);
+    assert.ok(tools.some((t: any) => t.function.name === 'execute_action'));
+    if (round++ === 0)
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            {
+              id: 'change',
+              type: 'function',
+              function: {
+                name: 'prepare_transaction_change',
+                arguments: JSON.stringify({
+                  operation: 'update',
+                  bookId,
+                  transactionId,
+                  changes: { kind: 'transfer' },
+                }),
+              },
+            },
+          ],
+        },
+      };
+    delta('已准备修改卡片，请确认。');
+    return { model: 'test', message: { role: 'assistant', content: '已准备修改卡片，请确认。' } };
+  };
+  await runFinanceAgent(
+    {
+      book: bookId,
+      user,
+      question: '把这笔改成转账',
+      month: '2026-09',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: () => {},
+    },
+    model,
+    async (name, args) => {
+      if (name === 'prepare_transaction_change') {
+        prepared = true;
+        assert.equal((args as any).transactionId, transactionId);
+      }
+      return {};
+    },
+  );
+  assert.equal(prepared, true);
+});
+test('明确操作请求可连续准备并执行，保留已执行结果而非只留待确认卡', async () => {
+  const id = 'ef0fb54a-17ad-44b3-a7d2-69355522a98f';
+  let round = 0;
+  const call = (name: string, args: any) => ({
+    id: name,
+    type: 'function' as const,
+    function: { name, arguments: JSON.stringify(args) },
+  });
+  const model: typeof chatCompletion = async (messages, tools, delta) => {
+    assert.ok(tools.some((t: any) => t.function.name === 'execute_action'));
+    assert.match(String(messages[0].content), /不要强制用户再点击确认/);
+    if (round++ === 0)
+      return {
+        model: 'test',
+        message: {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            call('prepare_action', {
+              kind: 'budget',
+              data: { month: '2026-10', category: '购物', amount: 10000 },
+            }),
+          ],
+        },
+      };
+    if (round === 2)
+      return {
+        model: 'test',
+        message: { role: 'assistant', content: null, tool_calls: [call('execute_action', { actionId: id })] },
+      };
+    assert.match(String(messages.at(-1)?.content), /confirmed/);
+    delta('预算已保存。');
+    return { model: 'test', message: { role: 'assistant', content: '预算已保存。' } };
+  };
+  const result = await runFinanceAgent(
+    {
+      book: 'book',
+      user,
+      question: '将购物预算设为100元并保存',
+      month: '2026-10',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: () => {},
+    },
+    model,
+    async (name, args, ctx, artifacts) => {
+      if (name === 'prepare_action') {
+        const action = {
+          id,
+          kind: 'budget' as const,
+          bookId: 'book',
+          title: '预算',
+          status: 'pending' as const,
+          data: {},
+          missing: [],
+          warnings: [],
+          summary: [],
+        };
+        artifacts.actions!.push(action);
+        return action;
+      }
+      if (name === 'execute_action') {
+        assert.equal((args as any).actionId, id);
+        artifacts.actions![0].status = 'confirmed';
+        return { ok: true, status: 'confirmed' };
+      }
+      return {};
+    },
+  );
+  assert.equal(result.artifacts.actions![0].status, 'confirmed');
+});
+test('多步自动操作可超过旧版六轮限制', async () => {
+  let round = 0;
+  const model: typeof chatCompletion = async () =>
+    round++ < 8
+      ? {
+          model: 'test',
+          message: {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: 'step-' + round,
+                type: 'function',
+                function: { name: 'read_system', arguments: JSON.stringify({ operation: 'books' }) },
+              },
+            ],
+          },
+        }
+      : { model: 'test', message: { role: 'assistant', content: '多步完成' } };
+  const result = await runFinanceAgent(
+    {
+      book: 'book',
+      user,
+      question: '连续处理多个操作',
+      month: '2026-10',
+      history: [],
+      images: [],
+      signal: new AbortController().signal,
+      emit: () => {},
+    },
+    model,
+    async () => ({ ok: true }),
+  );
+  assert.equal(result.text, '多步完成');
+  assert.equal(round, 9);
 });
