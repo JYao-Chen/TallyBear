@@ -223,6 +223,7 @@ export function LineItemsEditor({
     [error, setError] = useState(''),
     [found, setFound] = useState<Draft[]>([]),
     [photos, setPhotos] = useState<{ name: string; data: string }[]>([]);
+  const [expanded, setExpanded] = useState(!items.length);
   const [removing, setRemoving] = useState<LineItem | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
@@ -274,8 +275,11 @@ export function LineItemsEditor({
   const groups = groupedItems(items),
     goodsCategories = [
       ...new Set(items.filter(i => lineItemKind(i) === 'item').map(i => i.category || fallback)),
-    ];
-  const add = (kind: LineItem['kind']) =>
+    ],
+    settled = settlementTotals(items),
+    check = verifyItemTotal(items, total);
+  const add = (kind: LineItem['kind']) => {
+    setExpanded(true);
     onChange([
       ...items,
       {
@@ -288,6 +292,7 @@ export function LineItemsEditor({
         amount: null,
       },
     ]);
+  };
   const renderExpandedRow = (i: LineItem, n: number) => {
     const recommended = recommendedItemAmount(i);
     return (
@@ -462,6 +467,37 @@ export function LineItemsEditor({
           {items.length ? tr(' · {0}件商品', [groups.goods.length]) : tr(' · 选填')}
         </summary>
       )}
+      {items.length > 0 && (
+        <div className={styles.summaryToggle}>
+          <div className={styles.summaryMeta}>
+            <strong>
+              {tr('{0} 件商品', [groups.goods.length])}
+              {groups.adjustments.length ? tr(' · {0} 项优惠/费用', [groups.adjustments.length]) : ''}
+              {' · '}
+              {money(settled.net)}
+            </strong>
+            <small className={check.status === 'verified' ? styles.income : styles.muted}>
+              {check.status === 'verified'
+                ? tr('✓ 与实付一致')
+                : check.status === 'incomplete'
+                  ? tr('部分未填金额（{0}项）', [check.missing])
+                  : check.status === 'mismatch'
+                    ? tr('与实付相差 {0}', [money(check.difference)])
+                    : tr('实付 {0}', [money(total)])}
+            </small>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            aria-expanded={expanded}
+            onClick={() => setExpanded(v => !v)}
+          >
+            {expanded ? tr('收起明细') : tr('展开编辑明细')}
+          </Button>
+        </div>
+      )}
+      <div hidden={items.length > 0 && !expanded && !busy && !photos.length && !found.length}>
       <fieldset disabled={busy}>
         <div className={styles.mode}>
           <label>
@@ -670,6 +706,7 @@ export function LineItemsEditor({
           {removing.name || tr('新明细')}
         </ConfirmDialog>
       )}
+      </div>
     </Wrapper>
   );
 }

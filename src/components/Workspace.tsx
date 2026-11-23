@@ -256,6 +256,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
   const setHistory = (value: boolean) => intake.setValue(old => ({ ...old, history: value }));
   const setImages = photos.setValue;
   const [entryMode, setEntryMode] = useState('ai');
+  const [intakeOpen, setIntakeOpen] = useState(false);
   const [reviewFocus, setReviewFocus] = useState<{ id: string; key: number }>(),
     [incomingDrafts, setIncomingDrafts] = useState<{ book: string; items: Entry[] } | null>(null);
   function openDrafts(items: Entry[], targetBook = book) {
@@ -1341,18 +1342,63 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                   </button>
                                 </div>
                               ) : entryMode === 'ai' ? (
+                                drafts.length > 0 && !intakeOpen && !aiRunning ? (
+                                  <div className={entryStyles.compactBar}>
+                                    <div className={entryStyles.compactSummary}>
+                                      <Sparkles size={18} />
+                                      <div>
+                                        <strong>{tr('已生成 {0} 笔待核对草稿', [drafts.length])}</strong>
+                                        <small>
+                                          {text.trim()
+                                            ? text.trim().slice(0, 36)
+                                            : images.length
+                                              ? tr('含 {0} 张待识别图片', [images.length])
+                                              : tr('下方列表可逐笔核对或一键入账')}
+                                        </small>
+                                      </div>
+                                    </div>
+                                    <div className={entryStyles.row}>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => setIntakeOpen(true)}
+                                      >
+                                        {tr('继续识别 / 添加图片')}
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => router.push(pathForPage('chat'))}
+                                      >
+                                        {tr('智能对话')}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
                                 <>
                                   <div className={entryStyles.heading}>
                                     <h2>
                                       <Sparkles size={20} />
                                       {tr('快速账单识别')}
                                     </h2>
-                                    <button
-                                      className={entryStyles.link}
-                                      onClick={() => router.push(pathForPage('chat'))}
-                                    >
-                                      {tr('打开智能对话 →')}
-                                    </button>
+                                    <div className={entryStyles.row}>
+                                      {drafts.length > 0 && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setIntakeOpen(false)}
+                                        >
+                                          {tr('收起识别区')}
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => router.push(pathForPage('chat'))}
+                                      >
+                                        {tr('打开智能对话 →')}
+                                      </Button>
+                                    </div>
                                   </div>
                                   <div className={entryStyles.capture}>
                                     <TextArea
@@ -1455,6 +1501,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                     {aiRunning ? tr('正在生成…') : tr('识别并生成草稿')}
                                   </Button>
                                 </>
+                                )
                               ) : entryMode === 'manual' ? (
                                 <>
                                   <QuickEntry
@@ -1611,7 +1658,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                 }
                               />
                             )}
-                            {entryMode !== 'family' && !editing && canWrite && manual.ready && (
+                            {entryMode !== 'family' && !drafts.length && !editing && canWrite && manual.ready && (
                               <TemplatesPanel
                                 items={templateItems}
                                 current={manual.value}

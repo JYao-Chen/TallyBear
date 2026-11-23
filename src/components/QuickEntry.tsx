@@ -4,6 +4,10 @@ import { Button, Field, Input, Segmented, FilledBadge } from '@/ui';
 import { EntryInstallmentFields } from './EntryInstallmentFields';
 import { claimRequest } from './ExpenseClaims';
 import { ClaimRecipientSelect } from './ClaimRecipientSelect';
+import { PreferenceSuggestions } from './PreferenceSuggestions';
+import { MemorySuggestions } from './MemorySuggestions';
+import { changeMemorySelection, resolveMemoryField } from '@/lib/memory-fields';
+import { ReceiptOriginHint } from './ReceiptOriginHint';
 import { normalizeTransactionTime, recordingDate } from '@/lib/entry-time';
 import { manualEntryDate } from '@/lib/manual-entry-date';
 import { SceneFields } from './SceneFields';
@@ -16,6 +20,7 @@ import { TransactionPhotos } from './TransactionPhotos';
 import { VerificationConfirm } from './VerificationConfirm';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { VisualSelect } from './VisualSelect';
+import { FormSelect } from './FormSelect';
 import { CategoryPicker } from './CategoryPicker';
 import { ChevronUp, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -168,6 +173,14 @@ export function QuickEntry({
     [saved, setSaved] = useState(false),
     [walletNotice, setWalletNotice] = useState('');
   const [installment, setInstallment] = useState(seed?.installment || null);
+  const [draftAction, setDraftAction] = useState<'create' | 'skip' | 'merge'>(
+    reviewDraft?.action || 'create',
+  );
+  const [mergeId, setMergeId] = useState(reviewDraft?.mergeId || '');
+  const [mergeVersion, setMergeVersion] = useState<number | undefined>(reviewDraft?.mergeVersion);
+  const [preferenceSuggestions, setPreferenceSuggestions] = useState(reviewDraft?.preferenceSuggestions);
+  const [memorySuggestions, setMemorySuggestions] = useState(reviewDraft?.memorySuggestions);
+  const [categorySuggestion, setCategorySuggestion] = useState(reviewDraft?.categorySuggestion);
   const [openExtras, setOpenExtras] = useState<Set<string>>(() => {
     const open = new Set<string>();
     if (seed?.payee || seed?.platform || seed?.product) open.add('merchant');
@@ -180,6 +193,15 @@ export function QuickEntry({
     if (seed?.photoIds?.length) open.add('photos');
     return open;
   });
+  useEffect(() => {
+    if (!reviewDraft) return;
+    if (reviewDraft.walletMatch === 'channel')
+      setWalletNotice('已按支付渠道自动选择，请核对是否为实际扣款账户。');
+    else if (reviewDraft.walletMatch === 'funding')
+      setWalletNotice('已根据明确扣款信息自动选择。');
+    else if (!reviewDraft.accountId && (reviewDraft.walletCandidates?.length || 0) > 1)
+      setWalletNotice('找到多个符合付款信息的钱包，请选择实际扣款账户。');
+  }, [reviewDraft]);
   const [repaying, setRepaying] = useState(
     seed?.kind === 'transfer' && accounts.some(a => a.id === seed?.targetId && a.type === 'credit'),
   );
@@ -309,19 +331,35 @@ export function QuickEntry({
     setSaved(false);
     setBusy(true);
     try {
-      const cents = amountToCents(amount);
+      const cents = amount ? amountToCents(amount) : 0;
       if (
         repaying &&
+        draftAction !== 'skip' &&
+        draftAction !== 'merge' &&
         (!accounts.some(a => a.id === target && a.type === 'credit') ||
           !accounts.some(a => a.id === account && a.type !== 'credit') ||
           account === target)
       )
         throw new Error(tr('请选择付款钱包和要还款的信用账户'));
-      if (!cents) throw new Error('请输入大于0的金额');
+      if (draftAction === 'merge' && (!mergeId || !mergeVersion))
+        throw new Error(tr('请选择已有记录'));
+      if (draftAction !== 'skip' && draftAction !== 'merge' && !cents)
+        throw new Error('请输入大于0的金额');
       pendingId.current ??= initial?.id || id();
       await onSave(
         {
           ...seed,
+          ...(reviewDraft
+            ? {
+                action: draftAction,
+                mergeId: draftAction === 'merge' ? mergeId : undefined,
+                mergeVersion: draftAction === 'merge' ? mergeVersion : undefined,
+                preferenceSuggestions,
+                memorySuggestions,
+                categorySuggestion,
+                categorySource: changed.has('category') ? 'explicit' : reviewDraft.categorySource,
+              }
+            : {}),
           ...(!initial
             ? { claimRecipientId: kind === 'expense' ? claimRecipient || null : null }
             : kind === 'expense' &&
@@ -419,9 +457,162 @@ export function QuickEntry({
       else next.add(key);
       return next;
     });
+  const applyPreferenceState = (next: Draft) => {
+    setKind(next.kind);
+    setTitle(next.title || '');
+    setPayee(next.payee || '');
+    setPlatform(next.platform || '');
+    setProduct(next.product || '');
+    setNote(next.note || '');
+    setCategory(next.category || category);
+    setAccount(next.accountId || account);
+    setDestination(next.targetBook || destination);
+    if (next.scene) setScene(next.scene);
+    setPreferenceSuggestions(next.preferenceSuggestions);
+    setMemorySuggestions(next.memorySuggestions);
+    if (next.payee || next.platform || next.product) setOpenExtras(old => new Set(old).add('merchant'));
+    if (next.note) setOpenExtras(old => new Set(old).add('note'));
+    if (next.scene && JSON.stringify(next.scene) !== JSON.stringify(emptyScene()))
+      setOpenExtras(old => new Set(old).add('scene'));
+  };
+  const draftStateSnapshot: Draft = {
+    ...(reviewDraft || ({ id: pendingId.current || 'draft' } as Draft)),
+    kind,
+    title,
+    payee,
+    platform,
+    product,
+    note,
+    category,
+    accountId: account,
+    targetBook: destination,
+    scene,
+    amount: (() => {
+      try {
+        return amount ? amountToCents(amount) : 0;
+      } catch {
+        return reviewDraft?.amount || 0;
+      }
+    })(),
+    date,
+    preferenceSuggestions,
+    memorySuggestions,
+  };
   return (
     <form aria-label={tr('手动记账')} className={styles.form} onSubmit={save}>
-      <div className={styles.columns}>
+      {reviewDraft && (
+        <div className={styles.reviewBanners}>
+          {reviewDraft.status === 'unknown' && (
+            <p className={styles.attentionNotice}>
+              {tr('付款状态不明确，请确认这笔钱已实际支付或到账。')}
+            </p>
+          )}
+          {!!reviewDraft.matches?.length && (
+            <div className={styles.attentionNotice}>
+              <strong>{tr('发现可能重复的记录')}</strong>
+              {reviewDraft.matches.map(m => (
+                <p key={m.record.id}>
+                  {m.reason} · {m.record.date} {m.record.payee} {formatMoney(m.record.amount)}
+                  {m.record.version ? tr(' · 已入账') : tr(' · 本批草稿')}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className={styles.meta}>
+            <label>
+              {tr('这笔如何处理')}
+              <FormSelect
+                value={draftAction}
+                onChange={selectedValue => {
+                  const nextAction = (selectedValue || 'create') as 'create' | 'skip' | 'merge';
+                  setDraftAction(nextAction);
+                  if (nextAction === 'merge') setDestination(book);
+                }}
+              >
+                <option value="create">{tr('新增一笔（确认是独立交易）')}</option>
+                <option value="skip">{tr('跳过，不入账')}</option>
+                {reviewDraft.matches?.some(m => m.record.version) && (
+                  <option value="merge">{tr('只补充已有记录的信息')}</option>
+                )}
+              </FormSelect>
+            </label>
+            {draftAction === 'merge' && (
+              <label>
+                {tr('补充到哪笔')}
+                <FormSelect
+                  value={mergeId}
+                  onChange={selectedValue => {
+                    const r = reviewDraft.matches?.find(m => m.record.id === selectedValue)?.record;
+                    setMergeId(r?.id || '');
+                    setMergeVersion(r?.version);
+                  }}
+                >
+                  <option value="">{tr('请选择已有记录')}</option>
+                  {reviewDraft.matches
+                    ?.filter(m => m.record.version)
+                    .map(m => (
+                      <option key={m.record.id} value={m.record.id}>
+                        {m.record.date} {m.record.payee} {formatMoney(m.record.amount)}
+                      </option>
+                    ))}
+                </FormSelect>
+              </label>
+            )}
+          </div>
+          <ReceiptOriginHint origin={reviewDraft.receiptOrigin} />
+          <PreferenceSuggestions value={draftStateSnapshot} onChange={applyPreferenceState} disabled={busy} />
+          <MemorySuggestions
+            suggestions={memorySuggestions}
+            name={product || title || ''}
+            disabled={busy}
+            onChange={(next, resolution) => {
+              const filled = resolution
+                ? resolveMemoryField(
+                    draftStateSnapshot,
+                    next,
+                    resolution.id,
+                    resolution.itemId,
+                    resolution.field,
+                    resolution.useMemory,
+                  )
+                : changeMemorySelection(draftStateSnapshot, memorySuggestions || [], next);
+              applyPreferenceState({ ...filled.value, memorySuggestions: filled.suggestions });
+            }}
+          />
+          {categorySuggestion && (
+            <p aria-live="polite" className={styles.notice}>
+              <strong>
+                {tr(category !== categorySuggestion.category ? '已采用你的修正' : '个人分类习惯')}
+              </strong>
+              <span>
+                {tr(
+                  (
+                    {
+                      template: '常用一笔',
+                      route: '相同路线',
+                      merchant_context: '相同商家与商品',
+                      merchant: '相同商家',
+                      context: '相似商品',
+                    } as Record<string, string>
+                  )[categorySuggestion.basis],
+                )}{' '}
+                · {tr('匹配度')} {Math.round(categorySuggestion.confidence * 100)}% ·{' '}
+                {categorySuggestion.evidenceCount}
+                {tr('条个人记录')}
+              </span>
+              <small>
+                {tr(
+                  category !== categorySuggestion.category
+                    ? '保存后会优先学习这次修正。'
+                    : '这是预选建议，保存前仍可修改。',
+                )}
+              </small>
+            </p>
+          )}
+        </div>
+      )}
+      {draftAction === 'skip' || draftAction === 'merge' ? null : (
+        <div className={styles.columns}>
         <div className={styles.core}>
           <Segmented
             className={styles.types}
@@ -484,7 +675,7 @@ export function QuickEntry({
               <Input
                 aria-label={tr('金额（元）')}
                 inputMode="decimal"
-                placeholder="0.00"
+                placeholder={reviewDraft ? tr('请补充金额') : '0.00'}
                 value={amount}
                 required
                 disabled={busy}
@@ -956,8 +1147,29 @@ export function QuickEntry({
                 )}
               </section>
             ))}
+          </div>
         </div>
-      </div>
+      )}
+      {!openExtras.has('items') && !!attachmentIds.length && (
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={retainReceipts}
+            onChange={e => setRetainReceipts(e.target.checked)}
+          />
+          {tr('保存本次上传的图片凭证（')}
+          {attachmentIds.length}
+          {tr('张）')}
+        </label>
+      )}
+      {!openExtras.has('items') && (
+        <VerificationConfirm
+          items={lineItems}
+          total={Number(amount) ? Math.round(Number(amount) * 100) : 0}
+          value={verificationReason}
+          onChange={setVerificationReason}
+        />
+      )}
       {error && (
         <p className={styles.error} role="alert">
           {tr(error)}

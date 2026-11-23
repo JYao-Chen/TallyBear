@@ -1,7 +1,6 @@
 .review,
 .card,
-.attention,
-.receipt {
+.attention {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -13,9 +12,10 @@
   gap: var(--space-4);
 }
 .head,
-.rowActions,
 .filters,
-.check {
+.badges,
+.rowActions,
+.incompleteTip {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -28,114 +28,116 @@
   font-size: var(--text-lg);
   margin: 0;
 }
-.filters button,
-.secondary,
-.link,
-.saveBar button {
-  min-height: var(--touch);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  color: var(--accent);
+.muted {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
 }
-.filters button[aria-pressed='true'] {
+.filterChip {
+  font-weight: 500;
+}
+.filterActive {
   background: var(--accent-soft);
   border-color: var(--accent);
+  color: var(--accent);
 }
-.workspace,
-.list,
-.grid {
+.list {
   display: grid;
   gap: var(--space-3);
   min-width: 0;
 }
-.grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+.card,
+.attention {
+  display: grid;
+  gap: var(--space-3);
 }
-.grid > * {
-  min-width: 0;
-}
-.grid :is(details, p) {
-  grid-column: 1/-1;
+.attention {
+  border-color: var(--attention);
+  background: color-mix(in srgb, var(--attention-soft) 55%, var(--surface));
 }
 .draft {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   width: 100%;
   min-height: var(--touch);
   text-align: start;
   color: var(--ink);
   border: 0;
+  border-radius: var(--radius-control);
   background: transparent;
-  padding: 0;
+  padding: var(--space-1);
+  cursor: pointer;
 }
-.draft span {
+.draft:hover {
+  background: var(--surface-sunk);
+}
+.leading {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.summaryBody {
+  flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 2px;
   overflow-wrap: anywhere;
 }
-.draft small,
-.muted {
-  display: block;
+.summaryBody small {
   color: var(--muted);
+  font-size: var(--text-xs);
+}
+.amountCol {
+  flex: none;
+  text-align: end;
+}
+.missingAmount {
+  color: var(--attention);
   font-size: var(--text-sm);
+  font-weight: 600;
 }
-.attention,
-.notice {
-  border-color: var(--attention);
-  background: var(--attention-soft);
-}
-.card,
-.attention {
-  display: grid;
-  gap: var(--space-2);
-}
-.notice,
-.details,
-.section {
-  padding: var(--space-3);
-  border-radius: var(--radius-control);
-}
-.link {
-  border: 0;
-}
-.receipt fieldset {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-.section {
-  border-top: 1px solid var(--line);
+.badges {
+  gap: var(--space-1);
 }
 .rowActions {
   justify-content: flex-end;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
 }
-.saveBar > button {
-  background: var(--accent);
-  color: var(--accent-ink);
+.saveBar {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
 }
-.provenance {
-  margin-inline-start: var(--space-1);
-  display: inline-flex;
-  width: fit-content;
+.incompleteTip {
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--attention-soft);
+  font-size: var(--text-sm);
 }
-.draft:hover,
-.filters button:hover,
-.link:hover {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.card:has(.draft[aria-pressed='true']),
-.attention:has(.draft[aria-pressed='true']) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.productSummary {
-  field-sizing: content;
-  min-height: var(--touch);
+@media (max-width: 640px) {
+  .review,
+  .card,
+  .attention {
+    padding: var(--space-3);
+  }
+  .rowActions {
+    justify-content: stretch;
+  }
+  .rowActions > button {
+    flex: 1 1 auto;
+  }
+  .saveBar {
+    position: sticky;
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-bottom));
+    z-index: 5;
+    margin-inline: calc(-1 * var(--space-3));
+    padding: var(--space-3);
+    border-radius: var(--radius-control) var(--radius-control) 0 0;
+    box-shadow: var(--shadow-raised);
+  }
 }

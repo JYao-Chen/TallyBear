@@ -194,9 +194,29 @@
   display: grid;
   gap: var(--space-3);
 }
-.editorBare > fieldset {
+.editorBare > fieldset,
+.editorBare > div > fieldset {
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
+}
+.summaryToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunk);
+}
+.summaryMeta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.summaryMeta small {
+  font-size: var(--text-xs);
 }

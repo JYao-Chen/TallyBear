@@ -1,37 +1,20 @@
 'use client';
 import styles from './DraftReview.module.css';
-import { Button, ConfirmDialog, Money, FilledBadge, Sheet } from '@/ui';
+import { Button, Chip, ConfirmDialog, Money, Sheet } from '@/ui';
 import { QuickEntry } from './QuickEntry';
 import { missingEntryFields } from '@/lib/missing-entry-fields';
-import { EntryInstallmentFields } from './EntryInstallmentFields';
 import { PagedList } from './PagedList';
 import { verifyItemTotal } from '@/lib/line-items';
-import { ClaimRecipientSelect } from './ClaimRecipientSelect';
-import { PreferenceSuggestions } from './PreferenceSuggestions';
-import { normalizeTransactionTime } from '@/lib/entry-time';
-import { changeMemorySelection, resolveMemoryField } from '@/lib/memory-fields';
-import { MemorySuggestions } from './MemorySuggestions';
-import { ReceiptOriginHint } from './ReceiptOriginHint';
-import { SceneFields } from './SceneFields';
 import type { EntryScene } from '@/lib/entry-scene';
 import type { ManagedBook } from './ManagementPages';
-import { ActivitySelect } from './ActivitySelect';
-import { DateField } from './DateField';
-import { deployment, formatMoney, currencySymbol } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
-import { FormSelect } from './FormSelect';
-
-import { TransactionPhotos } from './TransactionPhotos';
-import { VerificationConfirm } from './VerificationConfirm';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
-import { LineItemsEditor } from './LineItems';
 import type { LineItem } from '@/lib/line-items';
 import { useContext, useEffect, useRef, useState } from 'react';
-import { VisualSelect, CategoryIcons } from './VisualSelect';
-import { purchaseDefaults, purchaseFromRow } from '@/lib/purchase-memory';
-import { RefundPicker } from './RefundPicker';
-import { amountToCents } from '@/server/model';
+import { CategoryIcon, CategoryIcons } from './VisualSelect';
 import type { CategorySuggestion } from '@/lib/category-learning';
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
+
 export type Draft = {
   installment?: import('@/lib/entry-installment').EntryInstallment | null;
   claimRecipientId?: string | null;
@@ -84,6 +67,7 @@ export type Original = {
   product?: string;
   version?: number;
 };
+
 export function DraftReview({
   book,
   books,
@@ -111,30 +95,26 @@ export function DraftReview({
   onReview: () => void;
   onSave: () => void;
 }) {
-  const { t: tr, locale } = useI18n();
-  const [uploading, setUploading] = useState(0),
-    [selected, setSelected] = useState(''),
-    [filter, setFilter] = useState('all');
+  const { t: tr } = useI18n();
+  const [filter, setFilter] = useState('all');
   const root = useRef<HTMLElement>(null);
+  const categories = useContext(CategoryIcons);
+  const [editingId, setEditingId] = useState('');
+  const [removing, setRemoving] = useState('');
+  const [changed, setChanged] = useState<Record<string, (keyof Draft)[]>>({});
+
   useEffect(() => {
     if (!focusRequest || !drafts.some(d => d.id === focusRequest.id)) return;
     setFilter('all');
-    setSelected(focusRequest.id);
+    setEditingId(focusRequest.id);
     const frame = requestAnimationFrame(() =>
       root.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [focusRequest]);
-  const categories = useContext(CategoryIcons);
-  const [editing, setEditing] = useState<Draft | null>(null);
-  const [removing, setRemoving] = useState('');
-  const [changed, setChanged] = useState<Record<string, (keyof Draft)[]>>({});
-  const fieldBadge = (d: Draft, key: keyof Draft) =>
-    !d.source?.startsWith('CSV') && (changed[d.id]?.includes(key) || d[key]) ? (
-      <span className={styles.provenance}>
-        <FilledBadge>{changed[d.id]?.includes(key) ? tr('已修改') : undefined}</FilledBadge>
-      </span>
-    ) : null;
+  }, [focusRequest, drafts]);
+
+  const editing = drafts.find(d => d.id === editingId) || null;
+
   const change = (id: string, patch: Partial<Draft>) => {
     const original = drafts.find(d => d.id === id);
     const keys = (Object.keys(patch) as (keyof Draft)[]).filter(key => patch[key] !== original?.[key]);
@@ -149,14 +129,15 @@ export function DraftReview({
       }),
     );
   };
+
   const missing = (d: Draft) => missingEntryFields(d, accounts);
   const incomplete = drafts.filter(d => missing(d).length);
-  const money = (n: number) => formatMoney(n);
   const needs = (d: Draft) =>
     incomplete.some(v => v.id === d.id) ||
     !!d.matches?.length ||
     d.status === 'unknown' ||
     ['mismatch', 'incomplete'].includes(verifyItemTotal(d.lineItems || [], d.amount).status);
+
   const filtered = drafts.filter(
     d =>
       filter === 'all' ||
@@ -164,96 +145,164 @@ export function DraftReview({
       (filter === 'ready' && d.action !== 'skip' && !needs(d)) ||
       (filter === 'skip' && d.action === 'skip'),
   );
-  const current = drafts.find(d => d.id === selected);
+
+  const accountName = (id: string) => {
+    const acc = accounts.find(a => a.id === id);
+    return acc ? accountLabel(acc) : '';
+  };
+
+  const targetBookName = (id?: string) => {
+    const found = books.find(b => b.id === (id || book));
+    return found ? found.name : '';
+  };
 
   return (
     <section aria-label={tr('核对草稿')} ref={root} className={styles.review}>
       <div className={styles.head}>
         <div>
           <h2>{tr('核对小票 · {0} 笔', [drafts.length])}</h2>
-          <></>
+          <p className={styles.muted}>{tr('点击任意草稿打开核对弹窗，确认无误后整批或单笔入账。')}</p>
         </div>
-        <button className={styles.secondary} disabled={busy || uploading > 0} onClick={onReview}>
+        <Button variant="secondary" disabled={busy} onClick={onReview}>
+          <RotateCcw size={16} aria-hidden="true" />
           {tr('重新检查重复')}
-        </button>
+        </Button>
       </div>
+
       <div className={styles.filters} role="group" aria-label={tr('草稿状态')}>
         {[
           ['all', '全部'],
           ['needs', '待核对'],
           ['ready', '可保存'],
           ['skip', '已跳过'],
-        ].map(([key, label]) => (
-          <button
-            type="button"
-            key={key}
-            disabled={busy || uploading > 0}
-            aria-pressed={filter === key}
-            onClick={() => {
-              setFilter(key);
-              setSelected('');
-            }}
-          >
-            {tr(label)} ·{' '}
-            {
-              drafts.filter(
-                d =>
-                  key === 'all' ||
-                  (key === 'needs' && d.action !== 'skip' && needs(d)) ||
-                  (key === 'ready' && d.action !== 'skip' && !needs(d)) ||
-                  (key === 'skip' && d.action === 'skip'),
-              ).length
-            }
-          </button>
-        ))}
+        ].map(([key, label]) => {
+          const count = drafts.filter(
+            d =>
+              key === 'all' ||
+              (key === 'needs' && d.action !== 'skip' && needs(d)) ||
+              (key === 'ready' && d.action !== 'skip' && !needs(d)) ||
+              (key === 'skip' && d.action === 'skip'),
+          ).length;
+          return (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              key={key}
+              disabled={busy}
+              aria-pressed={filter === key}
+              className={filter === key ? styles.filterActive : styles.filterChip}
+              onClick={() => setFilter(key)}
+            >
+              {tr(label)} · {count}
+            </Button>
+          );
+        })}
       </div>
-      <div className={styles.workspace}>
-        <div className={styles.list}>
-          <PagedList items={filtered} pageSize={8} resetKey={filter}>
-            {d => (
-              <article className={missing(d).length ? styles.attention : styles.card}>
+
+      <div className={styles.list}>
+        <PagedList items={filtered} pageSize={8} resetKey={filter}>
+          {d => {
+            const miss = missing(d);
+            const itemCount = d.lineItems?.length || 0;
+            const acc = accountName(d.accountId);
+            const bName = targetBookName(d.targetBook);
+            const statusTone = d.action === 'skip' ? 'neutral' : needs(d) ? 'attention' : 'income';
+            const statusText =
+              d.action === 'skip'
+                ? tr('已跳过')
+                : d.action === 'merge'
+                  ? tr('补充已有记录')
+                  : needs(d)
+                    ? tr('待核对')
+                    : tr('可保存');
+            return (
+              <article className={miss.length ? styles.attention : styles.card}>
                 <button
                   type="button"
                   className={styles.draft}
-                  aria-pressed={selected === d.id}
-                  disabled={busy || uploading > 0}
-                  onClick={() => setSelected(d.id)}
+                  disabled={busy}
+                  aria-label={tr('核对草稿：{0}', [d.title || d.payee || tr('待补充的小记录')])}
+                  onClick={() => setEditingId(d.id)}
                 >
-                  <span>
-                    <strong>{d.title || d.payee || tr('待补充的小记录')}</strong>
+                  <span className={styles.leading}>
+                    <CategoryIcon name={d.category} size={24} />
+                  </span>
+                  <span className={styles.summaryBody}>
+                    <strong>{d.title || d.payee || d.product || tr('待补充的小记录')}</strong>
                     <small>
-                      {d.date} · {tr(d.action === 'skip' ? '已跳过' : needs(d) ? '待核对' : '可保存')}
+                      {[d.date, d.category, acc, bName && d.targetBook && d.targetBook !== book ? bName : '']
+                        .filter(Boolean)
+                        .join(' · ')}
                     </small>
                   </span>
-                  {d.amount ? (
-                    <Money
-                      value={d.amount}
-                      tone={d.kind === 'expense' ? 'expense' : d.kind === 'transfer' ? 'plain' : 'income'}
-                    />
-                  ) : (
-                    <span>{tr('待补金额')}</span>
-                  )}
+                  <span className={styles.amountCol}>
+                    {d.amount ? (
+                      <Money
+                        value={d.amount}
+                        tone={d.kind === 'expense' ? 'expense' : d.kind === 'transfer' ? 'plain' : 'income'}
+                      />
+                    ) : (
+                      <span className={styles.missingAmount}>{tr('待补金额')}</span>
+                    )}
+                  </span>
                 </button>
-                {!!missing(d).length && (
-                  <small>
-                    {tr('待补充')} ·{' '}
-                    {missing(d)
-                      .map(k => tr(k))
-                      .join(' · ')}
-                  </small>
-                )}
-                <div className={styles.rowActions}>
-                  {(!d.action || d.action === 'create') && (
-                    <Button disabled={busy || uploading > 0} onClick={() => setEditing(d)}>
-                      {tr('修改')}
-                    </Button>
+
+                <div className={styles.badges}>
+                  <Chip tone={statusTone}>{statusText}</Chip>
+                  {d.status === 'unknown' && <Chip tone="attention">{tr('待确认付款状态')}</Chip>}
+                  {!!d.matches?.length && (
+                    <Chip tone="attention">{tr('疑似重复 {0}', [d.matches.length])}</Chip>
                   )}
+                  {itemCount > 0 && <Chip>{tr('{0} 项明细', [itemCount])}</Chip>}
+                  {miss.map(k => (
+                    <Chip key={k} tone="attention">
+                      {tr('缺：{0}', [tr(k)])}
+                    </Chip>
+                  ))}
+                </div>
+
+                <div className={styles.rowActions}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => setEditingId(d.id)}
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                    {tr('核对 / 修改')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      change(d.id, { action: d.action === 'skip' ? 'create' : 'skip' })
+                    }
+                  >
+                    {d.action === 'skip' ? tr('恢复记账') : tr('跳过')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    aria-label={tr('移除草稿')}
+                    onClick={() => setRemoving(d.id)}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                    {tr('移除')}
+                  </Button>
                   {onSaveOne && d.action !== 'skip' && (
                     <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
                       disabled={
                         busy ||
-                        uploading > 0 ||
-                        !!missing(d).length ||
+                        !!miss.length ||
                         !!drafts.find(other => other.id === d.refundOf && other.action !== 'skip')
                       }
                       onClick={() => onSaveOne(d)}
@@ -263,469 +312,19 @@ export function DraftReview({
                   )}
                 </div>
               </article>
-            )}
-          </PagedList>
-          {!filtered.length && <p className={styles.muted}>{tr('当前状态没有草稿')}</p>}
-        </div>
-        <div className={styles.editor}>
-          {current ? (
-            <button
-              type="button"
-              className={styles.link}
-              disabled={busy || uploading > 0}
-              onClick={() => setSelected('')}
-            >
-              {tr('← 返回草稿列表')}
-            </button>
-          ) : (
-            !incomplete.length && <p className={styles.muted}>{tr('选择一笔草稿，核对或补充完整信息')}</p>
-          )}
-          {(current ? [current] : []).map(d => {
-            const i = drafts.findIndex(r => r.id === d.id);
-            return (
-              <article className={styles.receipt} key={d.id} id={'draft-' + d.id}>
-                <fieldset disabled={busy || uploading > 0}>
-                  <div className={styles.head}>
-                    <strong>
-                      {i + 1}. {d.title || d.payee || d.product || tr('待补充的小记录')}
-                    </strong>
-                    <span className={styles.muted}>
-                      {d.source || tr('手动 / 账单')}
-                      {d.platform ? ' · ' + d.platform : ''}
-                    </span>
-                  </div>
-                  {d.status === 'unknown' && (
-                    <p className={styles.notice}>{tr('付款状态不明确，请确认这笔钱已实际支付或到账。')}</p>
-                  )}
-                  {!!d.matches?.length && (
-                    <div className={styles.notice}>
-                      <strong>{tr('发现可能重复的记录')}</strong>
-                      {d.matches.map(m => (
-                        <p key={m.record.id}>
-                          {m.reason} · {m.record.date} {m.record.payee} {money(m.record.amount)}
-                          {m.record.version ? tr(' · 已入账') : tr(' · 本批草稿')}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <section className={styles.section}>
-                    <h3>{tr('账单归属与场景')}</h3>
-                    <div className={styles.grid}>
-                      <label>
-                        {tr('记入账本')}
-                        <VisualSelect
-                          value={d.targetBook || book}
-                          label={tr('记入账本')}
-                          disabled={d.action === 'merge'}
-                          onChange={v => change(d.id, { targetBook: v, refundOf: null })}
-                          options={books
-                            .filter(b => b.role !== 'viewer')
-                            .map(b => ({ value: b.id, label: b.name, icon: b.icon }))}
-                        />
-                      </label>
-                      {d.kind === 'expense' && d.action !== 'merge' && (
-                        <ClaimRecipientSelect
-                          familyId={accounts.find(a => a.id === d.accountId)?.family_id}
-                          value={d.claimRecipientId || ''}
-                          onChange={v => change(d.id, { claimRecipientId: v || null })}
-                          disabled={busy || d.action === 'skip'}
-                        />
-                      )}
-                      <ActivitySelect
-                        value={d.activityId || ''}
-                        onChange={v => change(d.id, { activityId: v || null })}
-                        disabled={d.action === 'skip'}
-                      />
-                      {d.targetBook && d.targetBook !== book && d.refundOf && (
-                        <p className={styles.muted}>{tr('退款记入原单所在账本，原消费不移动。')}</p>
-                      )}
-                      <details className={styles.details}>
-                        <summary>{tr('消费场景与时间')}</summary>
-                        <SceneFields
-                          value={d.scene}
-                          onChange={(scene, title) => change(d.id, { scene, ...(title ? { title } : {}) })}
-                        />
-                        <label>
-                          {tr('交易时间（选填）')}
-                          <input
-                            type="time"
-                            step="1"
-                            value={normalizeTransactionTime(d.occurredAt)}
-                            onChange={e => change(d.id, { occurredAt: e.target.value })}
-                          />
-                        </label>
-                      </details>
-                      <label>
-                        {tr('账目标题')}
-                        {fieldBadge(d, 'title')}
-                        <input
-                          aria-label={tr('账目标题')}
-                          value={d.title || ''}
-                          maxLength={80}
-                          placeholder={d.payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
-                          onChange={e => change(d.id, { title: e.target.value })}
-                        />
-                      </label>
-                    </div>
-                  </section>
-                  <section className={styles.section}>
-                    <h3>{tr('交易信息')}</h3>
-                    <div className={styles.grid}>
-                      <label>
-                        {tr('这笔如何处理')}
-                        <FormSelect
-                          value={d.action || 'create'}
-                          onChange={selectedValue =>
-                            change(d.id, {
-                              action: selectedValue as Draft['action'],
-                              ...(selectedValue === 'merge' ? { targetBook: book } : {}),
-                            })
-                          }
-                        >
-                          <option value="create">{tr('新增一笔（确认是独立交易）')}</option>
-                          <option value="skip">{tr('跳过，不入账')}</option>
-                          {d.matches?.some(m => m.record.version) && (
-                            <option value="merge">{tr('只补充已有记录的信息')}</option>
-                          )}
-                        </FormSelect>
-                      </label>
-                      {d.action === 'merge' && (
-                        <label>
-                          {tr('补充到哪笔')}
-                          <FormSelect
-                            value={d.mergeId || ''}
-                            onChange={selectedValue => {
-                              const r = d.matches?.find(m => m.record.id === selectedValue)?.record;
-                              change(d.id, { mergeId: r?.id, mergeVersion: r?.version });
-                            }}
-                          >
-                            <option value="">{tr('请选择已有记录')}</option>
-                            {d.matches
-                              ?.filter(m => m.record.version)
-                              .map(m => (
-                                <option key={m.record.id} value={m.record.id}>
-                                  {m.record.date} {m.record.payee} {money(m.record.amount)}
-                                </option>
-                              ))}
-                          </FormSelect>
-                        </label>
-                      )}
-                      <ReceiptOriginHint origin={d.receiptOrigin} />
-                      <label>
-                        {tr('类型')}
-                        {fieldBadge(d, 'kind')}
-                        <FormSelect
-                          value={d.kind}
-                          onChange={selectedValue =>
-                            change(d.id, { kind: selectedValue as Draft['kind'], refundOf: null })
-                          }
-                        >
-                          <option value="expense">{tr('消费支出')}</option>
-                          <option value="income">{tr('收入')}</option>
-                          <option value="refund">{tr('退款到账')}</option>
-                          <option value="transfer">{tr('账户转账')}</option>
-                        </FormSelect>
-                      </label>
-                      <label>
-                        {tr('金额（元）')}
-                        {fieldBadge(d, 'amount')}
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          value={d.amount ? d.amount / 100 : ''}
-                          placeholder={tr('请补充金额')}
-                          onChange={e => {
-                            try {
-                              change(d.id, { amount: e.target.value ? amountToCents(e.target.value) : 0 });
-                            } catch {}
-                          }}
-                        />
-                      </label>
-                      <label>
-                        {d.kind === 'refund' ? tr('退款到账日') : tr('支付 / 交易日期')}
-                        {fieldBadge(d, 'date')}
-                        <DateField
-                          type="date"
-                          value={d.date}
-                          onChange={value => change(d.id, { date: value })}
-                        />
-                      </label>
-                      <label>
-                        {tr('资金账户')}
-                        {fieldBadge(d, 'accountId')}
-                        <VisualSelect
-                          label={tr('请选择实际收付款账户')}
-                          value={d.accountId}
-                          onChange={v => change(d.id, { accountId: v, walletMatch: undefined })}
-                          options={accounts.map(a => ({
-                            value: a.id,
-                            label:
-                              accountLabel(a) +
-                              (d.walletCandidates?.includes(a.id) ? tr(' · 符合付款信息') : ''),
-                            account: true,
-                            accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-                          }))}
-                        />
-                      </label>
-                      <label>
-                        {tr('分类')}
-                        {fieldBadge(d, 'category')}
-                        <VisualSelect
-                          value={d.category}
-                          onChange={v => change(d.id, { category: v, categorySource: 'explicit' })}
-                          options={Array.from(new Set([d.category, ...categories.map(c => c.name)])).map(
-                            name => ({ value: name, label: name }),
-                          )}
-                        />
-                      </label>
-                      {d.categorySuggestion && (
-                        <p aria-live="polite" className={styles.notice}>
-                          <strong>
-                            {tr(
-                              d.category !== d.categorySuggestion.category
-                                ? '已采用你的修正'
-                                : '个人分类习惯',
-                            )}
-                          </strong>
-                          <span>
-                            {tr(
-                              (
-                                {
-                                  template: '常用一笔',
-                                  route: '相同路线',
-                                  merchant_context: '相同商家与商品',
-                                  merchant: '相同商家',
-                                  context: '相似商品',
-                                } as Record<string, string>
-                              )[d.categorySuggestion.basis],
-                            )}{' '}
-                            · {tr('匹配度')} {Math.round(d.categorySuggestion.confidence * 100)}% ·{' '}
-                            {d.categorySuggestion.evidenceCount}
-                            {tr('条个人记录')}
-                          </span>
-                          <small>
-                            {tr(
-                              d.category !== d.categorySuggestion.category
-                                ? '保存后会优先学习这次修正。'
-                                : '这是预选建议，保存前仍可修改。',
-                            )}
-                          </small>
-                        </p>
-                      )}
-                      <details className={styles.details}>
-                        <summary>{tr('商家、商品与订单详情')}</summary>
-                        <div className={styles.grid}>
-                          <label>
-                            {tr('交易对方')}
-                            {fieldBadge(d, 'payee')}
-                            <input
-                              value={d.payee}
-                              maxLength={120}
-                              onChange={e => change(d.id, { payee: e.target.value })}
-                            />
-                          </label>
-                          <label>
-                            {tr('商品摘要')}
-                            {fieldBadge(d, 'product')}
-                            <textarea
-                              className={styles.productSummary}
-                              rows={2}
-                              value={d.product || ''}
-                              maxLength={160}
-                              placeholder={tr('例如：洗衣液 2kg × 2瓶')}
-                              onChange={e => change(d.id, { product: e.target.value })}
-                            />
-                          </label>
-                          <label>
-                            {tr('商城 / 平台')}
-                            {fieldBadge(d, 'platform')}
-                            <input
-                              value={d.platform || ''}
-                              maxLength={40}
-                              onChange={e => change(d.id, { platform: e.target.value })}
-                            />
-                          </label>
-                          <label>
-                            {tr('订单号')}
-                            {fieldBadge(d, 'orderId')}
-                            <input
-                              value={d.orderId || ''}
-                              maxLength={200}
-                              onChange={e => change(d.id, { orderId: e.target.value })}
-                            />
-                          </label>
-                          <label>
-                            {tr('交易 / 退款流水号')}
-                            {fieldBadge(d, 'externalId')}
-                            <input
-                              value={d.externalId || ''}
-                              maxLength={200}
-                              onChange={e => change(d.id, { externalId: e.target.value })}
-                            />
-                          </label>
-                          <label>
-                            {tr('备注')}
-                            {fieldBadge(d, 'note')}
-                            <textarea
-                              rows={3}
-                              value={d.note}
-                              maxLength={2000}
-                              onChange={e => change(d.id, { note: e.target.value })}
-                            />
-                          </label>
-                        </div>
-                      </details>
-                      {d.kind === 'refund' && (
-                        <RefundPicker
-                          book={d.targetBook || book}
-                          books={books}
-                          value={d.refundOf || ''}
-                          onChange={id => change(d.id, { refundOf: id || null })}
-                          onSelect={row =>
-                            change(d.id, {
-                              ...purchaseDefaults(purchaseFromRow(row.detail), true),
-                              refundOf: row.id,
-                              targetBook: row.book_id,
-                              orderId: row.detail.order_id || '',
-                              accountId: accounts.some(a => a.id === row.detail.account_id)
-                                ? row.detail.account_id
-                                : d.accountId,
-                            })
-                          }
-                          amount={d.amount}
-                          onAmountChange={amount => change(d.id, { amount })}
-                          exclude={d.id}
-                          local={drafts.filter(
-                            r =>
-                              r.kind === 'expense' &&
-                              r.action !== 'skip' &&
-                              (r.targetBook || book) === (d.targetBook || book),
-                          )}
-                        />
-                      )}
-                      <PreferenceSuggestions value={d} onChange={next => change(d.id, next)} />
-                      <MemorySuggestions
-                        suggestions={d.memorySuggestions}
-                        name={d.product || d.title || ''}
-                        onChange={(next, resolution) => {
-                          const filled = resolution
-                            ? resolveMemoryField(
-                                d,
-                                next,
-                                resolution.id,
-                                resolution.itemId,
-                                resolution.field,
-                                resolution.useMemory,
-                              )
-                            : changeMemorySelection(d, d.memorySuggestions || [], next);
-                          change(d.id, { ...filled.value, memorySuggestions: filled.suggestions });
-                        }}
-                      />
-                      {d.scene?.purchaseGroup && (
-                        <p className={styles.muted}>
-                          {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
-                          <button
-                            type="button"
-                            className={styles.link}
-                            onClick={() => change(d.id, { scene: { ...d.scene!, purchaseGroup: undefined } })}
-                          >
-                            {tr('取消同款关联')}
-                          </button>
-                        </p>
-                      )}
-                      {d.kind === 'transfer' && (
-                        <label>
-                          {tr('转入账户')}
-                          <VisualSelect
-                            value={d.targetId || ''}
-                            onChange={v => change(d.id, { targetId: v })}
-                            options={accounts
-                              .filter(a => a.id !== d.accountId)
-                              .map(a => ({
-                                value: a.id,
-                                label: accountLabel(a),
-                                account: true,
-                                accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-                              }))}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </section>
-                  {d.accountId && d.walletMatch === 'channel' && (
-                    <small className={styles.notice} role="status">
-                      {tr('已按支付渠道自动选择，请核对是否为实际扣款账户。')}
-                    </small>
-                  )}
-                  {d.accountId && d.walletMatch === 'funding' && (
-                    <small className={styles.notice} role="status">
-                      {tr('已根据明确扣款信息自动选择。')}
-                    </small>
-                  )}
-                  {!d.accountId && (d.walletCandidates?.length || 0) > 1 && (
-                    <small className={styles.notice} role="status">
-                      {tr('找到多个符合付款信息的钱包，请选择实际扣款账户。')}
-                    </small>
-                  )}
-                  {d.kind === 'refund' && <></>}
-                  {d.kind === 'expense' && (
-                    <EntryInstallmentFields
-                      value={d.installment}
-                      onChange={installment => change(d.id, { installment })}
-                      credit={accounts.some(a => a.id === d.accountId && a.type === 'credit')}
-                    />
-                  )}
-                  {d.kind !== 'transfer' && (
-                    <LineItemsEditor
-                      category={d.category}
-                      categories={categories}
-                      items={d.lineItems || []}
-                      onChange={items => change(d.id, { lineItems: items })}
-                      total={d.amount}
-                      onTotal={amount => change(d.id, { amount })}
-                    />
-                  )}
-                  {!!d.attachmentIds?.length && (
-                    <label className={styles.check}>
-                      <input
-                        type="checkbox"
-                        checked={!!d.retainReceipts}
-                        onChange={e => change(d.id, { retainReceipts: e.target.checked })}
-                      />
-                      {tr('保存图片凭证（')}
-                      {d.attachmentIds.length}
-                      {tr('张）')}
-                    </label>
-                  )}
-                  <TransactionPhotos
-                    book={book}
-                    ids={d.photoIds || []}
-                    onChange={ids => change(d.id, { photoIds: ids })}
-                    disabled={busy || uploading > 0}
-                    onBusy={value => setUploading(n => n + (value ? 1 : -1))}
-                  />
-                  <VerificationConfirm
-                    items={d.lineItems || []}
-                    total={d.amount}
-                    value={d.verificationReason || ''}
-                    onChange={v => change(d.id, { verificationReason: v })}
-                  />
-                  <button
-                    className={styles.link}
-                    disabled={busy || uploading > 0}
-                    onClick={() => setRemoving(d.id)}
-                  >
-                    {tr('移除草稿')}
-                  </button>
-                </fieldset>
-              </article>
             );
-          })}
-        </div>
+          }}
+        </PagedList>
+        {!filtered.length && <p className={styles.muted}>{tr('当前状态没有草稿')}</p>}
       </div>
+
       {editing && (
-        <Sheet open wide title={tr('修改草稿')} onClose={() => setEditing(null)}>
+        <Sheet
+          open
+          wide
+          title={editing.title || editing.payee || tr('核对与修改草稿')}
+          onClose={() => setEditingId('')}
+        >
           <QuickEntry
             key={editing.id}
             book={book}
@@ -737,46 +336,56 @@ export function DraftReview({
             localDrafts={drafts}
             accounts={accounts}
             originals={originals}
-            onCancel={() => setEditing(null)}
+            onCancel={() => setEditingId('')}
             onSave={async item => {
               change(item.id, item);
-              setEditing(null);
+              setEditingId('');
             }}
           />
         </Sheet>
       )}
+
       <ConfirmDialog
         open={!!removing}
         title={tr('移除草稿')}
         onCancel={() => setRemoving('')}
         onConfirm={() => {
           setDrafts(drafts.filter(d => d.id !== removing));
+          if (editingId === removing) setEditingId('');
           setRemoving('');
         }}
       >
         {tr('确定移除这笔草稿？')}
       </ConfirmDialog>
+
       <div className={styles.saveBar}>
         {incomplete.length > 0 && (
-          <p className={styles.notice}>
-            {tr('有 {0} 笔需要补全金额、日期、账户或处理方式。', [incomplete.length])}
-            <button
-              className={styles.link}
+          <div className={styles.incompleteTip}>
+            <span>{tr('有 {0} 笔需要补全金额、日期、账户或处理方式。', [incomplete.length])}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setFilter('all');
-                setSelected(incomplete[0].id);
+                setEditingId(incomplete[0].id);
               }}
             >
-              {tr('定位第一笔')}
-            </button>
-          </p>
+              {tr('打开第一笔')}
+            </Button>
+          </div>
         )}
-        <button disabled={busy || uploading > 0 || incomplete.length > 0} onClick={onSave}>
+        <Button
+          type="button"
+          variant="primary"
+          disabled={busy || incomplete.length > 0}
+          onClick={onSave}
+        >
           {tr('确认保存 · 新增 {0} 笔 / 补充 {1} 笔', [
             drafts.filter(d => !d.action || d.action === 'create').length,
             drafts.filter(d => d.action === 'merge').length,
           ])}
-        </button>
+        </Button>
       </div>
     </section>
   );

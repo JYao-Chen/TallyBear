@@ -60,13 +60,31 @@
   font-weight: 600;
 }
 .muted,
-.notice {
+.notice,
+.attentionNotice {
   color: var(--muted);
   font-size: var(--text-sm);
 }
-.notice {
+.notice,
+.attentionNotice {
   background: var(--accent-soft);
   padding: var(--space-3);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-1);
+}
+.attentionNotice {
+  background: var(--attention-soft);
+  border: 1px solid var(--attention);
+  color: var(--ink);
+}
+.attentionNotice p {
+  margin: 0;
+}
+.reviewBanners {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
 }
 .link {
   background: transparent;
