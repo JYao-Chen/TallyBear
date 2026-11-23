@@ -21,15 +21,16 @@
   gap: var(--space-2);
 }
 .trigger {
-  padding-inline: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  height: auto;
 }
 .trigger > span[title] {
   min-width: 0;
   flex: 1;
   text-align: start;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 .trigger svg,
 .symbol,

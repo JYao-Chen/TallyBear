@@ -35,13 +35,21 @@
 }
 .filteredSummary span {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
   color: var(--muted);
+  font-size: var(--text-xs);
 }
 .filteredSummary strong {
-  text-align: end;
+  color: var(--ink);
+  font: 600 var(--text-lg) / 1.3 var(--font-number);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+.filteredSummary strong.income {
+  color: var(--income);
+}
+.filteredSummary strong.expense {
+  color: var(--expense);
 }
 .assetAnalysis,
 .accountFlowTable {
@@ -74,4 +82,11 @@
 }
 .accountSourceRow b {
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 730px) {
+  .accountFlowTable :is(td, th) {
+    padding: var(--space-2) var(--space-1);
+    font-size: var(--text-sm);
+  }
 }

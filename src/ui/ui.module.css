@@ -243,18 +243,27 @@ a.listRow:hover {
   display: grid;
   gap: 2px;
 }
+.listRowTitle,
+.listRowMeta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 .listRowTitle {
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .listRowMeta {
   font-size: var(--text-xs);
+  line-height: 1.45;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+button.listRow[aria-current='true'] {
+  background: var(--accent-soft);
+}
+button.listRow[aria-current='true'] .listRowEnd {
+  color: var(--accent);
 }
 .listRowEnd {
   text-align: right;

@@ -108,23 +108,22 @@ export function BookSwitcher({
             {
               <PagedList items={books.filter(b => b.name.includes(q))} resetKey={q}>
                 {b => (
-                  <Button
+                  <ListRow
                     key={b.id}
+                    selected={b.id === current}
+                    leading={<SymbolIcon icon={b.icon || '📒'} size={40} />}
+                    title={b.name}
+                    meta={
+                      (b.kind === 'private' ? tr('仅自己可见') : tr('已授权成员共享')) +
+                      ' · ' +
+                      (b.role === 'viewer' ? tr('只读') : tr('可记账'))
+                    }
+                    end={b.id === current ? <Check size={18} aria-label={tr('当前账本')} /> : undefined}
                     onClick={() => {
                       onSelect(b.id);
                       setOpen(false);
                     }}
-                  >
-                    <SymbolIcon icon={b.icon || '📒'} size={44} />
-                    <span>
-                      <strong>{b.name}</strong>
-                      <small>
-                        {b.kind === 'private' ? tr('仅自己可见') : tr('已授权成员共享')} ·{' '}
-                        {b.role === 'viewer' ? tr('只读') : tr('可记账')}
-                      </small>
-                    </span>
-                    {b.id === current && <Check size={18} />}
-                  </Button>
+                  />
                 )}
               </PagedList>
             }

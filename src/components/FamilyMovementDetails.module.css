@@ -16,8 +16,8 @@
   justify-items: end;
 }
 .field {
-  grid-template-columns: 0 minmax(80px, 1fr) minmax(0, 2fr);
-  overflow-wrap: anywhere;
+  grid-template-columns: 0 auto minmax(0, 1fr);
+  column-gap: var(--space-4);
 }
 .actions {
   display: flex;
@@ -96,17 +96,19 @@
   min-width: 0;
 }
 @media (max-width: 700px) {
-  .page [role='tablist'] {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .page [role='tablist'] > button {
-    min-width: 0;
-    padding-inline: var(--space-1);
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
   .footer {
     bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-bottom));
   }
+}
+
+.field > span:nth-child(2) {
+  max-width: 11em;
+}
+.field > span:nth-child(2) > span {
+  overflow-wrap: normal;
+  color: var(--muted);
+  font-weight: 400;
+}
+.field > :last-child {
+  overflow-wrap: anywhere;
 }

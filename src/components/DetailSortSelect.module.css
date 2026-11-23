@@ -1,6 +1,6 @@
 .sort {
   width: auto;
   max-width: 100%;
-  min-width: 0;
+  min-width: 7.5em;
   min-height: var(--touch);
 }

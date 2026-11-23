@@ -97,3 +97,9 @@ details[open] > .disclosure svg {
 .notice {
   color: var(--accent);
 }
+
+@media (max-width: 730px) {
+  .memoryFilters > :first-child {
+    flex-basis: 100%;
+  }
+}

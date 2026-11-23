@@ -723,8 +723,12 @@ function CompactItem({
         <span>
           <strong>{item.name || tr('新明细')}</strong>
           <small>
-            {category || (lineItemKind(item) === 'discount' ? tr('优惠') : '')}
-            {item.quantity != null ? ` · × ${item.quantity}` : ''}
+            {[
+              category || (lineItemKind(item) === 'discount' ? tr('优惠') : ''),
+              item.quantity != null ? `× ${item.quantity}` : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </small>
         </span>
         <b>{item.amount == null ? tr('待补金额') : money(item.amount)}</b>

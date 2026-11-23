@@ -19,7 +19,8 @@ const container = 'tallybear-readme-' + Date.now(),
 const services = [],
   captures = [],
   errors = [],
-  untranslated = [];
+  untranslated = [],
+  clips = [];
 let browser;
 await mkdir(output, { recursive: true });
 await mkdir(runtime, { recursive: true });
@@ -787,6 +788,92 @@ try {
             untranslated.push({ device, feature: key, lines });
             console.warn('Untranslated UI:', key, JSON.stringify(lines));
           }
+        }
+        if (process.env.CLIP_AUDIT) {
+          const found = await page.evaluate(() => {
+            const out = [];
+            const canvas = document.createElement('canvas').getContext('2d');
+            const name = el =>
+              el.tagName.toLowerCase() +
+              (typeof el.className === 'string' && el.className
+                ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
+                : '');
+            const visible = el => {
+              const r = el.getBoundingClientRect();
+              const cs = getComputedStyle(el);
+              return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+            };
+            for (const el of document.querySelectorAll('body *')) {
+              if (!visible(el) || el.closest('svg,canvas,[aria-hidden=true]')) continue;
+              const cs = getComputedStyle(el);
+              const text = String(el.innerText || el.value || '')
+                .trim()
+                .replace(/\s+/g, ' ')
+                .slice(0, 60);
+              if (el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]),select')) {
+                const value =
+                  el.tagName === 'SELECT' ? el.selectedOptions[0]?.text || '' : el.value || el.placeholder;
+                canvas.font = cs.font;
+                const room =
+                  el.clientWidth -
+                  parseFloat(cs.paddingLeft) -
+                  parseFloat(cs.paddingRight) -
+                  (el.tagName === 'SELECT' ? 4 : 0);
+                const need = canvas.measureText(value).width;
+                if (value && need > room + 1)
+                  out.push({
+                    kind: 'field',
+                    el: name(el),
+                    text: value.slice(0, 60),
+                    need: Math.round(need),
+                    room: Math.round(room),
+                  });
+                continue;
+              }
+              const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+              if (!own) continue;
+              const clipX = cs.overflowX !== 'visible' || cs.textOverflow === 'ellipsis';
+              if (clipX && el.scrollWidth > el.clientWidth + 1)
+                out.push({ kind: 'clip-x', el: name(el), text, over: el.scrollWidth - el.clientWidth });
+              if (
+                cs.overflowY !== 'visible' &&
+                el.scrollHeight > el.clientHeight + 2 &&
+                !/auto|scroll/.test(cs.overflowY)
+              )
+                out.push({
+                  kind: 'clip-y',
+                  el: name(el),
+                  text,
+                  over: el.scrollHeight - el.clientHeight,
+                  clamp: cs.webkitLineClamp,
+                });
+              const r = el.getBoundingClientRect();
+              let a = el.parentElement;
+              while (a && a !== document.body) {
+                const acs = getComputedStyle(a);
+                if (
+                  acs.overflowX !== 'visible' ||
+                  acs.borderTopWidth !== '0px' ||
+                  acs.backgroundColor !== 'rgba(0, 0, 0, 0)'
+                ) {
+                  const ar = a.getBoundingClientRect();
+                  if (r.right > ar.right + 2 || r.left < ar.left - 2)
+                    out.push({
+                      kind: 'escape',
+                      el: name(el),
+                      box: name(a),
+                      text,
+                      over: Math.round(Math.max(r.right - ar.right, ar.left - r.left)),
+                    });
+                  break;
+                }
+                a = a.parentElement;
+              }
+              if (r.right > innerWidth + 1) out.push({ kind: 'viewport', el: name(el), text });
+            }
+            return out;
+          });
+          if (found.length) clips.push({ lang, device, feature: key, found });
         }
       }
       async function shot(key) {
@@ -1865,7 +1952,19 @@ try {
         assert.ok(Math.abs(box.x + box.width / 2 - list.x - list.width / 2) < 2);
       }
       await shot('assistant');
+      await page.getByRole('button', { name: t('打开对话历史和报告') }).click();
+      await page.waitForTimeout(300);
+      await shot('assistant-history');
+      await page.keyboard.press('Escape');
       await navigate('我的账本');
+      await page
+        .getByRole('button', { name: t('切换账本') })
+        .first()
+        .click();
+      await page.getByRole('dialog', { name: t('切换账本') }).waitFor();
+      await shot('book-switcher');
+      await page.keyboard.press('Escape');
+      await settle();
       await page.getByRole('button', { name: t('搜索整个账本系统'), exact: true }).click();
       await page
         .getByRole('textbox', { name: t('搜索关键词'), exact: true })
@@ -1910,6 +2009,7 @@ try {
   console.log(`Captured ${captures.length} real app screenshots.`);
   if (process.env.SCREENSHOT_AUDIT)
     await writeFile(process.env.SCREENSHOT_AUDIT, JSON.stringify(untranslated, null, 2) + '\n');
+  if (process.env.CLIP_AUDIT) await writeFile(process.env.CLIP_AUDIT, JSON.stringify(clips, null, 2) + '\n');
   assert.deepEqual(untranslated, [], 'English demo UI contains untranslated labels');
 } finally {
   await browser?.close();

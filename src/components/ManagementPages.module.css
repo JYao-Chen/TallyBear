@@ -4,7 +4,6 @@
 .bookSwitchList {
   min-width: 0;
   display: grid;
-  gap: var(--space-4);
 }
 .sheetActions,
 .panelTitle,
@@ -104,13 +103,11 @@
   cursor: pointer;
   margin: 0;
 }
-.bookSwitchTrigger span,
-.bookSwitchList button span {
+.bookSwitchTrigger span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.bookSwitchTrigger small,
-.bookSwitchList small {
+.bookSwitchTrigger small {
   display: block;
 }
 .avatarEdit,
@@ -189,4 +186,20 @@
 
 .muted {
   color: var(--muted);
+}
+
+/* The sidebar is narrow: let a long book name use two lines instead of an ellipsis. */
+@media (min-width: 731px) {
+  .bookSwitchTrigger.bookSwitchTrigger {
+    height: auto;
+    padding-block: var(--space-2);
+  }
+  .bookSwitchTrigger strong {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+  }
 }

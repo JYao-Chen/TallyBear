@@ -31,7 +31,8 @@
   min-width: 0;
 }
 .field {
-  grid-template-columns: 0 minmax(72px, 1fr) minmax(0, 2fr);
+  grid-template-columns: 0 auto minmax(0, 1fr);
+  column-gap: var(--space-4);
 }
 .field > :last-child,
 .entity {
@@ -67,4 +68,16 @@
   .actions > button:last-child {
     flex: 1 1 100%;
   }
+}
+
+.field > span:nth-child(2) {
+  max-width: 11em;
+}
+.field > span:nth-child(2) > span {
+  overflow-wrap: normal;
+  color: var(--muted);
+  font-weight: 400;
+}
+.field > :last-child {
+  overflow-wrap: anywhere;
 }

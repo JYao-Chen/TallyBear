@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, ListRow, Sheet, TextArea } from '@/ui';
+import { Button, Input, ListRow, Select, Sheet, TextArea } from '@/ui';
 import styles from './MemoryCenter.module.css';
 import { useConfirmation } from '@/ui/useConfirmation';
 import { useI18n } from './LanguageProvider';
@@ -380,7 +380,7 @@ export function MemoryWorkspace({
               </label>
               <label>
                 {tr('类型')}
-                <select
+                <Select
                   value={kind}
                   onChange={e => {
                     setKind(e.target.value);
@@ -393,11 +393,11 @@ export function MemoryWorkspace({
                       {tr(v)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 {tr('状态')}
-                <select
+                <Select
                   disabled={section === 'pending'}
                   value={status}
                   onChange={e => {
@@ -408,7 +408,7 @@ export function MemoryWorkspace({
                   <option value="active">{tr('已启用')}</option>
                   <option value="pending">{tr('待确认')}</option>
                   <option value="disabled">{tr('已停用')}</option>
-                </select>
+                </Select>
               </label>
             </div>
             <Button

@@ -48,8 +48,15 @@
 }
 .say textarea {
   min-height: 52px;
-  height: 52px;
+  height: auto;
+  max-height: 9em;
+  field-sizing: content;
   resize: none;
+}
+@media (max-width: 520px) {
+  .say {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .captureActions {
   display: flex;

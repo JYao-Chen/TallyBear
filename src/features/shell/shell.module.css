@@ -146,6 +146,9 @@
   text-decoration: none;
   white-space: nowrap;
 }
+.subnav[data-more] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+}
 .subnav a[aria-current='page'] {
   color: var(--accent);
   border-bottom-color: var(--accent);

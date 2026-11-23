@@ -170,11 +170,7 @@ export function DraftReview({
     <section aria-label={tr('核对草稿')} ref={root} className={styles.review}>
       <div className={styles.head}>
         <div>
-          <h2>
-            {tr('核对小票 ·')}
-            {drafts.length}
-            {tr('笔')}
-          </h2>
+          <h2>{tr('核对小票 · {0} 笔', [drafts.length])}</h2>
           <></>
         </div>
         <button className={styles.secondary} disabled={busy || uploading > 0} onClick={onReview}>
@@ -761,8 +757,7 @@ export function DraftReview({
       <div className={styles.saveBar}>
         {incomplete.length > 0 && (
           <p className={styles.notice}>
-            {tr('有')}
-            {incomplete.length} {tr('笔需要补全金额、日期、账户或处理方式。')}
+            {tr('有 {0} 笔需要补全金额、日期、账户或处理方式。', [incomplete.length])}
             <button
               className={styles.link}
               onClick={() => {
@@ -775,9 +770,10 @@ export function DraftReview({
           </p>
         )}
         <button disabled={busy || uploading > 0 || incomplete.length > 0} onClick={onSave}>
-          {tr('确认保存 · 新增')}
-          {drafts.filter(d => !d.action || d.action === 'create').length} {tr('笔 / 补充')}
-          {drafts.filter(d => d.action === 'merge').length} {tr('笔')}
+          {tr('确认保存 · 新增 {0} 笔 / 补充 {1} 笔', [
+            drafts.filter(d => !d.action || d.action === 'create').length,
+            drafts.filter(d => d.action === 'merge').length,
+          ])}
         </button>
       </div>
     </section>

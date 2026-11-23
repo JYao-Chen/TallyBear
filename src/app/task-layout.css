@@ -1,6 +1,6 @@
 /* Operate: keep the task and its state visible; expand detail only when needed. */
 .section-tabs>[role=tablist]{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:12px 0 20px;padding:4px 0;overflow-x:auto}
-.section-tabs>[role=tablist]>button{flex:1;min-width:64px;background:transparent;color:var(--muted);border-radius:8px 8px 0 0;border-bottom:3px solid transparent;white-space:nowrap;padding:12px 8px}
+.section-tabs>[role=tablist]>button{flex:1 0 auto;min-width:0;overflow-wrap:normal;word-break:keep-all;background:transparent;color:var(--muted);border-radius:8px 8px 0 0;border-bottom:3px solid transparent;white-space:nowrap;padding:12px 8px}
 .section-tabs>[role=tablist]>button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;background:var(--soft)}
 .section-tabs>[role=tabpanel][hidden]{display:none!important}
 
@@ -43,3 +43,4 @@
 
 .detail-sheet:has(.section-tabs) .detail-fields>div{padding-block:10px}
 
+@media(max-width:730px){.section-tabs>[role=tablist]{gap:0}.section-tabs>[role=tablist]>button{padding:12px 6px;font-size:14px}}

@@ -13,6 +13,8 @@ type Props = {
   href?: string;
   onClick?: () => void;
   className?: string;
+  /** Marks the current choice in a picker list. */
+  selected?: boolean;
 };
 
 /** One line per record: icon, title + meta, right-aligned amount. Renders a link, button or plain row. */
@@ -25,6 +27,7 @@ export function ListRow({
   href,
   onClick,
   className,
+  selected,
   disabled,
   'aria-label': label,
 }: Props) {
@@ -50,7 +53,14 @@ export function ListRow({
     );
   if (onClick)
     return (
-      <button type="button" disabled={disabled} aria-label={label} className={cls} onClick={onClick}>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={label}
+        aria-current={selected || undefined}
+        className={cls}
+        onClick={onClick}
+      >
         {body}
       </button>
     );
