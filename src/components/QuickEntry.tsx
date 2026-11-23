@@ -16,6 +16,8 @@ import { TransactionPhotos } from './TransactionPhotos';
 import { VerificationConfirm } from './VerificationConfirm';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
 import { VisualSelect } from './VisualSelect';
+import { CategoryPicker } from './CategoryPicker';
+import { ChevronUp, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { LineItemsEditor } from './LineItems';
 import type { LineItem } from '@/lib/line-items';
@@ -166,6 +168,18 @@ export function QuickEntry({
     [saved, setSaved] = useState(false),
     [walletNotice, setWalletNotice] = useState('');
   const [installment, setInstallment] = useState(seed?.installment || null);
+  const [openExtras, setOpenExtras] = useState<Set<string>>(() => {
+    const open = new Set<string>();
+    if (seed?.payee || seed?.platform || seed?.product) open.add('merchant');
+    if (seed?.lineItems?.length) open.add('items');
+    if (seed?.scene && JSON.stringify(seed.scene) !== JSON.stringify(emptyScene())) open.add('scene');
+    if (seed?.note) open.add('note');
+    if (seed?.orderId || seed?.externalId) open.add('order');
+    if (seed?.activityId) open.add('activity');
+    if (seed?.installment) open.add('installment');
+    if (seed?.photoIds?.length) open.add('photos');
+    return open;
+  });
   const [repaying, setRepaying] = useState(
     seed?.kind === 'transfer' && accounts.some(a => a.id === seed?.targetId && a.type === 'credit'),
   );
@@ -375,487 +389,573 @@ export function QuickEntry({
       setBusy(false);
     }
   }
+  const sceneFilled = JSON.stringify(scene) !== JSON.stringify(emptyScene());
+  const extras = [
+    {
+      key: 'merchant',
+      label: kind === 'income' ? '付款方与平台' : '商家与平台',
+      summary: payee || platform || product,
+    },
+    ...(kind === 'transfer'
+      ? []
+      : [
+          {
+            key: 'items',
+            label: '商品与优惠费用',
+            summary: lineItems.length ? tr('{0} 项', [lineItems.length]) : '',
+          },
+          { key: 'scene', label: '消费场景', summary: sceneFilled ? '✓' : '' },
+        ]),
+    { key: 'note', label: '备注', summary: note.slice(0, 16) },
+    { key: 'order', label: '订单号与流水号', summary: orderId || externalId ? '✓' : '' },
+    { key: 'activity', label: '活动', summary: activityId ? '✓' : '' },
+    ...(kind === 'expense' ? [{ key: 'installment', label: '分期', summary: installment ? '✓' : '' }] : []),
+    { key: 'photos', label: '生活附图', summary: photoIds.length ? String(photoIds.length) : '' },
+  ];
+  const toggleExtra = (key: string) =>
+    setOpenExtras(old => {
+      const next = new Set(old);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   return (
     <form aria-label={tr('手动记账')} className={styles.form} onSubmit={save}>
-      <Segmented
-        className={styles.types}
-        label={tr('记账类型')}
-        value={repaying ? 'repayment' : kind}
-        options={(
-          [
-            ['expense', '支出'],
-            ['income', '收入'],
-            ['refund', '退款'],
-            ['transfer', '转账'],
-            ['repayment', '还款'],
-          ] as const
-        ).map(([value, key]) => ({ value, label: tr(key), disabled: busy }))}
-        onChange={value => {
-          mark('kind');
-          setRepaying(value === 'repayment');
-          setKind(value === 'repayment' ? 'transfer' : value);
-          if (value === 'income' && category === '餐饮') setCategory('工资');
-          if (value === 'expense' && category === '工资') setCategory('餐饮');
-          if (value === 'repayment') {
-            if (!accounts.some(a => a.id === account && a.type !== 'credit'))
-              setAccount(accounts.find(a => a.type !== 'credit')?.id || '');
-            if (!accounts.some(a => a.id === target && a.type === 'credit'))
-              setTarget(accounts.find(a => a.type === 'credit')?.id || '');
-          }
-        }}
-      />
-      {badge('kind')}
-      {repaying && (
-        <p className={styles.notice}>
-          {debtError ||
-            (() => {
-              const debt = debts.find(a => a.id === target);
-              if (!debt) return !target ? tr('请先在资金资产中创建信用账户。') : tr('正在读取欠款…');
-              let paid = 0;
-              try {
-                paid = amountToCents(amount || '0');
-              } catch {}
-              return tr('当前账面欠款 {0}，本次还款后欠款 {1}。', [
-                formatMoney(Math.max(0, -debt.balance)),
-                formatMoney(Math.max(0, -debt.balance - paid)),
-              ]);
-            })()}
-          <br />
-          {tr(
-            '本金只减少欠款，不重复计支出；利息、手续费请另记支出。已建立分期的还款请从原分期计划操作，避免重复记录。',
+      <div className={styles.columns}>
+        <div className={styles.core}>
+          <Segmented
+            className={styles.types}
+            label={tr('记账类型')}
+            value={repaying ? 'repayment' : kind}
+            options={(
+              [
+                ['expense', '支出'],
+                ['income', '收入'],
+                ['refund', '退款'],
+                ['transfer', '转账'],
+                ['repayment', '还款'],
+              ] as const
+            ).map(([value, key]) => ({ value, label: tr(key), disabled: busy }))}
+            onChange={value => {
+              mark('kind');
+              setRepaying(value === 'repayment');
+              setKind(value === 'repayment' ? 'transfer' : value);
+              if (value === 'income' && category === '餐饮') setCategory('工资');
+              if (value === 'expense' && category === '工资') setCategory('餐饮');
+              if (value === 'repayment') {
+                if (!accounts.some(a => a.id === account && a.type !== 'credit'))
+                  setAccount(accounts.find(a => a.type !== 'credit')?.id || '');
+                if (!accounts.some(a => a.id === target && a.type === 'credit'))
+                  setTarget(accounts.find(a => a.type === 'credit')?.id || '');
+              }
+            }}
+          />
+          {badge('kind')}
+          {repaying && (
+            <p className={styles.notice}>
+              {debtError ||
+                (() => {
+                  const debt = debts.find(a => a.id === target);
+                  if (!debt) return !target ? tr('请先在资金资产中创建信用账户。') : tr('正在读取欠款…');
+                  let paid = 0;
+                  try {
+                    paid = amountToCents(amount || '0');
+                  } catch {}
+                  return tr('当前账面欠款 {0}，本次还款后欠款 {1}。', [
+                    formatMoney(Math.max(0, -debt.balance)),
+                    formatMoney(Math.max(0, -debt.balance - paid)),
+                  ]);
+                })()}
+              <br />
+              {tr(
+                '本金只减少欠款，不重复计支出；利息、手续费请另记支出。已建立分期的还款请从原分期计划操作，避免重复记录。',
+              )}
+            </p>
           )}
-        </p>
-      )}
-      <label className={styles.amount}>
-        {kind === 'refund'
-          ? tr('实际退回多少钱？')
-          : kind === 'income'
-            ? tr('收到多少钱？')
-            : tr('这一笔多少钱？')}
-        {badge('amount')}
-        <div>
-          <span>{currencySymbol()}</span>
-          <Input
-            aria-label={tr('金额（元）')}
-            inputMode="decimal"
-            placeholder="0.00"
-            value={amount}
-            required
-            disabled={busy}
-            onChange={e => {
-              mark('amount');
-              setAmount(e.target.value);
-            }}
-            autoComplete="off"
-          />
-        </div>
-      </label>
-      <Field
-        label={
-          <>
-            {tr('账目标题')} {badge('title')}
-          </>
-        }
-      >
-        {props => (
-          <Input
-            {...props}
-            aria-label={tr('账目标题')}
-            value={title}
-            maxLength={80}
-            placeholder={payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
-            onChange={e => {
-              mark('title');
-              setTitle(e.target.value);
-            }}
-          />
-        )}
-      </Field>
-      {scene.purchaseGroup && (
-        <p className={styles.muted}>
-          {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
-          <button
-            type="button"
-            className={styles.link}
-            onClick={() => setScene(s => ({ ...s, purchaseGroup: undefined }))}
+          <label className={styles.amount}>
+            {kind === 'refund'
+              ? tr('实际退回多少钱？')
+              : kind === 'income'
+                ? tr('收到多少钱？')
+                : tr('这一笔多少钱？')}
+            {badge('amount')}
+            <div>
+              <span>{currencySymbol()}</span>
+              <Input
+                aria-label={tr('金额（元）')}
+                inputMode="decimal"
+                placeholder="0.00"
+                value={amount}
+                required
+                disabled={busy}
+                onChange={e => {
+                  mark('amount');
+                  setAmount(e.target.value);
+                }}
+                autoComplete="off"
+              />
+            </div>
+          </label>
+          <Field
+            label={
+              <>
+                {tr('账目标题')} {badge('title')}
+              </>
+            }
           >
-            {tr('取消同款关联')}
-          </button>
-        </p>
-      )}
-      {saved && !onDraftChange && (
-        <p className={styles.notice} role="status">
-          {tr('这一笔已记好，可以继续记下一笔。')}
-        </p>
-      )}
-      {kind !== 'transfer' && (
-        <div>
-          {tr('记在哪一类？')}
-          {badge('category')}
-          <VisualSelect
-            grid
-            label={tr('记在哪一类？')}
-            value={category}
-            onChange={v => {
-              mark('category');
-              setCategory(v);
-            }}
-            options={categoryOptions}
-          />
-        </div>
-      )}
-      <div className={styles.meta}>
-        <label>
-          {kind === 'transfer'
-            ? tr('转出账户')
-            : kind === 'income' || kind === 'refund'
-              ? tr('实际到账账户')
-              : tr('实际扣款账户')}
-          {badge('accountId')}
-          <VisualSelect
-            label={tr('资金账户')}
-            value={account}
-            onChange={v => {
-              mark('accountId');
-              setAccount(v);
-              setWalletNotice('');
-            }}
-            options={accounts
-              .filter(a => !repaying || a.type !== 'credit')
-              .map(a => ({
-                value: a.id,
-                label: accountLabel(a),
-                account: true,
-                accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-              }))}
-          />
-        </label>
-        <div className={styles.when}>
-          {' '}
-          <label>
-            {kind === 'refund' ? tr('退款到账日') : tr('交易日期')}
-            {badge('date')}
-            <DateField
-              type="date"
-              required
-              value={date}
-              onChange={value => {
-                mark('date');
-                setDate(value);
-              }}
-            />
-          </label>
-          <label>
-            {tr('交易时间（选填）')}
-            {badge('occurredAt')}
-            <input
-              type="time"
-              step="1"
-              value={normalizeTransactionTime(occurredAt)}
-              onChange={e => {
-                mark('occurredAt');
-                setOccurredAt(e.target.value);
-              }}
-            />
-          </label>
-        </div>
-        <label>
-          {tr('记入账本')}
-          <VisualSelect
-            label={tr('记入账本')}
-            value={destination}
-            disabled={busy}
-            onChange={next => {
-              setDestination(next);
-              if (kind === 'refund') setRefund('');
-            }}
-            options={books
-              .filter(b => b.role !== 'viewer')
-              .map(b => ({
-                value: b.id,
-                label: b.name + ' · ' + tr(b.kind === 'shared' ? '共享账本' : '个人账本'),
-                icon: b.icon,
-              }))}
-          />
-        </label>
-        {kind === 'transfer' && (
-          <label>
-            {repaying ? tr('要还款的信用账户') : tr('转入账户')}
-            <VisualSelect
-              label={tr('请选择转入账户')}
-              value={target}
-              onChange={setTarget}
-              options={accounts
-                .filter(a => a.id !== account && (!repaying || a.type === 'credit'))
-                .map(a => ({
-                  value: a.id,
-                  label: accountLabel(a),
-                  account: true,
-                  accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
-                }))}
-            />
-          </label>
-        )}
-        {kind === 'refund' && (
-          <RefundPicker
-            books={books}
-            onSelect={row => fillFromOriginal(row)}
-            book={destination}
-            value={refund}
-            onChange={setRefund}
-            exclude={initial?.id || reviewDraft?.id}
-            local={localDrafts?.filter(
-              d => d.kind === 'expense' && d.action !== 'skip' && (d.targetBook || book) === destination,
+            {props => (
+              <Input
+                {...props}
+                aria-label={tr('账目标题')}
+                value={title}
+                maxLength={80}
+                placeholder={payee || tr('例如：盒马购物、七鲜买菜、店名 · 晚餐')}
+                onChange={e => {
+                  mark('title');
+                  setTitle(e.target.value);
+                }}
+              />
             )}
-            amount={(() => {
-              try {
-                return amount ? amountToCents(amount) : undefined;
-              } catch {
-                return undefined;
-              }
-            })()}
-            onAmountChange={cents => setAmount(String(cents / 100))}
-          />
-        )}
-        {kind === 'expense' &&
-          (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
-            <ClaimRecipientSelect
-              familyId={accounts.find(a => a.id === account)?.family_id}
-              value={claimRecipient}
-              onChange={setClaimRecipient}
-              disabled={busy}
-            />
+          </Field>
+          {scene.purchaseGroup && (
+            <p className={styles.muted}>
+              {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
+              <button
+                type="button"
+                className={styles.link}
+                onClick={() => setScene(s => ({ ...s, purchaseGroup: undefined }))}
+              >
+                {tr('取消同款关联')}
+              </button>
+            </p>
           )}
-      </div>
-      {destination !== book && (
-        <p className={styles.muted}>
-          {tr(
-            initial
-              ? '保存修改时同时移动到账本，实际收付款账户不变。'
-              : '保存到所选账本，使用下方的实际收付款账户。',
+          {saved && !onDraftChange && (
+            <p className={styles.notice} role="status">
+              {tr('这一笔已记好，可以继续记下一笔。')}
+            </p>
           )}
-          {(kind === 'refund' || initial?.kind === 'expense') && (
-            <span>
-              {tr(initial ? '关联的原消费与退款一起移动。' : '退款记入原单所在账本，原消费不移动。')}
-            </span>
+          {kind !== 'transfer' && (
+            <div className={styles.category}>
+              <span className={styles.label}>
+                {tr('记在哪一类？')}
+                {badge('category')}
+              </span>
+              <CategoryPicker
+                label={tr('记在哪一类？')}
+                value={category}
+                disabled={busy}
+                onChange={v => {
+                  mark('category');
+                  setCategory(v);
+                }}
+                options={categoryOptions}
+              />
+            </div>
           )}
-        </p>
-      )}
-
-      {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
-        <p className={styles.muted}>
-          {tr('这笔消费已由{0}认领。如需更换对象，请先在账单详情中撤回认领邀请。', [
-            claimInfo.claim.recipient_name,
-          ])}
-        </p>
-      )}
-      {initial?.kind === 'expense' && claimLoadError && (
-        <p className={styles.error} role="alert">
-          {claimLoadError}{' '}
-          <button type="button" className={styles.link} onClick={() => setClaimRetry(v => v + 1)}>
-            {tr('重试加载消费对象')}
-          </button>
-        </p>
-      )}
-      <details className={styles.more} open={!!reviewDraft?.installment || undefined}>
-        <summary>{tr('更多')}</summary>
-        <ActivitySelect value={activityId} onChange={setActivityId} disabled={busy || !activityLoaded} />
-        {kind === 'expense' && (
-          <EntryInstallmentFields
-            value={installment}
-            onChange={setInstallment}
-            credit={accounts.some(a => a.id === account && a.type === 'credit')}
-          />
-        )}
-        {walletNotice && (
-          <small className={styles.notice} role="status">
-            {tr(walletNotice)}
-          </small>
-        )}
-        <label>
-          {kind === 'income' ? tr('收入来源 / 付款方') : tr('商家 / 交易对方')}
-          {badge('payee')}
-          <input
-            value={payee}
-            maxLength={120}
-            placeholder={tr('选填，例如：楼下便利店')}
-            onChange={e => {
-              mark('payee');
-              setPayee(e.target.value);
-            }}
-          />
-        </label>
-        <details className={styles.more}>
-          <summary>
-            {tr('商品、订单与备注')}
-            <span>{tr('选填')}</span>
-          </summary>
-          <SceneFields
-            value={scene}
-            onChange={(value, title) => {
-              setScene(value);
-              if (title) {
-                mark('title');
-                setTitle(title);
-              }
-            }}
-          />
-          <label>
-            {tr('商品摘要')}
-            {badge('product')}
-            <input
-              value={product}
-              maxLength={160}
-              onChange={e => {
-                mark('product');
-                setProduct(e.target.value);
-              }}
-            />
-          </label>
           <div className={styles.meta}>
             <label>
-              {tr('商城 / 平台')}
-              {badge('platform')}
-              <input
-                value={platform}
-                maxLength={40}
-                onChange={e => {
-                  mark('platform');
-                  setPlatform(e.target.value);
+              {kind === 'transfer'
+                ? tr('转出账户')
+                : kind === 'income' || kind === 'refund'
+                  ? tr('实际到账账户')
+                  : tr('实际扣款账户')}
+              {badge('accountId')}
+              <VisualSelect
+                label={tr('资金账户')}
+                value={account}
+                onChange={v => {
+                  mark('accountId');
+                  setAccount(v);
+                  setWalletNotice('');
                 }}
+                options={accounts
+                  .filter(a => !repaying || a.type !== 'credit')
+                  .map(a => ({
+                    value: a.id,
+                    label: accountLabel(a),
+                    account: true,
+                    accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+                  }))}
               />
             </label>
+            <div className={styles.when}>
+              {' '}
+              <label>
+                {kind === 'refund' ? tr('退款到账日') : tr('交易日期')}
+                {badge('date')}
+                <DateField
+                  type="date"
+                  required
+                  value={date}
+                  onChange={value => {
+                    mark('date');
+                    setDate(value);
+                  }}
+                />
+              </label>
+              <label>
+                {tr('交易时间（选填）')}
+                {badge('occurredAt')}
+                <input
+                  type="time"
+                  step="1"
+                  value={normalizeTransactionTime(occurredAt)}
+                  onChange={e => {
+                    mark('occurredAt');
+                    setOccurredAt(e.target.value);
+                  }}
+                />
+              </label>
+            </div>
             <label>
-              {tr('订单号（选填）')}
-              {badge('orderId')}
-              <input
-                value={orderId}
-                maxLength={200}
-                autoComplete="off"
-                onChange={e => {
-                  mark('orderId');
-                  setOrderId(e.target.value);
+              {tr('记入账本')}
+              <VisualSelect
+                label={tr('记入账本')}
+                value={destination}
+                disabled={busy}
+                onChange={next => {
+                  setDestination(next);
+                  if (kind === 'refund') setRefund('');
                 }}
+                options={books
+                  .filter(b => b.role !== 'viewer')
+                  .map(b => ({
+                    value: b.id,
+                    label: b.name + ' · ' + tr(b.kind === 'shared' ? '共享账本' : '个人账本'),
+                    icon: b.icon,
+                  }))}
               />
             </label>
-            <label>
-              {tr('交易 / 退款流水号（选填）')}
-              {badge('externalId')}
-              <input
-                value={externalId}
-                maxLength={200}
-                autoComplete="off"
-                onChange={e => {
-                  mark('externalId');
-                  setExternalId(e.target.value);
-                }}
-              />
-            </label>
-          </div>
-          <small className={styles.muted}>
-            {tr('编号不是必填项；图片中清晰可见时会自动带入，并用于以后核对账单。')}
-          </small>
-          <label>
-            {tr('备注')}
-            {badge('note')}
-            <textarea
-              rows={2}
-              value={note}
-              maxLength={2000}
-              placeholder={tr('记一点这笔钱的小故事')}
-              onChange={e => {
-                mark('note');
-                setNote(e.target.value);
-              }}
-            />
-          </label>
-        </details>
-        {kind !== 'transfer' && (
-          <>
-            {badge('lineItems')}
-            <LineItemsEditor
-              category={category}
-              categories={categories}
-              items={lineItems}
-              onChange={items => {
-                mark('lineItems');
-                setLineItems(items);
-              }}
-              total={Number(amount) ? Math.round(Number(amount) * 100) : 0}
-              onTotal={n => setAmount(String(n / 100))}
-              book={book}
-              onRecognized={d => {
-                setChanged(old => {
-                  const next = new Set(old);
-                  next.delete('lineItems');
-                  return next;
-                });
-                const received = new Set<keyof Draft>();
-                const fill = (key: keyof Draft, value: string | undefined, setter: (s: string) => void) => {
-                  if (
-                    !changed.has(key) &&
-                    value &&
-                    (filled.has(key) || !seed?.[key] || (key === 'accountId' && !initial && !reviewDraft))
-                  ) {
-                    setter(value);
-                    received.add(key);
+            {kind === 'transfer' && (
+              <label>
+                {repaying ? tr('要还款的信用账户') : tr('转入账户')}
+                <VisualSelect
+                  label={tr('请选择转入账户')}
+                  value={target}
+                  onChange={setTarget}
+                  options={accounts
+                    .filter(a => a.id !== account && (!repaying || a.type === 'credit'))
+                    .map(a => ({
+                      value: a.id,
+                      label: accountLabel(a),
+                      account: true,
+                      accountName: [a.institution, a.name, a.type].filter(Boolean).join(' '),
+                    }))}
+                />
+              </label>
+            )}
+            {kind === 'refund' && (
+              <RefundPicker
+                books={books}
+                onSelect={row => fillFromOriginal(row)}
+                book={destination}
+                value={refund}
+                onChange={setRefund}
+                exclude={initial?.id || reviewDraft?.id}
+                local={localDrafts?.filter(
+                  d => d.kind === 'expense' && d.action !== 'skip' && (d.targetBook || book) === destination,
+                )}
+                amount={(() => {
+                  try {
+                    return amount ? amountToCents(amount) : undefined;
+                  } catch {
+                    return undefined;
                   }
-                };
-                fill('title', d.title || d.payee, setTitle);
-                fill('payee', d.payee, setPayee);
-                fill('platform', d.platform, setPlatform);
-                fill('orderId', d.orderId, setOrderId);
-                fill('externalId', d.externalId, setExternalId);
-                fill('accountId', d.accountId, setAccount);
-                setFilled(old => new Set([...old, ...received, 'lineItems']));
-                if (received.has('accountId')) {
-                  setWalletNotice(
-                    d.walletMatch === 'channel'
-                      ? '已按支付渠道自动选择，请核对是否为实际扣款账户。'
-                      : '已根据明确扣款信息自动选择。',
-                  );
-                } else if ((d.walletCandidates?.length || 0) > 1)
-                  setWalletNotice('找到多个符合付款信息的钱包，请选择实际扣款账户。');
-              }}
-              onBusyChange={setRecognizing}
-              onAttachments={ids => setAttachmentIds(v => Array.from(new Set([...v, ...ids])))}
-            />
-          </>
-        )}
-        {kind !== 'transfer' && (
-          <VerificationConfirm
-            items={lineItems}
-            total={Math.round(Number(amount) * 100)}
-            value={verificationReason}
-            onChange={setVerificationReason}
-          />
-        )}
-        {!!attachmentIds.length && (
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={retainReceipts}
-              onChange={e => setRetainReceipts(e.target.checked)}
-            />
-            {tr('保存本次上传的图片凭证（')}
-            {attachmentIds.length}
-            {tr('张）')}
-          </label>
-        )}
-        <details className={styles.more}>
-          <summary>
-            {tr('生活附图')}
-            {photoIds.length ? ` · ${photoIds.length}` : null}
-          </summary>
-          <TransactionPhotos
-            book={book}
-            ids={photoIds}
-            onChange={setPhotoIds}
-            disabled={busy}
-            onBusy={setPhotoBusy}
-          />
-        </details>
-      </details>
+                })()}
+                onAmountChange={cents => setAmount(String(cents / 100))}
+              />
+            )}
+            {kind === 'expense' &&
+              (!initial || (claimInfo?.canInvite && claimInfo.claim?.status !== 'accepted')) && (
+                <ClaimRecipientSelect
+                  familyId={accounts.find(a => a.id === account)?.family_id}
+                  value={claimRecipient}
+                  onChange={setClaimRecipient}
+                  disabled={busy}
+                />
+              )}
+          </div>
+          {walletNotice && (
+            <small className={styles.notice} role="status">
+              {tr(walletNotice)}
+            </small>
+          )}
+          {destination !== book && (
+            <p className={styles.muted}>
+              {tr(
+                initial
+                  ? '保存修改时同时移动到账本，实际收付款账户不变。'
+                  : '保存到所选账本，使用下方的实际收付款账户。',
+              )}
+              {(kind === 'refund' || initial?.kind === 'expense') && (
+                <span>
+                  {tr(initial ? '关联的原消费与退款一起移动。' : '退款记入原单所在账本，原消费不移动。')}
+                </span>
+              )}
+            </p>
+          )}
+
+          {kind === 'expense' && initial && claimInfo?.claim?.status === 'accepted' && (
+            <p className={styles.muted}>
+              {tr('这笔消费已由{0}认领。如需更换对象，请先在账单详情中撤回认领邀请。', [
+                claimInfo.claim.recipient_name,
+              ])}
+            </p>
+          )}
+          {initial?.kind === 'expense' && claimLoadError && (
+            <p className={styles.error} role="alert">
+              {claimLoadError}{' '}
+              <button type="button" className={styles.link} onClick={() => setClaimRetry(v => v + 1)}>
+                {tr('重试加载消费对象')}
+              </button>
+            </p>
+          )}
+        </div>
+        <div className={styles.extras}>
+          <div className={styles.extrasHead}>
+            <strong>{tr('补充信息')}</strong>
+            <small>{tr('都可以不填；需要时点开一项')}</small>
+          </div>
+          <div className={styles.extraChips}>
+            {extras
+              .filter(x => !openExtras.has(x.key))
+              .map(x => (
+                <button
+                  type="button"
+                  key={x.key}
+                  className={styles.extraChip}
+                  data-filled={x.summary ? true : undefined}
+                  aria-expanded={false}
+                  onClick={() => toggleExtra(x.key)}
+                >
+                  <Plus size={15} aria-hidden="true" />
+                  {tr(x.label)}
+                  {x.summary && <small>{x.summary}</small>}
+                </button>
+              ))}
+          </div>
+          {extras
+            .filter(x => openExtras.has(x.key))
+            .map(x => (
+              <section key={x.key} className={styles.extra} aria-label={tr(x.label)}>
+                <header>
+                  <strong>{tr(x.label)}</strong>
+                  <button
+                    type="button"
+                    className={styles.collapse}
+                    aria-expanded
+                    aria-label={tr('收起{0}', [tr(x.label)])}
+                    onClick={() => toggleExtra(x.key)}
+                  >
+                    <ChevronUp size={18} />
+                  </button>
+                </header>
+                {x.key === 'merchant' && (
+                  <>
+                    <label>
+                      {kind === 'income' ? tr('收入来源 / 付款方') : tr('商家 / 交易对方')}
+                      {badge('payee')}
+                      <input
+                        value={payee}
+                        maxLength={120}
+                        placeholder={tr('选填，例如：楼下便利店')}
+                        onChange={e => {
+                          mark('payee');
+                          setPayee(e.target.value);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {tr('商城 / 平台')}
+                      {badge('platform')}
+                      <input
+                        value={platform}
+                        maxLength={40}
+                        onChange={e => {
+                          mark('platform');
+                          setPlatform(e.target.value);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {tr('商品摘要')}
+                      {badge('product')}
+                      <input
+                        value={product}
+                        maxLength={160}
+                        onChange={e => {
+                          mark('product');
+                          setProduct(e.target.value);
+                        }}
+                      />
+                    </label>
+                  </>
+                )}
+                {x.key === 'items' && (
+                  <>
+                    {badge('lineItems')}
+                    <LineItemsEditor
+                      bare
+                      category={category}
+                      categories={categories}
+                      items={lineItems}
+                      onChange={items => {
+                        mark('lineItems');
+                        setLineItems(items);
+                      }}
+                      total={Number(amount) ? Math.round(Number(amount) * 100) : 0}
+                      onTotal={n => setAmount(String(n / 100))}
+                      book={book}
+                      onRecognized={d => {
+                        setChanged(old => {
+                          const next = new Set(old);
+                          next.delete('lineItems');
+                          return next;
+                        });
+                        const received = new Set<keyof Draft>();
+                        const fill = (
+                          key: keyof Draft,
+                          value: string | undefined,
+                          setter: (s: string) => void,
+                        ) => {
+                          if (
+                            !changed.has(key) &&
+                            value &&
+                            (filled.has(key) ||
+                              !seed?.[key] ||
+                              (key === 'accountId' && !initial && !reviewDraft))
+                          ) {
+                            setter(value);
+                            received.add(key);
+                          }
+                        };
+                        fill('title', d.title || d.payee, setTitle);
+                        fill('payee', d.payee, setPayee);
+                        fill('platform', d.platform, setPlatform);
+                        fill('orderId', d.orderId, setOrderId);
+                        fill('externalId', d.externalId, setExternalId);
+                        fill('accountId', d.accountId, setAccount);
+                        setFilled(old => new Set([...old, ...received, 'lineItems']));
+                        if (received.has('accountId')) {
+                          setWalletNotice(
+                            d.walletMatch === 'channel'
+                              ? '已按支付渠道自动选择，请核对是否为实际扣款账户。'
+                              : '已根据明确扣款信息自动选择。',
+                          );
+                        } else if ((d.walletCandidates?.length || 0) > 1)
+                          setWalletNotice('找到多个符合付款信息的钱包，请选择实际扣款账户。');
+                      }}
+                      onBusyChange={setRecognizing}
+                      onAttachments={ids => setAttachmentIds(v => Array.from(new Set([...v, ...ids])))}
+                    />
+                    <VerificationConfirm
+                      items={lineItems}
+                      total={Math.round(Number(amount) * 100)}
+                      value={verificationReason}
+                      onChange={setVerificationReason}
+                    />
+                    {!!attachmentIds.length && (
+                      <label className={styles.check}>
+                        <input
+                          type="checkbox"
+                          checked={retainReceipts}
+                          onChange={e => setRetainReceipts(e.target.checked)}
+                        />
+                        {tr('保存本次上传的图片凭证（')}
+                        {attachmentIds.length}
+                        {tr('张）')}
+                      </label>
+                    )}
+                  </>
+                )}
+                {x.key === 'scene' && (
+                  <SceneFields
+                    value={scene}
+                    onChange={(value, title) => {
+                      setScene(value);
+                      if (title) {
+                        mark('title');
+                        setTitle(title);
+                      }
+                    }}
+                  />
+                )}
+                {x.key === 'note' && (
+                  <label>
+                    {tr('备注')}
+                    {badge('note')}
+                    <textarea
+                      rows={2}
+                      value={note}
+                      maxLength={2000}
+                      placeholder={tr('记一点这笔钱的小故事')}
+                      onChange={e => {
+                        mark('note');
+                        setNote(e.target.value);
+                      }}
+                    />
+                  </label>
+                )}
+                {x.key === 'order' && (
+                  <>
+                    <label>
+                      {tr('订单号（选填）')}
+                      {badge('orderId')}
+                      <input
+                        value={orderId}
+                        maxLength={200}
+                        autoComplete="off"
+                        onChange={e => {
+                          mark('orderId');
+                          setOrderId(e.target.value);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {tr('交易 / 退款流水号（选填）')}
+                      {badge('externalId')}
+                      <input
+                        value={externalId}
+                        maxLength={200}
+                        autoComplete="off"
+                        onChange={e => {
+                          mark('externalId');
+                          setExternalId(e.target.value);
+                        }}
+                      />
+                    </label>
+                    <small className={styles.muted}>
+                      {tr('编号不是必填项；图片中清晰可见时会自动带入，并用于以后核对账单。')}
+                    </small>
+                  </>
+                )}
+                {x.key === 'activity' && (
+                  <ActivitySelect
+                    value={activityId}
+                    onChange={setActivityId}
+                    disabled={busy || !activityLoaded}
+                  />
+                )}
+                {x.key === 'installment' && (
+                  <EntryInstallmentFields
+                    value={installment}
+                    onChange={setInstallment}
+                    credit={accounts.some(a => a.id === account && a.type === 'credit')}
+                  />
+                )}
+                {x.key === 'photos' && (
+                  <TransactionPhotos
+                    book={book}
+                    ids={photoIds}
+                    onChange={setPhotoIds}
+                    disabled={busy}
+                    onBusy={setPhotoBusy}
+                  />
+                )}
+              </section>
+            ))}
+        </div>
+      </div>
       {error && (
         <p className={styles.error} role="alert">
           {tr(error)}

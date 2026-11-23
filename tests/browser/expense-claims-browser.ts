@@ -71,9 +71,13 @@ try {
   await form.getByLabel('金额（元）', { exact: true }).fill('500');
   await form.getByLabel('账目标题', { exact: true }).fill('新衣服');
   const category = form.getByRole('group', { name: '记在哪一类？' });
-  if (!(await category.getByRole('button', { name: '服装配饰', exact: true }).count()))
-    await category.getByRole('button', { name: '全部分类' }).click();
-  await category.getByRole('button', { name: '服装配饰', exact: true }).click();
+  if (!(await category.getByRole('button', { name: '服装配饰', exact: true }).count())) {
+    await category.getByRole('button', { name: /^全部 \d+ 类$/ }).click();
+    await page
+      .getByRole('dialog', { name: '记在哪一类？' })
+      .getByRole('button', { name: '服装配饰', exact: true })
+      .click();
+  } else await category.getByRole('button', { name: '服装配饰', exact: true }).click();
   await form.locator('.claim-recipient').scrollIntoViewIfNeeded();
   await capture('desktop-entry');
   await page.setViewportSize({ width: 375, height: 812 });

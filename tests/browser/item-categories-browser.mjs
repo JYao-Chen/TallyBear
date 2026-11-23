@@ -70,7 +70,6 @@ try {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('http://127.0.0.1:' + server.address().port);
-    await page.getByText('更多', { exact: true }).click();
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).waitFor();
     await page.getByText('分类计入金额', { exact: true }).first().click();
     const breakdown = page.getByRole('heading', { name: '分类计入金额' }).locator('..');
@@ -95,10 +94,14 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).click();
     await page.getByRole('button', { name: '整单统一分类', exact: true }).click();
-    await page
-      .getByRole('group', { name: '记在哪一类？' })
-      .getByRole('button', { name: '零食', exact: true })
-      .click();
+    const entryCategory = page.getByRole('group', { name: '记在哪一类？' });
+    if (!(await entryCategory.getByRole('button', { name: '零食', exact: true }).count())) {
+      await entryCategory.getByRole('button', { name: /^全部 \d+ 类$/ }).click();
+      await page
+        .getByRole('dialog', { name: '记在哪一类？' })
+        .getByRole('button', { name: '零食', exact: true })
+        .click();
+    } else await entryCategory.getByRole('button', { name: '零食', exact: true }).click();
     await page.evaluate(() => {
       window.saved = null;
     });

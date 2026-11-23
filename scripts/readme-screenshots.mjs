@@ -1874,6 +1874,18 @@ try {
       await shot('manual');
       const manualForm = page.getByRole('form', { name: t('手动记账') });
       await manualForm
+        .getByRole('button', { name: new RegExp('^' + t('全部 {0} 类').replace('{0}', '\\d+') + '$') })
+        .click();
+      const categorySheet = page.getByRole('dialog', { name: t('记在哪一类？') });
+      await categorySheet.getByRole('textbox').fill(lang === 'en' ? 'tra' : '交');
+      await shot('manual-categories');
+      await categorySheet.getByRole('button', { name: t('关闭弹窗'), exact: true }).click();
+      for (const extra of ['商家与平台', '商品与优惠费用', '备注'])
+        await manualForm.getByRole('button', { name: new RegExp('^' + t(extra)) }).click();
+      await manualForm.getByRole('region', { name: t('备注') }).scrollIntoViewIfNeeded();
+      await shot('manual-extras');
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await manualForm
         .getByRole('textbox', { name: t('金额（元）').replace('CNY', 'USD'), exact: true })
         .fill('1.23');
       await manualForm.getByRole('button', { name: t('保存并再记'), exact: true }).click();

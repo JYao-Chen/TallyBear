@@ -196,7 +196,10 @@ export function LineItemsEditor({
   onRecognized,
   category,
   categories,
+  bare = false,
 }: {
+  /** Render without the outer collapsible, for forms that already group optional sections. */
+  bare?: boolean;
   category?: string;
   categories?: { name: string; archived?: boolean }[];
   items: LineItem[];
@@ -441,16 +444,22 @@ export function LineItemsEditor({
       {renderExpandedRow(i, n)}
     </CompactItem>
   );
+  const Wrapper = bare ? 'div' : 'details';
   return (
-    <details
+    <Wrapper
+      role={bare ? 'group' : undefined}
       aria-label={tr('商品与优惠费用')}
-      className={styles.editor}
-      open={items.length > 0 || photos.length > 0 || busy || found.length > 0 || undefined}
+      className={bare ? styles.editorBare : styles.editor}
+      {...(bare
+        ? {}
+        : { open: items.length > 0 || photos.length > 0 || busy || found.length > 0 || undefined })}
     >
-      <summary>
-        {tr('商品与优惠费用')}
-        {items.length ? tr(' · {0}件商品', [groups.goods.length]) : tr(' · 选填')}
-      </summary>
+      {!bare && (
+        <summary>
+          {tr('商品与优惠费用')}
+          {items.length ? tr(' · {0}件商品', [groups.goods.length]) : tr(' · 选填')}
+        </summary>
+      )}
       <fieldset disabled={busy}>
         <div className={styles.mode}>
           <label>
@@ -659,7 +668,7 @@ export function LineItemsEditor({
           {removing.name || tr('新明细')}
         </ConfirmDialog>
       )}
-    </details>
+    </Wrapper>
   );
 }
 

@@ -109,8 +109,7 @@ try {
       body: 'data: ' + JSON.stringify({ event: 'complete', data: { entries: [entry] } }) + '\n\n',
     });
   });
-  await page.getByText('更多', { exact: true }).click();
-  await page.getByRole('group', { name: '商品与优惠费用', exact: true }).locator('summary').first().click();
+  await page.getByRole('button', { name: /^商品与优惠费用/ }).click();
   const applyReceipt = async () => {
     await page
       .getByLabel('上传同一订单的小票图片')

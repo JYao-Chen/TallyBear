@@ -1,0 +1,84 @@
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.quick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 var(--text-sm) / 1.3 var(--font-body);
+  cursor: pointer;
+}
+.quick > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.quick:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.quick[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.all {
+  padding-inline: var(--space-3);
+  color: var(--accent);
+  border-style: dashed;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+  color: var(--muted);
+}
+.search > :last-child {
+  flex: 1;
+  min-width: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+.cell {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-1);
+  min-height: 84px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 var(--text-sm) / 1.3 var(--font-body);
+  text-align: center;
+  cursor: pointer;
+}
+.cell > span {
+  overflow-wrap: anywhere;
+}
+.cell:hover {
+  border-color: var(--accent);
+}
+.cell[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.empty {
+  color: var(--muted);
+}

@@ -2826,5 +2826,14 @@
   "有 {0} 笔需要补全金额、日期、账户或处理方式。": "Drafts to complete: {0}. Add the amount, date, account or action.",
   "确认保存 · 新增 {0} 笔 / 补充 {1} 笔": "Confirm and save · New {0} / Update {1}",
   "还可用 ": "Available ",
-  "商家、商品或备注": "Merchant, item, note"
+  "商家、商品或备注": "Merchant, item, note",
+  "全部 {0} 类": "All {0}",
+  "没有找到这个分类，可以在“账本设置 · 分类”里新建。": "No matching category. You can add one under Book settings · Categories.",
+  "都可以不填；需要时点开一项": "All optional. Open one when you need it.",
+  "收起{0}": "Collapse {0}",
+  "付款方与平台": "Payer & platform",
+  "商家与平台": "Merchant & platform",
+  "订单号与流水号": "Order & reference numbers",
+  "{0} 项": "{0} items",
+  "分期": "Installments"
 }

@@ -28,10 +28,13 @@ export function SymbolIcon({
   icon,
   size = 40,
   fallback = 'tag',
+  still = false,
 }: {
   icon: string;
   size?: number;
   fallback?: 'user' | 'tag';
+  /** Use the static image of a sticker (lists with many icons). */
+  still?: boolean;
 }) {
   const { t: tr, locale } = useI18n();
   const { theme } = useTheme();
@@ -50,6 +53,19 @@ export function SymbolIcon({
       </span>
     );
   const id = icon.startsWith('sticker:') ? icon.slice(8) : '';
+  if (id && stickers.includes(id) && still)
+    return (
+      <span className={styles.symbol} style={{ width: size, height: size }}>
+        <img
+          loading="lazy"
+          decoding="async"
+          src={`/stickers/bubu-yier-${id}.png`}
+          width={size}
+          height={size}
+          alt=""
+        />
+      </span>
+    );
   return id && stickers.includes(id) ? (
     <picture className={styles.symbol} style={{ width: size, height: size }}>
       <source media="(prefers-reduced-motion: reduce)" srcSet={`/stickers/bubu-yier-${id}.png`} />
@@ -141,7 +157,7 @@ export function VisualSelect({
               onChange?.(o.value);
             }}
           >
-            {o.icon?.startsWith('sticker:') || /[🧸🐻🐼🐾]/u.test(o.icon || '') ? <Tag size={18} /> : icon(o)}
+            {o.icon ? <SymbolIcon icon={o.icon} size={26} still /> : icon(o)}
             {tr(o.label)}
           </Button>
         ))}
