@@ -1882,7 +1882,9 @@ try {
       await categorySheet.getByRole('button', { name: t('关闭弹窗'), exact: true }).click();
       for (const extra of ['商家与平台', '商品与优惠费用', '备注'])
         await manualForm.getByRole('button', { name: new RegExp('^' + t(extra)) }).click();
-      await manualForm.getByRole('region', { name: t('备注') }).scrollIntoViewIfNeeded();
+      await manualForm
+        .getByRole('region', { name: t('商家与平台') })
+        .evaluate(el => el.scrollIntoView({ block: 'start' }));
       await shot('manual-extras');
       await page.evaluate(() => window.scrollTo(0, 0));
       await manualForm

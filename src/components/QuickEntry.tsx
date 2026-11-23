@@ -780,7 +780,9 @@ export function QuickEntry({
                     <label>
                       {tr('商品摘要')}
                       {badge('product')}
-                      <input
+                      <textarea
+                        className={styles.productSummary}
+                        rows={2}
                         value={product}
                         maxLength={160}
                         onChange={e => {

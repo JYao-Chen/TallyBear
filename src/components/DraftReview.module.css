@@ -134,3 +134,8 @@
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+
+.productSummary {
+  field-sizing: content;
+  min-height: var(--touch);
+}

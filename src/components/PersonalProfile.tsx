@@ -327,7 +327,7 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     <Search size={17} />
                     <Input
                       aria-label={t('搜索画像', 'Search profile')}
-                      placeholder={t('搜索场景、商家、钱包…', 'Search context, merchant, wallet…')}
+                      placeholder={t('搜索画像', 'Search profile')}
                       value={query}
                       onChange={e => {
                         setQuery(e.target.value);

@@ -102,4 +102,7 @@ details[open] > .disclosure svg {
   .memoryFilters > :first-child {
     flex-basis: 100%;
   }
+  .memoryFilters > :nth-child(2) {
+    flex-basis: 192px;
+  }
 }

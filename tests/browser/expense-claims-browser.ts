@@ -63,7 +63,7 @@ async function close() {
 }
 try {
   await login(0);
-  await page.locator('#primary-navigation').getByRole('button', { name: '记一笔', exact: true }).click();
+  await page.goto(origin + '/entry');
   await page.getByRole('button', { name: '手动填写', exact: true }).click();
   const form = page.getByRole('form', { name: '手动记账' });
   await choose('记入账本', '私人账本', form);
@@ -78,7 +78,7 @@ try {
       .getByRole('button', { name: '服装配饰', exact: true })
       .click();
   } else await category.getByRole('button', { name: '服装配饰', exact: true }).click();
-  await form.locator('.claim-recipient').scrollIntoViewIfNeeded();
+  await form.getByRole('button', { name: /^消费对象：/ }).scrollIntoViewIfNeeded();
   await capture('desktop-entry');
   await page.setViewportSize({ width: 375, height: 812 });
   await capture('mobile-entry');

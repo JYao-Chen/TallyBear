@@ -8,7 +8,7 @@ const out = process.env.TEST_ARTIFACT_DIR;
 assert.ok(out);
 await mkdir(out, { recursive: true });
 const fixture = `import {createRoot} from 'react-dom/client';import {useState} from 'react';import {QuickEntry} from './src/components/QuickEntry';import {ChatActionEditor} from './src/components/ChatActionEditor';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';import {CategoryIcons} from './src/components/VisualSelect';
-const book='11111111-1111-4111-8111-111111111111',wallet='22222222-2222-4222-8222-222222222222';const categories=['购物','蔬菜','米面粮油','服饰','零食'].map((name,n)=>({name,icon:['🛒','🥬','🌾','👕','🍪'][n],archived:false}));const items=[{name:'青菜',amount:3000,category:'蔬菜'},{name:'面粉',amount:2000,category:'米面粮油'},{name:'衣服',amount:10000,category:'服饰'},{name:'满减',kind:'discount',amount:-1000}].map(i=>({...i,kind:i.kind||'item',quantity:null,unitPrice:null}));const draft={id:'33333333-3333-4333-8333-333333333333',kind:'expense',amount:14000,date:'2026-10-31',title:'超市购物',category:'购物',accountId:wallet,payee:'超市',note:'',lineItems:items};const books=[{id:book,name:'测试账本',kind:'private',role:'owner',icon:'📒'}];window.options={bookId:book,books,accounts:[{id:wallet,name:'现金',type:'cash'}],categories,activities:[]};function App(){const [mode,setMode]=useState('manual');return <LanguageProvider initial='zh-CN'><ThemeProvider initial='bear'><CategoryIcons.Provider value={categories}><main style={{maxWidth:900,margin:'auto',padding:16}}><button onClick={()=>setMode('ai')}>AI确认卡编辑</button><section className='panel'>{mode==='manual'?<QuickEntry book={book} books={books} categories={categories} accounts={window.options.accounts} originals={[]} initial={draft} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>:<ChatActionEditor action={{id:draft.id,bookId:book,kind:'entry',status:'pending',data:draft,summary:[],missing:[],warnings:[]}} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>}</section></main></CategoryIcons.Provider></ThemeProvider></LanguageProvider>};createRoot(document.getElementById('root')).render(<App/>);`;
+const book='11111111-1111-4111-8111-111111111111',wallet='22222222-2222-4222-8222-222222222222';const categories=['购物','蔬菜','米面粮油','服饰','交通','住房','娱乐','零食'].map((name,n)=>({name,icon:['🛒','🥬','🌾','👕','🚌','🏠','🎮','🍪'][n],archived:false}));const items=[{name:'青菜',amount:3000,category:'蔬菜'},{name:'面粉',amount:2000,category:'米面粮油'},{name:'衣服',amount:10000,category:'服饰'},{name:'满减',kind:'discount',amount:-1000}].map(i=>({...i,kind:i.kind||'item',quantity:null,unitPrice:null}));const draft={id:'33333333-3333-4333-8333-333333333333',kind:'expense',amount:14000,date:'2026-10-31',title:'超市购物',category:'购物',accountId:wallet,payee:'超市',note:'',lineItems:items};const books=[{id:book,name:'测试账本',kind:'private',role:'owner',icon:'📒'}];window.options={bookId:book,books,accounts:[{id:wallet,name:'现金',type:'cash'}],categories,activities:[]};function App(){const [mode,setMode]=useState('manual');return <LanguageProvider initial='zh-CN'><ThemeProvider initial='bear'><CategoryIcons.Provider value={categories}><main style={{maxWidth:900,margin:'auto',padding:16}}><button onClick={()=>setMode('ai')}>AI确认卡编辑</button><section className='panel'>{mode==='manual'?<QuickEntry book={book} books={books} categories={categories} accounts={window.options.accounts} originals={[]} initial={draft} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>:<ChatActionEditor action={{id:draft.id,bookId:book,kind:'entry',status:'pending',data:draft,summary:[],missing:[],warnings:[]}} onSave={async d=>{window.saved=d;}} onCancel={()=>{}}/>}</section></main></CategoryIcons.Provider></ThemeProvider></LanguageProvider>};createRoot(document.getElementById('root')).render(<App/>);`;
 const bundle = await build({
   stdin: { contents: fixture, resolveDir: process.cwd(), loader: 'tsx' },
   bundle: true,
@@ -95,13 +95,12 @@ try {
     await page.getByRole('button', { name: '分类方式：按商品分别分类', exact: true }).click();
     await page.getByRole('button', { name: '整单统一分类', exact: true }).click();
     const entryCategory = page.getByRole('group', { name: '记在哪一类？' });
-    if (!(await entryCategory.getByRole('button', { name: '零食', exact: true }).count())) {
-      await entryCategory.getByRole('button', { name: /^全部 \d+ 类$/ }).click();
-      await page
-        .getByRole('dialog', { name: '记在哪一类？' })
-        .getByRole('button', { name: '零食', exact: true })
-        .click();
-    } else await entryCategory.getByRole('button', { name: '零食', exact: true }).click();
+    await entryCategory.getByRole('button', { name: /^全部 \d+ 类$/ }).click();
+    const categorySheet = page.getByRole('dialog', { name: '记在哪一类？' });
+    const search = categorySheet.getByRole('textbox');
+    await search.fill('零');
+    await search.press('Enter');
+    await entryCategory.getByRole('button', { name: '零食', pressed: true }).waitFor();
     await page.evaluate(() => {
       window.saved = null;
     });

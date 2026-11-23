@@ -440,7 +440,7 @@ export function RecordsPanel({
     <label className={s.search}>
       <Search size={18} />
       <Input
-        placeholder={tr('商家、商品或备注')}
+        placeholder={tr('搜索')}
         aria-label={tr('搜索流水')}
         value={q}
         onChange={e => setQ(e.target.value)}

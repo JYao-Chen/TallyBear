@@ -758,7 +758,7 @@ export function ActivitiesPage({
               <Input
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder={tr('搜索商家、商品、备注、订单号')}
+                placeholder={tr('搜索活动明细')}
                 aria-label={tr('搜索活动明细')}
               />
             </label>

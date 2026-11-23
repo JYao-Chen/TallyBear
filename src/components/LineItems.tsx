@@ -419,7 +419,9 @@ export function LineItemsEditor({
             onClick={() => setRemoving(i)}
           >
             <Trash2 size={16} aria-hidden="true" />
-            <span className={styles.deleteText}>{tr('删除明细')}</span>
+            <span aria-hidden="true" className={styles.deleteText}>
+              {tr('删除明细')}
+            </span>
           </Button>
         </div>
       </div>

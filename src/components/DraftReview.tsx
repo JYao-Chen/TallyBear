@@ -528,7 +528,9 @@ export function DraftReview({
                           <label>
                             {tr('商品摘要')}
                             {fieldBadge(d, 'product')}
-                            <input
+                            <textarea
+                              className={styles.productSummary}
+                              rows={2}
                               value={d.product || ''}
                               maxLength={160}
                               placeholder={tr('例如：洗衣液 2kg × 2瓶')}
