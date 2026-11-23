@@ -205,46 +205,101 @@ export function AccountStatistics({
             ) : (
               <>
                 <h3>{tr('钱包收支与余额')}</h3>
-                <PagedList
-                  items={data.accounts}
-                  resetKey={scope + from + to}
-                  container={rows => (
-                    <div className={s.accountFlowTable}>
-                      <table>
-                        <thead>
-                          <tr>
-                            {['资金账户', '收入到账', '消费支出', '退款到账', '转入', '转出', '账户余额'].map(
-                              value => (
+                <div className={s.accountFlowDesktop}>
+                  <PagedList
+                    items={data.accounts}
+                    resetKey={scope + from + to}
+                    container={rows => (
+                      <div className={s.accountFlowTable}>
+                        <table>
+                          <thead>
+                            <tr>
+                              {[
+                                '资金账户',
+                                '收入到账',
+                                '消费支出',
+                                '退款到账',
+                                '转入',
+                                '转出',
+                                '账户余额',
+                              ].map(value => (
                                 <th key={value}>{tr(value)}</th>
-                              ),
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>{rows}</tbody>
-                      </table>
-                    </div>
-                  )}
-                >
-                  {account => (
-                    <tr key={account.id}>
-                      <td>
-                        <AccountIcon name={account.institution || account.name} size={20} />{' '}
-                        {accountLabel(account)}
-                        {account.archived && <small> {tr('· 已归档')}</small>}
-                      </td>
-                      {[
-                        account.income,
-                        account.expense,
-                        account.refund,
-                        account.transferIn,
-                        account.transferOut,
-                        account.balance,
-                      ].map((value, index) => (
-                        <td key={index}>{money(value)}</td>
-                      ))}
-                    </tr>
-                  )}
-                </PagedList>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>{rows}</tbody>
+                        </table>
+                      </div>
+                    )}
+                  >
+                    {account => (
+                      <tr key={account.id}>
+                        <td>
+                          <AccountIcon name={account.institution || account.name} size={20} />{' '}
+                          {accountLabel(account)}
+                          {account.archived && <small> {tr('· 已归档')}</small>}
+                        </td>
+                        {[
+                          account.income,
+                          account.expense,
+                          account.refund,
+                          account.transferIn,
+                          account.transferOut,
+                          account.balance,
+                        ].map((value, index) => (
+                          <td key={index}>{money(value)}</td>
+                        ))}
+                      </tr>
+                    )}
+                  </PagedList>
+                </div>
+                <div className={s.accountCards}>
+                  <PagedList
+                    items={data.accounts}
+                    resetKey={scope + from + to + '-cards'}
+                    container={rows => <div className={s.accountCardList}>{rows}</div>}
+                  >
+                    {account => (
+                      <article key={account.id} className={s.accountCard}>
+                        <header className={s.accountCardHead}>
+                          <div className={s.accountCardTitle}>
+                            <AccountIcon name={account.institution || account.name} size={20} />
+                            <span>
+                              {accountLabel(account)}
+                              {account.archived && <small> {tr('· 已归档')}</small>}
+                            </span>
+                          </div>
+                          <div className={s.accountCardBalance}>
+                            <small>{tr('账户余额')}</small>
+                            <strong>{money(account.balance)}</strong>
+                          </div>
+                        </header>
+                        <dl className={s.accountCardMetrics}>
+                          <div>
+                            <dt>{tr('收入到账')}</dt>
+                            <dd>{money(account.income)}</dd>
+                          </div>
+                          <div>
+                            <dt>{tr('消费支出')}</dt>
+                            <dd>{money(account.expense)}</dd>
+                          </div>
+                          <div>
+                            <dt>{tr('退款到账')}</dt>
+                            <dd>{money(account.refund)}</dd>
+                          </div>
+                          <div>
+                            <dt>{tr('转入')}</dt>
+                            <dd>{money(account.transferIn)}</dd>
+                          </div>
+                          <div>
+                            <dt>{tr('转出')}</dt>
+                            <dd>{money(account.transferOut)}</dd>
+                          </div>
+                        </dl>
+                      </article>
+                    )}
+                  </PagedList>
+                </div>
                 <div className={s.accountSourceGrid}>
                   {[
                     ['income', '收入来源'],

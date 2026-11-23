@@ -516,225 +516,226 @@ export function MemoryWorkspace({
                 )}
                 {detailTab === 'edit' && (
                   <>
-                {selected.kind === 'product' && (
-                  <details>
-                    <summary className={styles.disclosure}>
-                      {tr('自动提炼的商品属性与依据')}
-                      <ChevronDown size={18} aria-hidden="true" />
-                    </summary>
-                    <p>
-                      {tr('规范名称：')}
-                      {selected.attributes.canonicalName || tr('未提炼')} {tr(' · 型号：')}
-                      {selected.attributes.model || tr('未识别')}
-                    </p>
-                    {Object.entries(selected.attributes.quotes || {}).map(([key, quote]) => (
-                      <p key={key}>
-                        {(
-                          {
-                            name: tr('名称'),
-                            brand: tr('品牌'),
-                            specification: tr('规格'),
-                            model: tr('型号'),
-                          } as Record<string, string>
-                        )[key] || key}
-                        {tr('依据：')}
-                        {quote}
-                      </p>
-                    ))}
-                  </details>
-                )}
-                {selected.kind === 'preference' && (
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={replaceConflicts}
-                      onChange={e => setReplaceConflicts(e.target.checked)}
-                    />
-                    {tr('明确以此规则替代同一场景的旧分类规则')}
-                  </label>
-                )}
-                <form
-                  className={styles.sheetForm}
-                  onSubmit={e => {
-                    e.preventDefault();
-                    run({
-                      operation: 'save',
-                      replaceConflicts,
-                      ...(selected.id ? { id: selected.id, version: selected.version } : {}),
-                      kind: selected.kind,
-                      title: editTitle,
-                      content: editContent,
-                      aliases: aliases
-                        .split('\n')
-                        .map(s => s.trim())
-                        .filter(Boolean),
-                      attributes: {
-                        ...selected.attributes,
-                        targetId: referenceId || undefined,
-                        targetType: referenceId ? referenceType : undefined,
-                        match: ruleMatch || undefined,
-                        scope: ruleScope,
-                        category: category || undefined,
-                        brand: brand || undefined,
-                        specification: specification || undefined,
-                      },
-                    });
-                  }}
-                >
-                  <h4>{tr('基本信息')}</h4>
-                  <label>
-                    {tr('名称')}
-                    <Input
-                      required
-                      value={editTitle}
-                      onChange={e => setEditTitle(e.target.value)}
-                      maxLength={160}
-                    />
-                  </label>
-                  <label>
-                    {tr('描述')}
-                    <TextArea
-                      value={editContent}
-                      onChange={e => setEditContent(e.target.value)}
-                      maxLength={2000}
-                    />
-                  </label>
-                  <label>
-                    {tr('别名（每行一个）')}
-                    <TextArea value={aliases} onChange={e => setAliases(e.target.value)} />
-                  </label>
-                  {selected.kind === 'preference' && (
-                    <>
-                      <label>
-                        {tr('适用范围')}
-                        <FormSelect value={ruleScope} onChange={setRuleScope}>
-                          <option value="product">{tr('仅此商品')}</option>
-                          <option value="merchant">{tr('该商家的消费')}</option>
-                        </FormSelect>
-                      </label>
-                      <label>
-                        {tr('匹配的商品／商家名称')}
-                        <Input value={ruleMatch} onChange={e => setRuleMatch(e.target.value)} />
-                      </label>
-                    </>
-                  )}
-                  {selected.kind === 'product' && (
-                    <>
-                      <h4>{tr('商品属性')}</h4>
-                      <label>
-                        {tr('品牌')}
-                        <Input value={brand} onChange={e => setBrand(e.target.value)} />
-                      </label>
-                      <label>
-                        {tr('规格／套餐')}
-                        <Input value={specification} onChange={e => setSpecification(e.target.value)} />
-                      </label>
-                    </>
-                  )}
-                  <details>
-                    <summary className={styles.disclosure}>
-                      {tr('关联已有活动或计划')}
-                      <ChevronDown size={18} aria-hidden="true" />
-                    </summary>
-                    <label>
-                      {tr('对象类型')}
-                      <FormSelect
-                        value={referenceType}
-                        onChange={v => {
-                          setReferenceType(v);
-                          setReferenceId('');
-                          setReferencePage(1);
-                        }}
-                      >
-                        <option value="activity">{tr('活动')}</option>
-                        <option value="schedule">{tr('周期计划')}</option>
-                        <option value="template">{tr('常用预设')}</option>
-                      </FormSelect>
-                    </label>
-                    <label>
-                      {tr('搜索对象')}
-                      <Input
-                        value={referenceQuery}
-                        onChange={e => {
-                          setReferenceQuery(e.target.value);
-                          setReferencePage(1);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      {tr('选择关联对象')}
-                      <FormSelect value={referenceId} onChange={setReferenceId}>
-                        <option value="">{tr('不关联')}</option>
-                        {references.map(r => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
+                    {selected.kind === 'product' && (
+                      <details>
+                        <summary className={styles.disclosure}>
+                          {tr('自动提炼的商品属性与依据')}
+                          <ChevronDown size={18} aria-hidden="true" />
+                        </summary>
+                        <p>
+                          {tr('规范名称：')}
+                          {selected.attributes.canonicalName || tr('未提炼')} {tr(' · 型号：')}
+                          {selected.attributes.model || tr('未识别')}
+                        </p>
+                        {Object.entries(selected.attributes.quotes || {}).map(([key, quote]) => (
+                          <p key={key}>
+                            {(
+                              {
+                                name: tr('名称'),
+                                brand: tr('品牌'),
+                                specification: tr('规格'),
+                                model: tr('型号'),
+                              } as Record<string, string>
+                            )[key] || key}
+                            {tr('依据：')}
+                            {quote}
+                          </p>
                         ))}
-                      </FormSelect>
-                    </label>
-                    <div className={styles.memoryActions}>
-                      <Button
-                        variant="primary"
-                        type="button"
-                        disabled={referencePage === 1}
-                        onClick={() => setReferencePage(p => p - 1)}
-                      >
-                        {tr('上一页对象')}
-                      </Button>
-                      <Button
-                        variant="primary"
-                        type="button"
-                        disabled={references.length < 20}
-                        onClick={() => setReferencePage(p => p + 1)}
-                      >
-                        {tr('下一页对象')}
-                      </Button>
-                    </div>
-                  </details>
-                  <label>
-                    {tr('分类偏好')}
-                    <Input value={category} onChange={e => setCategory(e.target.value)} />
-                  </label>
-                  <div className={styles.memoryActions}>
-                    <Button type="submit" variant="primary" disabled={busy}>
-                      {tr('保存')}
-                    </Button>
-                    <Button type="button" onClick={() => setSelected(null)}>
-                      {tr('关闭详情')}
-                    </Button>
-                    {selected.id && (
-                      <>
-                        <Button
-                          variant="primary"
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            run({
-                              operation: 'status',
-                              id: selected.id,
-                              version: selected.version,
-                              status: selected.status === 'active' ? 'disabled' : 'active',
-                            })
-                          }
-                        >
-                          {selected.status === 'active' ? tr('停用') : tr('确认启用')}
-                        </Button>
-                        <Button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            requestConfirmation(
-                              tr('遗忘此记忆并阻止从这些来源重新学习？原账单不受影响。'),
-                              () => run({ operation: 'forget', id: selected.id, version: selected.version }),
-                            );
-                          }}
-                        >
-                          {tr('遗忘')}
-                        </Button>
-                      </>
+                      </details>
                     )}
-                  </div>
-                </form>
+                    {selected.kind === 'preference' && (
+                      <label className={styles.check}>
+                        <input
+                          type="checkbox"
+                          checked={replaceConflicts}
+                          onChange={e => setReplaceConflicts(e.target.checked)}
+                        />
+                        {tr('明确以此规则替代同一场景的旧分类规则')}
+                      </label>
+                    )}
+                    <form
+                      className={styles.sheetForm}
+                      onSubmit={e => {
+                        e.preventDefault();
+                        run({
+                          operation: 'save',
+                          replaceConflicts,
+                          ...(selected.id ? { id: selected.id, version: selected.version } : {}),
+                          kind: selected.kind,
+                          title: editTitle,
+                          content: editContent,
+                          aliases: aliases
+                            .split('\n')
+                            .map(s => s.trim())
+                            .filter(Boolean),
+                          attributes: {
+                            ...selected.attributes,
+                            targetId: referenceId || undefined,
+                            targetType: referenceId ? referenceType : undefined,
+                            match: ruleMatch || undefined,
+                            scope: ruleScope,
+                            category: category || undefined,
+                            brand: brand || undefined,
+                            specification: specification || undefined,
+                          },
+                        });
+                      }}
+                    >
+                      <h4>{tr('基本信息')}</h4>
+                      <label>
+                        {tr('名称')}
+                        <Input
+                          required
+                          value={editTitle}
+                          onChange={e => setEditTitle(e.target.value)}
+                          maxLength={160}
+                        />
+                      </label>
+                      <label>
+                        {tr('描述')}
+                        <TextArea
+                          value={editContent}
+                          onChange={e => setEditContent(e.target.value)}
+                          maxLength={2000}
+                        />
+                      </label>
+                      <label>
+                        {tr('别名（每行一个）')}
+                        <TextArea value={aliases} onChange={e => setAliases(e.target.value)} />
+                      </label>
+                      {selected.kind === 'preference' && (
+                        <>
+                          <label>
+                            {tr('适用范围')}
+                            <FormSelect value={ruleScope} onChange={setRuleScope}>
+                              <option value="product">{tr('仅此商品')}</option>
+                              <option value="merchant">{tr('该商家的消费')}</option>
+                            </FormSelect>
+                          </label>
+                          <label>
+                            {tr('匹配的商品／商家名称')}
+                            <Input value={ruleMatch} onChange={e => setRuleMatch(e.target.value)} />
+                          </label>
+                        </>
+                      )}
+                      {selected.kind === 'product' && (
+                        <>
+                          <h4>{tr('商品属性')}</h4>
+                          <label>
+                            {tr('品牌')}
+                            <Input value={brand} onChange={e => setBrand(e.target.value)} />
+                          </label>
+                          <label>
+                            {tr('规格／套餐')}
+                            <Input value={specification} onChange={e => setSpecification(e.target.value)} />
+                          </label>
+                        </>
+                      )}
+                      <details>
+                        <summary className={styles.disclosure}>
+                          {tr('关联已有活动或计划')}
+                          <ChevronDown size={18} aria-hidden="true" />
+                        </summary>
+                        <label>
+                          {tr('对象类型')}
+                          <FormSelect
+                            value={referenceType}
+                            onChange={v => {
+                              setReferenceType(v);
+                              setReferenceId('');
+                              setReferencePage(1);
+                            }}
+                          >
+                            <option value="activity">{tr('活动')}</option>
+                            <option value="schedule">{tr('周期计划')}</option>
+                            <option value="template">{tr('常用预设')}</option>
+                          </FormSelect>
+                        </label>
+                        <label>
+                          {tr('搜索对象')}
+                          <Input
+                            value={referenceQuery}
+                            onChange={e => {
+                              setReferenceQuery(e.target.value);
+                              setReferencePage(1);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          {tr('选择关联对象')}
+                          <FormSelect value={referenceId} onChange={setReferenceId}>
+                            <option value="">{tr('不关联')}</option>
+                            {references.map(r => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </FormSelect>
+                        </label>
+                        <div className={styles.memoryActions}>
+                          <Button
+                            variant="primary"
+                            type="button"
+                            disabled={referencePage === 1}
+                            onClick={() => setReferencePage(p => p - 1)}
+                          >
+                            {tr('上一页对象')}
+                          </Button>
+                          <Button
+                            variant="primary"
+                            type="button"
+                            disabled={references.length < 20}
+                            onClick={() => setReferencePage(p => p + 1)}
+                          >
+                            {tr('下一页对象')}
+                          </Button>
+                        </div>
+                      </details>
+                      <label>
+                        {tr('分类偏好')}
+                        <Input value={category} onChange={e => setCategory(e.target.value)} />
+                      </label>
+                      <div className={styles.memoryActions}>
+                        <Button type="submit" variant="primary" disabled={busy}>
+                          {tr('保存')}
+                        </Button>
+                        <Button type="button" onClick={() => setSelected(null)}>
+                          {tr('关闭详情')}
+                        </Button>
+                        {selected.id && (
+                          <>
+                            <Button
+                              variant="primary"
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                run({
+                                  operation: 'status',
+                                  id: selected.id,
+                                  version: selected.version,
+                                  status: selected.status === 'active' ? 'disabled' : 'active',
+                                })
+                              }
+                            >
+                              {selected.status === 'active' ? tr('停用') : tr('确认启用')}
+                            </Button>
+                            <Button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => {
+                                requestConfirmation(
+                                  tr('遗忘此记忆并阻止从这些来源重新学习？原账单不受影响。'),
+                                  () =>
+                                    run({ operation: 'forget', id: selected.id, version: selected.version }),
+                                );
+                              }}
+                            >
+                              {tr('遗忘')}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </form>
                   </>
                 )}
                 {detailTab === 'sources' && detail && (

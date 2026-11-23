@@ -102,9 +102,12 @@ export function DraftReview({
   const [editingId, setEditingId] = useState('');
   const [removing, setRemoving] = useState('');
   const [changed, setChanged] = useState<Record<string, (keyof Draft)[]>>({});
+  const handledFocusKey = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!focusRequest || !drafts.some(d => d.id === focusRequest.id)) return;
+    if (!focusRequest || focusRequest.key === handledFocusKey.current) return;
+    if (!drafts.some(d => d.id === focusRequest.id)) return;
+    handledFocusKey.current = focusRequest.key;
     setFilter('all');
     setEditingId(focusRequest.id);
     const frame = requestAnimationFrame(() =>
@@ -278,9 +281,7 @@ export function DraftReview({
                     size="sm"
                     variant="ghost"
                     disabled={busy}
-                    onClick={() =>
-                      change(d.id, { action: d.action === 'skip' ? 'create' : 'skip' })
-                    }
+                    onClick={() => change(d.id, { action: d.action === 'skip' ? 'create' : 'skip' })}
                   >
                     {d.action === 'skip' ? tr('恢复记账') : tr('跳过')}
                   </Button>
@@ -322,6 +323,7 @@ export function DraftReview({
         <Sheet
           open
           wide
+          closeLabel={tr('关闭弹窗')}
           title={editing.title || editing.payee || tr('核对与修改草稿')}
           onClose={() => setEditingId('')}
         >
@@ -375,12 +377,7 @@ export function DraftReview({
             </Button>
           </div>
         )}
-        <Button
-          type="button"
-          variant="primary"
-          disabled={busy || incomplete.length > 0}
-          onClick={onSave}
-        >
+        <Button type="button" variant="primary" disabled={busy || incomplete.length > 0} onClick={onSave}>
           {tr('确认保存 · 新增 {0} 笔 / 补充 {1} 笔', [
             drafts.filter(d => !d.action || d.action === 'create').length,
             drafts.filter(d => d.action === 'merge').length,

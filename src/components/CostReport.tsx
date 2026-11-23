@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Button, Input } from '@/ui';
 import { useI18n } from './LanguageProvider';
 import { FinanceChart } from './InteractiveFinanceChart';
 import { FormSelect } from './FormSelect';
@@ -104,7 +105,7 @@ export function CostReport({
         </label>
         <label>
           {l('搜索项目', 'Search projects')}
-          <input
+          <Input
             value={q}
             onChange={e => {
               setQ(e.target.value);
@@ -155,7 +156,12 @@ export function CostReport({
             </p>
           )}
           {data.rows.map((r: any) => (
-            <button key={r.id + r.month} className="cost-project-row secondary" onClick={() => onOpen(r.id)}>
+            <Button
+              key={r.id + r.month}
+              variant="secondary"
+              className="cost-project-row"
+              onClick={() => onOpen(r.id)}
+            >
               <span>
                 <strong>{r.title}</strong>
                 <small>
@@ -163,25 +169,25 @@ export function CostReport({
                 </small>
               </span>
               <strong>{formatMoney(r.net)}</strong>
-            </button>
+            </Button>
           ))}
           {!data.rows.length && (
             <p>{l('此期间没有已生效的分摊项目。', 'No active cost projects in this period.')}</p>
           )}
           <div className="cost-toolbar">
-            <button className="secondary" disabled={!offset} onClick={() => setOffset(v => v - 20)}>
+            <Button variant="secondary" disabled={!offset} onClick={() => setOffset(v => v - 20)}>
               {l('上一页', 'Previous')}
-            </button>
+            </Button>
             <span>
               {data.total ? offset + 1 : 0}–{Math.min(offset + 20, data.total)} / {data.total}
             </span>
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               disabled={offset + 20 >= data.total}
               onClick={() => setOffset(v => v + 20)}
             >
               {l('下一页', 'Next')}
-            </button>
+            </Button>
           </div>
         </>
       )}

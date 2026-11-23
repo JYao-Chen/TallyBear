@@ -9,7 +9,7 @@ assert.ok(out);
 await mkdir(out, { recursive: true });
 const result = await build({
   stdin: {
-    contents: `import {createRoot} from 'react-dom/client';import Workspace from './src/components/Workspace';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';createRoot(document.getElementById('root')).render(<LanguageProvider initial="zh-CN"><ThemeProvider initial="bear"><Workspace/></ThemeProvider></LanguageProvider>);`,
+    contents: `import {useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import {AppRouterContext} from 'next/dist/shared/lib/app-router-context.shared-runtime';import {PathnameContext} from 'next/dist/shared/lib/hooks-client-context.shared-runtime';import Workspace from './src/components/Workspace';import {LanguageProvider} from './src/components/LanguageProvider';import {ThemeProvider} from './src/components/ThemeProvider';function App(){const [path,setPath]=useState(location.pathname);const push=(p)=>{const next=new URL(p,location.origin).pathname;history.pushState({},'',p);setPath(next);};useEffect(()=>{const h=()=>setPath(location.pathname);addEventListener('popstate',h);return()=>removeEventListener('popstate',h);},[]);return <AppRouterContext.Provider value={{push,replace:push,prefetch:async()=>{},back:()=>history.back(),forward:()=>history.forward(),refresh:()=>{}}}><PathnameContext.Provider value={path}><LanguageProvider initial="zh-CN"><ThemeProvider initial="bear"><Workspace/></ThemeProvider></LanguageProvider></PathnameContext.Provider></AppRouterContext.Provider>;}createRoot(document.getElementById('root')).render(<App/>);`,
     resolveDir: process.cwd(),
     loader: 'tsx',
   },
@@ -18,7 +18,7 @@ const result = await build({
   outdir: 'fixture',
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
 const js = result.outputFiles.find(f => f.path.endsWith('.js')).contents;
@@ -29,6 +29,8 @@ const css =
       [...layout.matchAll(/import ['"]\.\/(.+?\.css)['"]/g)].map(m => readFile('src/app/' + m[1], 'utf8')),
     )
   ).join('\n') +
+  '\n' +
+  (await readFile('src/ui/tokens.css', 'utf8')) +
   '\n' +
   result.outputFiles
     .filter(f => f.path.endsWith('.css'))
@@ -274,24 +276,24 @@ try {
     retries = 0;
     await page.setViewportSize({ width, height: 1000 });
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    const nav = page.locator(width < 600 ? '.mobile-nav' : '#primary-navigation');
-    await nav.getByRole('button', { name: '记一笔', exact: true }).click();
+    const nav = page.getByLabel(width <= 730 ? '手机导航' : '侧栏');
+    await nav.getByRole('link', { name: '记一笔', exact: true }).click();
     await page.getByPlaceholder('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元').fill('识别这笔午饭');
     await page.getByRole('button', { name: '识别并生成草稿', exact: true }).click();
-    await page.getByLabel('账目标题', { exact: true }).waitFor();
-    assert.equal(await page.getByLabel('账目标题', { exact: true }).inputValue(), '自动展开的草稿');
-    await page.getByLabel('账目标题', { exact: true }).fill('保留当前账本修改');
+    const draftDialog = page.getByRole('dialog');
+    await draftDialog.getByLabel('账目标题', { exact: true }).waitFor();
+    assert.equal(await draftDialog.getByLabel('账目标题', { exact: true }).inputValue(), '自动展开的草稿');
+    await draftDialog.getByLabel('账目标题', { exact: true }).fill('保留当前账本修改');
+    await draftDialog.getByRole('button', { name: '保存修改', exact: true }).click();
+    await draftDialog.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: /^后台任务/ }).click();
     await page.getByRole('button', { name: '查看结果', exact: true }).click();
-    await page.waitForFunction(
-      () =>
-        document.querySelector('main input') &&
-        Array.from(document.querySelectorAll('input')).some(i => i.value === '后台任务草稿'),
-    );
-    assert.equal(await page.getByRole('dialog').count(), 0);
-    assert.equal(await page.getByLabel('账目标题', { exact: true }).inputValue(), '后台任务草稿');
-    await page.getByLabel('账目标题', { exact: true }).fill('后台草稿修改后保存');
-    await page.getByRole('button', { name: /确认保存 · 新增1\s*笔/ }).click();
+    await draftDialog.getByLabel('账目标题', { exact: true }).waitFor();
+    assert.equal(await draftDialog.getByLabel('账目标题', { exact: true }).inputValue(), '后台任务草稿');
+    await draftDialog.getByLabel('账目标题', { exact: true }).fill('后台草稿修改后保存');
+    await draftDialog.getByRole('button', { name: '保存修改', exact: true }).click();
+    await draftDialog.waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: /确认保存 · 新增\s*1\s*笔/ }).click();
     await page.getByRole('region', { name: '核对草稿' }).waitFor({ state: 'detached' });
     assert.ok(posted[0].path.includes(B));
     assert.equal(posted[0].body.entries[0].title, '后台草稿修改后保存');

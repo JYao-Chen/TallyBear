@@ -537,6 +537,7 @@ export function FinanceChat({
       </div>
       <div className={styles.tabs}>
         <Button
+          size="sm"
           aria-pressed={tab === 'chat'}
           disabled={busy}
           onClick={() => {
@@ -547,7 +548,7 @@ export function FinanceChat({
           <MessagesSquare size={16} />
           {tr('对话')}
         </Button>
-        <Button aria-pressed={tab === 'reports'} disabled={busy} onClick={() => setTab('reports')}>
+        <Button size="sm" aria-pressed={tab === 'reports'} disabled={busy} onClick={() => setTab('reports')}>
           <FileText size={16} />
           {tr('报告')}
         </Button>

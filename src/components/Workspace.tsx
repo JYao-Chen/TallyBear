@@ -1394,133 +1394,134 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                     </div>
                                   </div>
                                 ) : (
-                                <>
-                                  <div className={entryStyles.heading}>
-                                    <h2>
-                                      <Sparkles size={20} />
-                                      {tr('快速账单识别')}
-                                    </h2>
-                                    <div className={entryStyles.row}>
-                                      {drafts.length > 0 && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => setIntakeOpen(false)}
-                                        >
-                                          {tr('收起识别区')}
-                                        </Button>
-                                      )}
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => router.push(pathForPage('chat'))}
-                                      >
-                                        {tr('打开智能对话 →')}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  <div className={entryStyles.capture}>
-                                    <TextArea
-                                      rows={2}
-                                      aria-label={tr('用一句话记账')}
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                                          e.preventDefault();
-                                          if (!busy && (text.trim() || images.length)) void run(requestAI);
-                                        }
-                                      }}
-                                      value={text}
-                                      onChange={e => setText(e.target.value)}
-                                      placeholder={tr('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元')}
-                                    />
-                                    <div className={entryStyles.row}>
-                                      <label className={entryStyles.upload}>
-                                        <Upload size={18} />
-                                        {tr('添加订单 / 流水图片')}
-                                        <input
-                                          type="file"
-                                          multiple
-                                          accept="image/png,image/jpeg,image/webp"
-                                          disabled={busy}
-                                          onChange={e => {
-                                            const files = e.target.files;
-                                            run(() => loadImages(files));
-                                            e.target.value = '';
-                                          }}
-                                        />
-                                      </label>
-                                      {canWrite && (
-                                        <Button variant="secondary" onClick={() => setEntryMode('import')}>
-                                          {tr('微信／支付宝账单')}
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <small>{tr('自动分批识别 · 支持长截图')}</small>
-                                  <div className={entryStyles.images}>
-                                    {images.map((img, i) => (
-                                      <figure key={i}>
-                                        <img src={img.data} alt={tr('待识别图片{0}', [i + 1])} />
-                                        <figcaption>
-                                          {tr('图片')}
-                                          {i + 1} · {img.name}
-                                        </figcaption>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          disabled={busy}
-                                          onClick={() => setImages(a => a.filter((_, j) => i !== j))}
-                                        >
-                                          {tr('移除')}
-                                        </Button>
-                                      </figure>
-                                    ))}
-                                  </div>
-                                  <div className={entryStyles.row}>
-                                    <label className={entryStyles.check}>
-                                      <input
-                                        type="checkbox"
-                                        checked={history}
-                                        onChange={e => setHistory(e.target.checked)}
-                                      />
-                                      {tr('使用我的记账偏好')}
-                                    </label>
-                                    {history && (
-                                      <ProfileLocation
-                                        value={profileContext}
-                                        onChange={setProfileContext}
-                                        disabled={busy}
-                                      />
-                                    )}
-                                  </div>
-                                  {aiRunning && (
-                                    <div className={entryStyles.progress} role="status">
+                                  <>
+                                    <div className={entryStyles.heading}>
+                                      <h2>
+                                        <Sparkles size={20} />
+                                        {tr('快速账单识别')}
+                                      </h2>
                                       <div className={entryStyles.row}>
-                                        <Sparkles size={18} />
-                                        <strong>{tr('正在处理')}</strong>
-                                        <span className={entryStyles.muted}>
-                                          {aiCharacters
-                                            ? tr('已接收 {0} 字符', [aiCharacters])
-                                            : tr('等待模型响应')}
-                                        </span>
+                                        {drafts.length > 0 && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIntakeOpen(false)}
+                                          >
+                                            {tr('收起识别区')}
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => router.push(pathForPage('chat'))}
+                                        >
+                                          {tr('打开智能对话 →')}
+                                        </Button>
                                       </div>
-                                      <p>{tr(aiProgress)}</p>
-                                      <Button
-                                        variant="secondary"
-                                        onClick={() => aiAbort.current?.abort()}
-                                      >
-                                        {tr('转到后台继续')}
-                                      </Button>
                                     </div>
-                                  )}
-                                  <Button
-                                    variant="primary"
-                                    disabled={busy || (!text && !images.length)}
-                                    onClick={() => run(requestAI)}
-                                  >
-                                    {aiRunning ? tr('正在生成…') : tr('识别并生成草稿')}
-                                  </Button>
-                                </>
+                                    <div className={entryStyles.capture}>
+                                      <TextArea
+                                        rows={2}
+                                        aria-label={tr('用一句话记账')}
+                                        onKeyDown={e => {
+                                          if (
+                                            e.key === 'Enter' &&
+                                            !e.shiftKey &&
+                                            !e.nativeEvent.isComposing
+                                          ) {
+                                            e.preventDefault();
+                                            if (!busy && (text.trim() || images.length)) void run(requestAI);
+                                          }
+                                        }}
+                                        value={text}
+                                        onChange={e => setText(e.target.value)}
+                                        placeholder={tr('例如：今天用微信在盒马买菜86.5元，支付宝买咖啡18元')}
+                                      />
+                                      <div className={entryStyles.row}>
+                                        <label className={entryStyles.upload}>
+                                          <Upload size={18} />
+                                          {tr('添加订单 / 流水图片')}
+                                          <input
+                                            type="file"
+                                            multiple
+                                            accept="image/png,image/jpeg,image/webp"
+                                            disabled={busy}
+                                            onChange={e => {
+                                              const files = e.target.files;
+                                              run(() => loadImages(files));
+                                              e.target.value = '';
+                                            }}
+                                          />
+                                        </label>
+                                        {canWrite && (
+                                          <Button variant="secondary" onClick={() => setEntryMode('import')}>
+                                            {tr('微信／支付宝账单')}
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <small>{tr('自动分批识别 · 支持长截图')}</small>
+                                    <div className={entryStyles.images}>
+                                      {images.map((img, i) => (
+                                        <figure key={i}>
+                                          <img src={img.data} alt={tr('待识别图片{0}', [i + 1])} />
+                                          <figcaption>
+                                            {tr('图片')}
+                                            {i + 1} · {img.name}
+                                          </figcaption>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={busy}
+                                            onClick={() => setImages(a => a.filter((_, j) => i !== j))}
+                                          >
+                                            {tr('移除')}
+                                          </Button>
+                                        </figure>
+                                      ))}
+                                    </div>
+                                    <div className={entryStyles.row}>
+                                      <label className={entryStyles.check}>
+                                        <input
+                                          type="checkbox"
+                                          checked={history}
+                                          onChange={e => setHistory(e.target.checked)}
+                                        />
+                                        {tr('使用我的记账偏好')}
+                                      </label>
+                                      {history && (
+                                        <ProfileLocation
+                                          value={profileContext}
+                                          onChange={setProfileContext}
+                                          disabled={busy}
+                                        />
+                                      )}
+                                    </div>
+                                    {aiRunning && (
+                                      <div className={entryStyles.progress} role="status">
+                                        <div className={entryStyles.row}>
+                                          <Sparkles size={18} />
+                                          <strong>{tr('正在处理')}</strong>
+                                          <span className={entryStyles.muted}>
+                                            {aiCharacters
+                                              ? tr('已接收 {0} 字符', [aiCharacters])
+                                              : tr('等待模型响应')}
+                                          </span>
+                                        </div>
+                                        <p>{tr(aiProgress)}</p>
+                                        <Button variant="secondary" onClick={() => aiAbort.current?.abort()}>
+                                          {tr('转到后台继续')}
+                                        </Button>
+                                      </div>
+                                    )}
+                                    <Button
+                                      variant="primary"
+                                      disabled={busy || (!text && !images.length)}
+                                      onClick={() => run(requestAI)}
+                                    >
+                                      {aiRunning ? tr('正在生成…') : tr('识别并生成草稿')}
+                                    </Button>
+                                  </>
                                 )
                               ) : entryMode === 'manual' ? (
                                 <>
@@ -1678,39 +1679,43 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                 }
                               />
                             )}
-                            {entryMode !== 'family' && !drafts.length && !editing && canWrite && manual.ready && (
-                              <TemplatesPanel
-                                items={templateItems}
-                                current={manual.value}
-                                accounts={availableAccounts}
-                                onSave={async (value, method) => {
-                                  await api('books/' + book + '/templates', method, value);
-                                  await refresh();
-                                }}
-                                onDelete={async id => {
-                                  if (
-                                    !(await confirmEntryAction(
-                                      tr('删除常用'),
-                                      templateItems.find(item => item.id === id)?.name || tr('删除常用'),
-                                    ))
-                                  )
-                                    throw new Error('');
-                                  await api('books/' + book + '/templates', 'DELETE', { id });
-                                  await refresh();
-                                }}
-                                onUse={async value => {
-                                  setEntryMode('manual');
-                                  manual.setValue({ ...value, id: newId(), date: today() });
-                                  await manual.flush();
-                                  await manual.reload();
-                                  requestAnimationFrame(() =>
-                                    document
-                                      .getElementById('entry-editor')
-                                      ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-                                  );
-                                }}
-                              />
-                            )}
+                            {entryMode !== 'family' &&
+                              !drafts.length &&
+                              !editing &&
+                              canWrite &&
+                              manual.ready && (
+                                <TemplatesPanel
+                                  items={templateItems}
+                                  current={manual.value}
+                                  accounts={availableAccounts}
+                                  onSave={async (value, method) => {
+                                    await api('books/' + book + '/templates', method, value);
+                                    await refresh();
+                                  }}
+                                  onDelete={async id => {
+                                    if (
+                                      !(await confirmEntryAction(
+                                        tr('删除常用'),
+                                        templateItems.find(item => item.id === id)?.name || tr('删除常用'),
+                                      ))
+                                    )
+                                      throw new Error('');
+                                    await api('books/' + book + '/templates', 'DELETE', { id });
+                                    await refresh();
+                                  }}
+                                  onUse={async value => {
+                                    setEntryMode('manual');
+                                    manual.setValue({ ...value, id: newId(), date: today() });
+                                    await manual.flush();
+                                    await manual.reload();
+                                    requestAnimationFrame(() =>
+                                      document
+                                        .getElementById('entry-editor')
+                                        ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+                                    );
+                                  }}
+                                />
+                              )}
                           </>
                         );
                       }}

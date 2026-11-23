@@ -1,6 +1,7 @@
 'use client';
 import { Fragment, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/ui';
 import { useI18n } from './LanguageProvider';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
 
@@ -32,27 +33,27 @@ export function PagedList<T>({
         {start + 1}–{Math.min(start + pageSize, items.length)} / {items.length}
       </span>
       <div>
-        <button
-          type="button"
-          className="secondary"
+        <Button
+          variant="secondary"
+          size="sm"
           aria-label={locale === 'en' ? 'Previous page' : '上一页'}
           disabled={page === 0}
           onClick={() => setPosition({ key: resetKey, page: page - 1 })}
         >
           <ChevronLeft size={16} />
-        </button>
+        </Button>
         <span>
           {page + 1} / {pages}
         </span>
-        <button
-          type="button"
-          className="secondary"
+        <Button
+          variant="secondary"
+          size="sm"
           aria-label={locale === 'en' ? 'Next page' : '下一页'}
           disabled={page === pages - 1}
           onClick={() => setPosition({ key: resetKey, page: page + 1 })}
         >
           <ChevronRight size={16} />
-        </button>
+        </Button>
       </div>
     </nav>
   );

@@ -498,214 +498,214 @@ export function LineItemsEditor({
         </div>
       )}
       <div hidden={items.length > 0 && !expanded && !busy && !photos.length && !found.length}>
-      <fieldset disabled={busy}>
-        <div className={styles.mode}>
-          <label>
-            {tr('分类方式')}
-            <VisualSelect
-              label={tr('分类方式')}
-              value={split ? 'items' : 'order'}
-              onChange={mode => {
-                setSplitWanted(mode === 'items');
-                onChange(
-                  items.map(i => {
-                    const { category: old, ...rest } = i;
-                    return mode === 'items' && lineItemKind(i) === 'item'
-                      ? { ...rest, category: old || fallback }
-                      : rest;
-                  }),
-                );
-              }}
-              options={[
-                { value: 'order', label: tr('整单统一分类') },
-                { value: 'items', label: tr('按商品分别分类') },
-              ]}
-            />
-          </label>
-          <p className={styles.muted}>
-            {split
-              ? tr(
-                  '只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。',
-                )
-              : tr('所有商品统一计入「{0}」。切换为按商品分类后，可逐项选择。', [fallback])}
-          </p>
-        </div>
-
-        <ItemRegion title={tr('商品明细')} rows={groups.goods} render={renderRow} pageSize={6}>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={items.length >= 200}
-            onClick={() => add('item')}
-          >
-            <Plus size={16} aria-hidden="true" />
-            {tr('添加商品')}
-          </Button>
-        </ItemRegion>
-        <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={renderRow} pageSize={6}>
-          <p className={styles.muted}>
-            {tr('满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。')}
-          </p>
-          <div className={styles.row}>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={items.length >= 200}
-              onClick={() => add('discount')}
-            >
-              {tr('添加优惠 / 抹零')}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={items.length >= 200}
-              onClick={() => add('fee')}
-            >
-              {tr('添加附加费用')}
-            </Button>
-          </div>
-        </ItemRegion>
-        <div className={styles.row}>
-          {book && (
-            <label className={styles.upload}>
-              <Camera size={16} />
-              {tr('添加小票图片')}
-              <input
-                aria-label={tr('上传同一订单的小票图片')}
-                type="file"
-                multiple
-                accept="image/png,image/jpeg,image/webp"
-                onChange={e => {
-                  const files = Array.from(e.target.files || []);
-                  e.target.value = '';
-                  addPhotos(files);
+        <fieldset disabled={busy}>
+          <div className={styles.mode}>
+            <label>
+              {tr('分类方式')}
+              <VisualSelect
+                label={tr('分类方式')}
+                value={split ? 'items' : 'order'}
+                onChange={mode => {
+                  setSplitWanted(mode === 'items');
+                  onChange(
+                    items.map(i => {
+                      const { category: old, ...rest } = i;
+                      return mode === 'items' && lineItemKind(i) === 'item'
+                        ? { ...rest, category: old || fallback }
+                        : rest;
+                    }),
+                  );
                 }}
+                options={[
+                  { value: 'order', label: tr('整单统一分类') },
+                  { value: 'items', label: tr('按商品分别分类') },
+                ]}
               />
             </label>
-          )}
-        </div>
-        {photos.length > 0 && (
-          <div className={styles.photos}>
-            {photos.map((p, n) => (
-              <div key={n}>
-                <span>
-                  {n + 1}. {p.name}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={n === 0}
-                  onClick={() => {
-                    setFound([]);
-                    setPhotos(v => {
-                      const a = [...v];
-                      [a[n - 1], a[n]] = [a[n], a[n - 1]];
-                      return a;
-                    });
-                  }}
-                >
-                  {tr('上移')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setFound([]);
-                    setPhotos(v => v.filter((_, i) => i !== n));
-                  }}
-                >
-                  {tr('移除')}
-                </Button>
-              </div>
-            ))}
-            <Button type="button" variant="primary" onClick={photo}>
-              {tr('合并识别 ·')}
-              {photos.length}
-              {tr('张')}
-            </Button>
+            <p className={styles.muted}>
+              {split
+                ? tr(
+                    '只给商品分类。优惠和运费默认按商品比例分摊，也可跟随某类商品，不单独产生分类；尾差精确到分。',
+                  )
+                : tr('所有商品统一计入「{0}」。切换为按商品分类后，可逐项选择。', [fallback])}
+            </p>
           </div>
-        )}
-      </fieldset>
-      {busy && (
-        <p role="status">
-          {tr('正在识别小票…')}
-          <Button type="button" variant="ghost" onClick={() => abort.current?.abort()}>
-            {tr('取消')}
-          </Button>
-        </p>
-      )}
-      {error && <p className={styles.error}>{tr(error)}</p>}
-      {found.map(d => (
-        <div className={styles.result} key={d.id}>
-          <LineItemsView category={d.category} items={d.lineItems || []} total={d.amount} />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              onChange(d.lineItems || []);
-              onRecognized?.(d);
-              setFound([]);
-              setPhotos([]);
-            }}
-          >
-            {tr('使用这份明细')}
-            {items.length ? tr('（替换当前明细）') : ''}
-          </Button>
-        </div>
-      ))}
-      {split && items.length > 0 && (
-        <details className={styles.details}>
-          <summary>{tr('分类计入金额')}</summary>
-          <CategoryBreakdown items={items} total={total} category={fallback} />
-        </details>
-      )}
-      {items.length > 0 && <Settlement items={items} total={total} />}
-      {items.length > 0 && (
-        <details className={styles.details}>
-          <summary>{tr('核对与计算实付')}</summary>
-          <div className={styles.row}>
-            <Calculator size={18} aria-hidden="true" />
-            <strong>{tr('推荐实付（按当前明细）')}</strong>
-          </div>
-          <p className={styles.equation}>
-            {tr('商品 {0} − 优惠 {1} + 费用 {2} = {3}', [
-              money(settlementTotals(items).goods),
-              money(settlementTotals(items).discount),
-              money(settlementTotals(items).fees),
-              money(sum.known),
-            ])}
-          </p>
-          <Verification items={items} total={total} />
-          <p>{tr('推荐值不覆盖实付；采用后仍可手动修改。')}</p>
-          {sum.missing > 0 && <p>{tr('还有 {0} 项金额未填写，当前仅为已知部分合计。', [sum.missing])}</p>}
-          {!sum.missing && !canUseSettlementTotal(sum.known, sum.missing) && (
-            <p className={styles.error}>{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>
-          )}
-          {onTotal && (
+
+          <ItemRegion title={tr('商品明细')} rows={groups.goods} render={renderRow} pageSize={6}>
             <Button
               type="button"
               variant="secondary"
-              disabled={busy || !canUseSettlementTotal(sum.known, sum.missing)}
-              onClick={() => onTotal(sum.known)}
+              disabled={items.length >= 200}
+              onClick={() => add('item')}
             >
-              {tr('采用推荐实付')}
+              <Plus size={16} aria-hidden="true" />
+              {tr('添加商品')}
             </Button>
+          </ItemRegion>
+          <ItemRegion title={tr('优惠与费用')} rows={groups.adjustments} render={renderRow} pageSize={6}>
+            <p className={styles.muted}>
+              {tr('满减、优惠券、红包抵扣单独减去；配送、包装、手续费单独加上，不计入商品数量。')}
+            </p>
+            <div className={styles.row}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={items.length >= 200}
+                onClick={() => add('discount')}
+              >
+                {tr('添加优惠 / 抹零')}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={items.length >= 200}
+                onClick={() => add('fee')}
+              >
+                {tr('添加附加费用')}
+              </Button>
+            </div>
+          </ItemRegion>
+          <div className={styles.row}>
+            {book && (
+              <label className={styles.upload}>
+                <Camera size={16} />
+                {tr('添加小票图片')}
+                <input
+                  aria-label={tr('上传同一订单的小票图片')}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    e.target.value = '';
+                    addPhotos(files);
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          {photos.length > 0 && (
+            <div className={styles.photos}>
+              {photos.map((p, n) => (
+                <div key={n}>
+                  <span>
+                    {n + 1}. {p.name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={n === 0}
+                    onClick={() => {
+                      setFound([]);
+                      setPhotos(v => {
+                        const a = [...v];
+                        [a[n - 1], a[n]] = [a[n], a[n - 1]];
+                        return a;
+                      });
+                    }}
+                  >
+                    {tr('上移')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setFound([]);
+                      setPhotos(v => v.filter((_, i) => i !== n));
+                    }}
+                  >
+                    {tr('移除')}
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="primary" onClick={photo}>
+                {tr('合并识别 ·')}
+                {photos.length}
+                {tr('张')}
+              </Button>
+            </div>
           )}
-        </details>
-      )}
-      {removing && (
-        <ConfirmDialog
-          open
-          title={tr('删除明细')}
-          onCancel={() => setRemoving(null)}
-          onConfirm={() => {
-            onChange(items.filter(item => item !== removing));
-            setRemoving(null);
-          }}
-        >
-          {removing.name || tr('新明细')}
-        </ConfirmDialog>
-      )}
+        </fieldset>
+        {busy && (
+          <p role="status">
+            {tr('正在识别小票…')}
+            <Button type="button" variant="ghost" onClick={() => abort.current?.abort()}>
+              {tr('取消')}
+            </Button>
+          </p>
+        )}
+        {error && <p className={styles.error}>{tr(error)}</p>}
+        {found.map(d => (
+          <div className={styles.result} key={d.id}>
+            <LineItemsView category={d.category} items={d.lineItems || []} total={d.amount} />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                onChange(d.lineItems || []);
+                onRecognized?.(d);
+                setFound([]);
+                setPhotos([]);
+              }}
+            >
+              {tr('使用这份明细')}
+              {items.length ? tr('（替换当前明细）') : ''}
+            </Button>
+          </div>
+        ))}
+        {split && items.length > 0 && (
+          <details className={styles.details}>
+            <summary>{tr('分类计入金额')}</summary>
+            <CategoryBreakdown items={items} total={total} category={fallback} />
+          </details>
+        )}
+        {items.length > 0 && <Settlement items={items} total={total} />}
+        {items.length > 0 && (
+          <details className={styles.details}>
+            <summary>{tr('核对与计算实付')}</summary>
+            <div className={styles.row}>
+              <Calculator size={18} aria-hidden="true" />
+              <strong>{tr('推荐实付（按当前明细）')}</strong>
+            </div>
+            <p className={styles.equation}>
+              {tr('商品 {0} − 优惠 {1} + 费用 {2} = {3}', [
+                money(settlementTotals(items).goods),
+                money(settlementTotals(items).discount),
+                money(settlementTotals(items).fees),
+                money(sum.known),
+              ])}
+            </p>
+            <Verification items={items} total={total} />
+            <p>{tr('推荐值不覆盖实付；采用后仍可手动修改。')}</p>
+            {sum.missing > 0 && <p>{tr('还有 {0} 项金额未填写，当前仅为已知部分合计。', [sum.missing])}</p>}
+            {!sum.missing && !canUseSettlementTotal(sum.known, sum.missing) && (
+              <p className={styles.error}>{tr('合计需大于零且不超过金额上限，请检查明细。')}</p>
+            )}
+            {onTotal && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy || !canUseSettlementTotal(sum.known, sum.missing)}
+                onClick={() => onTotal(sum.known)}
+              >
+                {tr('采用推荐实付')}
+              </Button>
+            )}
+          </details>
+        )}
+        {removing && (
+          <ConfirmDialog
+            open
+            title={tr('删除明细')}
+            onCancel={() => setRemoving(null)}
+            onConfirm={() => {
+              onChange(items.filter(item => item !== removing));
+              setRemoving(null);
+            }}
+          >
+            {removing.name || tr('新明细')}
+          </ConfirmDialog>
+        )}
       </div>
     </Wrapper>
   );

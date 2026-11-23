@@ -464,126 +464,126 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                 <div className={styles.portraitDetailSheet}>
                   <p className={styles.muted}>{describe(selected.condition)}</p>
                   <div className={styles.portraitAlternatives}>
-                  {(detail?.insight.choices || selected.choices).map(
-                    (c: ProfileInsight['choices'][number]) => (
-                      <div key={c.value}>
-                        <strong>{label(c.value, selected.field)}</strong>
-                        <span>
-                          {t('近 30 天', 'Last 30 days')} {c.recentCount} · {t('此前', 'Earlier')}{' '}
-                          {c.previousCount}
-                        </span>
-                        <span>
-                          {Math.round(c.share * 100)}% {t('加权支持', 'weighted support')}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          onClick={() =>
-                            setEditor({
-                              condition: selected.condition,
-                              field: selected.field,
-                              value: c.value,
-                              state: 'confirmed',
-                            })
-                          }
-                        >
-                          {t('确认为规则', 'Make this a rule')}
-                        </Button>
-                      </div>
-                    ),
-                  )}
-                </div>
-                <div className={styles.portraitRowActions}>
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      setEditor({
-                        condition: selected.condition,
-                        field: selected.field,
-                        value: selected.choices[0].value,
-                        state: 'confirmed',
-                      })
-                    }
-                  >
-                    {t('纠正这个偏好', 'Correct this preference')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      run({
-                        operation: 'save_rule',
-                        rule: {
+                    {(detail?.insight.choices || selected.choices).map(
+                      (c: ProfileInsight['choices'][number]) => (
+                        <div key={c.value}>
+                          <strong>{label(c.value, selected.field)}</strong>
+                          <span>
+                            {t('近 30 天', 'Last 30 days')} {c.recentCount} · {t('此前', 'Earlier')}{' '}
+                            {c.previousCount}
+                          </span>
+                          <span>
+                            {Math.round(c.share * 100)}% {t('加权支持', 'weighted support')}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={() =>
+                              setEditor({
+                                condition: selected.condition,
+                                field: selected.field,
+                                value: c.value,
+                                state: 'confirmed',
+                              })
+                            }
+                          >
+                            {t('确认为规则', 'Make this a rule')}
+                          </Button>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <div className={styles.portraitRowActions}>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setEditor({
                           condition: selected.condition,
                           field: selected.field,
                           value: selected.choices[0].value,
-                          state: 'rejected',
-                        },
-                      })
-                    }
-                  >
-                    {t('不再建议这个选项', 'Exclude this option')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      run({
-                        operation: 'save_rule',
-                        rule: {
-                          condition: selected.condition,
-                          field: selected.field,
-                          value: '',
-                          state: 'disabled',
-                        },
-                      })
-                    }
-                  >
-                    {t('此场景不自动填充', 'Do not fill in this context')}
-                  </Button>
-                </div>
-                <h4>{t('相关记录', 'Supporting records')}</h4>
-                {!detail ? (
-                  <p role="status">{t('正在读取依据…', 'Loading evidence…')}</p>
-                ) : (
-                  <>
-                    <ul className={styles.portraitSources} aria-label={t('相关记录', 'Supporting records')}>
-                      {detail.sources.map((s: any, index: number) => (
-                        <li key={s.id + index}>
-                          <span>
-                            <strong>{s.title}</strong>
-                            <small>{s.date}</small>
-                          </span>
-                          <span>{label(s.value, selected.field)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className={styles.portraitPagination}>
-                      <span>
-                        {detail.total} {t('条依据', 'sources')}
-                      </span>
-                      <nav>
-                        <Button
-                          type="button"
-                          disabled={sourcePage === 1}
-                          onClick={() => setSourcePage(n => n - 1)}
-                        >
-                          {t('上一页依据', 'Previous sources')}
-                        </Button>
-                        <span>{sourcePage}</span>
-                        <Button
-                          type="button"
-                          disabled={sourcePage * 20 >= detail.total}
-                          onClick={() => setSourcePage(n => n + 1)}
-                        >
-                          {t('下一页依据', 'Next sources')}
-                        </Button>
-                      </nav>
-                    </div>
-                  </>
-                )}
+                          state: 'confirmed',
+                        })
+                      }
+                    >
+                      {t('纠正这个偏好', 'Correct this preference')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        run({
+                          operation: 'save_rule',
+                          rule: {
+                            condition: selected.condition,
+                            field: selected.field,
+                            value: selected.choices[0].value,
+                            state: 'rejected',
+                          },
+                        })
+                      }
+                    >
+                      {t('不再建议这个选项', 'Exclude this option')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        run({
+                          operation: 'save_rule',
+                          rule: {
+                            condition: selected.condition,
+                            field: selected.field,
+                            value: '',
+                            state: 'disabled',
+                          },
+                        })
+                      }
+                    >
+                      {t('此场景不自动填充', 'Do not fill in this context')}
+                    </Button>
+                  </div>
+                  <h4>{t('相关记录', 'Supporting records')}</h4>
+                  {!detail ? (
+                    <p role="status">{t('正在读取依据…', 'Loading evidence…')}</p>
+                  ) : (
+                    <>
+                      <ul className={styles.portraitSources} aria-label={t('相关记录', 'Supporting records')}>
+                        {detail.sources.map((s: any, index: number) => (
+                          <li key={s.id + index}>
+                            <span>
+                              <strong>{s.title}</strong>
+                              <small>{s.date}</small>
+                            </span>
+                            <span>{label(s.value, selected.field)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className={styles.portraitPagination}>
+                        <span>
+                          {detail.total} {t('条依据', 'sources')}
+                        </span>
+                        <nav>
+                          <Button
+                            type="button"
+                            disabled={sourcePage === 1}
+                            onClick={() => setSourcePage(n => n - 1)}
+                          >
+                            {t('上一页依据', 'Previous sources')}
+                          </Button>
+                          <span>{sourcePage}</span>
+                          <Button
+                            type="button"
+                            disabled={sourcePage * 20 >= detail.total}
+                            onClick={() => setSourcePage(n => n + 1)}
+                          >
+                            {t('下一页依据', 'Next sources')}
+                          </Button>
+                        </nav>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Sheet>
             )}
@@ -607,7 +607,10 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                   resources={resources}
                   busy={busy}
                   onSave={async (rule, replaceConflicts) => {
-                    if (await run({ operation: 'save_rule', rule, replaceConflicts })) setEditor(null);
+                    if (await run({ operation: 'save_rule', rule, replaceConflicts })) {
+                      setEditor(null);
+                      setSelected(null);
+                    }
                   }}
                 />
               </Sheet>

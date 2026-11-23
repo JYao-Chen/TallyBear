@@ -1823,47 +1823,34 @@ try {
       );
       await shot('intake');
       const draftsRegion = page.getByRole('region', { name: t('核对草稿') });
-      const itemsEditor = draftsRegion.getByRole('group', { name: t('商品与优惠费用'), exact: true }).first();
       await draftsRegion.scrollIntoViewIfNeeded();
       await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
       await shot('draft');
-      await draftsRegion.getByRole('button', { name: t('修改'), exact: true }).click();
-      const draftDialog = page.getByRole('dialog');
-      await draftDialog.getByText(t('小熊填'), { exact: true }).first().waitFor();
-      await shot('draft-edit');
-      await draftDialog.getByRole('button', { name: t('取消'), exact: true }).click();
-      if (!(await itemsEditor.count()))
-        await draftsRegion
-          .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
-          .first()
-          .click();
-      const selectedDraft = draftsRegion.getByRole('button', {
-        pressed: true,
-        name: /Milk & vegetables|牛奶与蔬菜/,
-      });
-      await selectedDraft.evaluate(el => el.closest('article').scrollIntoView({ block: 'center' }));
-      await shot('draft-selected');
-      await itemsEditor.scrollIntoViewIfNeeded();
-      await itemsEditor.evaluate(el => el.scrollIntoView({ block: 'start' }));
-      await shot('line-items');
-      const draftAmount = draftsRegion.getByPlaceholder(t('请补充金额'));
-      const originalAmount = await draftAmount.inputValue();
-      await draftAmount.fill('');
-      assert.equal(
-        await draftsRegion.getByRole('button', { name: t('记入'), exact: true }).isDisabled(),
-        true,
-      );
-      await draftsRegion.getByRole('button', { name: t('← 返回草稿列表'), exact: true }).click();
-      await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
-      assert.equal(await draftsRegion.getByText(t('选择一笔草稿，核对或补充完整信息')).count(), 0);
-      await shot('draft-missing');
       await draftsRegion
         .getByText(lang === 'en' ? 'Milk & vegetables' : '牛奶与蔬菜', { exact: true })
         .first()
         .click();
-      await draftAmount.fill(originalAmount);
+      const draftDialog = page.getByRole('dialog');
+      await draftDialog.getByText(t('小熊填'), { exact: true }).first().waitFor();
+      await shot('draft-edit');
+      await shot('draft-selected');
+      const itemsToggle = draftDialog.getByRole('button', { name: t('展开编辑明细'), exact: true });
+      if (await itemsToggle.count()) await itemsToggle.click();
+      const itemsEditor = draftDialog.getByRole('group', { name: t('商品与优惠费用'), exact: true }).first();
+      await itemsEditor.scrollIntoViewIfNeeded();
+      await itemsEditor.evaluate(el => el.scrollIntoView({ block: 'start' }));
+      await shot('line-items');
+      const draftAmount = draftDialog.getByPlaceholder(t('请补充金额'));
+      const originalAmount = await draftAmount.inputValue();
+      assert.ok(originalAmount);
+      await draftDialog.getByRole('button', { name: t('取消'), exact: true }).click();
+      await draftsRegion.evaluate(el => el.scrollIntoView({ block: 'start' }));
+      await shot('draft-missing');
       assert.equal(
-        await draftsRegion.getByRole('button', { name: t('记入'), exact: true }).isEnabled(),
+        await draftsRegion
+          .getByRole('button', { name: t('记入'), exact: true })
+          .first()
+          .isEnabled(),
         true,
       );
       await page.getByRole('button', { name: t('手动填写'), exact: true }).click();

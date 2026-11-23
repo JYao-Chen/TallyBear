@@ -1,6 +1,18 @@
 'use client';
 import { participantAvatar } from '@/ui/participantAvatar';
-import { Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Segmented, Sheet, TextArea, useToast } from '@/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  ConfirmDialog,
+  EmptyState,
+  Field,
+  Input,
+  Segmented,
+  Sheet,
+  TextArea,
+  useToast,
+} from '@/ui';
 import s from './FamiliesPage.module.css';
 import { HomeFamilyInbox } from './HomeFamilyInbox';
 import { FamilyFinance, FamilyOverview } from './FamilyFinance';
@@ -514,8 +526,10 @@ export function FamiliesPage({
                       onSubmit={e => {
                         e.preventDefault();
                         const userId = String(new FormData(e.currentTarget).get('userId'));
-                        ask('转交家庭负责人', '转交后你将成为普通家庭成员。账本所有权不会随之变更。', async () =>
-                          mutate('/owner', 'PUT', { userId }, '家庭负责人已转交'),
+                        ask(
+                          '转交家庭负责人',
+                          '转交后你将成为普通家庭成员。账本所有权不会随之变更。',
+                          async () => mutate('/owner', 'PUT', { userId }, '家庭负责人已转交'),
                         );
                       }}
                     >

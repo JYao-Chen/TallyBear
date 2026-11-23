@@ -99,14 +99,14 @@ try {
     await page.getByRole('button', { name: '记一笔往来', exact: true }).click();
     await page.getByRole('heading', { name: '记一笔家庭往来', exact: true }).waitFor();
     await screenshot('create-' + width);
-    assert.equal(await page.getByRole('dialog').count(), 0);
-    await page.getByRole('button', { name: '返回家庭往来' }).click();
+    assert.equal(await page.getByRole('dialog').count(), 1);
+    await page.getByRole('dialog').getByRole('button', { name: '关闭弹窗', exact: true }).click();
   }
   await page.getByRole('button', { name: '确认到账', exact: true }).click();
   await page.getByRole('heading', { name: '确认到账', exact: true }).waitFor();
   await page.getByRole('button', { name: '实际到账钱包：请选择实际到账钱包', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: '我的微信', exact: true }).click();
-  await page.getByRole('button', { name: '确认到账', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: '我的微信', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '确认到账', exact: true }).click();
   await page.getByLabel('搜索往来').waitFor();
   assert.equal(
     (
@@ -119,9 +119,9 @@ try {
   );
   await page.getByRole('button', { name: '记一笔往来', exact: true }).click();
   await page.getByRole('button', { name: '转出钱包：请选择', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: '我的微信', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: '我的微信', exact: true }).click();
   await page.getByRole('button', { name: '收款成员：请选择', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: '测试伙伴', exact: true }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: '测试伙伴', exact: true }).click();
   await page.getByLabel('金额', { exact: true }).fill('18.50');
   await page.getByRole('button', { name: '保存往来', exact: true }).click();
   await page.getByLabel('搜索往来').waitFor();

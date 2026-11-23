@@ -162,6 +162,11 @@
     padding: var(--space-3);
   }
 }
+@media (max-width: 600px) {
+  .financeSuggestions {
+    grid-template-columns: 1fr;
+  }
+}
 .financeMain button,
 .financeLibrary button {
   max-width: 100%;

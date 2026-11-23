@@ -18,7 +18,7 @@
 /* Shared compact pagination for growing display collections. */
 .list-pagination{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;padding:12px 0;margin-top:8px;border-top:1px solid var(--border,var(--line));font-size:12px;color:var(--muted)}
 .list-pagination>div{display:flex;align-items:center;gap:10px;white-space:nowrap}
-.list-pagination button.secondary{padding:8px;min-width:var(--touch);min-height:var(--touch);border-radius:var(--radius-control);display:inline-flex;align-items:center;justify-content:center}
+.list-pagination>div button{padding:8px;min-width:var(--touch);min-height:var(--touch)}
 
 .family-finance{grid-column:1/-1;min-width:0}.family-finance>.panel-title{gap:12px;flex-wrap:wrap}.family-finance h2{display:flex;align-items:center;gap:10px}.family-finance>details{padding:12px 0}@media(max-width:600px){.family-finance>.panel-title button{min-height:44px}}
 

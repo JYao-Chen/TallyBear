@@ -166,182 +166,182 @@ export function FamilyFinance({
   return (
     <section ref={section} className={s.finance} aria-label={tr('家庭资金往来')}>
       <>
-          <div className={s.heading}>
-            <h2>
-              <ArrowLeftRight size={22} />
-              {tr('家庭资金往来')}
-            </h2>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setDisplayBook(data.defaultBookId);
-                setRequestId(crypto.randomUUID());
-                setKind('transfer');
-                setReceiverType('member');
-                setSource('');
-                setRecipient('');
-                setTarget('');
-                setLink('');
-                setError('');
-                setOpen(true);
-              }}
-            >
-              <Plus size={18} />
-              {tr('记一笔往来')}
-            </Button>
-          </div>
+        <div className={s.heading}>
+          <h2>
+            <ArrowLeftRight size={22} />
+            {tr('家庭资金往来')}
+          </h2>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setDisplayBook(data.defaultBookId);
+              setRequestId(crypto.randomUUID());
+              setKind('transfer');
+              setReceiverType('member');
+              setSource('');
+              setRecipient('');
+              setTarget('');
+              setLink('');
+              setError('');
+              setOpen(true);
+            }}
+          >
+            <Plus size={18} />
+            {tr('记一笔往来')}
+          </Button>
+        </div>
 
-          {error && !open && !confirm && !split && <p className={s.error}>{error}</p>}
-          <Segmented
-            className={s.tabs}
-            label={tr('家庭往来栏目')}
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'records', label: tr('往来记录') },
-              { value: 'aa', label: tr('费用分担 / AA') },
-              ...(showOverviewTab ? [{ value: 'contributions', label: tr('家庭总览') }] : []),
-            ]}
-          />
-          {view === 'contributions' && <FamilyOverview family={family} revision={revision} />}
-          {view === 'aa' && (
-            <section>
-              <h3>{tr('费用分担 / AA')}</h3>
-              <p className={s.muted}>{tr('由实际付款人设置承担金额；成员完成结算后更新进度。')}</p>
-              {data.expenses.filter((e: any) => e.owner_id === userId).length > 0 && (
-                <VisualSelect
-                  label={tr('设置费用分担')}
-                  value=""
-                  onChange={id => {
-                    const e = data.expenses.find((e: any) => e.id === id);
-                    setSplit(e);
-                    setError('');
-                    setShares(
-                      Object.fromEntries(
-                        data.people.map((p: any) => [
-                          p.id,
-                          String((e.shares?.find((s: any) => s.userId === p.id)?.amount || 0) / 100),
-                        ]),
-                      ),
-                    );
-                  }}
-                  options={[
-                    { value: '', label: tr('选择我已支付的家庭消费，设置分担') },
-                    ...data.expenses
-                      .filter((e: any) => e.owner_id === userId)
-                      .map((e: any) => ({
-                        value: e.id,
-                        label: (e.title || e.payee) + ' · ' + formatMoney(e.amount),
-                      })),
-                  ]}
-                />
+        {error && !open && !confirm && !split && <p className={s.error}>{error}</p>}
+        <Segmented
+          className={s.tabs}
+          label={tr('家庭往来栏目')}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'records', label: tr('往来记录') },
+            { value: 'aa', label: tr('费用分担 / AA') },
+            ...(showOverviewTab ? [{ value: 'contributions', label: tr('家庭总览') }] : []),
+          ]}
+        />
+        {view === 'contributions' && <FamilyOverview family={family} revision={revision} />}
+        {view === 'aa' && (
+          <section>
+            <h3>{tr('费用分担 / AA')}</h3>
+            <p className={s.muted}>{tr('由实际付款人设置承担金额；成员完成结算后更新进度。')}</p>
+            {data.expenses.filter((e: any) => e.owner_id === userId).length > 0 && (
+              <VisualSelect
+                label={tr('设置费用分担')}
+                value=""
+                onChange={id => {
+                  const e = data.expenses.find((e: any) => e.id === id);
+                  setSplit(e);
+                  setError('');
+                  setShares(
+                    Object.fromEntries(
+                      data.people.map((p: any) => [
+                        p.id,
+                        String((e.shares?.find((s: any) => s.userId === p.id)?.amount || 0) / 100),
+                      ]),
+                    ),
+                  );
+                }}
+                options={[
+                  { value: '', label: tr('选择我已支付的家庭消费，设置分担') },
+                  ...data.expenses
+                    .filter((e: any) => e.owner_id === userId)
+                    .map((e: any) => ({
+                      value: e.id,
+                      label: (e.title || e.payee) + ' · ' + formatMoney(e.amount),
+                    })),
+                ]}
+              />
+            )}
+            <PagedList items={aa}>
+              {(e: any) => (
+                <article className={s.share} key={e.id}>
+                  <strong>
+                    {e.title || e.payee} · {formatMoney(e.amount)}
+                  </strong>
+                  <div>
+                    {e.shares.map((s: any) => {
+                      const paid = s.paid || 0;
+                      return (
+                        <p key={s.userId}>
+                          {data.people.find((p: any) => p.id === s.userId)?.name || tr('原成员')}
+                          {tr('：承担 ')}
+                          {formatMoney(s.amount)}
+                          {s.userId !== e.owner_id &&
+                            tr(' · 已结算 {0} · 待结算 {1}', [
+                              formatMoney(paid),
+                              formatMoney(Math.max(0, s.amount - paid)),
+                            ])}
+                        </p>
+                      );
+                    })}
+                  </div>
+                </article>
               )}
-              <PagedList items={aa}>
-                {(e: any) => (
-                  <article className={s.share} key={e.id}>
+            </PagedList>
+            {!aa.length && <p className={s.muted}>{tr('还没有设置分担的家庭消费。')}</p>}
+          </section>
+        )}
+        {view === 'records' && (
+          <>
+            <div className={s.toolbar}>
+              <Input
+                aria-label={tr('搜索往来')}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={tr('成员、备注、用途、流水号…')}
+              />
+              <FormSelect aria-label={tr('往来状态')} value={filter} onChange={next => setFilter(next)}>
+                <option value="">{tr('全部状态')}</option>
+                <option value="pending">{tr('待收款人确认')}</option>
+                <option value="confirmed">{tr('已确认')}</option>
+                <option value="cancelled">{tr('已取消')}</option>
+              </FormSelect>
+              <DetailSortSelect picker value={sort} onChange={setSort} />
+            </div>
+            <p className={s.muted}>
+              {tr('共 ')}
+              {filtered.length} {tr(' 笔往来 · 内部资金流动不计家庭消费')}
+            </p>
+            <PagedList items={filtered} resetKey={query + filter + sort}>
+              {(m: any) => (
+                <TransactionRow
+                  onClick={() => setSelected(m)}
+                  icon={<TransferIcon />}
+                  title={[
+                    m.details?.title,
+                    m.sender_name + ' → ' + (m.recipient_name || m.target_name),
+                    kindLabel(m.kind),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  meta={
+                    <>
+                      <span>
+                        {m.date} ·{' '}
+                        {m.status === 'pending'
+                          ? tr('待收款人确认')
+                          : m.status === 'confirmed'
+                            ? tr('已确认')
+                            : tr('已取消')}
+                        {m.note ? ' · ' + tr('转账留言：{0}', [m.note]) : ''}
+                        {m.details?.note && m.details.note !== m.note
+                          ? ' · ' + tr('私人备注：{0}', [m.details.note])
+                          : ''}
+                      </span>
+                      {m.kind === 'loan' && m.status === 'confirmed' && (
+                        <small>
+                          {tr('未归还 ')}
+                          {formatMoney(
+                            Math.max(
+                              0,
+                              m.amount -
+                                data.movements
+                                  .filter((v: any) => v.loan_id === m.id && v.status === 'confirmed')
+                                  .reduce((n: number, v: any) => n + v.amount, 0),
+                            ),
+                          )}
+                        </small>
+                      )}
+                    </>
+                  }
+                  value={
                     <strong>
-                      {e.title || e.payee} · {formatMoney(e.amount)}
+                      <Money value={m.amount} />
                     </strong>
-                    <div>
-                      {e.shares.map((s: any) => {
-                        const paid = s.paid || 0;
-                        return (
-                          <p key={s.userId}>
-                            {data.people.find((p: any) => p.id === s.userId)?.name || tr('原成员')}
-                            {tr('：承担 ')}
-                            {formatMoney(s.amount)}
-                            {s.userId !== e.owner_id &&
-                              tr(' · 已结算 {0} · 待结算 {1}', [
-                                formatMoney(paid),
-                                formatMoney(Math.max(0, s.amount - paid)),
-                              ])}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  </article>
-                )}
-              </PagedList>
-              {!aa.length && <p className={s.muted}>{tr('还没有设置分担的家庭消费。')}</p>}
-            </section>
-          )}
-          {view === 'records' && (
-            <>
-              <div className={s.toolbar}>
-                <Input
-                  aria-label={tr('搜索往来')}
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder={tr('成员、备注、用途、流水号…')}
+                  }
                 />
-                <FormSelect aria-label={tr('往来状态')} value={filter} onChange={next => setFilter(next)}>
-                  <option value="">{tr('全部状态')}</option>
-                  <option value="pending">{tr('待收款人确认')}</option>
-                  <option value="confirmed">{tr('已确认')}</option>
-                  <option value="cancelled">{tr('已取消')}</option>
-                </FormSelect>
-                <DetailSortSelect picker value={sort} onChange={setSort} />
-              </div>
-              <p className={s.muted}>
-                {tr('共 ')}
-                {filtered.length} {tr(' 笔往来 · 内部资金流动不计家庭消费')}
-              </p>
-              <PagedList items={filtered} resetKey={query + filter + sort}>
-                {(m: any) => (
-                  <TransactionRow
-                    onClick={() => setSelected(m)}
-                    icon={<TransferIcon />}
-                    title={[
-                      m.details?.title,
-                      m.sender_name + ' → ' + (m.recipient_name || m.target_name),
-                      kindLabel(m.kind),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                    meta={
-                      <>
-                        <span>
-                          {m.date} ·{' '}
-                          {m.status === 'pending'
-                            ? tr('待收款人确认')
-                            : m.status === 'confirmed'
-                              ? tr('已确认')
-                              : tr('已取消')}
-                          {m.note ? ' · ' + tr('转账留言：{0}', [m.note]) : ''}
-                          {m.details?.note && m.details.note !== m.note
-                            ? ' · ' + tr('私人备注：{0}', [m.details.note])
-                            : ''}
-                        </span>
-                        {m.kind === 'loan' && m.status === 'confirmed' && (
-                          <small>
-                            {tr('未归还 ')}
-                            {formatMoney(
-                              Math.max(
-                                0,
-                                m.amount -
-                                  data.movements
-                                    .filter((v: any) => v.loan_id === m.id && v.status === 'confirmed')
-                                    .reduce((n: number, v: any) => n + v.amount, 0),
-                              ),
-                            )}
-                          </small>
-                        )}
-                      </>
-                    }
-                    value={
-                      <strong>
-                        <Money value={m.amount} />
-                      </strong>
-                    }
-                  />
-                )}
-              </PagedList>
-              {!filtered.length && (
-                <p className={s.muted}>{tr('没有符合条件的往来记录，可以调整筛选或记一笔往来。')}</p>
               )}
-            </>
-          )}
-        </>
+            </PagedList>
+            {!filtered.length && (
+              <p className={s.muted}>{tr('没有符合条件的往来记录，可以调整筛选或记一笔往来。')}</p>
+            )}
+          </>
+        )}
+      </>
       {selected && (
         <FamilyMovementDetails
           row={{

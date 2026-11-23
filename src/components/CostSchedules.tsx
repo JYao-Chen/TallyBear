@@ -273,188 +273,188 @@ export function CostSchedules({
               });
             }}
           >
-          <fieldset disabled={busy}>
-            <h4>{action === 'edit' ? tr('编辑周期计划') : tr('周期和金额')}</h4>
-            {action === 'edit' && (
-              <p className={shared.notice}>
-                {tr(
-                  '仅修改后续计划，历史付款与分摊保持不变。修改成员、承担金额或延长计划后，其他成员需要重新确认。',
-                )}
-              </p>
-            )}
-            <div className={shared.grid}>
-              <Field label={tr('名称')}>
-                {control => (
-                  <Input
-                    {...control}
-                    required
-                    maxLength={120}
-                    value={rule.title}
-                    onChange={e => update({ title: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field label={tr('分类')}>
-                {control => (
-                  <Input
-                    {...control}
-                    required
-                    value={rule.category}
-                    onChange={e => update({ category: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field label={tr('首次付款日')}>
-                {control => (
-                  <Input
-                    {...control}
-                    disabled={action === 'edit' && selected?.processed > 0}
-                    required
-                    type="date"
-                    value={rule.firstDate}
-                    onChange={e => update({ firstDate: e.target.value })}
-                  />
-                )}
-              </Field>
-              <Field label={tr('每隔几个月付款')}>
-                {control => (
-                  <Input
-                    {...control}
-                    disabled={action === 'edit' && selected?.processed > 0}
-                    required
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={rule.months}
-                    onChange={e => update({ months: Number(e.target.value) })}
-                  />
-                )}
-              </Field>
-              <Field label={tr('结束规则')}>
-                {() => (
-                  <FormSelect
-                    aria-label={tr('结束规则')}
-                    value={rule.totalCycles == null ? 'unlimited' : 'limited'}
-                    onChange={next =>
-                      update({
-                        totalCycles: next === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
-                      })
-                    }
-                  >
-                    <option value="unlimited">{tr('持续重复')}</option>
-                    <option value="limited">{tr('指定总期数')}</option>
-                  </FormSelect>
-                )}
-              </Field>
-              {rule.totalCycles != null && (
-                <Field label={tr('总期数（含已处理）')}>
+            <fieldset disabled={busy}>
+              <h4>{action === 'edit' ? tr('编辑周期计划') : tr('周期和金额')}</h4>
+              {action === 'edit' && (
+                <p className={shared.notice}>
+                  {tr(
+                    '仅修改后续计划，历史付款与分摊保持不变。修改成员、承担金额或延长计划后，其他成员需要重新确认。',
+                  )}
+                </p>
+              )}
+              <div className={shared.grid}>
+                <Field label={tr('名称')}>
                   {control => (
                     <Input
                       {...control}
                       required
-                      type="number"
-                      min={Math.max(1, selected?.processed || 0)}
-                      max={120}
-                      value={rule.totalCycles ?? ''}
-                      onChange={e => update({ totalCycles: Number(e.target.value) })}
+                      maxLength={120}
+                      value={rule.title}
+                      onChange={e => update({ title: e.target.value })}
                     />
                   )}
                 </Field>
-              )}
-              {bookField}
-              <Field label={tr('参与家庭')}>
-                {() => (
-                  <FormSelect
-                    aria-label={tr('参与家庭')}
-                    value={rule.familyId || ''}
-                    onChange={next =>
-                      update({
-                        familyId: next || null,
-                        shares: [rule.shares.find(s => s.userId === options.userId)!],
-                      })
-                    }
-                  >
-                    <option value="">{tr('仅自己')}</option>
-                    {[
-                      ...new Map<string, string>(
-                        options.people.map((p: any) => [p.family_id, p.family_name]),
-                      ).entries(),
-                    ].map(([id, n]) => (
-                      <option key={id} value={id}>
-                        {n}
-                      </option>
-                    ))}
-                  </FormSelect>
-                )}
-              </Field>
-            </div>
-            <h4>{tr('每人每月承担')}</h4>
-            {people
-              .filter((p: any) => p.id !== options.userId)
-              .map((p: any) => (
-                <label className={shared.check} key={p.id}>
-                  <input
-                    type="checkbox"
-                    checked={rule.shares.some(s => s.userId === p.id)}
-                    onChange={e =>
-                      update({
-                        shares: e.target.checked
-                          ? [...rule.shares, { userId: p.id, amount: 0 }]
-                          : rule.shares.filter(s => s.userId !== p.id),
-                      })
-                    }
-                  />
-                  {p.name}
-                </label>
-              ))}
-            <div className={shared.grid}>
-              {rule.shares.map((s, i) => (
-                <Field key={s.userId} label={name(s.userId)}>
+                <Field label={tr('分类')}>
                   {control => (
                     <Input
                       {...control}
                       required
+                      value={rule.category}
+                      onChange={e => update({ category: e.target.value })}
+                    />
+                  )}
+                </Field>
+                <Field label={tr('首次付款日')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      disabled={action === 'edit' && selected?.processed > 0}
+                      required
+                      type="date"
+                      value={rule.firstDate}
+                      onChange={e => update({ firstDate: e.target.value })}
+                    />
+                  )}
+                </Field>
+                <Field label={tr('每隔几个月付款')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      disabled={action === 'edit' && selected?.processed > 0}
+                      required
                       type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={s.amount / 100}
+                      min={1}
+                      max={120}
+                      value={rule.months}
+                      onChange={e => update({ months: Number(e.target.value) })}
+                    />
+                  )}
+                </Field>
+                <Field label={tr('结束规则')}>
+                  {() => (
+                    <FormSelect
+                      aria-label={tr('结束规则')}
+                      value={rule.totalCycles == null ? 'unlimited' : 'limited'}
+                      onChange={next =>
+                        update({
+                          totalCycles: next === 'unlimited' ? null : Math.max(1, selected?.processed || 0),
+                        })
+                      }
+                    >
+                      <option value="unlimited">{tr('持续重复')}</option>
+                      <option value="limited">{tr('指定总期数')}</option>
+                    </FormSelect>
+                  )}
+                </Field>
+                {rule.totalCycles != null && (
+                  <Field label={tr('总期数（含已处理）')}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        type="number"
+                        min={Math.max(1, selected?.processed || 0)}
+                        max={120}
+                        value={rule.totalCycles ?? ''}
+                        onChange={e => update({ totalCycles: Number(e.target.value) })}
+                      />
+                    )}
+                  </Field>
+                )}
+                {bookField}
+                <Field label={tr('参与家庭')}>
+                  {() => (
+                    <FormSelect
+                      aria-label={tr('参与家庭')}
+                      value={rule.familyId || ''}
+                      onChange={next =>
+                        update({
+                          familyId: next || null,
+                          shares: [rule.shares.find(s => s.userId === options.userId)!],
+                        })
+                      }
+                    >
+                      <option value="">{tr('仅自己')}</option>
+                      {[
+                        ...new Map<string, string>(
+                          options.people.map((p: any) => [p.family_id, p.family_name]),
+                        ).entries(),
+                      ].map(([id, n]) => (
+                        <option key={id} value={id}>
+                          {n}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  )}
+                </Field>
+              </div>
+              <h4>{tr('每人每月承担')}</h4>
+              {people
+                .filter((p: any) => p.id !== options.userId)
+                .map((p: any) => (
+                  <label className={shared.check} key={p.id}>
+                    <input
+                      type="checkbox"
+                      checked={rule.shares.some(s => s.userId === p.id)}
                       onChange={e =>
                         update({
-                          shares: rule.shares.map((v, j) =>
-                            j === i ? { ...v, amount: Math.round(Number(e.target.value) * 100) } : v,
-                          ),
+                          shares: e.target.checked
+                            ? [...rule.shares, { userId: p.id, amount: 0 }]
+                            : rule.shares.filter(s => s.userId !== p.id),
                         })
                       }
                     />
-                  )}
-                </Field>
-              ))}
-            </div>
-            {rule.totalCycles != null && rule.firstDate && rule.months > 0 && (
-              <p className={shared.notice}>
-                {tr('覆盖结束日（不含当天）：')}
-                {costScheduleProgress(rule, 0).coverageEnd} · {tr('跳过的账期也计入总期数。')}
-              </p>
-            )}
-            <p>
-              {tr('每期付款')}{' '}
-              <strong>{formatMoney(rule.shares.reduce((n, s) => n + s.amount, 0) * rule.months)}</strong>
-            </p>
-            <p className={shared.muted}>
-              {tr(
-                '成本从付款日所在自然月起等额归属。其他成员需接受规则并选择自己的账本。现在不需要选择钱包，不会入账。',
+                    {p.name}
+                  </label>
+                ))}
+              <div className={shared.grid}>
+                {rule.shares.map((s, i) => (
+                  <Field key={s.userId} label={name(s.userId)}>
+                    {control => (
+                      <Input
+                        {...control}
+                        required
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={s.amount / 100}
+                        onChange={e =>
+                          update({
+                            shares: rule.shares.map((v, j) =>
+                              j === i ? { ...v, amount: Math.round(Number(e.target.value) * 100) } : v,
+                            ),
+                          })
+                        }
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+              {rule.totalCycles != null && rule.firstDate && rule.months > 0 && (
+                <p className={shared.notice}>
+                  {tr('覆盖结束日（不含当天）：')}
+                  {costScheduleProgress(rule, 0).coverageEnd} · {tr('跳过的账期也计入总期数。')}
+                </p>
               )}
-            </p>
-            <div className={shared.toolbar}>
-              <Button variant="primary" type="submit">
-                {busy ? tr('保存中…') : action === 'edit' ? tr('保存计划修改') : tr('保存计划，不扣款')}
-              </Button>
-              <Button variant="ghost" type="button" onClick={close}>
-                {tr('取消')}
-              </Button>
-            </div>
-          </fieldset>
-        </form>
+              <p>
+                {tr('每期付款')}{' '}
+                <strong>{formatMoney(rule.shares.reduce((n, s) => n + s.amount, 0) * rule.months)}</strong>
+              </p>
+              <p className={shared.muted}>
+                {tr(
+                  '成本从付款日所在自然月起等额归属。其他成员需接受规则并选择自己的账本。现在不需要选择钱包，不会入账。',
+                )}
+              </p>
+              <div className={shared.toolbar}>
+                <Button variant="primary" type="submit">
+                  {busy ? tr('保存中…') : action === 'edit' ? tr('保存计划修改') : tr('保存计划，不扣款')}
+                </Button>
+                <Button variant="ghost" type="button" onClick={close}>
+                  {tr('取消')}
+                </Button>
+              </div>
+            </fieldset>
+          </form>
         </Sheet>
       ) : selected ? (
         <div>

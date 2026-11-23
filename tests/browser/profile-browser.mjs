@@ -20,10 +20,7 @@ const result = await build({
   define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
 });
 const css =
-  (await readFile('src/app/globals.css', 'utf8')).replace(
-    "@import './personal-profile.css';",
-    await readFile('src/app/personal-profile.css', 'utf8'),
-  ) +
+  (await readFile('src/app/globals.css', 'utf8')) +
   (await readFile('src/ui/tokens.css', 'utf8')) +
   result.outputFiles.find(f => f.path.endsWith('.css')).text;
 const browser = await chromium.launch({ headless: true, executablePath: process.env.TEST_CHROMIUM_PATH });
@@ -276,11 +273,13 @@ try {
       await page.getByRole('button', { name: t('编辑', 'Edit'), exact: true }).click();
       await page
         .getByRole('dialog')
-        .locator('fieldset')
+        .getByRole('button', { name: new RegExp('^' + t('规则状态', 'Rule state') + ':') })
+        .click();
+      await page
+        .getByRole('dialog')
         .last()
-        .locator('select')
-        .last()
-        .selectOption('disabled');
+        .getByRole('button', { name: t('已停用', 'Disabled') })
+        .click();
       await page.getByRole('button', { name: t('保存规则', 'Save rule'), exact: true }).click();
       await page
         .getByRole('status')

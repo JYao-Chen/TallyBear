@@ -43,20 +43,34 @@ const bundled = await build({
     loader: 'tsx',
   },
   bundle: true,
+  outdir: 'fixture',
   write: false,
   platform: 'browser',
   jsx: 'automatic',
-  define: { 'process.env.NODE_ENV': '"development"' },
+  define: { 'process.env': '{}', 'process.env.NODE_ENV': '"development"' },
   logLevel: 'silent',
 });
-const js = bundled.outputFiles[0].contents,
-  css = (
-    await Promise.all(
-      ['globals', 'mobile-refinement', 'desktop-refinement', 'chat', 'workspace-polish', 'receipt-cards'].map(
-        name => readFile(`src/app/${name}.css`, 'utf8'),
-      ),
-    )
-  ).join('\n');
+const js = bundled.outputFiles.find(f => f.path.endsWith('.js')).contents,
+  css =
+    (
+      await Promise.all(
+        [
+          'globals',
+          'mobile-refinement',
+          'desktop-refinement',
+          'chat',
+          'workspace-polish',
+          'receipt-cards',
+        ].map(name => readFile(`src/app/${name}.css`, 'utf8')),
+      )
+    ).join('\n') +
+    '\n' +
+    (await readFile('src/ui/tokens.css', 'utf8')) +
+    '\n' +
+    bundled.outputFiles
+      .filter(f => f.path.endsWith('.css'))
+      .map(f => f.text)
+      .join('\n');
 const server = createServer((req, res) => {
   if (req.url === '/app.js') {
     res.setHeader('Content-Type', 'text/javascript');
@@ -92,7 +106,8 @@ try {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(
-        route.request().url().endsWith('/api/activities')
+        route.request().url().endsWith('/api/activities') ||
+          route.request().url().endsWith('/api/expense-claims/people')
           ? []
           : { accounts: [], categories: [], activities: [], books: [] },
       ),
@@ -121,6 +136,7 @@ try {
       animations: 'disabled',
     });
   }
+  await page.getByText('查看卡片详情', { exact: true }).click();
   await page.getByRole('button', { name: '下一页', exact: true }).click();
   assert.ok(await page.getByText('冰鲜免浆黑鱼片250g · 商品 8', { exact: true }).isVisible());
   await page.getByRole('button', { name: '通过对话修改', exact: true }).click();
@@ -144,9 +160,10 @@ try {
   await page.getByText('查看卡片详情', { exact: true }).click();
   assert.ok(await page.getByText('食材用于周末家庭聚餐。', { exact: true }).isVisible());
   await page.goto(`http://127.0.0.1:${server.address().port}/?draft`);
+  await page.getByRole('button', { name: '核对 / 修改', exact: true }).first().click();
+  await page.getByRole('dialog').getByLabel('账目标题', { exact: true }).waitFor();
   for (const width of [1440, 390, 360]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.getByRole('heading', { name: '交易信息', exact: true }).waitFor();
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,

@@ -591,360 +591,58 @@ export function CostProjects({
               } else if (preview) void save();
             }}
           >
-          <fieldset disabled={busy}>
-            <ol className={styles.costSteps} aria-label={tr('设置进度')}>
-              {[tr('原始账单'), tr('期间与成员'), tr('核对确认')].map((label, i) => (
-                <li key={i} aria-current={step === i ? 'step' : undefined}>
-                  <Button
-                    variant="primary"
-                    type="button"
-                    disabled={i > step}
-                    onClick={() => {
-                      setStep(i);
-                    }}
-                  >
-                    {i + 1}. {label}
-                  </Button>
-                </li>
-              ))}
-            </ol>
-            <div hidden={step !== 0}>
-              <div className={shared.section}>
-                <h3>{tr('原始付款')}</h3>
-                <div className={shared.grid}>
-                  <Field label={tr('费用名称')}>
-                    {control => (
-                      <Input
-                        {...control}
-                        required
-                        maxLength={120}
-                        value={plan.title}
-                        onChange={e => set({ title: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                  <Field label={tr('费用分类')}>
-                    {control => (
-                      <Input
-                        {...control}
-                        required
-                        maxLength={60}
-                        value={plan.category}
-                        onChange={e => set({ category: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                </div>
-                <PagedList items={plan.sources}>
-                  {(s, i) => (
-                    <div className={shared.row}>
-                      <span>
-                        {sourceNames[s.transactionId] || tr('已关联付款')}
-                        <small>{s.transactionId.slice(0, 8)}</small>
-                      </span>
-                      <Field label={tr('参与分摊金额')}>
-                        {control => (
-                          <Input
-                            {...control}
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            required
-                            value={s.amount / 100}
-                            onChange={e =>
-                              set({
-                                sources: plan.sources.map((v, j) =>
-                                  j === i ? { ...v, amount: cents(e.target.value) } : v,
-                                ),
-                              })
-                            }
-                          />
-                        )}
-                      </Field>
-                      <Button
-                        variant="ghost"
-                        type="button"
-                        aria-label={tr('移除付款关联')}
-                        onClick={() => set({ sources: plan.sources.filter((_, j) => j !== i) })}
-                      >
-                        <Trash2 size={18} />
-                      </Button>
-                    </div>
-                  )}
-                </PagedList>
-                <Button variant="secondary" type="button" onClick={() => setPicker('expense')}>
-                  <Plus size={16} />
-                  {tr('查找已支付账单')}
-                </Button>
-                <p>
-                  {tr('本项目原始费用')} <strong>{formatMoney(total)}</strong>
-                </p>
-              </div>
-            </div>
-            <div hidden={step !== 1}>
-              <div className={shared.section}>
-                <h3>{tr('期间归属')}</h3>
-                <div className={shared.grid}>
-                  <Field label={tr('实际覆盖开始日')}>
-                    {control => (
-                      <Input
-                        {...control}
-                        type="date"
-                        required
-                        value={plan.coverageStart}
-                        onChange={e => set({ coverageStart: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                  <Field label={tr('覆盖结束日（不含当天）')}>
-                    {control => (
-                      <Input
-                        {...control}
-                        type="date"
-                        required
-                        value={plan.coverageEnd}
-                        onChange={e => set({ coverageEnd: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                  <Field label={tr('分摊方式')}>
-                    {() => (
-                      <FormSelect
-                        aria-label={tr('分摊方式')}
-                        value={plan.mode}
-                        onChange={next => set({ mode: next as CostPlan['mode'] })}
-                      >
-                        <option value="monthly">{tr('指定自然月等额')}</option>
-                        <option value="daily">{tr('真实覆盖期按天')}</option>
-                        <option value="custom">{tr('自定义期间金额')}</option>
-                      </FormSelect>
-                    )}
-                  </Field>
-                  {plan.mode === 'monthly' && (
-                    <>
-                      <Field label={tr('归属起始月份')}>
-                        {control => (
-                          <Input
-                            {...control}
-                            type="month"
-                            required
-                            value={plan.startMonth}
-                            onChange={e => set({ startMonth: e.target.value })}
-                          />
-                        )}
-                      </Field>
-                      <Field label={tr('分摊月数')}>
-                        {control => (
-                          <Input
-                            {...control}
-                            type="number"
-                            min={1}
-                            max={1200}
-                            required
-                            value={plan.months}
-                            onChange={e => set({ months: Number(e.target.value) })}
-                          />
-                        )}
-                      </Field>
-                    </>
-                  )}
-                </div>
-                {plan.mode === 'custom' && (
-                  <>
-                    <PagedList items={plan.periods}>
-                      {(p, i) => (
-                        <div className={shared.row}>
-                          <Field label={tr('开始')}>
-                            {control => (
-                              <Input
-                                {...control}
-                                type="date"
-                                required
-                                value={p.start}
-                                onChange={e =>
-                                  set({
-                                    periods: plan.periods.map((v, j) =>
-                                      j === i ? { ...v, start: e.target.value } : v,
-                                    ),
-                                  })
-                                }
-                              />
-                            )}
-                          </Field>
-                          <Field label={tr('结束（不含当天）')}>
-                            {control => (
-                              <Input
-                                {...control}
-                                type="date"
-                                required
-                                value={p.end}
-                                onChange={e =>
-                                  set({
-                                    periods: plan.periods.map((v, j) =>
-                                      j === i ? { ...v, end: e.target.value } : v,
-                                    ),
-                                  })
-                                }
-                              />
-                            )}
-                          </Field>
-                          <Field label={tr('金额')}>
-                            {control => (
-                              <Input
-                                {...control}
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                value={p.amount / 100}
-                                onChange={e =>
-                                  set({
-                                    periods: plan.periods.map((v, j) =>
-                                      j === i ? { ...v, amount: cents(e.target.value) } : v,
-                                    ),
-                                  })
-                                }
-                              />
-                            )}
-                          </Field>
-                          <Button
-                            variant="ghost"
-                            type="button"
-                            onClick={() => set({ periods: plan.periods.filter((_, j) => j !== i) })}
-                          >
-                            {tr('移除')}
-                          </Button>
-                        </div>
-                      )}
-                    </PagedList>
+            <fieldset disabled={busy}>
+              <ol className={styles.costSteps} aria-label={tr('设置进度')}>
+                {[tr('原始账单'), tr('期间与成员'), tr('核对确认')].map((label, i) => (
+                  <li key={i} aria-current={step === i ? 'step' : undefined}>
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       type="button"
-                      onClick={() =>
-                        set({
-                          periods: [
-                            ...plan.periods,
-                            { start: plan.coverageStart, end: plan.coverageEnd, amount: total },
-                          ],
-                        })
-                      }
+                      disabled={i > step}
+                      onClick={() => {
+                        setStep(i);
+                      }}
                     >
-                      {tr('添加期间')}
+                      {i + 1}. {label}
                     </Button>
-                  </>
-                )}
-              </div>
-              <div className={shared.section}>
-                <h3>{tr('成员承担')}</h3>
-                <Field label={tr('选人范围（不改变记入账本）')}>
-                  {() => (
-                    <FormSelect
-                      aria-label={tr('选人范围（不改变记入账本）')}
-                      disabled={!!selected}
-                      value={plan.familyId || ''}
-                      onChange={next =>
-                        set({
-                          familyId: next || null,
-                          shares: [{ userId: options!.userId, amount: total }],
-                        })
-                      }
-                    >
-                      <option value="">{tr('仅自己')}</option>
-                      {[...new Map(options?.people.map(p => [p.family_id, p.family_name])).entries()].map(
-                        ([id, name]) => (
-                          <option key={id} value={id}>
-                            {name}
-                          </option>
-                        ),
-                      )}
-                    </FormSelect>
-                  )}
-                </Field>
-                {!selected &&
-                  people
-                    .filter(p => p.id !== options?.userId)
-                    .map(p => (
-                      <label className={shared.check} key={p.id}>
-                        <input
-                          type="checkbox"
-                          checked={plan.shares.some(s => s.userId === p.id)}
-                          onChange={e =>
-                            set({
-                              shares: e.target.checked
-                                ? [...plan.shares, { userId: p.id, amount: 0 }]
-                                : plan.shares.filter(s => s.userId !== p.id),
-                            })
-                          }
+                  </li>
+                ))}
+              </ol>
+              <div hidden={step !== 0}>
+                <div className={shared.section}>
+                  <h3>{tr('原始付款')}</h3>
+                  <div className={shared.grid}>
+                    <Field label={tr('费用名称')}>
+                      {control => (
+                        <Input
+                          {...control}
+                          required
+                          maxLength={120}
+                          value={plan.title}
+                          onChange={e => set({ title: e.target.value })}
                         />
-                        {p.name}
-                      </label>
-                    ))}
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() =>
-                    set({
-                      shares: plan.shares.map((s, i) => ({
-                        ...s,
-                        amount:
-                          Math.floor(total / plan.shares.length) + (i < total % plan.shares.length ? 1 : 0),
-                      })),
-                    })
-                  }
-                >
-                  {tr('按当前成员均分')}
-                </Button>
-                <div className={shared.grid}>
-                  {plan.shares.map((s, i) => (
-                    <label key={s.userId}>
-                      {person(s.userId)} · {tr('全期承担')}
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        required
-                        value={s.amount / 100}
-                        onChange={e =>
-                          set({
-                            shares: plan.shares.map((v, j) =>
-                              j === i ? { ...v, amount: cents(e.target.value) } : v,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-                <p className={shared.muted}>
-                  {tr('其他成员须确认分担。私人账单详情和钱包余额不随邀请共享。')}
-                </p>
-              </div>
-              <div className={shared.section}>
-                <h3>{tr('收入抵减（可选）')}</h3>
-                <p className={shared.muted}>
-                  {tr('工资等任意收入可关联部分金额。预计收入不计入已实现净承担。')}
-                </p>
-                <PagedList items={plan.offsets}>
-                  {(o, i) => (
-                    <div className={shared.row}>
-                      <div className={shared.grid}>
-                        <Field label={tr('归属月份')}>
-                          {control => (
-                            <Input
-                              {...control}
-                              type="month"
-                              required
-                              value={o.month}
-                              onChange={e =>
-                                set({
-                                  offsets: plan.offsets.map((v, j) =>
-                                    j === i ? { ...v, month: e.target.value } : v,
-                                  ),
-                                })
-                              }
-                            />
-                          )}
-                        </Field>
-                        <Field label={tr('抵减金额')}>
+                      )}
+                    </Field>
+                    <Field label={tr('费用分类')}>
+                      {control => (
+                        <Input
+                          {...control}
+                          required
+                          maxLength={60}
+                          value={plan.category}
+                          onChange={e => set({ category: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                  <PagedList items={plan.sources}>
+                    {(s, i) => (
+                      <div className={shared.row}>
+                        <span>
+                          {sourceNames[s.transactionId] || tr('已关联付款')}
+                          <small>{s.transactionId.slice(0, 8)}</small>
+                        </span>
+                        <Field label={tr('参与分摊金额')}>
                           {control => (
                             <Input
                               {...control}
@@ -952,10 +650,10 @@ export function CostProjects({
                               min="0.01"
                               step="0.01"
                               required
-                              value={o.amount / 100}
+                              value={s.amount / 100}
                               onChange={e =>
                                 set({
-                                  offsets: plan.offsets.map((v, j) =>
+                                  sources: plan.sources.map((v, j) =>
                                     j === i ? { ...v, amount: cents(e.target.value) } : v,
                                   ),
                                 })
@@ -963,194 +661,498 @@ export function CostProjects({
                             />
                           )}
                         </Field>
-                        <Field label={tr('受益人')}>
-                          {() => (
-                            <FormSelect
-                              aria-label={tr('受益人')}
-                              value={o.userId}
-                              onChange={next =>
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          aria-label={tr('移除付款关联')}
+                          onClick={() => set({ sources: plan.sources.filter((_, j) => j !== i) })}
+                        >
+                          <Trash2 size={18} />
+                        </Button>
+                      </div>
+                    )}
+                  </PagedList>
+                  <Button variant="secondary" type="button" onClick={() => setPicker('expense')}>
+                    <Plus size={16} />
+                    {tr('查找已支付账单')}
+                  </Button>
+                  <p>
+                    {tr('本项目原始费用')} <strong>{formatMoney(total)}</strong>
+                  </p>
+                </div>
+              </div>
+              <div hidden={step !== 1}>
+                <div className={shared.section}>
+                  <h3>{tr('期间归属')}</h3>
+                  <div className={shared.grid}>
+                    <Field label={tr('实际覆盖开始日')}>
+                      {control => (
+                        <Input
+                          {...control}
+                          type="date"
+                          required
+                          value={plan.coverageStart}
+                          onChange={e => set({ coverageStart: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                    <Field label={tr('覆盖结束日（不含当天）')}>
+                      {control => (
+                        <Input
+                          {...control}
+                          type="date"
+                          required
+                          value={plan.coverageEnd}
+                          onChange={e => set({ coverageEnd: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                    <Field label={tr('分摊方式')}>
+                      {() => (
+                        <FormSelect
+                          aria-label={tr('分摊方式')}
+                          value={plan.mode}
+                          onChange={next => set({ mode: next as CostPlan['mode'] })}
+                        >
+                          <option value="monthly">{tr('指定自然月等额')}</option>
+                          <option value="daily">{tr('真实覆盖期按天')}</option>
+                          <option value="custom">{tr('自定义期间金额')}</option>
+                        </FormSelect>
+                      )}
+                    </Field>
+                    {plan.mode === 'monthly' && (
+                      <>
+                        <Field label={tr('归属起始月份')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              type="month"
+                              required
+                              value={plan.startMonth}
+                              onChange={e => set({ startMonth: e.target.value })}
+                            />
+                          )}
+                        </Field>
+                        <Field label={tr('分摊月数')}>
+                          {control => (
+                            <Input
+                              {...control}
+                              type="number"
+                              min={1}
+                              max={1200}
+                              required
+                              value={plan.months}
+                              onChange={e => set({ months: Number(e.target.value) })}
+                            />
+                          )}
+                        </Field>
+                      </>
+                    )}
+                  </div>
+                  {plan.mode === 'custom' && (
+                    <>
+                      <PagedList items={plan.periods}>
+                        {(p, i) => (
+                          <div className={shared.row}>
+                            <Field label={tr('开始')}>
+                              {control => (
+                                <Input
+                                  {...control}
+                                  type="date"
+                                  required
+                                  value={p.start}
+                                  onChange={e =>
+                                    set({
+                                      periods: plan.periods.map((v, j) =>
+                                        j === i ? { ...v, start: e.target.value } : v,
+                                      ),
+                                    })
+                                  }
+                                />
+                              )}
+                            </Field>
+                            <Field label={tr('结束（不含当天）')}>
+                              {control => (
+                                <Input
+                                  {...control}
+                                  type="date"
+                                  required
+                                  value={p.end}
+                                  onChange={e =>
+                                    set({
+                                      periods: plan.periods.map((v, j) =>
+                                        j === i ? { ...v, end: e.target.value } : v,
+                                      ),
+                                    })
+                                  }
+                                />
+                              )}
+                            </Field>
+                            <Field label={tr('金额')}>
+                              {control => (
+                                <Input
+                                  {...control}
+                                  type="number"
+                                  step="0.01"
+                                  min={0}
+                                  value={p.amount / 100}
+                                  onChange={e =>
+                                    set({
+                                      periods: plan.periods.map((v, j) =>
+                                        j === i ? { ...v, amount: cents(e.target.value) } : v,
+                                      ),
+                                    })
+                                  }
+                                />
+                              )}
+                            </Field>
+                            <Button
+                              variant="ghost"
+                              type="button"
+                              onClick={() => set({ periods: plan.periods.filter((_, j) => j !== i) })}
+                            >
+                              {tr('移除')}
+                            </Button>
+                          </div>
+                        )}
+                      </PagedList>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        onClick={() =>
+                          set({
+                            periods: [
+                              ...plan.periods,
+                              { start: plan.coverageStart, end: plan.coverageEnd, amount: total },
+                            ],
+                          })
+                        }
+                      >
+                        {tr('添加期间')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className={shared.section}>
+                  <h3>{tr('成员承担')}</h3>
+                  <Field label={tr('选人范围（不改变记入账本）')}>
+                    {() => (
+                      <FormSelect
+                        aria-label={tr('选人范围（不改变记入账本）')}
+                        disabled={!!selected}
+                        value={plan.familyId || ''}
+                        onChange={next =>
+                          set({
+                            familyId: next || null,
+                            shares: [{ userId: options!.userId, amount: total }],
+                          })
+                        }
+                      >
+                        <option value="">{tr('仅自己')}</option>
+                        {[...new Map(options?.people.map(p => [p.family_id, p.family_name])).entries()].map(
+                          ([id, name]) => (
+                            <option key={id} value={id}>
+                              {name}
+                            </option>
+                          ),
+                        )}
+                      </FormSelect>
+                    )}
+                  </Field>
+                  {!selected &&
+                    people
+                      .filter(p => p.id !== options?.userId)
+                      .map(p => (
+                        <label className={shared.check} key={p.id}>
+                          <input
+                            type="checkbox"
+                            checked={plan.shares.some(s => s.userId === p.id)}
+                            onChange={e =>
+                              set({
+                                shares: e.target.checked
+                                  ? [...plan.shares, { userId: p.id, amount: 0 }]
+                                  : plan.shares.filter(s => s.userId !== p.id),
+                              })
+                            }
+                          />
+                          {p.name}
+                        </label>
+                      ))}
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    onClick={() =>
+                      set({
+                        shares: plan.shares.map((s, i) => ({
+                          ...s,
+                          amount:
+                            Math.floor(total / plan.shares.length) + (i < total % plan.shares.length ? 1 : 0),
+                        })),
+                      })
+                    }
+                  >
+                    {tr('按当前成员均分')}
+                  </Button>
+                  <div className={shared.grid}>
+                    {plan.shares.map((s, i) => (
+                      <label key={s.userId}>
+                        {person(s.userId)} · {tr('全期承担')}
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          required
+                          value={s.amount / 100}
+                          onChange={e =>
+                            set({
+                              shares: plan.shares.map((v, j) =>
+                                j === i ? { ...v, amount: cents(e.target.value) } : v,
+                              ),
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className={shared.muted}>
+                    {tr('其他成员须确认分担。私人账单详情和钱包余额不随邀请共享。')}
+                  </p>
+                </div>
+                <div className={shared.section}>
+                  <h3>{tr('收入抵减（可选）')}</h3>
+                  <p className={shared.muted}>
+                    {tr('工资等任意收入可关联部分金额。预计收入不计入已实现净承担。')}
+                  </p>
+                  <PagedList items={plan.offsets}>
+                    {(o, i) => (
+                      <div className={shared.row}>
+                        <div className={shared.grid}>
+                          <Field label={tr('归属月份')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="month"
+                                required
+                                value={o.month}
+                                onChange={e =>
+                                  set({
+                                    offsets: plan.offsets.map((v, j) =>
+                                      j === i ? { ...v, month: e.target.value } : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label={tr('抵减金额')}>
+                            {control => (
+                              <Input
+                                {...control}
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                required
+                                value={o.amount / 100}
+                                onChange={e =>
+                                  set({
+                                    offsets: plan.offsets.map((v, j) =>
+                                      j === i ? { ...v, amount: cents(e.target.value) } : v,
+                                    ),
+                                  })
+                                }
+                              />
+                            )}
+                          </Field>
+                          <Field label={tr('受益人')}>
+                            {() => (
+                              <FormSelect
+                                aria-label={tr('受益人')}
+                                value={o.userId}
+                                onChange={next =>
+                                  set({
+                                    offsets: plan.offsets.map((v, j) =>
+                                      j === i
+                                        ? {
+                                            ...v,
+                                            userId: next,
+                                            shared: next !== options?.userId || v.shared,
+                                          }
+                                        : v,
+                                    ),
+                                  })
+                                }
+                              >
+                                {plan.shares.map(s => (
+                                  <option key={s.userId} value={s.userId}>
+                                    {person(s.userId)}
+                                  </option>
+                                ))}
+                              </FormSelect>
+                            )}
+                          </Field>
+                        </div>
+                        <div className={shared.toolbar}>
+                          <Button variant="secondary" type="button" onClick={() => setPicker(i)}>
+                            {o.transactionId ? tr('已关联到账收入 · 更换') : tr('关联实际到账收入')}
+                          </Button>
+                          {o.transactionId && (
+                            <Button
+                              variant="ghost"
+                              type="button"
+                              onClick={() =>
                                 set({
                                   offsets: plan.offsets.map((v, j) =>
-                                    j === i
-                                      ? {
-                                          ...v,
-                                          userId: next,
-                                          shared: next !== options?.userId || v.shared,
-                                        }
-                                      : v,
+                                    j === i ? { ...v, transactionId: null } : v,
                                   ),
                                 })
                               }
                             >
-                              {plan.shares.map(s => (
-                                <option key={s.userId} value={s.userId}>
-                                  {person(s.userId)}
-                                </option>
-                              ))}
-                            </FormSelect>
+                              {tr('改为预计')}
+                            </Button>
                           )}
-                        </Field>
-                      </div>
-                      <div className={shared.toolbar}>
-                        <Button variant="secondary" type="button" onClick={() => setPicker(i)}>
-                          {o.transactionId ? tr('已关联到账收入 · 更换') : tr('关联实际到账收入')}
-                        </Button>
-                        {o.transactionId && (
+                          <label className={shared.check}>
+                            <input
+                              type="checkbox"
+                              checked={o.shared}
+                              onChange={e =>
+                                set({
+                                  offsets: plan.offsets.map((v, j) =>
+                                    j === i ? { ...v, shared: e.target.checked } : v,
+                                  ),
+                                })
+                              }
+                            />
+                            {tr('向参与者共享抵减金额')}
+                          </label>
                           <Button
                             variant="ghost"
                             type="button"
-                            onClick={() =>
-                              set({
-                                offsets: plan.offsets.map((v, j) =>
-                                  j === i ? { ...v, transactionId: null } : v,
-                                ),
-                              })
-                            }
+                            onClick={() => set({ offsets: plan.offsets.filter((_, j) => j !== i) })}
                           >
-                            {tr('改为预计')}
+                            {tr('移除')}
                           </Button>
-                        )}
-                        <label className={shared.check}>
-                          <input
-                            type="checkbox"
-                            checked={o.shared}
-                            onChange={e =>
-                              set({
-                                offsets: plan.offsets.map((v, j) =>
-                                  j === i ? { ...v, shared: e.target.checked } : v,
-                                ),
-                              })
-                            }
-                          />
-                          {tr('向参与者共享抵减金额')}
-                        </label>
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          onClick={() => set({ offsets: plan.offsets.filter((_, j) => j !== i) })}
-                        >
-                          {tr('移除')}
-                        </Button>
+                        </div>
+                        <small>
+                          {o.transactionId
+                            ? sourceNames[o.transactionId] || tr('实际收入关联')
+                            : tr('预计，尚未计入实际抵减')}
+                        </small>
                       </div>
-                      <small>
-                        {o.transactionId
-                          ? sourceNames[o.transactionId] || tr('实际收入关联')
-                          : tr('预计，尚未计入实际抵减')}
-                      </small>
-                    </div>
-                  )}
-                </PagedList>
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() =>
-                    set({
-                      offsets: [
-                        ...plan.offsets,
-                        {
-                          id: crypto.randomUUID(),
-                          transactionId: null,
-                          userId: options!.userId,
-                          month: plan.startMonth,
-                          amount: 0,
-                          shared: false,
-                        },
-                      ],
-                    })
-                  }
-                >
-                  <Plus size={16} />
-                  {tr('添加抵减')}
-                </Button>
+                    )}
+                  </PagedList>
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() =>
+                      set({
+                        offsets: [
+                          ...plan.offsets,
+                          {
+                            id: crypto.randomUUID(),
+                            transactionId: null,
+                            userId: options!.userId,
+                            month: plan.startMonth,
+                            amount: 0,
+                            shared: false,
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus size={16} />
+                    {tr('添加抵减')}
+                  </Button>
+                </div>
               </div>
-            </div>
-            {picker !== null && (
-              <SourcePicker
-                kind={picker === 'expense' ? 'expense' : 'income'}
-                onClose={() => setPicker(null)}
-                onChoose={s => {
-                  setSourceNames(n => ({ ...n, [s.id]: s.title || s.payee }));
-                  if (picker === 'expense') {
-                    set({
-                      title: plan.title || s.title || s.payee,
-                      sources: [...plan.sources, { transactionId: s.id, amount: s.amount }],
-                      ...(plan.shares.length === 1
-                        ? { shares: [{ ...plan.shares[0], amount: total + s.amount }] }
-                        : {}),
-                    });
-                  } else {
-                    set({
-                      offsets: plan.offsets.map((o, i) => (i === picker ? { ...o, transactionId: s.id } : o)),
-                    });
-                  }
-                  setPicker(null);
-                }}
-              />
-            )}
-            {step === 2 && (
-              <div className={shared.section}>
-                <p>
-                  <strong>{plan.title}</strong> · {plan.coverageStart} → {plan.coverageEnd}
-                </p>
-                <h3>{tr('确认预览')}</h3>
-                {problem ? (
-                  <p role="alert" className={shared.error}>
-                    {tr(problem)}
+              {picker !== null && (
+                <SourcePicker
+                  kind={picker === 'expense' ? 'expense' : 'income'}
+                  onClose={() => setPicker(null)}
+                  onChoose={s => {
+                    setSourceNames(n => ({ ...n, [s.id]: s.title || s.payee }));
+                    if (picker === 'expense') {
+                      set({
+                        title: plan.title || s.title || s.payee,
+                        sources: [...plan.sources, { transactionId: s.id, amount: s.amount }],
+                        ...(plan.shares.length === 1
+                          ? { shares: [{ ...plan.shares[0], amount: total + s.amount }] }
+                          : {}),
+                      });
+                    } else {
+                      set({
+                        offsets: plan.offsets.map((o, i) =>
+                          i === picker ? { ...o, transactionId: s.id } : o,
+                        ),
+                      });
+                    }
+                    setPicker(null);
+                  }}
+                />
+              )}
+              {step === 2 && (
+                <div className={shared.section}>
+                  <p>
+                    <strong>{plan.title}</strong> · {plan.coverageStart} → {plan.coverageEnd}
                   </p>
-                ) : (
-                  preview && (
-                    <>
-                      <p className={shared.notice}>{tr('本次仅更新费用分析，不新增收入或扣款。')}</p>
-                      <PagedList items={preview.periods}>
-                        {p => (
-                          <div className={shared.row}>
-                            <strong>
-                              {p.start} → {p.end}
-                            </strong>
-                            <b>{formatMoney(p.amount)}</b>
-                            <div>
-                              {p.shares.map(s => (
-                                <span key={s.userId}>
-                                  {person(s.userId)} {formatMoney(s.amount)}
-                                </span>
-                              ))}
+                  <h3>{tr('确认预览')}</h3>
+                  {problem ? (
+                    <p role="alert" className={shared.error}>
+                      {tr(problem)}
+                    </p>
+                  ) : (
+                    preview && (
+                      <>
+                        <p className={shared.notice}>{tr('本次仅更新费用分析，不新增收入或扣款。')}</p>
+                        <PagedList items={preview.periods}>
+                          {p => (
+                            <div className={shared.row}>
+                              <strong>
+                                {p.start} → {p.end}
+                              </strong>
+                              <b>{formatMoney(p.amount)}</b>
+                              <div>
+                                {p.shares.map(s => (
+                                  <span key={s.userId}>
+                                    {person(s.userId)} {formatMoney(s.amount)}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </PagedList>
-                    </>
-                  )
+                          )}
+                        </PagedList>
+                      </>
+                    )
+                  )}
+                </div>
+              )}
+              <div className={shared.toolbar}>
+                {step > 0 && (
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => {
+                      setStep(step - 1);
+                    }}
+                  >
+                    {tr('上一步')}
+                  </Button>
                 )}
-              </div>
-            )}
-            <div className={shared.toolbar}>
-              {step > 0 && (
+                <Button variant="primary" type="submit" disabled={busy || (step === 2 && !preview)}>
+                  {busy ? tr('正在保存…') : step === 2 ? tr('确认保存规则') : tr('下一步')}
+                </Button>
                 <Button
                   variant="secondary"
                   type="button"
                   onClick={() => {
-                    setStep(step - 1);
+                    setPlan(null);
+                    setPicker(null);
                   }}
                 >
-                  {tr('上一步')}
+                  {tr('取消编辑')}
                 </Button>
-              )}
-              <Button variant="primary" type="submit" disabled={busy || (step === 2 && !preview)}>
-                {busy ? tr('正在保存…') : step === 2 ? tr('确认保存规则') : tr('下一步')}
-              </Button>
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => {
-                  setPlan(null);
-                  setPicker(null);
-                }}
-              >
-                {tr('取消编辑')}
-              </Button>
-            </div>
-          </fieldset>
-        </form>
+              </div>
+            </fieldset>
+          </form>
         </Sheet>
       )}
       {selected && !plan && (
