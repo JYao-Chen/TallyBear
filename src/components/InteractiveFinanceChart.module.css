@@ -101,3 +101,18 @@
   align-content: start;
   overscroll-behavior-y: auto;
 }
+
+
+.categoryLegend {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.legendLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.legendLabel > [aria-hidden='true'] {
+  display: inline-flex;
+  flex: none;
+}

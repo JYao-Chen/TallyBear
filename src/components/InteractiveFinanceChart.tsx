@@ -4,7 +4,7 @@ import { Button, Sheet } from '@/ui';
 import { useEntryDetail } from './EntryDetailContext';
 import { DetailSortSelect } from './DetailSortSelect';
 import type { DetailSort } from '@/lib/detail-sort';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { ChartNoAxesColumn, ChartPie, ChartLine, ChevronRight, ArrowLeft } from 'lucide-react';
 import { ChartTransactionDetail } from './ChartTransactionDetail';
+import { CategoryIcons, SymbolIcon } from './VisualSelect';
 
 import { useI18n } from './LanguageProvider';
 import { shortChartLabel, chartAmount } from '@/lib/chart-labels';
@@ -38,6 +39,7 @@ export function FinanceChart({
   onSelect?: (point: { name: string; value: number }) => void;
 }) {
   const openEntry = useEntryDetail();
+  const categories = useContext(CategoryIcons);
   const [sort, setSort] = useState<DetailSort>('date_desc');
   const { t, locale } = useI18n();
   const [type, setType] = useState<ChartArtifact['type']>(),
@@ -304,16 +306,35 @@ export function FinanceChart({
               {t('按日期')}
             </Button>
           )}
-          <div role="group" aria-label={t('图例')} className={s.chartDataLegend}>
-            {(dates && !byDate ? rows.slice(0, 10) : rows).map(d => (
-              <Button type="button" key={d.name} disabled={!canDrill} onClick={() => select(d)}>
-                <i style={{ background: color(d.index) }} />
-                <span>{d.name || t('未填写')}</span>
-                <strong>{format(d.value)}</strong>
-                {actualType === 'pie' && total > 0 && <small>{((d.value / total) * 100).toFixed(1)}%</small>}
-                {canDrill && <ChevronRight size={14} />}
-              </Button>
-            ))}
+          <div
+            role="group"
+            aria-label={t('图例')}
+            className={
+              chart.dimension === 'category' ? `${s.chartDataLegend} ${s.categoryLegend}` : s.chartDataLegend
+            }
+          >
+            {(dates && !byDate ? rows.slice(0, 10) : rows).map(d => {
+              const icon =
+                chart.dimension === 'category' ? categories.find(c => c.name === d.name)?.icon : undefined;
+              return (
+                <Button type="button" key={d.name} disabled={!canDrill} onClick={() => select(d)}>
+                  <i style={{ background: color(d.index) }} />
+                  <span className={s.legendLabel}>
+                    {icon && (
+                      <span aria-hidden="true">
+                        <SymbolIcon icon={icon} size={26} still />
+                      </span>
+                    )}
+                    <span>{d.name || t('未填写')}</span>
+                  </span>
+                  <strong>{format(d.value)}</strong>
+                  {actualType === 'pie' && total > 0 && (
+                    <small>{((d.value / total) * 100).toFixed(1)}%</small>
+                  )}
+                  {canDrill && <ChevronRight size={14} />}
+                </Button>
+              );
+            })}
           </div>
         </>
       )}
