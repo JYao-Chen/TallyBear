@@ -8,7 +8,7 @@
 .help-content p:last-child{margin-bottom:0}
 
 .help-steps{padding-left:24px;max-width:72ch;line-height:1.9}.help-steps li{padding-left:10px;margin-bottom:28px;overflow-wrap:anywhere}.help-steps li::marker{color:var(--accent);font-weight:650;font-variant-numeric:tabular-nums}.help-steps h4{font-family:inherit;font-size:17px;font-weight:650;margin:0 0 8px}.help-steps p{margin-bottom:10px}
-.help-content h3{margin-top:32px;margin-bottom:16px}.help-content mark{background:#f4df9b;color:#453d38;border-radius:3px;padding:0 2px}
+.help-content h3{margin-top:32px;margin-bottom:16px}.help-content mark{background:var(--attention-soft);color:var(--ink);border-radius:3px;padding:0 2px}
 
 @media(max-width:600px){.help-steps{padding-left:20px}.help-steps li{padding-left:5px}}
 

@@ -282,7 +282,7 @@ export function ProfilePage({
               })
             }
           />
-          <p>{theme === 'bear' ? tr('暖色 · 小熊插图') : tr('冷白 · 简洁图标')}</p>
+          <p>{theme === 'bear' ? tr('暖灰与灰梅 · 小熊插图') : tr('雾灰与灰蓝 · 简洁图标')}</p>
         </Card>
       )}
       {tab === 'account' && (

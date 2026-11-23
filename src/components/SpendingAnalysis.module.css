@@ -1,5 +1,6 @@
 .spendingAnalysis {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-4);
 }
@@ -48,15 +49,6 @@
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-}
-.check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--touch);
-}
-.check input {
-  width: auto;
 }
 .notice {
   padding: var(--space-3);

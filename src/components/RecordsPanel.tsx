@@ -7,16 +7,28 @@ import type { ManagedBook } from './ManagementPages';
 import { ReportPeriodPicker } from './ReportPeriodPicker';
 import type { ReportRange } from '@/lib/report-period';
 import { useI18n } from './LanguageProvider';
-import { Button, IconButton, ChipButton, EmptyState, Input, Money, Select, Sheet, Stat } from '@/ui';
+import {
+  Button,
+  IconButton,
+  CheckboxRow,
+  ChipButton,
+  EmptyState,
+  Input,
+  Money,
+  Select,
+  Sheet,
+  Stat,
+} from '@/ui';
 import { amountToCents } from '@/server/model';
 import s from './RecordsPanel.module.css';
 
 import { AttentionRecords } from './AttentionRecords';
 import { accountLabel, type AccountIdentity } from '@/lib/accounts';
-import { CategoryFilterSelect, VisualSelect } from './VisualSelect';
+import { CategoryFilterSelect, SymbolIcon, VisualSelect } from './VisualSelect';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   SlidersHorizontal,
+  BookOpen,
   Ellipsis,
   Download,
   Search,
@@ -619,10 +631,13 @@ export function RecordsPanel({
               {onBooksChange && bookIds && (
                 <fieldset>
                   <legend>{tr('统计账本')}</legend>
-                  {books.map(b => (
-                    <label key={b.id} className={s.check}>
-                      <input
-                        type="checkbox"
+                  <div className={s.bookFilterOptions}>
+                    {books.map(b => (
+                      <CheckboxRow
+                        key={b.id}
+                        title={b.name}
+                        icon={b.icon ? <SymbolIcon icon={b.icon} size={26} still /> : <BookOpen size={19} />}
+                        description={tr(b.kind === 'private' ? '私人账本' : '共享账本')}
                         checked={bookIds.includes(b.id)}
                         disabled={bookIds.length === 1 && bookIds[0] === b.id}
                         onChange={e => {
@@ -635,9 +650,8 @@ export function RecordsPanel({
                           setSelecting(false);
                         }}
                       />
-                      {b.name}
-                    </label>
-                  ))}
+                    ))}
+                  </div>
                 </fieldset>
               )}
               {filterFields}

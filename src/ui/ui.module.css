@@ -4,7 +4,8 @@
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch);
-  padding: 0 var(--space-4);
+  max-width: 100%;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   font: 600 var(--text-md) / 1.2 var(--font-body);
@@ -13,7 +14,11 @@
     background var(--duration) var(--ease),
     border-color var(--duration) var(--ease),
     color var(--duration) var(--ease);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.button > svg {
+  flex-shrink: 0;
 }
 .button:disabled {
   opacity: 0.5;
@@ -51,8 +56,7 @@
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
 }
 .small {
-  min-height: 36px;
-  padding: 0 var(--space-3);
+  padding-inline: var(--space-3);
   font-size: var(--text-sm);
 }
 .block {
@@ -60,6 +64,7 @@
 }
 .icon {
   width: var(--touch);
+  flex-shrink: 0;
   padding: 0;
   background: transparent;
   color: var(--muted);
@@ -115,20 +120,20 @@ textarea.control {
   display: inline-grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
-  gap: 2px;
-  padding: 3px;
-  border-radius: calc(var(--radius-control) + 3px);
+  gap: var(--space-1);
+  border-radius: var(--radius-control);
   background: var(--surface-sunk);
-  border: 1px solid var(--line);
 }
 .segment {
-  min-height: 38px;
-  padding: 0 var(--space-3);
-  border: 0;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--muted);
-  font: 500 var(--text-sm) var(--font-body);
+  font: 500 var(--text-sm) / 1.2 var(--font-body);
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 .segment:hover:not(:disabled) {
@@ -137,10 +142,10 @@ textarea.control {
 }
 .segment[aria-pressed='true'],
 .segment[aria-selected='true'] {
-  background: var(--surface);
+  background: var(--accent-soft);
   color: var(--accent);
+  border-color: var(--line-strong);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
 }
 
 .chip {
@@ -157,8 +162,16 @@ textarea.control {
   white-space: nowrap;
 }
 button.chip {
+  justify-content: center;
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  font: 500 var(--text-sm) / 1.2 var(--font-body);
   cursor: pointer;
-  min-height: 36px;
+}
+button.chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .chip[aria-pressed='true'] {
   background: var(--accent-soft);
@@ -316,7 +329,7 @@ button.listRow[aria-current='true'] .listRowEnd {
   width: min(880px, calc(100vw - 32px));
 }
 .sheet::backdrop {
-  background: rgb(30 24 20 / 0.36);
+  background: color-mix(in srgb, var(--ink) 36%, transparent);
 }
 .sheetInner {
   display: grid;
@@ -409,7 +422,7 @@ button.listRow[aria-current='true'] .listRowEnd {
   background: transparent;
   color: var(--highlight);
   font: 600 var(--text-sm) var(--font-body);
-  min-height: 36px;
+  min-height: var(--touch);
   cursor: pointer;
 }
 .toastError {
@@ -460,4 +473,60 @@ button.listRow[aria-current='true'] .listRowEnd {
   transform: translateY(-50%);
   pointer-events: none;
   color: var(--ink);
+}
+
+.checkboxRow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  min-height: var(--touch);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+}
+.checkboxRow input[type='checkbox'] {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  accent-color: var(--accent);
+}
+.checkboxRow:has(input:checked),
+.checkboxRow:has(input:indeterminate) {
+  border-color: var(--line-strong);
+  background: var(--accent-soft);
+}
+.checkboxRow:hover:has(input:not(:disabled)) {
+  border-color: var(--accent);
+}
+.checkboxRow:has(input:disabled) {
+  cursor: default;
+}
+.checkboxContent {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+}
+.checkboxIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
+}
+.checkboxCopy {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.checkboxCopy > strong {
+  font-weight: 600;
+}
+.checkboxCopy > small {
+  font-size: var(--text-xs);
+  line-height: 1.35;
 }

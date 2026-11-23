@@ -687,7 +687,7 @@ export function ActivitiesPage({
                 >
                   <option value="all">{tr('全部账本')}</option>
                   {books.map(item => (
-                    <option value={item.id} key={item.id}>
+                    <option value={item.id} key={item.id} data-icon={item.icon}>
                       {item.name}
                     </option>
                   ))}
@@ -950,7 +950,7 @@ export function ActivitiesPage({
                 {books
                   .filter(b => b.role !== 'viewer')
                   .map(item => (
-                    <option value={item.id} key={item.id}>
+                    <option value={item.id} key={item.id} data-icon={item.icon}>
                       {item.name}
                     </option>
                   ))}

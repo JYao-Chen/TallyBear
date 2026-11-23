@@ -674,7 +674,11 @@ export function ExpenseClaimRecord({
               disabled={busy}
               options={[
                 { value: '', label: tr('请选择账本') },
-                ...data.selfBooks.map((b: { id: string; name: string }) => ({ value: b.id, label: b.name })),
+                ...data.selfBooks.map((b: { id: string; name: string; icon?: string }) => ({
+                  value: b.id,
+                  label: b.name,
+                  icon: b.icon,
+                })),
               ]}
             />
           )}

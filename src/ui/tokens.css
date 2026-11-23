@@ -1,31 +1,35 @@
 /* Design tokens (docs/refactor/DESIGN-SYSTEM.md). Both themes share token names; only values differ.
    Legacy variable names at the bottom keep the pre-v3 stylesheets on the same palette until they are removed. */
 :root {
-  --paper: #faf7f2;
-  --surface: #fffdfa;
-  --surface-sunk: #f6f1ea;
-  --line: #ece3d8;
-  --line-strong: #dfd4c6;
-  --ink: #453d38;
-  --muted: #6f645c;
-  --accent: #365f58;
+  --paper: #f2efed;
+  --surface: #fcfaf9;
+  --surface-sunk: #eae5e2;
+  --line: #e0d8d5;
+  --line-strong: #c9bdbb;
+  --ink: #393236;
+  --muted: #655b60;
+  --accent: #6c5163;
   --accent-ink: #ffffff;
-  --chart-1: var(--accent);
-  --chart-2: color-mix(in srgb, var(--accent) 52%, var(--highlight));
-  --chart-3: color-mix(in srgb, var(--accent) 65%, var(--surface));
-  --chart-4: color-mix(in srgb, var(--accent) 55%, var(--expense));
-  --chart-5: color-mix(in srgb, var(--accent) 40%, var(--ink));
-  --chart-6: color-mix(in srgb, var(--accent) 38%, var(--attention));
-  --chart-7: color-mix(in srgb, var(--accent) 30%, var(--surface));
-  --chart-8: color-mix(in srgb, var(--accent) 58%, var(--income));
-  --accent-soft: #eaf0eb;
-  --expense: #9a4d58;
-  --income: #3c6b55;
-  --attention: #b0612e;
-  --attention-soft: #fff7ee;
-  --highlight: #f2c18f;
-  --danger: #a33b3b;
-  --focus: #365f58;
+  --accent-soft: #eee4eb;
+  --expense: #8c4f5b;
+  --expense-soft: #f4e6e8;
+  --income: #456857;
+  --income-soft: #e6eee8;
+  --attention: #795c37;
+  --attention-soft: #f3ebdc;
+  --highlight: #dec49b;
+  --danger: #8d4149;
+  --focus: var(--accent);
+
+  /* Categorical series alternate hues independently of income and expense. */
+  --chart-1: #765c75;
+  --chart-2: #657e80;
+  --chart-3: #a17e61;
+  --chart-4: #707a60;
+  --chart-5: #a6767d;
+  --chart-6: #66758f;
+  --chart-7: #8d8061;
+  --chart-8: #8c819b;
 
   --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   /* 中文衬线未随站点打包，各系统回落不一致；标题统一用正文字体加粗，只有品牌字样用衬线 */
@@ -53,8 +57,8 @@
   --radius-card: 16px;
   --radius-sheet: 20px;
   --radius-pill: 99px;
-  --shadow-raised: 0 10px 30px rgb(69 61 56 / 0.1), 0 1px 3px rgb(69 61 56 / 0.08);
-  --shadow-overlay: 0 24px 60px rgb(69 61 56 / 0.22);
+  --shadow-raised: 0 10px 30px color-mix(in srgb, var(--ink) 10%, transparent), 0 1px 3px color-mix(in srgb, var(--ink) 8%, transparent);
+  --shadow-overlay: 0 24px 60px color-mix(in srgb, var(--ink) 22%, transparent);
   --touch: 44px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --duration: 160ms;
@@ -67,29 +71,15 @@
   --radius: 18px;
 }
 html[data-theme='minimal'] {
-  --paper: #f5f7fa;
-  --surface: #ffffff;
-  --surface-sunk: #eef2f7;
-  --line: #dfe5ed;
-  --line-strong: #cbd4e0;
-  --ink: #253047;
-  --muted: #5d6779;
-  --accent: #4166ad;
-  --chart-1: var(--accent);
-  --chart-2: color-mix(in srgb, var(--accent) 52%, var(--highlight));
-  --chart-3: color-mix(in srgb, var(--accent) 65%, var(--surface));
-  --chart-4: color-mix(in srgb, var(--accent) 55%, var(--expense));
-  --chart-5: color-mix(in srgb, var(--accent) 40%, var(--ink));
-  --chart-6: color-mix(in srgb, var(--accent) 38%, var(--attention));
-  --chart-7: color-mix(in srgb, var(--accent) 30%, var(--surface));
-  --chart-8: color-mix(in srgb, var(--accent) 58%, var(--income));
-  --accent-soft: #edf2fa;
-  --expense: #b04a5d;
-  --income: #26816e;
-  --attention: #b0612e;
-  --attention-soft: #fff6ec;
-  --highlight: #9fb8e6;
-  --focus: #4166ad;
+  --paper: #eef0ef;
+  --surface: #fafbf9;
+  --surface-sunk: #e5e8e6;
+  --line: #d7ddda;
+  --line-strong: #b9c5c1;
+  --ink: #30383a;
+  --muted: #515f62;
+  --accent: #4c626e;
+  --accent-soft: #e2e9ec;
   --font-brand: var(--font-body);
   --radius-card: 12px;
   --radius-sheet: 16px;

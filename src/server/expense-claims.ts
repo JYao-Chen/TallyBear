@@ -312,7 +312,7 @@ export async function expenseClaims(
           record.family_member && !record.role
             ? (
                 await c.query(
-                  "SELECT b.id,b.name FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.name,b.id",
+                  "SELECT b.id,b.name,b.icon FROM books b JOIN members m ON m.book_id=b.id WHERE m.user_id=$1 AND m.role<>'viewer' ORDER BY b.name,b.id",
                   [user],
                 )
               ).rows

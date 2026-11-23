@@ -5,6 +5,9 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+.panelTitle + section {
+  margin-block-start: var(--space-3);
+}
 .panelTitle h2 {
   margin: 0;
   font: 700 var(--text-lg)/1.45 var(--font-title);

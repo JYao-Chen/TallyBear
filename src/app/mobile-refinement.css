@@ -83,7 +83,7 @@
  
  .transaction-photos .panel-title>strong{font-size:14px}
  .life-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
- .life-photo-grid .photo-remove{min-height:44px;min-width:44px;top:0;right:0;background:#ffffffeb}
+ .life-photo-grid .photo-remove{min-height:44px;min-width:44px;top:0;right:0;background:color-mix(in srgb, var(--surface) 92%, transparent)}
  .image-queue{max-width:100%;overscroll-behavior-x:contain;padding-bottom:4px}
  .image-queue>a{flex:0 0 128px;min-width:0;overflow-wrap:anywhere;font-size:12px}
  .image-queue>a>span{display:block;margin-top:6px}

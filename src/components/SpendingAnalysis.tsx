@@ -1,6 +1,6 @@
 'use client';
 import s from './SpendingAnalysis.module.css';
-import { Button, IconButton, Money, Segmented, Sheet, Stat } from '@/ui';
+import { Button, CheckboxRow, IconButton, Money, Segmented, Sheet, Stat } from '@/ui';
 import { useEffect, useState } from 'react';
 import { BookOpen, ChevronDown, Info } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
@@ -10,6 +10,7 @@ import { ReportPeriodPicker } from './ReportPeriodPicker';
 import { FinanceChart } from './InteractiveFinanceChart';
 
 import { FormSelect } from './FormSelect';
+import { SymbolIcon } from './VisualSelect';
 import type { ManagedBook } from './ManagementPages';
 import type { AccountIdentity } from '@/lib/accounts';
 import { monthRange, type LedgerRow } from '@/lib/ledger-types';
@@ -66,6 +67,7 @@ export function SpendingAnalysis(props: Props) {
     : [props.books.find(b => b.id === props.book)?.id || props.books[0]?.id].filter(
         (id): id is string => !!id,
       );
+  const singleBook = ids.length === 1 ? props.books.find(book => book.id === ids[0]) : undefined;
   const basis = mode === 'personal_expense' ? 'period_expense' : mode === 'funds' ? 'cashflow' : bookBasis;
   const description =
     mode === 'book' && basis === 'cashflow'
@@ -206,12 +208,18 @@ export function SpendingAnalysis(props: Props) {
           <div className={s.analysisBookChoice}>
             <span>{tr('统计账本')}</span>
             <Button type="button" variant="secondary" onClick={() => setChoosing(true)}>
-              <BookOpen size={17} />
+              {singleBook?.icon && props.books.length > 1 ? (
+                <span aria-hidden="true">
+                  <SymbolIcon icon={singleBook.icon} size={24} still />
+                </span>
+              ) : (
+                <BookOpen size={17} aria-hidden="true" />
+              )}
               <span>
                 {ids.length === props.books.length
                   ? tr('全部可访问账本')
                   : ids.length === 1
-                    ? props.books.find(b => b.id === ids[0])?.name
+                    ? singleBook?.name
                     : tr('已选 {0} 个账本', [ids.length])}
               </span>
               <ChevronDown size={17} />
@@ -350,40 +358,50 @@ export function SpendingAnalysis(props: Props) {
         </>
       )}
       {choosing && (
-        <Sheet open closeLabel={tr('关闭弹窗')} title={tr('选择统计账本')} onClose={() => setChoosing(false)}>
-          <div className={s.analysisBookOptions}>
-            <label className={s.check}>
-              <input
-                type="checkbox"
-                checked={ids.length === props.books.length}
-                onChange={e => setSelectedBooks(e.target.checked ? props.books.map(b => b.id) : [props.book])}
-              />
-              {tr('全部可访问账本')}
-            </label>
-            {props.books.map(b => (
-              <label key={b.id} className={s.check}>
-                <input
-                  type="checkbox"
-                  checked={ids.includes(b.id)}
-                  disabled={ids.length === 1 && ids[0] === b.id}
-                  onChange={e => {
-                    setResult(null);
-                    setLoading(true);
-                    setSelectedBooks(old =>
-                      e.target.checked ? [...old, b.id] : old.filter(id => id !== b.id),
-                    );
-                  }}
-                />
-                <span>
-                  <strong>{b.name}</strong>
-                  <small>{tr(b.kind === 'private' ? '私人账本' : '共享账本')}</small>
-                </span>
-              </label>
-            ))}
-            <p className={s.muted}>{tr('仅可选择有查看权限的账本；同一笔账的关联副本不会重复计算。')}</p>
-            <Button type="button" onClick={() => setChoosing(false)}>
+        <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
+          title={tr('选择统计账本')}
+          onClose={() => setChoosing(false)}
+          footer={
+            <Button type="button" variant="primary" onClick={() => setChoosing(false)}>
               {tr('完成选择')}
             </Button>
+          }
+        >
+          <div className={s.analysisBookOptions}>
+            <CheckboxRow
+              title={tr('全部可访问账本')}
+              icon={<BookOpen size={19} />}
+              checked={ids.length === props.books.length}
+              disabled={props.books.length <= 1}
+              mixed={ids.length > 0 && ids.length < props.books.length}
+              onChange={e => {
+                setResult(null);
+                setLoading(true);
+                setSelectedBooks(e.target.checked ? props.books.map(b => b.id) : [props.book]);
+              }}
+            />
+            {props.books.map(b => (
+              <CheckboxRow
+                key={b.id}
+                title={b.name}
+                icon={b.icon ? <SymbolIcon icon={b.icon} size={26} still /> : <BookOpen size={19} />}
+                description={tr(b.kind === 'private' ? '私人账本' : '共享账本')}
+                checked={ids.includes(b.id)}
+                disabled={ids.length === 1 && ids[0] === b.id}
+                onChange={e => {
+                  setResult(null);
+                  setLoading(true);
+                  setSelectedBooks(old =>
+                    e.target.checked ? [...old, b.id] : old.filter(id => id !== b.id),
+                  );
+                }}
+              />
+            ))}
+            <p className={s.analysisSummaryNote}>
+              {tr('仅可选择有查看权限的账本；同一笔账的关联副本不会重复计算。')}
+            </p>
           </div>
         </Sheet>
       )}

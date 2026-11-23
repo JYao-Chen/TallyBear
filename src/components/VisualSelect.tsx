@@ -38,7 +38,7 @@ export function SymbolIcon({
 }) {
   const { t: tr, locale } = useI18n();
   const { theme } = useTheme();
-  if (theme === 'minimal' && (icon.startsWith('sticker:') || /[🧸🐻🐼🐾]/u.test(icon))) {
+  if (theme === 'minimal' && icon.startsWith('sticker:')) {
     const Icon = fallback === 'user' ? UserRound : Tag;
     return (
       <span className={styles.symbol} style={{ width: size, height: size }}>

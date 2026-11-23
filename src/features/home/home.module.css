@@ -128,7 +128,7 @@
 .bar {
   height: 6px;
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.22);
+  background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
   overflow: hidden;
 }
 .bar > span {
@@ -138,7 +138,7 @@
   background: var(--highlight);
 }
 .bar.over > span {
-  background: #f39a8f;
+  background: color-mix(in srgb, var(--expense) 34%, var(--accent-ink));
 }
 .monthLink {
   justify-self: start;

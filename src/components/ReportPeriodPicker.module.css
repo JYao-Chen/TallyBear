@@ -1,11 +1,14 @@
 .picker {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-1);
-  align-items: center;
+  width: min(100%, 20rem);
+  min-width: 0;
 }
 .picker > button {
-  min-height: var(--touch);
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .dates {
   display: grid;

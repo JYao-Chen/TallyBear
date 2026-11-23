@@ -4,8 +4,8 @@
   "lang": "zh-CN",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f7fa",
-  "theme_color": "#f5f7fa",
+  "background_color": "#eef0ef",
+  "theme_color": "#eef0ef",
   "icons": [
     {
       "src": "/ledger-minimal.svg",

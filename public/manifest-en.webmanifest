@@ -4,8 +4,8 @@
   "lang": "en",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf7f2",
-  "theme_color": "#78618f",
+  "background_color": "#f2efed",
+  "theme_color": "#f2efed",
   "icons": [
     {
       "src": "/brand/tallybear-192.png",

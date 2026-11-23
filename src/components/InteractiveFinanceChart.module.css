@@ -8,7 +8,7 @@
 }
 .chart figcaption {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -29,6 +29,7 @@
 }
 .chartViewToggle button {
   width: var(--touch);
+  flex-shrink: 0;
   padding: 0;
 }
 .chart > button[aria-pressed='true'],

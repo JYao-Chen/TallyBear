@@ -210,7 +210,7 @@ export function CostSchedules({
         >
           <option value="">{tr('选择账本')}</option>
           {books.map(b => (
-            <option key={b.id} value={b.id}>
+            <option key={b.id} value={b.id} data-icon={b.icon}>
               {b.name}
             </option>
           ))}

@@ -4,6 +4,7 @@ export { Segmented } from './Segmented';
 export { Chip, ChipButton, FilledBadge, type ChipTone } from './Chip';
 export { Card } from './Card';
 export { ListRow } from './ListRow';
+export { CheckboxRow } from './CheckboxRow';
 export { Money } from './Money';
 export { Stat } from './Stat';
 export { Sheet } from './Sheet';

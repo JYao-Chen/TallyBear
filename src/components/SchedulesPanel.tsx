@@ -36,7 +36,7 @@ export function SchedulesPanel({
 }: {
   items: Schedule[];
   accounts: (AccountIdentity & { id: string })[];
-  categories: { name: string; archived: boolean }[];
+  categories: { name: string; icon?: string; archived: boolean }[];
   canWrite: boolean;
   onChange: (body: unknown) => Promise<void>;
 }) {
@@ -342,7 +342,9 @@ export function SchedulesPanel({
                     name="category"
                     defaultValue={selected?.value.category}
                     label={tr('分类')}
-                    options={categories.filter(c => !c.archived).map(c => ({ value: c.name, label: c.name }))}
+                    options={categories
+                      .filter(c => !c.archived)
+                      .map(c => ({ value: c.name, label: c.name, icon: c.icon }))}
                   />
                 </label>
               </div>

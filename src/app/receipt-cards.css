@@ -4,7 +4,7 @@
 .receipt-notice p,.receipt-notice ul {margin:6px 0 0;}
 .receipt-notice ul {padding-left:18px;}
 .receipt-notice li+li {margin-top:6px;}
-.receipt-notice-warning {border-color:#a66b2b; background:#fbf3e7; color:#745020;}
+.receipt-notice-warning {border-color:var(--attention); background:var(--attention-soft); color:var(--attention);}
 
 .verification-confirm {margin:20px 0;}
 .verification-confirm>.secondary {background:transparent; border:1px solid currentColor; color:inherit; margin:8px 0;}

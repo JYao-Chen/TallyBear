@@ -150,7 +150,10 @@ export function FinanceChart({
         borderRadius: 'var(--radius-control)',
         border: '1px solid var(--line)',
         fontSize: 12,
+        color: 'var(--ink)',
       }}
+      itemStyle={{ color: 'var(--ink)' }}
+      cursor={{ fill: 'var(--surface-sunk)', stroke: 'var(--line-strong)' }}
       formatter={v => [format(Number(v)), metricLabel]}
     />
   );
@@ -217,6 +220,7 @@ export function FinanceChart({
                     nameKey="name"
                     innerRadius="56%"
                     outerRadius="85%"
+                    stroke="var(--surface)"
                     paddingAngle={chart.data.length > 1 ? 2 : 0}
                     onClick={select}
                     isAnimationActive={false}
@@ -239,10 +243,18 @@ export function FinanceChart({
                   <XAxis
                     dataKey="name"
                     tickFormatter={shortChartLabel}
+                    axisLine={{ stroke: 'var(--line-strong)' }}
+                    tickLine={{ stroke: 'var(--line-strong)' }}
                     minTickGap={25}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   />
-                  <YAxis width={55} tickFormatter={chartAmount} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    width={55}
+                    tickFormatter={chartAmount}
+                    axisLine={{ stroke: 'var(--line-strong)' }}
+                    tickLine={{ stroke: 'var(--line-strong)' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                  />
                   {tip}
                   <Line
                     dataKey="value"
@@ -259,10 +271,18 @@ export function FinanceChart({
                   <XAxis
                     dataKey="name"
                     tickFormatter={shortChartLabel}
+                    axisLine={{ stroke: 'var(--line-strong)' }}
+                    tickLine={{ stroke: 'var(--line-strong)' }}
                     minTickGap={25}
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 11, fill: 'var(--muted)' }}
                   />
-                  <YAxis width={55} tickFormatter={chartAmount} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    width={55}
+                    tickFormatter={chartAmount}
+                    axisLine={{ stroke: 'var(--line-strong)' }}
+                    tickLine={{ stroke: 'var(--line-strong)' }}
+                    tick={{ fontSize: 11, fill: 'var(--muted)' }}
+                  />
                   {tip}
                   <Bar
                     dataKey="value"

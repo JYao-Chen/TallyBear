@@ -31,7 +31,7 @@ import { locateArea } from './ProfileLocation';
 import { ProfileOverviewSummary, ProfileInsightBoard } from './ProfileOverview';
 
 type Resources = {
-  books: { id: string; name: string }[];
+  books: { id: string; name: string; icon?: string }[];
   wallets: { id: string; name: string }[];
   categories: string[];
   places: { id: string; name: string }[];
@@ -730,18 +730,32 @@ function RuleEditor({
     [replace, setReplace] = useState(false);
   const fieldName = (field: PreferenceField) => profileFields[field][en ? 1 : 0];
   function input(field: PreferenceField, value: string, onChange: (v: string) => void) {
+    if (field === 'bookId' || field === 'category') {
+      return (
+        <FormSelect required value={value} onChange={onChange}>
+          <option value="">{t('请选择', 'Choose')}</option>
+          {field === 'bookId'
+            ? resources.books.map(b => (
+                <option key={b.id} value={b.id} data-icon={b.icon}>
+                  {b.name}
+                </option>
+              ))
+            : resources.categories.map(category => (
+                <option key={category} value={category} data-category={category}>
+                  {category}
+                </option>
+              ))}
+        </FormSelect>
+      );
+    }
     const choices =
-      field === 'bookId'
-        ? resources.books.map(b => [b.id, b.name])
-        : field === 'accountId'
-          ? resources.wallets.map(w => [w.id, w.name])
-          : field === 'category'
-            ? resources.categories.map(c => [c, c])
-            : field === 'scene.type'
-              ? ['transport', 'dining', 'shopping', 'groceries'].map(v => [v, profileValues[v][en ? 1 : 0]])
-              : field === 'scene.diningMode'
-                ? ['delivery', 'dine_in', 'takeaway'].map(v => [v, profileValues[v][en ? 1 : 0]])
-                : null;
+      field === 'accountId'
+        ? resources.wallets.map(w => [w.id, w.name])
+        : field === 'scene.type'
+          ? ['transport', 'dining', 'shopping', 'groceries'].map(v => [v, profileValues[v][en ? 1 : 0]])
+          : field === 'scene.diningMode'
+            ? ['delivery', 'dine_in', 'takeaway'].map(v => [v, profileValues[v][en ? 1 : 0]])
+            : null;
     return choices ? (
       <select required value={value} onChange={e => onChange(e.target.value)}>
         <option value="">{t('请选择', 'Choose')}</option>

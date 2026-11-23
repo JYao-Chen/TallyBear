@@ -13,12 +13,15 @@ import { checkDeploymentCurrency } from '@/server/deployment';
 import { cookies } from 'next/headers';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { validTheme, themes } from '@/lib/themes';
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  viewportFit: 'cover',
-  themeColor: '#faf7f2',
-};
+export async function generateViewport() {
+  const theme = validTheme((await cookies()).get('bubu_theme')?.value);
+  return {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover' as const,
+    themeColor: themes[theme].color,
+  };
+}
 export async function generateMetadata() {
   const theme = validTheme((await cookies()).get('bubu_theme')?.value);
   const locale = deployment().language;

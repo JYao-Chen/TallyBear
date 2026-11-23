@@ -7,7 +7,7 @@
 .calendar-days button:hover,.calendar-months button:hover{background:var(--soft);color:var(--ink)}
 
 .calendar-days button[aria-current=date]{border-color:var(--accent)}
-.calendar-days button[aria-pressed=true],.calendar-months button[aria-pressed=true]{background:var(--accent);color:white;opacity:1}
+.calendar-days button[aria-pressed=true],.calendar-months button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);opacity:1}
 
 html{scrollbar-gutter:stable}
 .sheet-heading h2{overflow-wrap:anywhere}
