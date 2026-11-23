@@ -133,13 +133,13 @@
 
 @media (max-width: 640px) {
   .capture .row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
   }
   .capture .row > * {
-    min-width: 0;
-    white-space: normal;
+    flex: 1 1 auto;
+    max-width: 100%;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
     text-align: center;
   }
 }

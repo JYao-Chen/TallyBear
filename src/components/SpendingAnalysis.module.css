@@ -104,7 +104,27 @@
   .modes {
     flex: 1 1 0;
   }
+  .modes + button {
+    align-self: flex-start;
+  }
   .modes button {
     padding-inline: var(--space-1);
+  }
+}
+
+@media (max-width: 480px) {
+  .analysisSummary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analysisSummary > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: baseline;
+  }
+  .analysisSummary > div > span:first-child {
+    text-align: start;
+  }
+  .analysisSummary > div + div {
+    border-inline-start: 0;
+    padding-inline-start: 0;
   }
 }

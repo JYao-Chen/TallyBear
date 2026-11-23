@@ -143,18 +143,6 @@
     padding-bottom: max(var(--space-3), var(--safe-bottom));
   }
 }
-@media (max-width: 640px) {
-  :global(html[lang='en']) .types {
-    display: flex;
-    flex-wrap: wrap;
-  }
-  :global(html[lang='en']) .types button {
-    flex: 1 0 28%;
-    padding-inline: var(--space-2);
-    white-space: nowrap;
-  }
-}
-
 .types button:hover {
   background: var(--accent-soft);
   color: var(--accent);

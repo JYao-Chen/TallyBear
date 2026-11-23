@@ -101,7 +101,9 @@ export function SchedulesPanel({
                         : tr({ daily: '天', weekly: '周', monthly: '个月', yearly: '年' }[s.frequency]),
                     ])}
                     {s.amortize ? tr(' · 按月分摊') : ''} ·{' '}
-                    {s.paused ? tr('已暂停') : s.next_date <= today() ? tr('已到期，待核对') : tr('未到期')}
+                    <span className={styles.scheduleStatus}>
+                      {s.paused ? tr('已暂停') : s.next_date <= today() ? tr('已到期，待核对') : tr('未到期')}
+                    </span>
                   </>
                 }
                 end={

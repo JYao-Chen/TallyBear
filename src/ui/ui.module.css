@@ -117,14 +117,16 @@ textarea.control {
 }
 
 .segmented {
-  display: inline-grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  max-width: 100%;
   gap: var(--space-1);
   border-radius: var(--radius-control);
   background: var(--surface-sunk);
 }
 .segment {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: var(--touch);
   padding: var(--space-2) var(--space-3);
@@ -132,7 +134,8 @@ textarea.control {
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--muted);
-  font: 500 var(--text-sm) / 1.2 var(--font-body);
+  font: 600 var(--text-sm) / 1.2 var(--font-body);
+  word-break: keep-all;
   overflow-wrap: anywhere;
   cursor: pointer;
 }
@@ -145,7 +148,6 @@ textarea.control {
   background: var(--accent-soft);
   color: var(--accent);
   border-color: var(--line-strong);
-  font-weight: 600;
 }
 
 .chip {

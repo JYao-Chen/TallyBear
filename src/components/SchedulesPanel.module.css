@@ -28,3 +28,11 @@
   align-items: center;
   gap: var(--space-1);
 }
+
+.scheduleStatus {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

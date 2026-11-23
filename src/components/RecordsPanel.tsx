@@ -507,6 +507,7 @@ export function RecordsPanel({
             }}
           />
         )}
+        {!overview && searchField}
         {(!overview || view === 'entries') && (
           <DetailSortSelect
             value={sort}
@@ -516,7 +517,6 @@ export function RecordsPanel({
             }}
           />
         )}
-        {!overview && searchField}
         {overview && scopeControls}
         {(entries || overview) && (
           <Button

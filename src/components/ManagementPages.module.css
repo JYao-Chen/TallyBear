@@ -158,7 +158,7 @@
   min-width: 0;
   justify-content: start;
   text-align: start;
-  padding-inline: var(--space-2);
+  padding: var(--space-2);
   gap: var(--space-2);
 }
 .bookSwitchTrigger > span:nth-child(2) {
@@ -173,6 +173,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.bookSwitchTrigger strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  word-break: keep-all;
+  line-height: 1.3;
+}
 @media (max-width: 730px) {
   .bookSwitchTrigger {
     grid-column: 1/3;
@@ -186,20 +194,4 @@
 
 .muted {
   color: var(--muted);
-}
-
-/* The sidebar is narrow: let a long book name use two lines instead of an ellipsis. */
-@media (min-width: 731px) {
-  .bookSwitchTrigger.bookSwitchTrigger {
-    height: auto;
-    padding-block: var(--space-2);
-  }
-  .bookSwitchTrigger strong {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow-wrap: anywhere;
-    line-height: 1.3;
-  }
 }
