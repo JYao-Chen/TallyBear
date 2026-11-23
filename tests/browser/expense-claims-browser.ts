@@ -31,10 +31,20 @@ for (const [i, user] of [f.alice, f.bob].entries())
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
+page.setDefaultTimeout(10000);
+const familyTasks = page.getByRole('tablist', { name: '家庭任务' });
+const incoming = page.getByRole('tabpanel', { name: /^待认领/ });
+const sent = page.getByRole('tabpanel', { name: /^为他人购买/ });
+const claimDialog = page.getByRole('dialog', { name: '账单认领', exact: true });
+type BrowserResponse = {
+  status(): number;
+  url(): string;
+  request(): { method(): string; postDataJSON(): { operation?: string } };
+};
 const errors: string[] = [],
   failed: string[] = [];
 page.on('pageerror', (e: Error) => errors.push(e.message));
-page.on('response', (r: { status: () => number; url: () => string }) => {
+page.on('response', (r: BrowserResponse) => {
   if (r.status() >= 500) failed.push(r.status() + ' ' + r.url());
 });
 async function login(i: number) {
@@ -54,12 +64,20 @@ async function capture(name: string) {
     'overflow ' + name,
   );
 }
-async function openClaim(text: string) {
-  await page.locator('.home-inbox-row').filter({ hasText: text }).getByRole('button').click();
-  await page.getByRole('button', { name: '刷新账单', exact: true }).waitFor();
+function claimRow(panel: typeof incoming, title: string) {
+  return panel.getByText(title, { exact: true }).locator('xpath=ancestor::div[.//button][1]');
 }
-async function close() {
-  await page.locator('dialog[open]').last().getByRole('button', { name: '关闭弹窗', exact: true }).click();
+async function openClaim(title: string) {
+  await claimRow(incoming, title)
+    .getByRole('button', { name: /查看并认领|查看动态/ })
+    .click();
+  await claimDialog.getByRole('button', { name: '刷新账单', exact: true }).waitFor();
+}
+async function openSentHistory() {
+  await familyTasks.getByRole('tab', { name: /^为他人购买/ }).click();
+}
+async function close(dialog = claimDialog) {
+  await dialog.getByRole('button', { name: '关闭弹窗', exact: true }).click();
 }
 try {
   await login(0);
@@ -84,24 +102,45 @@ try {
   await capture('mobile-entry');
   await page.setViewportSize({ width: 1440, height: 1000 });
   const [saved] = await Promise.all([
-    page.waitForResponse((r: any) => r.url().endsWith('/transactions') && r.request().method() === 'POST'),
+    page.waitForResponse(
+      (r: BrowserResponse) => r.url().endsWith('/transactions') && r.request().method() === 'POST',
+    ),
     form.getByRole('button', { name: '保存', exact: true }).click(),
   ]);
   assert.equal(saved.status(), 200, await saved.text());
   const purchase = (
     await c.query("SELECT id FROM transactions WHERE title='新衣服' AND created_by=$1", [f.alice])
   ).rows[0].id;
-  await page.getByRole('button', { name: '查看已有外套详情', exact: true }).click();
+  await page.goto(origin + '/entries');
+  await page.getByRole('button', { name: '切换账本', exact: true }).click();
   await page
-    .locator('.expense-claim-record')
-    .getByRole('button', { name: /^消费对象：/ })
-    .waitFor();
-  await choose('消费对象', '一二', page.locator('.expense-claim-record'));
+    .getByRole('dialog', { name: '切换账本', exact: true })
+    .getByRole('button', { name: /私人账本/ })
+    .click();
+  const period = page.getByRole('region', { name: '统计周期', exact: true });
+  await period.getByRole('button', { name: '自定义', exact: true }).click();
+  const range = page.getByRole('dialog', { name: '自定义日期', exact: true });
+  await range.getByRole('combobox', { name: '统计周期', exact: true }).selectOption('month');
+  await range.getByRole('button', { name: /^选择月份:/ }).click();
+  const month = page.getByRole('dialog', { name: '选择月份', exact: true });
+  await month.getByRole('spinbutton', { name: '年份', exact: true }).fill('2026');
+  await month.getByRole('button', { name: '10月', exact: true }).click();
+  await close(range);
+  await page.getByRole('button', { name: '查看已有外套详情', exact: true }).click();
+  const entryDetail = page.getByRole('dialog', { name: '这笔小记录', exact: true });
+  await choose('消费对象', '一二', entryDetail);
   await capture('desktop-existing-invite');
-  await page.getByRole('button', { name: '保存消费对象', exact: true }).click();
-  await page.locator('dialog[open]').waitFor({ state: 'hidden' });
+  const [invited] = await Promise.all([
+    page.waitForResponse(
+      (response: BrowserResponse) =>
+        response.url().endsWith('/expense-claims/invite') && response.request().method() === 'POST',
+    ),
+    entryDetail.getByRole('button', { name: '保存消费对象', exact: true }).click(),
+  ]);
+  assert.equal(invited.status(), 200, await invited.text());
+  await entryDetail.waitFor({ state: 'hidden' });
   await login(1);
-  await page.locator('.home-inbox-row').filter({ hasText: '新衣服' }).waitFor();
+  await claimRow(incoming, '新衣服').waitFor();
   await capture('desktop-home-claims');
   await openClaim('新衣服');
   await choose('认领账本', '一二的私账');
@@ -123,27 +162,44 @@ try {
     (await c.query('SELECT 1 FROM members WHERE book_id=$1 AND user_id=$2', [bobBook, f.alice])).rowCount,
     0,
   );
-  await page
+  await claimDialog.getByRole('tab', { name: '讨论', exact: true }).click();
+  await claimDialog
     .getByRole('region', { name: '账目讨论', exact: true })
     .getByLabel('留言给参与成员')
     .fill('这件衣服我认领了，谢谢！');
-  await page
+  await claimDialog
     .getByRole('region', { name: '账目讨论', exact: true })
     .getByRole('button', { name: '发送留言', exact: true })
     .click();
-  await page
+  await claimDialog
     .getByRole('region', { name: '账目讨论', exact: true })
     .getByText('这件衣服我认领了，谢谢！', { exact: true })
     .waitFor();
   await choose('认领账本', '家庭共享账本');
-  await page.getByRole('button', { name: '调整归入账本', exact: true }).click();
-  await page.getByRole('button', { name: '调整归入账本', exact: true }).waitFor({ state: 'visible' });
+  const [moved] = await Promise.all([
+    page.waitForResponse(
+      (response: BrowserResponse) =>
+        new URL(response.url()).pathname === '/api/expense-claims/' + claim.id &&
+        response.request().method() === 'POST' &&
+        response.request().postDataJSON().operation === 'accept',
+    ),
+    claimDialog.getByRole('button', { name: '调整归入账本', exact: true }).click(),
+  ]);
+  assert.equal(moved.status(), 200, await moved.text());
+  const activeCopies = (
+    await c.query(
+      'SELECT t.book_id FROM expense_claim_links l JOIN transactions t ON t.id=l.target_id WHERE l.claim_id=$1 AND l.managed AND NOT t.deleted',
+      [claim.id],
+    )
+  ).rows;
+  assert.deepEqual(activeCopies, [{ book_id: f.book }]);
   await capture('desktop-change-to-shared');
   await close();
   await openClaim('已有外套');
-  await choose('认领账本', '一二的私账');
-  await page.getByRole('button', { name: '确认认领', exact: true }).click();
-  await page.getByRole('button', { name: '调整归入账本', exact: true }).waitFor();
+  await choose('认领账本', '一二的私账', claimDialog);
+  await claimDialog.getByRole('button', { name: '确认认领', exact: true }).click();
+  await page.getByText('家庭账单与消息', { exact: true }).waitFor({ state: 'hidden' });
+  await claimDialog.getByRole('button', { name: '调整归入账本', exact: true }).waitFor();
   await close();
   await login(0);
   const originalList = await context.request.get(
@@ -154,22 +210,18 @@ try {
     !(await originalList.json()).some((r: any) => r.id === f.privateExpense),
     'accepted purchase leaves original book list',
   );
-  await page.locator('.claim-sent').getByRole('button', { name: '查看记录', exact: true }).click();
-  await page
-    .locator('.claim-sent .home-inbox-row')
-    .filter({ hasText: '已有外套' })
-    .getByRole('button', { name: '查看单据与讨论', exact: true })
-    .click();
-  await page.getByRole('button', { name: '刷新账单', exact: true }).waitFor();
+  await openSentHistory();
+  await claimRow(sent, '已有外套').getByRole('button', { name: '查看单据与讨论', exact: true }).click();
+  await claimDialog.getByText('−¥120.00', { exact: true }).waitFor();
   await close();
-  await page.locator('.claim-sent').scrollIntoViewIfNeeded();
+  await sent.scrollIntoViewIfNeeded();
   await capture('desktop-payer-history');
   await page.setViewportSize({ width: 375, height: 812 });
   await capture('mobile-payer-history');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.reload();
-  await page.locator('.claim-sent').getByRole('button', { name: '查看记录', exact: true }).click();
-  await page.locator('.claim-sent .home-inbox-row').filter({ hasText: '已有外套' }).waitFor();
+  await openSentHistory();
+  await claimRow(sent, '已有外套').waitFor();
   const r = await context.request.get(
     origin + '/api/books/' + f.privateBook + '/transactions?id=' + f.privateExpense,
   );
@@ -193,7 +245,7 @@ try {
   assert.equal(changed.status(), 200, await changed.text());
   await login(1);
   await openClaim('已有外套');
-  await page.getByText('¥100.00', { exact: true }).waitFor();
+  await claimDialog.getByText('−¥100.00', { exact: true }).waitFor();
   await capture('desktop-source-update');
   await page.setViewportSize({ width: 375, height: 812 });
   await capture('mobile-source-update');
@@ -208,7 +260,7 @@ try {
   });
   assert.equal(removed.status(), 200, await removed.text());
   await login(1);
-  await page.locator('.home-inbox-row').filter({ hasText: '原账单已删除' }).waitFor();
+  await claimRow(incoming, '已有外套').getByText('原账单已删除，认领已撤回', { exact: true }).waitFor();
   await capture('desktop-withdrawn-notice');
   assert.deepEqual(errors, []);
   assert.deepEqual(failed, []);

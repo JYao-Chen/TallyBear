@@ -3,6 +3,7 @@ import { participantAvatar } from '@/ui/participantAvatar';
 import { Button, Card, Chip, ConfirmDialog, Field, Input, ListRow, Money, Sheet, TextArea } from '@/ui';
 import s from './ExpenseClaims.module.css';
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LedgerEntryContent } from './LedgerEntryDetail';
 import { ReceiptAttachments } from './ReceiptAttachments';
 import { useEntryDetail } from './EntryDetailContext';
@@ -449,16 +450,19 @@ export function ExpenseClaimsInbox({
           )}
         </Group>
       )}
-      {selected && (
-        <ExpenseClaimDetail
-          id={selected}
-          onClose={() => setSelected('')}
-          onChanged={() => {
-            onChanged();
-            void load().catch(e => setError(e.message));
-          }}
-        />
-      )}
+      {/* Reading the last update or accepting the last invite can hide the inbox. */}
+      {selected &&
+        createPortal(
+          <ExpenseClaimDetail
+            id={selected}
+            onClose={() => setSelected('')}
+            onChanged={() => {
+              onChanged();
+              void load().catch(e => setError(e.message));
+            }}
+          />,
+          document.body,
+        )}
     </>
   );
 }
