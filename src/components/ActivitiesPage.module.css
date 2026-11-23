@@ -128,6 +128,7 @@
   display: grid;
   gap: var(--space-2);
   background: var(--surface-sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
   border-radius: var(--radius-control);
   padding: var(--space-3);
 }

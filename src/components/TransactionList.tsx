@@ -4,10 +4,11 @@ import { deployment } from '@/lib/deployment';
 import { getLocale } from '@/lib/i18n';
 import { useI18n } from './LanguageProvider';
 import { accountLabel } from '@/lib/accounts';
-import { AccountIcon, CategoryIcon } from './VisualSelect';
-import { ArrowLeftRight, ChevronRight } from 'lucide-react';
+import { AccountIcon, CategoryIcon, TransferIcon } from './VisualSelect';
+import { ChevronRight } from 'lucide-react';
 import type { LedgerRow } from '@/lib/ledger-types';
 import s from './TransactionList.module.css';
+import type { ReactNode } from 'react';
 const yuan = (n: number) =>
   new Intl.NumberFormat(getLocale(), { style: 'currency', currency: deployment().currency }).format(n / 100);
 
@@ -48,6 +49,35 @@ function dayLabel(date: string, locale: string, tr: (v: string) => string) {
   return { day, weekday, relative };
 }
 
+export function TransactionRow({
+  title,
+  icon,
+  meta,
+  value,
+  onClick,
+}: {
+  title: string;
+  icon: ReactNode;
+  meta: ReactNode;
+  value: ReactNode;
+  onClick: () => void;
+}) {
+  const { t: tr } = useI18n();
+  return (
+    <button type="button" className={s.row} onClick={onClick} aria-label={tr('查看{0}详情', [title])}>
+      <span className={s.icon} aria-hidden>
+        {icon}
+      </span>
+      <span className={s.copy}>
+        <span className={s.title}>{title}</span>
+        <span className={s.meta}>{meta}</span>
+      </span>
+      <span className={s.value}>{value}</span>
+      <ChevronRight size={16} className={s.chevron} aria-hidden />
+    </button>
+  );
+}
+
 export function TransactionList({
   rows,
   onSelect,
@@ -80,22 +110,12 @@ export function TransactionList({
             onChange={() => onToggle?.(r.id)}
           />
         )}
-        <button
-          type="button"
-          className={s.row}
+        <TransactionRow
+          title={name(r)}
           onClick={() => onSelect(r)}
-          aria-label={tr('查看{0}详情', [name(r)])}
-        >
-          <span className={s.icon} aria-hidden>
-            {r.kind === 'transfer' ? (
-              <ArrowLeftRight size={18} />
-            ) : (
-              <CategoryIcon name={r.category} size={36} />
-            )}
-          </span>
-          <span className={s.copy}>
-            <span className={s.title}>{name(r)}</span>
-            <span className={s.meta}>
+          icon={r.kind === 'transfer' ? <TransferIcon /> : <CategoryIcon name={r.category} size={36} />}
+          meta={
+            <>
               <AccountIcon name={r.account_institution || r.account_name || ''} size={14} />{' '}
               {r.cost_row_key
                 ? tr('当期分摊 · 不重复扣款')
@@ -140,26 +160,27 @@ export function TransactionList({
               {r.claim_recipient_name &&
                 ' · ' + tr('{0} 付款 · {1} 认领', [r.claim_sender_name, r.claim_recipient_name])}
               {r.note ? ' · ' + r.note : ''}
-            </span>
-          </span>
-          <span className={s.value}>
-            <strong className={v > 0 ? s.expense : v < 0 ? s.income : undefined}>
-              {v > 0 ? '−' : v < 0 ? '+' : ''}
-              {yuan(Math.abs(r.matched_amount ?? r.amount))}
-            </strong>
-            {r.matched_amount !== undefined && r.matched_amount !== r.amount && (
-              <small>
-                {tr('所选分类 · 整单')} {yuan(r.amount)}
-              </small>
-            )}
-            {r.wallet_balances?.map(b => (
-              <small key={b.account_id} title={b.name}>
-                {r.wallet_balances!.length > 1 ? b.name : tr('余额')} {yuan(b.balance)}
-              </small>
-            ))}
-          </span>
-          <ChevronRight size={16} className={s.chevron} aria-hidden />
-        </button>
+            </>
+          }
+          value={
+            <>
+              <strong className={v > 0 ? s.expense : v < 0 ? s.income : undefined}>
+                {v > 0 ? '−' : v < 0 ? '+' : ''}
+                {yuan(Math.abs(r.matched_amount ?? r.amount))}
+              </strong>
+              {r.matched_amount !== undefined && r.matched_amount !== r.amount && (
+                <small>
+                  {tr('所选分类 · 整单')} {yuan(r.amount)}
+                </small>
+              )}
+              {r.wallet_balances?.map(b => (
+                <small key={b.account_id} title={b.name}>
+                  {r.wallet_balances!.length > 1 ? b.name : tr('余额')} {yuan(b.balance)}
+                </small>
+              ))}
+            </>
+          }
+        />
       </div>
     );
   };

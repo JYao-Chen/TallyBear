@@ -6,6 +6,7 @@ import { ChoicePicker } from './ChoicePicker';
 import { useTheme } from './ThemeProvider';
 import { useState, createContext, useContext } from 'react';
 import {
+  ArrowLeftRight,
   ChevronDown,
   Check,
   Wallet,
@@ -24,6 +25,16 @@ export function CategoryIcon({ name, size = 36 }: { name: string; size?: number 
   const items = useContext(CategoryIcons);
   return <SymbolIcon icon={items.find(c => c.name === name)?.icon || '🧸'} size={size} />;
 }
+export function TransferIcon({ size = 36 }: { size?: number }) {
+  const { theme } = useTheme();
+  if (theme === 'minimal') return <ArrowLeftRight size={size * 0.55} aria-hidden />;
+  return (
+    <span aria-hidden="true">
+      <SymbolIcon icon="sticker:127" size={size} still />
+    </span>
+  );
+}
+
 export function SymbolIcon({
   icon,
   size = 40,

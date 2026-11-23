@@ -14,7 +14,8 @@
 }
 .amount {
   padding: var(--space-4);
-  background: var(--surface-sunk);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
   border-radius: var(--radius-card);
 }
 .field {

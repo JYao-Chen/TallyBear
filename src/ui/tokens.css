@@ -3,7 +3,7 @@
 :root {
   --paper: #f2efed;
   --surface: #fcfaf9;
-  --surface-sunk: #eae5e2;
+  --surface-sunk: #f5eff3;
   --line: #e0d8d5;
   --line-strong: #c9bdbb;
   --ink: #393236;
@@ -73,7 +73,7 @@
 html[data-theme='minimal'] {
   --paper: #eef0ef;
   --surface: #fafbf9;
-  --surface-sunk: #e5e8e6;
+  --surface-sunk: #eff4f3;
   --line: #d7ddda;
   --line-strong: #b9c5c1;
   --ink: #30383a;

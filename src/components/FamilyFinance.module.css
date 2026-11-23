@@ -127,16 +127,9 @@
   min-width: 0;
   gap: var(--space-3);
 }
-.share,
-.movement {
+.share {
   padding-block: var(--space-3);
   border-bottom: 1px solid var(--line);
-}
-.movement > :first-child {
-  border: 0;
-}
-.movement small {
-  display: block;
 }
 .actions {
   justify-content: flex-end;

@@ -1914,18 +1914,38 @@ try {
       }
       await chooseOption(page, '往来状态', t('全部状态'));
       await shot('family-entry');
-      await page
-        .getByRole('button', { name: t('查看详情'), exact: true })
-        .first()
-        .click();
-      await page.getByRole('button', { name: t('修改私人记录') }).waitFor();
-      const movementAmount = page.getByText(lang === 'en' ? '$84.00' : '¥84.00', { exact: true });
+      const movementRow = page.locator('button[class*="TransactionList_row"]').first();
+      await movementRow.click();
+      const movementDetail = page.getByRole('dialog', { name: t('这笔家庭往来') });
+      await movementDetail.getByRole('button', { name: t('修改私人记录') }).waitFor();
+      const movementAmount = movementDetail.locator(
+        '[class*="LedgerEntryDetail_hero"] [class*="ui_money__"]',
+      );
       assert.ok(
-        await movementAmount.first().evaluate(el => el.getBoundingClientRect().right <= innerWidth),
+        await movementAmount.evaluate(el => el.getBoundingClientRect().right <= innerWidth),
         'Family movement amount clipped',
       );
       await shot('family-movement-detail');
-      await page.getByRole('button', { name: t('返回往来记录') }).click();
+      await movementDetail.getByRole('button', { name: t('展示账本'), exact: true }).click();
+      const displayBook = page.getByRole('dialog', { name: t('调整我的展示账本') });
+      await displayBook.getByRole('button', { name: t('保存展示位置') }).waitFor();
+      await page.keyboard.press('Escape');
+      await movementDetail.getByRole('button', { name: t('修改私人记录') }).waitFor();
+      await page.keyboard.press('Escape');
+      await movementDetail.waitFor({ state: 'hidden' });
+      await movementRow.waitFor();
+      const incoming = (lang === 'en' ? 'Sam → Alex' : '小林 → 小悠') + ' · ' + t('普通转账');
+      await page
+        .getByRole('button', { name: t('查看{0}详情').replace('{0}', incoming), exact: true })
+        .first()
+        .click();
+      await movementDetail.getByRole('button', { name: t('确认到账'), exact: true }).click();
+      const receipt = page.getByRole('dialog', { name: t('确认到账'), exact: true });
+      await receipt.getByRole('button', { name: t('确认到账'), exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await receipt.waitFor({ state: 'hidden' });
+      await page.keyboard.press('Escape');
+      await movementDetail.waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: t('记一笔往来'), exact: true }).click();
       await shot('family-entry-form');
       await navigate('小熊对话');

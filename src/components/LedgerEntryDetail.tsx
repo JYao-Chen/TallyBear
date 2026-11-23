@@ -12,7 +12,7 @@ import { ReceiptAttachments } from './ReceiptAttachments';
 import { LineItemsView } from './LineItems';
 import { AllocationEditor } from './AllocationPanel';
 import { OrganizeEntries } from './OrganizeEntries';
-import { AccountIcon, CategoryIcon, SymbolIcon } from './VisualSelect';
+import { AccountIcon, CategoryIcon, TransferIcon, SymbolIcon } from './VisualSelect';
 import { walletOwnership } from '@/lib/accounts';
 import { displayTimestamp } from '@/lib/entry-time';
 import type { LedgerRow } from '@/lib/ledger-types';
@@ -178,7 +178,11 @@ export function LedgerEntryContent({
           tone={row.kind === 'expense' ? 'expense' : row.kind === 'transfer' ? 'plain' : 'income'}
         />
         <h3>
-          <CategoryIcon name={row.category} size={26} />
+          {row.kind === 'transfer' ? (
+            <TransferIcon size={26} />
+          ) : (
+            <CategoryIcon name={row.category} size={26} />
+          )}
           {row.title || row.payee || row.product || row.category}
         </h3>
       </div>

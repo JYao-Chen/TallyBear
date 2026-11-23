@@ -34,6 +34,7 @@
   justify-items: end;
   align-content: center;
   background: var(--surface-sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
   border-color: var(--line);
   color: var(--ink);
 }

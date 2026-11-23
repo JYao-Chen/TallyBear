@@ -4,16 +4,18 @@ import { Discussion } from './Discussion';
 import { TransactionBalance } from './TransactionBalance';
 import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X } from 'lucide-react';
 import { Button, ConfirmDialog, Input, ListRow, Money, Sheet, TextArea } from '@/ui';
 import s from './FamilyMovementDetails.module.css';
-import { VisualSelect } from './VisualSelect';
+import detail from './LedgerEntryDetail.module.css';
+import type { ReactNode } from 'react';
+import { TransferIcon, VisualSelect } from './VisualSelect';
 import type { LedgerRow } from '@/lib/ledger-types';
 export function FamilyMovementDetails({
   row,
   onClose,
   onChanged,
-  embedded = false,
+  actions,
 }: {
   row: Pick<
     LedgerRow,
@@ -25,7 +27,7 @@ export function FamilyMovementDetails({
     | 'account_institution'
     | 'wallet_balances'
   >;
-  embedded?: boolean;
+  actions?: ReactNode;
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
@@ -195,8 +197,8 @@ export function FamilyMovementDetails({
   };
   const canEdit = movement && [movement.sender_id, movement.recipient_id].includes(options?.userId);
   const footer = (
-    <div className={s.actions}>
-      {' '}
+    <div className={detail.actions}>
+      {actions}
       {canEdit && (
         <Button
           disabled={busy}
@@ -252,17 +254,20 @@ export function FamilyMovementDetails({
       </ConfirmDialog>
       {!movement && !error && <p role="status">{tr('正在读取往来详情…')}</p>}
       {movement && (
-        <div className={s.heading}>
-          <p className={s.muted}>
+        <div className={detail.hero}>
+          <small>
             {labels[movement?.kind as keyof typeof labels] || tr('家庭往来')} ·{' '}
             {movement?.status === 'confirmed'
               ? tr('已到账')
               : movement?.status === 'cancelled'
                 ? tr('已取消')
                 : tr('待收款')}
-          </p>
+          </small>
           <Money size="large" value={row.amount} />
-          <h3>{form.title || row.title}</h3>
+          <h3>
+            <TransferIcon size={26} />
+            {form.title || row.title}
+          </h3>
         </div>
       )}
       {options && (
@@ -275,8 +280,8 @@ export function FamilyMovementDetails({
               key: 'overview',
               label: tr('概览'),
               content: (
-                <>
-                  <div>
+                <div className={s.stack}>
+                  <div className={detail.fields}>
                     {[
                       [tr('交易日期'), movement.date],
                       [tr('交易时间'), form.transactionTime],
@@ -302,7 +307,7 @@ export function FamilyMovementDetails({
                     ]
                       .filter(([, value]) => value)
                       .map(([label, value]) => (
-                        <ListRow key={label} className={s.field} title={label} end={value} />
+                        <ListRow key={label} className={detail.field} title={label} end={value} />
                       ))}
                   </div>
                   <section className={s.section}>
@@ -356,7 +361,7 @@ export function FamilyMovementDetails({
                     </p>
                   </section>
                   {movement.sender_id === options.userId && movement.status !== 'cancelled' && (
-                    <section className={s.section}>
+                    <section className={correctingSource ? s.section : undefined}>
                       {correctingSource ? (
                         <>
                           <label>
@@ -427,7 +432,7 @@ export function FamilyMovementDetails({
                     </section>
                   )}
                   <TransactionBalance id={row.id} balances={row.wallet_balances} />
-                </>
+                </div>
               ),
             },
             {
@@ -550,11 +555,10 @@ export function FamilyMovementDetails({
               key: 'attachments',
               label: tr('附件') + ` · ${files.length}`,
               content: (
-                <>
-                  {' '}
+                <div className={s.stack}>
                   {(['receipt', 'photo'] as const).map(purpose => (
                     <section className={s.section} key={purpose}>
-                      <div className={s.actions}>
+                      <div className={s.attachmentHeading}>
                         <strong>{purpose === 'receipt' ? tr('交易凭证') : tr('生活附图')}</strong>
                         {canEdit && (
                           <label className={s.upload}>
@@ -602,7 +606,7 @@ export function FamilyMovementDetails({
                       )}
                     </section>
                   ))}
-                </>
+                </div>
               ),
             },
           ]}
@@ -615,16 +619,7 @@ export function FamilyMovementDetails({
       )}
     </>
   );
-  return embedded ? (
-    <div className={s.page}>
-      <Button variant="ghost" disabled={busy} onClick={onClose}>
-        <ArrowLeft size={16} aria-hidden />
-        {tr('返回往来记录')}
-      </Button>
-      {content}
-      <div className={s.footer}>{footer}</div>
-    </div>
-  ) : (
+  return (
     <Sheet
       open
       wide
@@ -633,7 +628,7 @@ export function FamilyMovementDetails({
       onClose={() => {
         if (!busy) onClose();
       }}
-      footer={footer}
+      footer={canEdit ? footer : undefined}
     >
       {content}
     </Sheet>

@@ -9,6 +9,7 @@
   gap: var(--space-3);
   padding: var(--space-3);
   background: var(--surface-sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
   border-radius: var(--radius-control);
 }
 @media (max-width: 600px) {

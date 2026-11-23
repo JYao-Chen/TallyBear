@@ -3,6 +3,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
   background: var(--surface-sunk);
+  box-shadow: inset 0 0 0 1px var(--line);
   font-variant-numeric: tabular-nums;
 }
 .stats > div:last-of-type {
