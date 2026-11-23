@@ -1,9 +1,11 @@
 'use client';
+import { useState } from 'react';
 import { AlertCircle, CheckCircle2, FileQuestion, Rows3 } from 'lucide-react';
 import { formatMoney } from '@/lib/deployment';
 import type { StatementReconciliation as Result, StatementRecord } from '@/lib/statement-reconciliation';
 import { PagedList } from './PagedList';
 import { useI18n } from './LanguageProvider';
+import { Segmented } from '@/ui';
 
 function RecordLine({ item }: { item: StatementRecord }) {
   const { t: tr } = useI18n();
@@ -25,6 +27,14 @@ function RecordLine({ item }: { item: StatementRecord }) {
 export function StatementReconciliation({ result }: { result: Result }) {
   const { t: tr } = useI18n(),
     s = result.summary;
+  const tabs = [
+    ...(s.missing > 0 ? [{ value: 'missing', label: `${tr('疑似漏记')} (${s.missing})` }] : []),
+    ...(s.ambiguous > 0 ? [{ value: 'ambiguous', label: `${tr('待判断')} (${s.ambiguous})` }] : []),
+    { value: 'matched', label: `${tr('已匹配')} (${s.matched})` },
+    ...(s.ledgerOnly > 0 ? [{ value: 'ledgerOnly', label: `${tr('仅账本存在')} (${s.ledgerOnly})` }] : []),
+  ];
+  const [tab, setTab] = useState(tabs[0]?.value || 'matched');
+  const activeTab = tabs.some(x => x.value === tab) ? tab : tabs[0]?.value || 'matched';
   return (
     <section className="statement-reconciliation" aria-label={tr('智能核对结果')}>
       <header>
@@ -51,19 +61,16 @@ export function StatementReconciliation({ result }: { result: Result }) {
           {tr('仅账本存在')} {s.ledgerOnly}
         </span>
       </div>
-      {s.missing > 0 && (
-        <details open>
-          <summary>
-            {tr('疑似漏记 · 可送到草稿核对')} ({s.missing})
-          </summary>
+      <Segmented tabs label={tr('智能核对结果')} value={activeTab} onChange={setTab} options={tabs} />
+      {activeTab === 'missing' && s.missing > 0 && (
+        <div className="reconciliation-group">
+          <p className="muted">{tr('疑似漏记 · 可送到草稿核对')}</p>
           <PagedList items={result.missing}>{item => <RecordLine item={item} />}</PagedList>
-        </details>
+        </div>
       )}
-      {s.ambiguous > 0 && (
-        <details open>
-          <summary>
-            {tr('证据不足，不自动合并')} ({s.ambiguous})
-          </summary>
+      {activeTab === 'ambiguous' && s.ambiguous > 0 && (
+        <div className="reconciliation-group">
+          <p className="muted">{tr('证据不足，不自动合并')}</p>
           <PagedList items={result.ambiguous}>
             {item => (
               <div>
@@ -72,28 +79,24 @@ export function StatementReconciliation({ result }: { result: Result }) {
               </div>
             )}
           </PagedList>
-        </details>
+        </div>
       )}
-      <details>
-        <summary>
-          {tr('已匹配记录')} ({s.matched})
-        </summary>
-        <PagedList items={result.matched}>
-          {item => (
-            <div>
-              <RecordLine item={item.statement} />
-              <p className="muted">{tr(item.reason)}</p>
-            </div>
-          )}
-        </PagedList>
-      </details>
-      {s.ledgerOnly > 0 && (
-        <details>
-          <summary>
-            {tr('仅在账本中出现')} ({s.ledgerOnly})
-          </summary>
+      {activeTab === 'matched' && (
+        <div className="reconciliation-group">
+          <PagedList items={result.matched}>
+            {item => (
+              <div>
+                <RecordLine item={item.statement} />
+                <p className="muted">{tr(item.reason)}</p>
+              </div>
+            )}
+          </PagedList>
+        </div>
+      )}
+      {activeTab === 'ledgerOnly' && s.ledgerOnly > 0 && (
+        <div className="reconciliation-group">
           <PagedList items={result.ledgerOnly}>{item => <RecordLine item={item} />}</PagedList>
-        </details>
+        </div>
       )}
       <p className="muted">
         {tr('编号与精确时间优先；同名同价记录仅在前后锚点足够时按顺序匹配。所有漏记候选仍需确认后才会入账。')}

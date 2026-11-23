@@ -224,8 +224,13 @@
   font-size: var(--text-xs);
   color: var(--muted);
 }
-.portraitDetail > .portraitRowActions {
-  padding-bottom: 24px;
+.portraitDetailSheet {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.portraitDetailSheet .muted {
+  font-size: var(--text-xs);
 }
 .portraitSources {
   padding: 0;

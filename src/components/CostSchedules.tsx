@@ -1,6 +1,6 @@
 'use client';
 import { FormSelect } from './FormSelect';
-import { Button, Field, Input, TextArea, Money, ListRow } from '@/ui';
+import { Button, Field, Input, TextArea, Money, ListRow, Sheet } from '@/ui';
 import styles from './CostSchedules.module.css';
 import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
@@ -253,17 +253,26 @@ export function CostSchedules({
         </p>
       )}
       {rule ? (
-        <form
-          onSubmit={e => {
-            e.preventDefault();
-            void run(action === 'edit' ? '/' + selected.id + '/edit' : '', {
-              id: creationId,
-              rule,
-              bookId: book,
-              ...(action === 'edit' ? { version: selected.version } : {}),
-            });
+        <Sheet
+          open
+          wide
+          title={action === 'edit' ? tr('编辑周期计划') : tr('新建周期计划')}
+          closeLabel={tr('关闭弹窗')}
+          onClose={() => {
+            if (!busy) close();
           }}
         >
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              void run(action === 'edit' ? '/' + selected.id + '/edit' : '', {
+                id: creationId,
+                rule,
+                bookId: book,
+                ...(action === 'edit' ? { version: selected.version } : {}),
+              });
+            }}
+          >
           <fieldset disabled={busy}>
             <h4>{action === 'edit' ? tr('编辑周期计划') : tr('周期和金额')}</h4>
             {action === 'edit' && (
@@ -446,6 +455,7 @@ export function CostSchedules({
             </div>
           </fieldset>
         </form>
+        </Sheet>
       ) : selected ? (
         <div>
           <div className={shared.toolbar}>

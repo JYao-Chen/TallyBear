@@ -1,5 +1,5 @@
 'use client';
-import { Button, Input, ListRow, Select, Sheet, TextArea } from '@/ui';
+import { Button, Input, ListRow, Segmented, Select, Sheet, TextArea } from '@/ui';
 import { FormSelect } from './FormSelect';
 import styles from './MemoryCenter.module.css';
 import { useConfirmation } from '@/ui/useConfirmation';
@@ -80,6 +80,7 @@ export function MemoryWorkspace({
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [selected, setSelected] = useState<Memory | null>(null),
+    [detailTab, setDetailTab] = useState<'edit' | 'sources' | 'share'>('edit'),
     [enabled, setEnabled] = useState(true),
     [detail, setDetail] = useState<any>(null),
     [families, setFamilies] = useState<any[]>([]);
@@ -205,6 +206,7 @@ export function MemoryWorkspace({
   async function select(m: Memory) {
     const request = ++selectionRequest.current;
     setReplaceConflicts(false);
+    setDetailTab('edit');
     setSelected(m);
     setEditTitle(m.title);
     setEditContent(m.content);
@@ -489,6 +491,7 @@ export function MemoryWorkspace({
           {selected && (
             <Sheet
               open
+              wide
               title={selected.id ? tr('编辑记忆') : tr('新增偏好')}
               onClose={() => setSelected(null)}
             >
@@ -498,7 +501,21 @@ export function MemoryWorkspace({
                     {error}
                   </p>
                 )}
-
+                {selected.id && (
+                  <Segmented
+                    tabs
+                    label={tr('记忆详情')}
+                    value={detailTab}
+                    onChange={v => setDetailTab(v as 'edit' | 'sources' | 'share')}
+                    options={[
+                      { value: 'edit', label: tr('基本信息') },
+                      ...(detail ? [{ value: 'sources', label: tr('来源依据') }] : []),
+                      { value: 'share', label: tr('合并与家庭分享') },
+                    ]}
+                  />
+                )}
+                {detailTab === 'edit' && (
+                  <>
                 {selected.kind === 'product' && (
                   <details>
                     <summary className={styles.disclosure}>
@@ -718,12 +735,10 @@ export function MemoryWorkspace({
                     )}
                   </div>
                 </form>
-                {detail && (
-                  <details>
-                    <summary className={styles.disclosure}>
-                      {tr('来源依据与购买记录')}
-                      <ChevronDown size={18} aria-hidden="true" />
-                    </summary>
+                  </>
+                )}
+                {detailTab === 'sources' && detail && (
+                  <div className={styles.memorySubSection}>
                     {detail.stats && (
                       <p>
                         {tr('共 ')}
@@ -805,14 +820,10 @@ export function MemoryWorkspace({
                         {tr('下一页来源')}
                       </Button>
                     </div>
-                  </details>
+                  </div>
                 )}
-                {selected.id && (
-                  <details>
-                    <summary className={styles.disclosure}>
-                      {tr('合并与家庭分享')}
-                      <ChevronDown size={18} aria-hidden="true" />
-                    </summary>
+                {detailTab === 'share' && selected.id && (
+                  <div className={styles.memorySubSection}>
                     {selected.kind === 'product' && (
                       <>
                         <label>
@@ -892,7 +903,7 @@ export function MemoryWorkspace({
                         {f.name}
                       </Button>
                     ))}
-                  </details>
+                  </div>
                 )}
               </section>
             </Sheet>

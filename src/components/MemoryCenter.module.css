@@ -43,6 +43,13 @@
   margin: 0;
   padding: 0;
   background: var(--surface);
+  display: grid;
+  gap: var(--space-3);
+}
+.memorySubSection {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
 }
 .memoryDetail details {
   margin-block: var(--space-3);

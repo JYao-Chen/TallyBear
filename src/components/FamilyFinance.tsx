@@ -133,7 +133,6 @@ export function FamilyFinance({
     data.wallets.some((a: any) => a.id === source && a.owner_id === userId) &&
     data.wallets.some((a: any) => a.id === target && a.family_id === family);
   const aa = data.expenses.filter((e: any) => e.shares);
-  const editingPanel = !!(open || split);
   const filtered = sortDetails<any>(
     data.movements.filter(
       (m: any) =>
@@ -166,8 +165,7 @@ export function FamilyFinance({
   );
   return (
     <section ref={section} className={s.finance} aria-label={tr('家庭资金往来')}>
-      {!editingPanel && (
-        <>
+      <>
           <div className={s.heading}>
             <h2>
               <ArrowLeftRight size={22} />
@@ -344,7 +342,6 @@ export function FamilyFinance({
             </>
           )}
         </>
-      )}
       {selected && (
         <FamilyMovementDetails
           row={{
@@ -783,14 +780,9 @@ function FamilyPanel({
 }) {
   const { t: tr } = useI18n();
   return (
-    <section className={s.editor}>
-      <Button type="button" variant="ghost" onClick={onClose}>
-        <ArrowLeft size={16} aria-hidden />
-        {tr('返回家庭往来')}
-      </Button>
-      <h2>{title}</h2>
-      {children}
-    </section>
+    <Sheet open wide closeLabel={tr('关闭弹窗')} title={title} onClose={onClose}>
+      <div className={s.editor}>{children}</div>
+    </Sheet>
   );
 }
 

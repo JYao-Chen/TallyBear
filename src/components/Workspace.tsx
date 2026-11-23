@@ -101,7 +101,7 @@ import { BudgetPanel } from './BudgetPanel';
 import planStyles from './WorkspacePlans.module.css';
 import entryStyles from './WorkspaceEntry.module.css';
 import { EntrySaveFeedback } from './EntrySaveFeedback';
-import { Button, Segmented, Sheet, TextArea } from '@/ui';
+import { Button, Card, Segmented, Sheet, TextArea } from '@/ui';
 import { QuickEntry } from './QuickEntry';
 import { ActivitiesPage } from './ActivitiesPage';
 import { invalidateActivityOptions, type Activity } from './ActivitySelect';
@@ -1138,46 +1138,55 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                     />
                   )}
                   {page === 'home' && scheduleItems.some(s => !s.paused && s.next_date <= today()) && (
-                    <div className="notice">
-                      {tr('有')}
-                      {scheduleItems.filter(s => !s.paused && s.next_date <= today()).length}{' '}
-                      {tr('项周期账单待核对')}
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          setPlanTab('renewal');
-                          switchPage('schedules');
-                        }}
-                      >
-                        {tr('查看账单')}
-                      </button>
-                    </div>
+                    <Card className={homeStyles.reminderCard}>
+                      <div className={homeStyles.reminderRow}>
+                        <span>
+                          {tr('有 {0} 项周期账单待核对', [
+                            scheduleItems.filter(s => !s.paused && s.next_date <= today()).length,
+                          ])}
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setPlanTab('renewal');
+                            switchPage('schedules');
+                          }}
+                        >
+                          {tr('查看账单')}
+                        </Button>
+                      </div>
+                    </Card>
                   )}
                   {page === 'home' && (
-                    <section className="panel">
-                      <div className="panel-title">
-                        <h2>{tr('最近的记录')}</h2>
-                        <button className="text-button" onClick={() => switchPage('entries')}>
+                    <Card
+                      title={tr('最近的记录')}
+                      action={
+                        <Button variant="ghost" size="sm" onClick={() => switchPage('entries')}>
                           {tr('查看全部流水')}
                           <ChevronRight size={15} />
-                        </button>
-                      </div>
+                        </Button>
+                      }
+                      className={homeStyles.homeSection}
+                    >
                       {list(8)}
-                    </section>
+                    </Card>
                   )}
                   {page === 'home' && activities.some(a => !a.archived) && (
-                    <section className="panel home-activities">
-                      <div className="panel-title">
-                        <div>
-                          <h2>{tr('进行中的活动')}</h2>
-                          <p className="muted">{tr('从首页直接记入活动，不必先进入活动详情。')}</p>
-                        </div>
-                        <button className="text-button" onClick={() => switchPage('activities')}>
+                    <Card
+                      title={tr('进行中的活动')}
+                      action={
+                        <Button variant="ghost" size="sm" onClick={() => switchPage('activities')}>
                           {tr('查看全部活动')}
                           <ChevronRight size={16} />
-                        </button>
-                      </div>
-                      <div className="home-activity-picker">
+                        </Button>
+                      }
+                      className={homeStyles.homeSection}
+                    >
+                      <p className={homeStyles.sectionHint}>
+                        {tr('从首页直接记入活动，不必先进入活动详情。')}
+                      </p>
+                      <div className={homeStyles.activityPicker}>
                         <label>
                           {tr('选择活动')}
                           <FormSelect value={chosenHomeActivity} onChange={setHomeActivityChoice}>
@@ -1191,15 +1200,16 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                               ))}
                           </FormSelect>
                         </label>
-                        <button
+                        <Button
+                          variant="primary"
                           disabled={!books.some(b => b.role !== 'viewer')}
                           onClick={() => recordToActivity(chosenHomeActivity)}
                         >
                           <Plus size={17} />
                           {tr('记一笔到活动')}
-                        </button>
+                        </Button>
                       </div>
-                    </section>
+                    </Card>
                   )}
                   {(page === 'insights' || page === 'entries') && (
                     <SpendingAnalysis

@@ -164,3 +164,39 @@
 .reminders:empty {
   display: none;
 }
+.homeSection {
+  margin-bottom: var(--space-4);
+}
+.reminderCard {
+  margin-bottom: var(--space-4);
+  background: var(--attention-soft);
+  border-color: var(--attention);
+}
+.reminderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.sectionHint {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.activityPicker {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.activityPicker label {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .activityPicker {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

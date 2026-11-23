@@ -55,10 +55,10 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const [loadedSection, setLoadedSection] = useState('');
+  const [editor, setEditor] = useState<ProfileRule | null>(null);
   const [selected, setSelected] = useState<ProfileInsight | null>(null),
     [sourcePage, setSourcePage] = useState(1),
-    [detail, setDetail] = useState<any>(null),
-    [editor, setEditor] = useState<ProfileRule | null>(null);
+    [detail, setDetail] = useState<any>(null);
   const detailRef = useRef<HTMLElement>(null),
     focusRule = useRef(initialId?.startsWith('profile-rule:') ? initialId.slice(13) : null);
   const resources: Resources = data || emptyResources;
@@ -454,24 +454,16 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
               </section>
             )}
             {selected && (
-              <section className={styles.portraitDetail} ref={detailRef}>
-                <header>
-                  <div>
-                    <h3>
-                      {field(selected.field)} · {label(selected.choices[0].value, selected.field)}
-                    </h3>
-                    <p>{describe(selected.condition)}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    aria-label={t('关闭依据', 'Close evidence')}
-                    onClick={() => setSelected(null)}
-                  >
-                    <X size={18} />
-                  </Button>
-                </header>
-                <div className={styles.portraitAlternatives}>
+              <Sheet
+                open
+                wide
+                title={`${field(selected.field)} · ${label(selected.choices[0].value, selected.field)}`}
+                closeLabel={t('关闭依据', 'Close evidence')}
+                onClose={() => setSelected(null)}
+              >
+                <div className={styles.portraitDetailSheet}>
+                  <p className={styles.muted}>{describe(selected.condition)}</p>
+                  <div className={styles.portraitAlternatives}>
                   {(detail?.insight.choices || selected.choices).map(
                     (c: ProfileInsight['choices'][number]) => (
                       <div key={c.value}>
@@ -592,7 +584,8 @@ export function PersonalProfile({ admin = false, initialId }: { admin?: boolean;
                     </div>
                   </>
                 )}
-              </section>
+                </div>
+              </Sheet>
             )}
             {editor && (
               <Sheet

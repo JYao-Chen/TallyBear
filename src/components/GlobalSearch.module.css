@@ -29,15 +29,19 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr));
   gap: var(--space-3);
 }
-.filters summary,
+.filters {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunk);
+}
 .pagination {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--touch);
-}
-.filters {
-  border-block: 1px solid var(--line);
 }
 .result summary {
   list-style: none;
@@ -100,18 +104,9 @@
 }
 
 .toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-2);
-}
-.toolbar:has(details[open]) {
-  grid-template-columns: minmax(0, 1fr);
-}
-.toolbar:has(details[open]) > div {
-  grid-area: 1/1;
-  justify-self: end;
-}
-.toolbar details[open] {
-  grid-area: 1/1;
 }

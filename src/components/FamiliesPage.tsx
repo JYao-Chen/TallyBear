@@ -1,6 +1,6 @@
 'use client';
 import { participantAvatar } from '@/ui/participantAvatar';
-import { Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Sheet, TextArea, useToast } from '@/ui';
+import { Button, Card, Chip, ConfirmDialog, EmptyState, Field, Input, Segmented, Sheet, TextArea, useToast } from '@/ui';
 import s from './FamiliesPage.module.css';
 import { HomeFamilyInbox } from './HomeFamilyInbox';
 import { FamilyFinance, FamilyOverview } from './FamilyFinance';
@@ -64,6 +64,8 @@ export function FamiliesPage({
   const [confirm, setConfirm] = useState<{ title: string; text: string; action: () => Promise<void> } | null>(
     null,
   );
+  const [manageSection, setManageSection] = useState<'members' | 'books' | 'access'>('members');
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [avatar, setAvatar] = useState('🏡'),
     [uploading, setUploading] = useState(false);
   const owner = detail?.owner_id === userId;
@@ -266,17 +268,31 @@ export function FamiliesPage({
             showOverviewTab={false}
           />
           {detail.description && <p className={s.muted}>{detail.description}</p>}
-          <div className={s.columns}>
+          <Segmented
+            label={tr('家庭管理')}
+            value={manageSection}
+            onChange={v => setManageSection(v as 'members' | 'books' | 'access')}
+            options={[
+              { value: 'members', label: `${tr('家庭成员')} (${detail.members.length})` },
+              { value: 'books', label: `${tr('家庭账本')} (${detail.books.length})` },
+              ...(detail.books.some((b: any) => b.role === 'owner') || owner
+                ? [{ value: 'access', label: tr('权限与设置') }]
+                : []),
+            ]}
+          />
+          {manageSection === 'members' && (
             <Card>
               <div className={s.heading}>
                 <h2>
                   <Users size={21} />
                   {tr('家庭成员')}
                 </h2>
-                <small>
-                  {detail.members.length}
-                  {tr('人')}
-                </small>
+                {owner && (
+                  <Button size="sm" variant="secondary" onClick={() => setInviteOpen(true)}>
+                    <Plus size={16} />
+                    {tr('邀请成员')}
+                  </Button>
+                )}
               </div>
               {
                 <PagedList items={detail.members}>
@@ -315,66 +331,35 @@ export function FamiliesPage({
                   )}
                 </PagedList>
               }
-              {owner && (
-                <>
-                  <form
-                    className={s.form}
-                    onSubmit={e => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const username = String(new FormData(form).get('username'));
-                      ask('发送邀请', tr('邀请 {0} 加入家庭？', [username]), async () => {
-                        await mutate('/invitations', 'POST', { username }, '邀请已发送，等待对方登录后接受');
-                        form.reset();
-                      });
-                    }}
-                  >
-                    <Field label={tr('邀请已有账号')}>
-                      {control => (
-                        <Input
-                          {...control}
-                          name="username"
-                          placeholder={tr('输入登录账号')}
-                          required
-                          maxLength={80}
-                        />
-                      )}
-                    </Field>
-                    <Button type="submit" variant="primary" disabled={busy}>
-                      {tr('发送邀请')}
-                    </Button>
-                  </form>
-                  {detail.invitations.length > 0 && (
-                    <div className={s.pending}>
-                      <h3>{tr('等待接受')}</h3>
-                      {
-                        <PagedList items={detail.invitations}>
-                          {i => (
-                            <div className={s.row} key={i.id}>
-                              <span>
-                                {i.name}
-                                <small>@{i.username}</small>
-                              </span>
-                              <Button
-                                variant="ghost"
-                                disabled={busy}
-                                onClick={() =>
-                                  ask('撤回', tr('撤回发给 {0} 的邀请？', [i.name]), () =>
-                                    mutate('/invitations', 'DELETE', { userId: i.id }, '已撤回邀请'),
-                                  )
-                                }
-                              >
-                                {tr('撤回')}
-                              </Button>
-                            </div>
-                          )}
-                        </PagedList>
-                      }
-                    </div>
-                  )}
-                </>
+              {owner && detail.invitations.length > 0 && (
+                <div className={s.pending}>
+                  <h3>{tr('等待接受')}</h3>
+                  <PagedList items={detail.invitations}>
+                    {i => (
+                      <div className={s.row} key={i.id}>
+                        <span>
+                          {i.name}
+                          <small>@{i.username}</small>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() =>
+                            ask('撤回', tr('撤回发给 {0} 的邀请？', [i.name]), () =>
+                              mutate('/invitations', 'DELETE', { userId: i.id }, '已撤回邀请'),
+                            )
+                          }
+                        >
+                          {tr('撤回')}
+                        </Button>
+                      </div>
+                    )}
+                  </PagedList>
+                </div>
               )}
             </Card>
+          )}
+          {manageSection === 'books' && (
             <Card>
               <div className={s.heading}>
                 <h2>
@@ -456,9 +441,13 @@ export function FamiliesPage({
                   {tr('前往创建共享账本')}
                 </Button>
               )}
+            </Card>
+          )}
+          {manageSection === 'access' && (
+            <Card>
               {detail.books.some(b => b.role === 'owner') && detail.members.some(m => m.id !== userId) && (
-                <details className={s.details}>
-                  <summary>{tr('为家庭成员设置账本权限')}</summary>
+                <div className={s.details}>
+                  <h3>{tr('为家庭成员设置账本权限')}</h3>
                   <form
                     onSubmit={e => {
                       e.preventDefault();
@@ -514,78 +503,116 @@ export function FamiliesPage({
                       {tr('保存账本权限')}
                     </Button>
                   </form>
-                </details>
+                </div>
               )}
-            </Card>
-          </div>
-
-          <details className={s.details}>
-            <summary>{owner ? tr('转交或解散家庭') : tr('退出家庭')}</summary>
-            {owner ? (
-              <>
-                <form
-                  className={s.form}
-                  onSubmit={e => {
-                    e.preventDefault();
-                    const userId = String(new FormData(e.currentTarget).get('userId'));
-                    ask('转交家庭负责人', '转交后你将成为普通家庭成员。账本所有权不会随之变更。', async () =>
-                      mutate('/owner', 'PUT', { userId }, '家庭负责人已转交'),
-                    );
-                  }}
-                >
-                  <label>
-                    {tr('新负责人')}
-                    <FormSelect
-                      name="userId"
-                      disabled={!detail.members.some(m => m.id !== userId && !m.disabled)}
+              <div className={s.details}>
+                <h3>{owner ? tr('转交或解散家庭') : tr('退出家庭')}</h3>
+                {owner ? (
+                  <>
+                    <form
+                      className={s.form}
+                      onSubmit={e => {
+                        e.preventDefault();
+                        const userId = String(new FormData(e.currentTarget).get('userId'));
+                        ask('转交家庭负责人', '转交后你将成为普通家庭成员。账本所有权不会随之变更。', async () =>
+                          mutate('/owner', 'PUT', { userId }, '家庭负责人已转交'),
+                        );
+                      }}
                     >
-                      {detail.members
-                        .filter(m => m.id !== userId && !m.disabled)
-                        .map(m => (
-                          <option key={m.id} value={m.id} data-icon={participantAvatar(m.avatar)}>
-                            {m.name}
-                          </option>
-                        ))}
-                    </FormSelect>
-                  </label>
+                      <label>
+                        {tr('新负责人')}
+                        <FormSelect
+                          name="userId"
+                          disabled={!detail.members.some(m => m.id !== userId && !m.disabled)}
+                        >
+                          {detail.members
+                            .filter(m => m.id !== userId && !m.disabled)
+                            .map(m => (
+                              <option key={m.id} value={m.id} data-icon={participantAvatar(m.avatar)}>
+                                {m.name}
+                              </option>
+                            ))}
+                        </FormSelect>
+                      </label>
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        disabled={busy || !detail.members.some(m => m.id !== userId && !m.disabled)}
+                      >
+                        {tr('转交家庭')}
+                      </Button>
+                    </form>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        ask(
+                          '解散家庭',
+                          '解散后家庭成员关系与邀请将移除。所有账号、账本、账目和账本授权保留。',
+                          async () => mutate('', 'DELETE', undefined, '家庭已解散，账本和账号保留'),
+                        )
+                      }
+                    >
+                      {tr('解散家庭')}
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    type="submit"
                     variant="secondary"
-                    disabled={busy || !detail.members.some(m => m.id !== userId && !m.disabled)}
+                    disabled={busy}
+                    onClick={() =>
+                      ask(
+                        '退出家庭',
+                        '你的账号和账本保留，名下账本会解除家庭关联；已有账本访问权限需单独管理。',
+                        async () => mutate('/members', 'DELETE', { userId }, '已退出家庭'),
+                      )
+                    }
                   >
-                    {tr('转交家庭')}
+                    {tr('退出家庭')}
                   </Button>
-                </form>
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() =>
-                    ask(
-                      '解散家庭',
-                      '解散后家庭成员关系与邀请将移除。所有账号、账本、账目和账本授权保留。',
-                      async () => mutate('', 'DELETE', undefined, '家庭已解散，账本和账号保留'),
-                    )
-                  }
-                >
-                  {tr('解散家庭')}
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  ask(
-                    '退出家庭',
-                    '你的账号和账本保留，名下账本会解除家庭关联；已有账本访问权限需单独管理。',
-                    async () => mutate('/members', 'DELETE', { userId }, '已退出家庭'),
-                  )
-                }
+                )}
+              </div>
+            </Card>
+          )}
+          {inviteOpen && owner && (
+            <Sheet
+              open
+              closeLabel={tr('关闭弹窗')}
+              title={tr('邀请成员')}
+              onClose={() => {
+                if (!busy) setInviteOpen(false);
+              }}
+            >
+              <form
+                className={s.form}
+                onSubmit={e => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const username = String(new FormData(form).get('username'));
+                  ask('发送邀请', tr('邀请 {0} 加入家庭？', [username]), async () => {
+                    await mutate('/invitations', 'POST', { username }, '邀请已发送，等待对方登录后接受');
+                    form.reset();
+                    setInviteOpen(false);
+                  });
+                }}
               >
-                {tr('退出家庭')}
-              </Button>
-            )}
-          </details>
+                <Field label={tr('邀请已有账号')}>
+                  {control => (
+                    <Input
+                      {...control}
+                      name="username"
+                      placeholder={tr('输入登录账号')}
+                      required
+                      maxLength={80}
+                    />
+                  )}
+                </Field>
+                <Button type="submit" variant="primary" disabled={busy}>
+                  {tr('发送邀请')}
+                </Button>
+              </form>
+            </Sheet>
+          )}
         </>
       )}
 

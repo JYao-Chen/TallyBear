@@ -1,6 +1,6 @@
 'use client';
 import { FormSelect } from './FormSelect';
-import { Button, Card, Field, Input, ListRow, ConfirmDialog } from '@/ui';
+import { Button, Card, Field, Input, ListRow, ConfirmDialog, Sheet } from '@/ui';
 import styles from './CostProjects.module.css';
 import shared from './WorkspacePlans.module.css';
 import { Discussion } from './Discussion';
@@ -563,22 +563,34 @@ export function CostProjects({
         </>
       )}
       {plan && (
-        <form
-          noValidate
-          onSubmit={e => {
-            e.preventDefault();
-            if (step < 2) {
-              const invalid = Array.from(
-                e.currentTarget.querySelectorAll<HTMLInputElement>('input,select,textarea'),
-              ).find(input => input.getClientRects().length && !input.checkValidity());
-              if (invalid) {
-                invalid.reportValidity();
-                return;
-              }
-              setStep(step + 1);
-            } else if (preview) void save();
+        <Sheet
+          open
+          wide
+          title={selected ? tr('编辑费用项目') : tr('新建费用项目')}
+          closeLabel={tr('关闭弹窗')}
+          onClose={() => {
+            if (!busy) {
+              setPlan(null);
+              setPicker(null);
+            }
           }}
         >
+          <form
+            noValidate
+            onSubmit={e => {
+              e.preventDefault();
+              if (step < 2) {
+                const invalid = Array.from(
+                  e.currentTarget.querySelectorAll<HTMLInputElement>('input,select,textarea'),
+                ).find(input => input.getClientRects().length && !input.checkValidity());
+                if (invalid) {
+                  invalid.reportValidity();
+                  return;
+                }
+                setStep(step + 1);
+              } else if (preview) void save();
+            }}
+          >
           <fieldset disabled={busy}>
             <ol className={styles.costSteps} aria-label={tr('设置进度')}>
               {[tr('原始账单'), tr('期间与成员'), tr('核对确认')].map((label, i) => (
@@ -1139,6 +1151,7 @@ export function CostProjects({
             </div>
           </fieldset>
         </form>
+        </Sheet>
       )}
       {selected && !plan && (
         <>

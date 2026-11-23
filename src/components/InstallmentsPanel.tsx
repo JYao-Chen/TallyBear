@@ -57,6 +57,165 @@ async function api(body?: unknown) {
   if (!r.ok) throw new Error(d.error);
   return d;
 }
+function InstallmentPlanCard({
+  p,
+  busy,
+  onOpenPlan,
+  onConfirm,
+}: {
+  p: Plan;
+  busy: boolean;
+  onOpenPlan: (p: Plan, mode: 'pay' | 'schedule') => void;
+  onConfirm: (next: { message: string; body: unknown }) => void;
+}) {
+  const { t: tr } = useI18n();
+  const [panel, setPanel] = useState<'' | 'dues' | 'payments'>('');
+  const completed = p.dues.filter(d => d.remaining === 0).length;
+  const nextDue = p.dues.find(d => d.remaining > 0);
+  return (
+    <article className={styles.installmentCard}>
+      <ListRow
+        title={p.name}
+        meta={
+          <>
+            {p.account_name} · {p.owner_name}
+          </>
+        }
+        end={<Money value={p.remaining} />}
+        endMeta={p.remaining ? tr('剩余本金') : tr('本金已结清')}
+      />
+      <div className={styles.progressLabel}>
+        <span>{p.remaining ? tr('还款中') : tr('本金已结清')}</span>
+        <span>
+          {tr('已还期数')} {completed} / {p.dues.length}
+        </span>
+      </div>
+      <progress
+        className={styles.progress}
+        aria-label={tr('已还期数')}
+        max={p.dues.length || 1}
+        value={completed}
+      />
+      {nextDue && (
+        <small>
+          {tr('下次还款日')} {nextDue.date}
+        </small>
+      )}
+      <small>
+        {tr('原始本金')} {formatMoney(p.principal)} · {tr('已退回负债账户')} {formatMoney(p.refunded)}
+      </small>
+      <div className={shared.actions}>
+        <Button variant="primary" size="sm" onClick={() => onOpenPlan(p, 'pay')}>
+          <ArrowRightLeft size={16} />
+          {tr('登记还款')}
+        </Button>
+        {p.remaining > 0 && (
+          <Button variant="secondary" size="sm" onClick={() => onOpenPlan(p, 'schedule')}>
+            {tr('调整后续计划')}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={panel === 'dues'}
+          onClick={() => setPanel(panel === 'dues' ? '' : 'dues')}
+        >
+          {tr('还款计划')}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={panel === 'payments'}
+          onClick={() => setPanel(panel === 'payments' ? '' : 'payments')}
+        >
+          {tr('实际还款记录')} · {p.payments.length}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy}
+          onClick={() =>
+            onConfirm({
+              message: '仅移除分期计划，原消费和费用分摊仍然保留。',
+              body: { operation: 'delete', id: p.id, version: p.version },
+            })
+          }
+        >
+          {tr('移除计划')}
+        </Button>
+      </div>
+      {panel === 'dues' && (
+        <div className={styles.installmentDues}>
+          <PagedList items={p.dues.filter(d => d.remaining > 0)}>
+            {(d, i) => (
+              <div className={shared.pair} key={i}>
+                <span>
+                  <CalendarDays size={15} /> {d.date}
+                  {d.date < today() && <small className={shared.expense}> {tr('待核对')}</small>}
+                </span>
+                <span>
+                  {formatMoney(d.remaining)}
+                  <small>
+                    {' '}
+                    + {formatMoney(d.fee)} {tr('预计费用')}
+                  </small>
+                </span>
+              </div>
+            )}
+          </PagedList>
+          {!p.remaining && (
+            <p>
+              <CheckCircle2 size={16} /> {tr('后续本金无需再还，费用以实际结清账单为准。')}
+            </p>
+          )}
+        </div>
+      )}
+      {panel === 'payments' && (
+        <div className={styles.installmentDues}>
+          {p.payments.length ? (
+            <PagedList items={p.payments}>
+              {r => (
+                <div className={styles.installmentPayment} key={r.id}>
+                  <div>
+                    {r.date}
+                    <small>
+                      {tr('本金')} {formatMoney(r.principal)} · {tr('费用')} {formatMoney(r.fee)}
+                    </small>
+                  </div>
+                  {r.voided ? (
+                    <span>{tr('已撤销')}</span>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => {
+                        onConfirm({
+                          message: '撤销后恢复钱包和负债余额，是否继续？',
+                          body: {
+                            operation: 'void',
+                            id: p.id,
+                            version: p.version,
+                            paymentId: r.id,
+                          },
+                        });
+                      }}
+                    >
+                      {tr('撤销还款')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </PagedList>
+          ) : (
+            <p className={shared.muted}>{tr('尚无实际还款')}</p>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export function InstallmentsPanel({
   book,
   books,
@@ -260,155 +419,17 @@ export function InstallmentsPanel({
         <EmptyState title={tr('还没有分期计划')}>{tr('使用负债账户记录购买，再按实际金额还款。')}</EmptyState>
       ) : (
         <div className={styles.installmentList}>
-          {
-            <PagedList items={active} resetKey={scope}>
-              {p => {
-                const completed = p.dues.filter(d => d.remaining === 0).length;
-                const nextDue = p.dues.find(d => d.remaining > 0);
-                return (
-                  <article key={p.id} className={styles.installmentCard}>
-                    <ListRow
-                      title={p.name}
-                      meta={
-                        <>
-                          {p.account_name} · {p.owner_name}
-                        </>
-                      }
-                      end={<Money value={p.remaining} />}
-                      endMeta={p.remaining ? tr('剩余本金') : tr('本金已结清')}
-                    />
-                    <div className={styles.progressLabel}>
-                      <span>{p.remaining ? tr('还款中') : tr('本金已结清')}</span>
-                      <span>
-                        {tr('已还期数')} {completed} / {p.dues.length}
-                      </span>
-                    </div>
-                    <progress
-                      className={styles.progress}
-                      aria-label={tr('已还期数')}
-                      max={p.dues.length || 1}
-                      value={completed}
-                    />
-                    {nextDue && (
-                      <small>
-                        {tr('下次还款日')} {nextDue.date}
-                      </small>
-                    )}
-                    <small>
-                      {tr('原始本金')} {formatMoney(p.principal)} · {tr('已退回负债账户')}{' '}
-                      {formatMoney(p.refunded)}
-                    </small>
-                    <div className={shared.actions}>
-                      <Button variant="primary" onClick={() => openPlan(p, 'pay')}>
-                        <ArrowRightLeft size={16} />
-                        {tr('登记还款')}
-                      </Button>
-                      {p.remaining > 0 && (
-                        <Button variant="secondary" onClick={() => openPlan(p, 'schedule')}>
-                          {tr('调整后续计划')}
-                        </Button>
-                      )}
-                    </div>
-                    <details>
-                      <summary>
-                        <ChevronDown size={16} aria-hidden />
-                        {tr('查看还款计划')}
-                      </summary>
-                      <div className={styles.installmentDues}>
-                        {
-                          <PagedList items={p.dues.filter(d => d.remaining > 0)}>
-                            {(d, i) => (
-                              <div className={shared.pair} key={i}>
-                                <span>
-                                  <CalendarDays size={15} /> {d.date}
-                                  {d.date < today() && (
-                                    <small className={shared.expense}> {tr('待核对')}</small>
-                                  )}
-                                </span>
-                                <span>
-                                  {formatMoney(d.remaining)}
-                                  <small>
-                                    {' '}
-                                    + {formatMoney(d.fee)} {tr('预计费用')}
-                                  </small>
-                                </span>
-                              </div>
-                            )}
-                          </PagedList>
-                        }
-                        {!p.remaining && (
-                          <p>
-                            <CheckCircle2 size={16} /> {tr('后续本金无需再还，费用以实际结清账单为准。')}
-                          </p>
-                        )}
-                      </div>
-                    </details>
-                    <details>
-                      <summary>
-                        <ChevronDown size={16} aria-hidden />
-                        {tr('实际还款记录')}
-                      </summary>
-                      {p.payments.length ? (
-                        <PagedList items={p.payments}>
-                          {r => (
-                            <div className={styles.installmentPayment} key={r.id}>
-                              <div>
-                                {r.date}
-                                <small>
-                                  {tr('本金')} {formatMoney(r.principal)} · {tr('费用')} {formatMoney(r.fee)}
-                                </small>
-                              </div>
-                              {r.voided ? (
-                                <span>{tr('已撤销')}</span>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() => {
-                                    setConfirmation({
-                                      message: '撤销后恢复钱包和负债余额，是否继续？',
-                                      body: {
-                                        operation: 'void',
-                                        id: p.id,
-                                        version: p.version,
-                                        paymentId: r.id,
-                                      },
-                                    });
-                                  }}
-                                >
-                                  {tr('撤销还款')}
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </PagedList>
-                      ) : (
-                        <p>{tr('尚无实际还款')}</p>
-                      )}
-                    </details>
-                    <details className={styles.contextDetails}>
-                      <summary>
-                        <ChevronDown size={16} aria-hidden />
-                        {tr('更多操作')}
-                      </summary>
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          setConfirmation({
-                            message: '仅移除分期计划，原消费和费用分摊仍然保留。',
-                            body: { operation: 'delete', id: p.id, version: p.version },
-                          });
-                        }}
-                      >
-                        {tr('移除计划')}
-                      </Button>
-                    </details>
-                  </article>
-                );
-              }}
-            </PagedList>
-          }
+          <PagedList items={active} resetKey={scope}>
+            {p => (
+              <InstallmentPlanCard
+                key={p.id}
+                p={p}
+                busy={busy}
+                onOpenPlan={openPlan}
+                onConfirm={setConfirmation}
+              />
+            )}
+          </PagedList>
         </div>
       )}
 

@@ -113,6 +113,7 @@ export function GlobalSearch({
   const { t: tr } = useI18n();
   const [revision, setRevision] = useState(0);
   const [open, setOpen] = useState(false),
+    [filtersOpen, setFiltersOpen] = useState(false),
     [scope, setScope] = useState('all'),
     [filter, setFilter] = useState({
       ...initial,
@@ -237,6 +238,19 @@ export function GlobalSearch({
     runSearch();
   }
   const set = (key: keyof typeof initial, value: string) => setFilter(f => ({ ...f, [key]: value }));
+  const activeFilterCount =
+    (scope !== 'all' ? 1 : 0) +
+    (account !== 'all' ? 1 : 0) +
+    (!selection && filter.entity !== 'all' ? 1 : 0) +
+    (filter.field !== 'all' ? 1 : 0) +
+    (filter.category ? 1 : 0) +
+    (!selection && filter.kind !== 'all' ? 1 : 0) +
+    (filter.from ? 1 : 0) +
+    (filter.to ? 1 : 0) +
+    (filter.min ? 1 : 0) +
+    (filter.max ? 1 : 0) +
+    (filter.amountScope !== 'order' ? 1 : 0) +
+    (!selection && filter.state !== 'active' ? 1 : 0);
   const groups = new Map<string, SearchResult[]>();
   for (const row of data?.rows || []) {
     const group = groups.get(row.entity);
@@ -295,10 +309,36 @@ export function GlobalSearch({
                   </Button>
                 </div>
                 <div className={s.toolbar}>
-                  <details className={s.filters}>
-                    <summary>
-                      <SlidersHorizontal size={16} /> {tr('筛选条件')}
-                    </summary>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    aria-expanded={filtersOpen}
+                    onClick={() => setFiltersOpen(v => !v)}
+                  >
+                    <SlidersHorizontal size={16} aria-hidden="true" />
+                    {tr('筛选条件')}
+                    {activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+                  </Button>
+                  <FormSelect
+                    aria-label={tr('搜索结果排序')}
+                    value={filter.sort}
+                    onChange={next => set('sort', next)}
+                  >
+                    {[
+                      ['relevance', '相关结果优先'],
+                      ['date_desc', '时间 · 从新到旧'],
+                      ['date_asc', '时间 · 从旧到新'],
+                      ['amount_desc', '金额 · 从高到低'],
+                      ['amount_asc', '金额 · 从低到高'],
+                    ].map(([value, zh]) => (
+                      <option key={value} value={value}>
+                        {tr(zh)}
+                      </option>
+                    ))}
+                  </FormSelect>
+                </div>
+                {filtersOpen && (
+                  <div className={s.filters}>
                     <div className={s.fields}>
                       <label>
                         {tr('搜索范围')}
@@ -429,25 +469,23 @@ export function GlobalSearch({
                           <option value="all">{tr('包含已删除交易')}</option>
                         </FormSelect>
                       </label>
-                      {
-                        <label>
-                          {tr('资金账户')}
-                          <FormSelect value={account} onChange={next => setAccount(next)}>
-                            <option value="all">{tr('全部账户')}</option>
-                            {accounts.map(a => (
-                              <option
-                                key={a.id}
-                                value={a.id}
-                                data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
-                              >
-                                {a.book_name} · {a.name}
-                                {a.holder ? ' · ' + a.holder : ''}
-                                {a.suffix ? ' · ' + a.suffix : ''}
-                              </option>
-                            ))}
-                          </FormSelect>
-                        </label>
-                      }
+                      <label>
+                        {tr('资金账户')}
+                        <FormSelect value={account} onChange={next => setAccount(next)}>
+                          <option value="all">{tr('全部账户')}</option>
+                          {accounts.map(a => (
+                            <option
+                              key={a.id}
+                              value={a.id}
+                              data-account={[a.institution, a.name, a.type].filter(Boolean).join(' ')}
+                            >
+                              {a.book_name} · {a.name}
+                              {a.holder ? ' · ' + a.holder : ''}
+                              {a.suffix ? ' · ' + a.suffix : ''}
+                            </option>
+                          ))}
+                        </FormSelect>
+                      </label>
                     </div>
                     <Button
                       variant="ghost"
@@ -471,25 +509,8 @@ export function GlobalSearch({
                         '空格分隔多个关键词时须全部命中；精确匹配不区分英文字母大小写。日期、金额等条件只返回具有对应字段的内容。明细展示在所属订单下，不重复统计为一笔交易。',
                       )}
                     </p>
-                  </details>
-                  <FormSelect
-                    aria-label={tr('搜索结果排序')}
-                    value={filter.sort}
-                    onChange={next => set('sort', next)}
-                  >
-                    {[
-                      ['relevance', '相关结果优先'],
-                      ['date_desc', '时间 · 从新到旧'],
-                      ['date_asc', '时间 · 从旧到新'],
-                      ['amount_desc', '金额 · 从高到低'],
-                      ['amount_asc', '金额 · 从低到高'],
-                    ].map(([value, zh]) => (
-                      <option key={value} value={value}>
-                        {tr(zh)}
-                      </option>
-                    ))}
-                  </FormSelect>
-                </div>
+                  </div>
+                )}
               </form>
               <p className={s.muted}>
                 {tr('当前范围：')}
