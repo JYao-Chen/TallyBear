@@ -618,11 +618,11 @@ export function LineItemsEditor({
                 </Button>
               </div>
             ))}
-            <button type="button" onClick={photo}>
+            <Button type="button" variant="primary" onClick={photo}>
               {tr('合并识别 ·')}
               {photos.length}
               {tr('张')}
-            </button>
+            </Button>
           </div>
         )}
       </fieldset>

@@ -711,13 +711,14 @@ export function QuickEntry({
           {scene.purchaseGroup && (
             <p className={styles.muted}>
               {tr('已关联历史同款，可在全局搜索中查看同款购买。')}
-              <button
+              <Button
                 type="button"
-                className={styles.link}
+                variant="ghost"
+                size="sm"
                 onClick={() => setScene(s => ({ ...s, purchaseGroup: undefined }))}
               >
                 {tr('取消同款关联')}
-              </button>
+              </Button>
             </p>
           )}
           {saved && !onDraftChange && (
@@ -896,9 +897,9 @@ export function QuickEntry({
           {initial?.kind === 'expense' && claimLoadError && (
             <p className={styles.error} role="alert">
               {claimLoadError}{' '}
-              <button type="button" className={styles.link} onClick={() => setClaimRetry(v => v + 1)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setClaimRetry(v => v + 1)}>
                 {tr('重试加载消费对象')}
-              </button>
+              </Button>
             </p>
           )}
         </div>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from './LanguageProvider';
 import { FinanceChart } from './InteractiveFinanceChart';
+import { FormSelect } from './FormSelect';
 import { deployment, formatMoney } from '@/lib/deployment';
 export function CostReport({
   from,
@@ -88,10 +89,10 @@ export function CostReport({
       <div className="cost-toolbar">
         <label>
           {l('统计范围', 'Scope')}
-          <select
+          <FormSelect
             value={scope}
-            onChange={e => {
-              setScope(e.target.value);
+            onChange={v => {
+              setScope(v);
               setOffset(0);
             }}
           >
@@ -99,7 +100,7 @@ export function CostReport({
             <option value="shared">
               {l('参与项目总额（仅共享抵减）', 'Participating project totals (shared offsets only)')}
             </option>
-          </select>
+          </FormSelect>
         </label>
         <label>
           {l('搜索项目', 'Search projects')}

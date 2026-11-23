@@ -237,22 +237,22 @@ export function AllocationEditor({
           {tr(error)}
         </p>
       )}
-      <button
+      <Button
         type="button"
-        className="secondary"
+        variant="secondary"
         onClick={() =>
           window.dispatchEvent(new CustomEvent('open-cost-project', { detail: { id, amount: net, date } }))
         }
       >
         {copy('按人分担与关联收入抵减', 'Allocate costs & link income')}
-      </button>
+      </Button>
       <div className="sheet-actions">
-        <button type="button" disabled={busy || !ready || !end} onClick={() => save()}>
+        <Button type="button" variant="primary" disabled={busy || !ready || !end} onClick={() => save()}>
           {tr('保存分摊')}
-        </button>
-        <button type="button" className="secondary" disabled={busy || !ready} onClick={() => save(true)}>
+        </Button>
+        <Button type="button" variant="secondary" disabled={busy || !ready} onClick={() => save(true)}>
           {tr('取消分摊')}
-        </button>
+        </Button>
       </div>
     </details>
   );

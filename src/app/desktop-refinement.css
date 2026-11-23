@@ -10,8 +10,6 @@
 .calendar-days button[aria-pressed=true],.calendar-months button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);opacity:1}
 
 html{scrollbar-gutter:stable}
-.sheet-heading h2{overflow-wrap:anywhere}
-.sheet-content form{min-width:0}
 .choice-option:focus-visible{outline-offset:-3px}
 .choice-option:disabled{cursor:not-allowed}
 .choice-search .icon-button{flex:none}
@@ -26,30 +24,18 @@ html{scrollbar-gutter:stable}
  .workspace>header .header-tools{flex:0 1 auto;min-width:0;max-width:100%;gap:8px;justify-content:flex-end}
  .header-tools>button{min-height:44px}
  
- 
  .workspace main{width:100%;max-width:1600px;padding:28px clamp(20px,2.4vw,36px) 48px}
  .page-heading{flex-wrap:wrap;align-items:flex-start;gap:16px;margin-bottom:24px}
  .page-heading>div:first-child{flex:1 1 220px;min-width:0}
  .page-heading h1{font-size:clamp(24px,2.1vw,30px);overflow-wrap:anywhere}
  .page-heading>.inline{flex:0 1 auto;width:max-content;max-width:100%;gap:10px;align-items:stretch;flex-wrap:nowrap}
- 
  .page-heading>.inline>button{flex:none;white-space:nowrap}
- 
  .inline>button{max-width:100%;min-width:0;white-space:normal}
- 
- 
- 
- 
- 
- 
- /* Content-driven tracks prevent short cards from stretching or long labels from clipping. */
- 
- 
- 
+
  .metrics{gap:16px;margin-bottom:24px}
  .metrics>.metric{margin-bottom:0;min-height:155px}
  .metric>strong{font-size:clamp(24px,2.2vw,34px);line-height:1.35;clear:both}
- .metric>.bear{width:44px!important;height:44px!important}
+ .metric>.bear{width:44px;height:44px}
  .metric p{min-height:24px;margin-bottom:10px}
  .panel-title{align-items:flex-start}
  .panel-title h2{font-size:21px;line-height:1.5;flex:1 1 180px}
@@ -63,46 +49,18 @@ html{scrollbar-gutter:stable}
  .check {align-items:flex-start;line-height:1.6}
  .check input {margin-top:2px}
  .upload{background:var(--soft);color:var(--accent)}
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
  .rank{align-items:flex-start;gap:8px 16px}
  .rank>span{flex:1 1 140px}
  .rank>strong{flex:0 1 auto;max-width:100%;text-align:right}
  .transaction>strong {flex:0 1 auto;max-width:35%;white-space:normal;overflow-wrap:anywhere;text-align:right;line-height:1.5}
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
  .search-result>summary{flex-wrap:wrap}
  .search-result>summary>span{flex:1 1 220px}
  .search-result b{max-width:100%;overflow-wrap:anywhere}
  .detail-fields>div{grid-template-columns:100px minmax(0,1fr)}
  .detail-fields dt{overflow-wrap:anywhere}
- /* Dialogs stay centered; their bodies alone scroll, so close/actions remain reachable. */
- .detail-sheet[open]{inset:0;margin:auto;width:min(680px,calc(100vw - 48px));max-height:calc(100dvh - 48px);border-radius:20px}
- .detail-sheet.picker-sheet{width:min(440px,calc(100vw - 48px))}
- .detail-sheet.wide-sheet{width:min(960px,calc(100vw - 64px))}
- .detail-sheet .sheet-heading{padding:18px 24px}
- .sheet-content{padding:24px;scrollbar-gutter:stable}
- .picker-sheet .sheet-content{padding:8px 12px 14px}
- .sheet-actions{position:sticky;bottom:-24px;padding:16px 0 4px;border-top:1px solid var(--line);z-index:1;box-shadow:0 -8px 16px var(--surface)}
+ .sheet-actions{padding:16px 0 4px;border-top:1px solid var(--line)}
  .choice-option{min-height:48px;font-size:14px}
  /* The conversation fills the viewport instead of pushing its composer below the fold. */
  .chat-page{height:100dvh;overflow:hidden;min-height:0}
@@ -110,53 +68,16 @@ html{scrollbar-gutter:stable}
  .chat-page .workspace>header{flex:none}
  .chat-page .workspace>main{display:flex;flex-direction:column;flex:1;min-height:0;margin:0 auto;padding-bottom:20px}
  .chat-page .page-heading{flex:none;margin-bottom:16px}
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
 }
-@media(min-width:731px) and (max-width:1100px){
+@media(min-width:731px) and (max-width:960px){
  .workspace main{padding-inline:20px}
  .workspace>header{padding-inline:20px}
- 
- 
- 
- 
- 
  .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
  .metric{padding:18px 14px}
- 
- 
- 
- 
- 
 }
 @media(min-width:731px) and (max-height:760px){
  .chat-page .page-heading{display:none}
  .chat-page .workspace>main{padding-top:16px}
- 
- 
 }
 
 /* Metadata labels remain intact; long values have their own flexible column. */

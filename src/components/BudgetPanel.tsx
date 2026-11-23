@@ -4,8 +4,9 @@ import { Button, Card, ConfirmDialog, EmptyState, Input, Money, Stat, Sheet } fr
 import { PagedList } from './PagedList';
 import { formatMoney } from '@/lib/deployment';
 import { useI18n } from './LanguageProvider';
-import { VisualSelect } from './VisualSelect';
-import { useEffect, useState } from 'react';
+import { CategoryIcons } from './VisualSelect';
+import { CategoryPicker } from './CategoryPicker';
+import { useContext, useEffect, useState } from 'react';
 import { Plus, ChevronRight } from 'lucide-react';
 
 import { TransactionList } from './TransactionList';
@@ -150,12 +151,21 @@ export function BudgetPanel({
   onDelete: (category: string) => Promise<void>;
 }) {
   const { t: tr, locale } = useI18n();
+  const categoryIcons = useContext(CategoryIcons);
   const [editing, setEditing] = useState<Budget | null>(null),
     [open, setOpen] = useState(false),
     [selected, setSelected] = useState<Budget | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [budgetCategory, setBudgetCategory] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const budgetCategoryOptions = Array.from(
+    new Set([...(editing ? [editing.category] : []), ...categories, ...spending.map(s => s.name)]),
+  ).map(c => ({
+    value: c,
+    label: c,
+    icon: categoryIcons.find(ci => ci.name === c)?.icon,
+  }));
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
   const range = monthRange(month);
   const remainingDays = Math.max(
@@ -200,6 +210,7 @@ export function BudgetPanel({
             variant="ghost"
             onClick={() => {
               setEditing(null);
+              setBudgetCategory(categories[0] || spending[0]?.name || '');
               setOpen(true);
               setError('');
             }}
@@ -280,6 +291,7 @@ export function BudgetPanel({
           onClose={() => setSelected(null)}
           onEdit={() => {
             setEditing(selected);
+            setBudgetCategory(selected.category);
             setOpen(true);
             setError('');
           }}
@@ -307,7 +319,7 @@ export function BudgetPanel({
                 const amount = amountToCents(String(f.get('amount')));
                 void run(() =>
                   onSave({
-                    category: String(f.get('category')),
+                    category: budgetCategory,
                     amount,
                     ...(editing ? { previousCategory: editing.category } : {}),
                   }),
@@ -317,20 +329,16 @@ export function BudgetPanel({
               }
             }}
           >
-            <label>
-              {tr('分类')}
-              <VisualSelect
-                name="category"
-                defaultValue={editing?.category}
-                options={Array.from(
-                  new Set([
-                    ...(editing ? [editing.category] : []),
-                    ...categories,
-                    ...spending.map(s => s.name),
-                  ]),
-                ).map(c => ({ value: c, label: c }))}
+            <div>
+              <span className={s.muted}>{tr('分类')}</span>
+              <CategoryPicker
+                label={tr('分类')}
+                value={budgetCategory}
+                disabled={busy}
+                onChange={setBudgetCategory}
+                options={budgetCategoryOptions}
               />
-            </label>
+            </div>
             <label>
               {tr('预算金额（元）')}
               <Input

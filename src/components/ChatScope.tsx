@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { BookOpen, Check } from 'lucide-react';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
 import { useI18n } from './LanguageProvider';
 export function ChatScope({
   books,
@@ -29,14 +29,14 @@ export function ChatScope({
         <span>{label}</span>
       </button>
       {open && (
-        <Sheet title={t('分析范围')} onClose={() => setOpen(false)}>
+        <Sheet open closeLabel={t('关闭弹窗')} title={t('分析范围')} onClose={() => setOpen(false)}>
           <div className="scope-shortcuts">
-            <button type="button" className="secondary" onClick={() => onChange([current])}>
+            <Button type="button" variant="secondary" onClick={() => onChange([current])}>
               {t('当前账本')}
-            </button>
-            <button type="button" className="secondary" onClick={() => onChange(books.map(b => b.id))}>
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => onChange(books.map(b => b.id))}>
               {t('全部账本')}
-            </button>
+            </Button>
           </div>
           <div className="scope-books">
             {books.map(b => (
@@ -60,9 +60,9 @@ export function ChatScope({
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setOpen(false)}>
+          <Button type="button" variant="primary" onClick={() => setOpen(false)}>
             {t('完成')}
-          </button>
+          </Button>
         </Sheet>
       )}
     </>

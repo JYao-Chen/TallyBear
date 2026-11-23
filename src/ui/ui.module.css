@@ -330,6 +330,9 @@ button.listRow[aria-current='true'] .listRowEnd {
 .sheetWide {
   width: min(880px, calc(100vw - 32px));
 }
+.sheetPicker {
+  width: min(440px, calc(100vw - 32px));
+}
 .sheet::backdrop {
   background: color-mix(in srgb, var(--ink) 36%, transparent);
 }

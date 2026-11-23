@@ -2,7 +2,7 @@
 import { useI18n } from './LanguageProvider';
 import { useState, type ReactNode } from 'react';
 import { Check, Search, X } from 'lucide-react';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
 export type Choice = { value: string; label: string; disabled?: boolean; icon?: ReactNode };
 export function ChoicePicker({
   title,
@@ -25,7 +25,7 @@ export function ChoicePicker({
     o.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
   return (
-    <Sheet title={title} onClose={onClose} variant="picker">
+    <Sheet open closeLabel={tr('关闭弹窗')} title={title} onClose={onClose} picker>
       <div className="choice-picker">
         {options.length > 6 && (
           <div className="choice-search">
@@ -97,9 +97,9 @@ export function ChoicePicker({
           )}
         </div>
         {values && (
-          <button type="button" className="primary" onClick={onClose}>
+          <Button type="button" variant="primary" onClick={onClose}>
             {locale === 'en' ? 'Done' : '完成选择'}
-          </button>
+          </Button>
         )}
       </div>
     </Sheet>

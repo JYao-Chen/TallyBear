@@ -4,7 +4,7 @@ import { useI18n } from './LanguageProvider';
 import { formatMoney } from '@/lib/deployment';
 import { useEffect, useState } from 'react';
 import { ShieldCheck, Trash2 } from 'lucide-react';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
 import type { LedgerRow } from '@/lib/ledger-types';
 import { LIST_PAGE_SIZE } from '@/lib/pagination';
 export function AttentionRecords({
@@ -67,7 +67,12 @@ export function AttentionRecords({
         </button>
       </div>
       {mode && (
-        <Sheet title={mode === 'trash' ? tr('回收站') : tr('待核验记录')} onClose={() => setMode('')}>
+        <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
+          title={mode === 'trash' ? tr('回收站') : tr('待核验记录')}
+          onClose={() => setMode('')}
+        >
           <DetailSortSelect
             value={sort}
             onChange={v => {
@@ -75,7 +80,7 @@ export function AttentionRecords({
               setOffset(0);
             }}
           />
-          <p role="alert">{tr(error)}</p>
+          {error && <p role="alert">{tr(error)}</p>}
           {!rows.length && <p>{tr('暂无记录')}</p>}
           {rows.map(r => (
             <article className="job-card" key={r.id}>
@@ -92,8 +97,8 @@ export function AttentionRecords({
                 </p>
               )}
               {mode === 'trash' ? (
-                <button
-                  className="secondary"
+                <Button
+                  variant="secondary"
                   onClick={async () => {
                     setError('');
                     const response = await fetch(`/api/books/${book}/transactions`, {
@@ -110,27 +115,27 @@ export function AttentionRecords({
                   }}
                 >
                   {tr('恢复记录')}
-                </button>
+                </Button>
               ) : (
-                <button onClick={() => onSelect(r)}>{tr('打开核验')}</button>
+                <Button onClick={() => onSelect(r)}>{tr('打开核验')}</Button>
               )}
             </article>
           ))}
           <div className="inline">
-            <button
-              className="secondary"
+            <Button
+              variant="secondary"
               disabled={!offset}
               onClick={() => setOffset(n => Math.max(0, n - LIST_PAGE_SIZE))}
             >
               {tr('上一页')}
-            </button>
-            <button
-              className="secondary"
+            </Button>
+            <Button
+              variant="secondary"
               disabled={rows.length < LIST_PAGE_SIZE}
               onClick={() => setOffset(n => n + LIST_PAGE_SIZE)}
             >
               {tr('下一页')}
-            </button>
+            </Button>
           </div>
         </Sheet>
       )}

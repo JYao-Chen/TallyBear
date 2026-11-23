@@ -1,11 +1,5 @@
 /* Shared controls: text gets the flexible track; controls and icons keep their size. */
 
-.detail-sheet[open]{display:flex;flex-direction:column;overflow:hidden;margin:auto;min-width:0;max-height:85dvh;padding:0}
-.detail-sheet .sheet-heading{position:static;flex:none;margin:0;padding:16px 20px;border-bottom:1px solid var(--line);min-width:0;gap:12px}
-.sheet-heading h2{flex:1;min-width:0;line-height:1.4;font-size:20px}
-.sheet-content{min-height:0;overflow:auto;overscroll-behavior:contain;padding:20px;scroll-padding:16px;overflow-wrap:anywhere}
-.picker-sheet{width:min(480px,calc(100% - 32px))}
-.picker-sheet .sheet-content{padding:8px 12px 14px}
 .choice-search{display:flex;align-items:center;gap:10px;position:sticky;top:-8px;background:var(--surface);padding:8px 4px;z-index:1}
 .choice-search input{min-width:0;flex:1;width:100%;background:var(--paper);border-radius:12px;padding:10px 12px;font-size:16px}
 .choice-search>svg{flex:none;color:var(--muted)}
@@ -35,24 +29,13 @@
 @media(max-width:730px){
  .workspace>header{height:auto;min-height:64px}
  .header-tools{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,44px);gap:5px}
- 
- 
- 
- 
- 
- 
+
  .page-heading>.inline{flex-wrap:wrap;align-items:stretch}
  .page-heading>.inline>input{flex:1 1 150px;width:auto;min-width:0}
  .page-heading>.inline>button{flex:1 1 110px;padding-inline:12px}
  .welcome>div,.panel-title>div{min-width:0;flex:1}
  .welcome h2{overflow-wrap:anywhere}
  .panel-title>button{max-width:100%;white-space:normal}
- .detail-sheet[open]{inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:calc(100dvh - 12px - env(safe-area-inset-top));border-radius:20px 20px 0 0}
- .detail-sheet .sheet-grip{flex:none;margin:10px auto 0}
- .detail-sheet .sheet-heading{padding:10px 16px;min-height:62px}
- .sheet-heading h2{font-size:18px}
- .sheet-content{padding:16px 16px calc(20px + env(safe-area-inset-bottom));scroll-padding:16px}
- .picker-sheet .sheet-content{padding:8px 10px calc(16px + env(safe-area-inset-bottom))}
  .choice-option{min-height:54px;font-size:15px}
  
  .date-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -60,60 +43,23 @@
  input[type=date],input[type=month]{min-width:0;min-inline-size:0;max-width:100%;text-align:left;display:block;min-height:48px;padding:10px}
  input::-webkit-date-and-time-value{text-align:left}
  .inline>button{max-width:100%;white-space:normal}
- 
- 
- 
- 
- 
- 
+
  .transaction-row>strong{flex:0 1 auto;max-width:32%;font-size:13px;line-height:1.5}
- 
- .quick-entry>.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
- .quick-entry>.tabs button{padding:10px 4px;min-width:0}
- 
- 
- 
  .receipt>.panel-title,.receipt fieldset>.panel-title{align-items:flex-start}
  .receipt fieldset>.panel-title>strong{min-width:0;overflow-wrap:anywhere}
- 
- 
- 
- 
- 
- 
+
  .transaction-photos .panel-title>strong{font-size:14px}
  .life-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
  .life-photo-grid .photo-remove{min-height:44px;min-width:44px;top:0;right:0;background:color-mix(in srgb, var(--surface) 92%, transparent)}
  .image-queue{max-width:100%;overscroll-behavior-x:contain;padding-bottom:4px}
  .image-queue>a{flex:0 0 128px;min-width:0;overflow-wrap:anywhere;font-size:12px}
  .image-queue>a>span{display:block;margin-top:6px}
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
  .search-result>summary>span{min-width:0;flex:1 1 150px}
  .search-result b{max-width:100%;overflow-wrap:anywhere}
- 
- 
- 
- 
- 
- 
- html[data-keyboard] .detail-sheet[open]{bottom:var(--keyboard-inset,0px);max-height:calc(var(--visible-height,100dvh) - 12px)}
 }
-@media(max-width:360px){.workspace main{padding-left:10px;padding-right:10px}.panel{padding-inline:12px}.header-tools{gap:3px}.sheet-content{padding-inline:12px}.metric>strong{font-size:21px}}
+@media(max-width:360px){.workspace main{padding-left:10px;padding-right:10px}.panel{padding-inline:12px}.header-tools{gap:3px}.metric>strong{font-size:21px}}
 @media(hover:none){button{transition:none}}
 
-html[lang=en]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}html[lang=en] h1,html[lang=en] h2,html[lang=en] h3,html[lang=en] button,html[lang=en] input,html[lang=en] select,html[lang=en] textarea{font-family:inherit}html[lang=en] .panel-title{flex-wrap:wrap;gap:12px}html[lang=en] button{white-space:normal}html[lang=en] .header-tools{flex-wrap:wrap}@media(max-width:560px){html[lang=en] .page-heading{flex-wrap:wrap;gap:12px}}
+html[lang=en]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}html[lang=en] h1,html[lang=en] h2,html[lang=en] h3,html[lang=en] button,html[lang=en] input,html[lang=en] select,html[lang=en] textarea{font-family:inherit}html[lang=en] .panel-title{flex-wrap:wrap;gap:12px}html[lang=en] button{white-space:normal}html[lang=en] .header-tools{flex-wrap:wrap}@media(max-width:730px){html[lang=en] .page-heading{flex-wrap:wrap;gap:12px}}
 

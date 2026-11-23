@@ -597,7 +597,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
               {tr('密码')}
               <input name="password" type="password" autoComplete="current-password" required />
             </label>
-            <button disabled={busy}>{tr('登录')}</button>
+            <Button type="submit" variant="primary" disabled={busy}>
+              {tr('登录')}
+            </Button>
           </form>
           {error && (
             <p role="alert" className="error">
@@ -864,8 +866,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                 <div className="notice" role="status">
                   {tr(notice)}
                   {undo && (
-                    <button
-                      className="text-button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       disabled={busy}
                       onClick={() =>
                         run(async () => {
@@ -877,7 +880,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                       }
                     >
                       {tr('撤销删除')}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -957,7 +960,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                       <option value="private">{tr('私人账本')}</option>
                       <option value="shared">{tr('共享账本')}</option>
                     </FormSelect>
-                    <button disabled={busy}>{tr('创建账本')}</button>
+                    <Button type="submit" variant="primary" disabled={busy}>
+                      {tr('创建账本')}
+                    </Button>
                   </form>
                 </section>
               ) : dataLoading ? (
@@ -985,13 +990,14 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                         )}{' '}
                         {page === 'entry' && <Bear name="overalls" size={52} />}{' '}
                         {canWrite && page !== 'entry' && (
-                          <button
+                          <Button
+                            variant="primary"
                             className={pageStyles.headerEntry}
                             onClick={() => router.push(pathForPage('entry'), { scroll: false })}
                           >
                             <Plus size={17} />
                             {tr('记一笔')}
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -1018,15 +1024,16 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                           {activities.find(a => a.id === entryActivityId)?.name || tr('已选活动')}
                         </strong>
                       </span>
-                      <button
-                        className="text-button"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setEntryActivityId('');
                           manual.setValue(old => ({ ...old, activityId: null }));
                         }}
                       >
                         {tr('取消活动归属')}
-                      </button>
+                      </Button>
                     </div>
                   )}
                   {page === 'home' && (
@@ -1286,8 +1293,9 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                     {tr('草稿尚未同步：')}
                                     {[intake, photos, manual].find(d => d.error)?.error}
                                   </span>
-                                  <button
-                                    className={entryStyles.link}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() =>
                                       Promise.all([intake.flush(), photos.flush(), manual.flush()]).catch(e =>
                                         setError(e.message),
@@ -1295,15 +1303,16 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                     }
                                   >
                                     {tr('重试保存')}
-                                  </button>
-                                  <button
-                                    className={entryStyles.link}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() =>
                                       Promise.all([intake.reload(), photos.reload(), manual.reload()])
                                     }
                                   >
                                     {tr('用云端草稿替换当前输入')}
-                                  </button>
+                                  </Button>
                                 </>
                               ) : [intake, photos, manual].some(d => d.saving || d.dirty) ? (
                                 tr('正在保存草稿…')
@@ -1332,14 +1341,14 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                       manual.error ||
                                       tr('正在恢复未完成的记录…')}
                                   </p>
-                                  <button
-                                    className={entryStyles.secondary}
+                                  <Button
+                                    variant="secondary"
                                     onClick={() =>
                                       Promise.all([intake.reload(), photos.reload(), manual.reload()])
                                     }
                                   >
                                     {tr('重新读取草稿')}
-                                  </button>
+                                  </Button>
                                 </div>
                               ) : entryMode === 'ai' ? (
                                 drafts.length > 0 && !intakeOpen && !aiRunning ? (
@@ -1446,13 +1455,14 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                           {tr('图片')}
                                           {i + 1} · {img.name}
                                         </figcaption>
-                                        <button
-                                          className={entryStyles.link}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
                                           disabled={busy}
                                           onClick={() => setImages(a => a.filter((_, j) => i !== j))}
                                         >
                                           {tr('移除')}
-                                        </button>
+                                        </Button>
                                       </figure>
                                     ))}
                                   </div>
@@ -1485,12 +1495,12 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                                         </span>
                                       </div>
                                       <p>{tr(aiProgress)}</p>
-                                      <button
-                                        className={entryStyles.secondary}
+                                      <Button
+                                        variant="secondary"
                                         onClick={() => aiAbort.current?.abort()}
                                       >
                                         {tr('转到后台继续')}
-                                      </button>
+                                      </Button>
                                     </div>
                                   )}
                                   <Button

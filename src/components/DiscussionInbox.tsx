@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Avatar } from './ManagementPages';
 import { MessageCircle } from 'lucide-react';
 import { Discussion, discussionRequest } from './Discussion';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
 import { useI18n } from './LanguageProvider';
 import { formatMoney } from '@/lib/deployment';
 export function DiscussionInbox({
@@ -140,6 +140,8 @@ export function DiscussionInbox({
       )}
       {selected && (
         <Sheet
+          open
+          closeLabel={l('关闭弹窗', 'Close dialog')}
           title={selected.title}
           onClose={() => {
             if (!busy) setSelected(null);

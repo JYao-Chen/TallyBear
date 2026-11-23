@@ -757,14 +757,14 @@ function RuleEditor({
             ? ['delivery', 'dine_in', 'takeaway'].map(v => [v, profileValues[v][en ? 1 : 0]])
             : null;
     return choices ? (
-      <select required value={value} onChange={e => onChange(e.target.value)}>
+      <FormSelect required value={value} onChange={onChange}>
         <option value="">{t('请选择', 'Choose')}</option>
         {choices.map(([id, label]) => (
           <option key={id} value={id}>
             {label}
           </option>
         ))}
-      </select>
+      </FormSelect>
     ) : (
       <Input required maxLength={80} value={value} onChange={e => onChange(e.target.value)} />
     );
@@ -783,13 +783,13 @@ function RuleEditor({
         <legend>{t('当这些条件同时满足', 'When all these conditions match')}</legend>
         <label>
           {t('收支类型', 'Transaction type')}
-          <select
+          <FormSelect
             value={rule.condition.kind}
-            onChange={e => condition({ kind: e.target.value as 'expense' | 'income' })}
+            onChange={v => condition({ kind: v as 'expense' | 'income' })}
           >
             <option value="expense">{t('支出', 'Expense')}</option>
             <option value="income">{t('收入', 'Income')}</option>
-          </select>
+          </FormSelect>
         </label>
         {Object.entries(rule.condition.fields).map(([f, v]) => (
           <div className={styles.portraitRuleCondition} key={f}>
@@ -815,9 +815,11 @@ function RuleEditor({
         ))}
         <label>
           {t('增加场景条件', 'Add a condition')}
-          <select
+          <FormSelect
             value=""
-            onChange={e => condition({ fields: { ...rule.condition.fields, [e.target.value]: '' } })}
+            onChange={v => {
+              if (v) condition({ fields: { ...rule.condition.fields, [v]: '' } });
+            }}
           >
             <option value="">{t('选择一个字段', 'Choose a field')}</option>
             {preferenceFields
@@ -827,14 +829,14 @@ function RuleEditor({
                   {fieldName(f)}
                 </option>
               ))}
-          </select>
+          </FormSelect>
         </label>
         <div className={styles.portraitFormGrid}>
           <label>
             {t('日期类型', 'Day type')}
-            <select
+            <FormSelect
               value={rule.condition.dayType || ''}
-              onChange={e => condition({ dayType: (e.target.value as any) || undefined })}
+              onChange={v => condition({ dayType: (v as any) || undefined })}
             >
               <option value="">{t('不限', 'Any')}</option>
               {['weekday', 'weekend'].map(v => (
@@ -842,13 +844,13 @@ function RuleEditor({
                   {profileValues[v][en ? 1 : 0]}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </label>
           <label>
             {t('消费时段', 'Purchase time')}
-            <select
+            <FormSelect
               value={rule.condition.timeBand || ''}
-              onChange={e => condition({ timeBand: (e.target.value as any) || undefined })}
+              onChange={v => condition({ timeBand: (v as any) || undefined })}
             >
               <option value="">{t('不限', 'Any')}</option>
               {['overnight', 'morning', 'midday', 'afternoon', 'evening'].map(v => (
@@ -856,13 +858,13 @@ function RuleEditor({
                   {profileValues[v][en ? 1 : 0]}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </label>
           <label>
             {t('消费区域', 'Purchase area')}
-            <select
+            <FormSelect
               value={rule.condition.placeId || ''}
-              onChange={e => condition({ placeId: e.target.value || undefined })}
+              onChange={v => condition({ placeId: v || undefined })}
             >
               <option value="">{t('不限', 'Any')}</option>
               {resources.places.map(p => (
@@ -870,7 +872,7 @@ function RuleEditor({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </label>
         </div>
       </fieldset>
@@ -879,9 +881,9 @@ function RuleEditor({
         <div className={styles.portraitFormGrid}>
           <label>
             {t('建议字段', 'Field')}
-            <select
+            <FormSelect
               value={rule.field}
-              onChange={e => setRule({ ...rule, field: e.target.value as PreferenceField, value: '' })}
+              onChange={v => setRule({ ...rule, field: v as PreferenceField, value: '' })}
             >
               {preferenceFields
                 .filter(f => rule.condition.fields[f] === undefined)
@@ -890,7 +892,7 @@ function RuleEditor({
                     {fieldName(f)}
                   </option>
                 ))}
-            </select>
+            </FormSelect>
           </label>
           {rule.state !== 'disabled' && (
             <label>
@@ -900,13 +902,13 @@ function RuleEditor({
           )}
           <label>
             {t('规则状态', 'Rule state')}
-            <select
+            <FormSelect
               value={rule.state}
-              onChange={e =>
+              onChange={v =>
                 setRule({
                   ...rule,
-                  state: e.target.value as ProfileRule['state'],
-                  value: e.target.value === 'disabled' ? '' : rule.value,
+                  state: v as ProfileRule['state'],
+                  value: v === 'disabled' ? '' : rule.value,
                 })
               }
             >
@@ -915,7 +917,7 @@ function RuleEditor({
                   {profileValues[v][en ? 1 : 0]}
                 </option>
               ))}
-            </select>
+            </FormSelect>
           </label>
         </div>
       </fieldset>

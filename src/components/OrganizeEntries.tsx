@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FolderInput } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
-import { Sheet } from './Sheet';
+import { Button, Sheet } from '@/ui';
 import { VisualSelect } from './VisualSelect';
 import type { ManagedBook } from './ManagementPages';
 type Preview = { records: { id: string; version: number; kind: string; title: string; deleted: boolean }[] };
@@ -72,9 +72,9 @@ export function OrganizeEntries({
   }
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="secondary"
+        variant="secondary"
         disabled={disabled || !ids.length}
         onClick={() => {
           setOperation('move');
@@ -85,13 +85,29 @@ export function OrganizeEntries({
         <FolderInput size={18} />
         {tr('整理账单')}
         {ids.length > 1 ? ` · ${ids.length}` : ''}
-      </button>
+      </Button>
       {open && (
         <Sheet
+          open
+          closeLabel={tr('关闭弹窗')}
           title={tr('整理账单')}
           onClose={() => {
             if (!busy) setOpen(false);
           }}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
+                {tr('取消')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={busy || !preview || (operation !== 'delete' && !target)}
+                onClick={save}
+              >
+                {busy ? tr('正在处理…') : tr('确认处理')}
+              </Button>
+            </>
+          }
         >
           <div className="organize-options" role="group" aria-label={tr('整理方式')}>
             {[
@@ -168,14 +184,6 @@ export function OrganizeEntries({
               {tr(error)}
             </p>
           )}
-          <div className="sheet-actions">
-            <button className="secondary" disabled={busy} onClick={() => setOpen(false)}>
-              {tr('取消')}
-            </button>
-            <button disabled={busy || !preview || (operation !== 'delete' && !target)} onClick={save}>
-              {busy ? tr('正在处理…') : tr('确认处理')}
-            </button>
-          </div>
         </Sheet>
       )}
     </>

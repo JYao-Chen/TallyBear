@@ -1,5 +1,6 @@
 'use client';
 import { Button, Input, ListRow, Select, Sheet, TextArea } from '@/ui';
+import { FormSelect } from './FormSelect';
 import styles from './MemoryCenter.module.css';
 import { useConfirmation } from '@/ui/useConfirmation';
 import { useI18n } from './LanguageProvider';
@@ -589,10 +590,10 @@ export function MemoryWorkspace({
                     <>
                       <label>
                         {tr('适用范围')}
-                        <select value={ruleScope} onChange={e => setRuleScope(e.target.value)}>
+                        <FormSelect value={ruleScope} onChange={setRuleScope}>
                           <option value="product">{tr('仅此商品')}</option>
                           <option value="merchant">{tr('该商家的消费')}</option>
-                        </select>
+                        </FormSelect>
                       </label>
                       <label>
                         {tr('匹配的商品／商家名称')}
@@ -620,10 +621,10 @@ export function MemoryWorkspace({
                     </summary>
                     <label>
                       {tr('对象类型')}
-                      <select
+                      <FormSelect
                         value={referenceType}
-                        onChange={e => {
-                          setReferenceType(e.target.value);
+                        onChange={v => {
+                          setReferenceType(v);
                           setReferenceId('');
                           setReferencePage(1);
                         }}
@@ -631,7 +632,7 @@ export function MemoryWorkspace({
                         <option value="activity">{tr('活动')}</option>
                         <option value="schedule">{tr('周期计划')}</option>
                         <option value="template">{tr('常用预设')}</option>
-                      </select>
+                      </FormSelect>
                     </label>
                     <label>
                       {tr('搜索对象')}
@@ -645,14 +646,14 @@ export function MemoryWorkspace({
                     </label>
                     <label>
                       {tr('选择关联对象')}
-                      <select value={referenceId} onChange={e => setReferenceId(e.target.value)}>
+                      <FormSelect value={referenceId} onChange={setReferenceId}>
                         <option value="">{tr('不关联')}</option>
                         {references.map(r => (
                           <option key={r.id} value={r.id}>
                             {r.name}
                           </option>
                         ))}
-                      </select>
+                      </FormSelect>
                     </label>
                     <div className={styles.memoryActions}>
                       <Button
@@ -820,14 +821,14 @@ export function MemoryWorkspace({
                         </label>
                         <label>
                           {tr('选择目标商品')}
-                          <select value={target} onChange={e => setTarget(e.target.value)}>
+                          <FormSelect value={target} onChange={setTarget}>
                             <option value="">{tr('请选择')}</option>
                             {targets.map(m => (
                               <option key={m.id} value={m.id}>
                                 {m.title}
                               </option>
                             ))}
-                          </select>
+                          </FormSelect>
                         </label>
                         <Button
                           variant="primary"
@@ -922,11 +923,11 @@ function MemoryModels() {
       </p>
       <label>
         {tr('用途')}
-        <select value={role} onChange={e => setRole(e.target.value)}>
+        <FormSelect value={role} onChange={setRole}>
           <option value="embedding">{tr('向量嵌入')}</option>
           <option value="extraction">{tr('记忆提炼')}</option>
           <option value="judgment">{tr('候选判别')}</option>
-        </select>
+        </FormSelect>
       </label>
       <form
         key={role + String(cfg?.version)}
