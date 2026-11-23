@@ -1056,6 +1056,8 @@ export default function Workspace({ children }: { children?: ReactNode }) {
                         )}
                         <MonthCard
                           month={month}
+                          cashMonth={today().slice(0, 7)}
+                          revision={revision}
                           income={monthlyReport?.totals.income || 0}
                           netExpense={
                             (monthlyReport?.totals.expense || 0) - (monthlyReport?.totals.refund || 0)

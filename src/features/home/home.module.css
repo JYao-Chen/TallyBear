@@ -115,6 +115,15 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
 }
+.cashBasis {
+  display: block;
+  color: inherit;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+.cashBasis span {
+  display: block;
+}
 .pairs strong {
   font-family: var(--font-number);
   font-variant-numeric: tabular-nums;

@@ -158,7 +158,11 @@ export function SpendingAnalysis(props: Props) {
         [
           [tr('当期净支出'), expense, s.expense],
           [tr('收入'), income, s.income],
-          [tr(locale === 'en' ? 'Income less expenses' : '收支结余'), income - expense, ''],
+          [
+            tr(mode === 'personal_expense' ? '收支结余（个人费用口径）' : '收支结余（账本口径）'),
+            income - expense,
+            '',
+          ],
         ] as const
       ).map(([label, value, cls]) => (
         <Stat key={label} label={label}>
