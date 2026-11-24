@@ -259,7 +259,7 @@ export function StickerPicker({ value, onChange }: { value: string; onChange: (v
             aria-pressed={value === 'sticker:' + id}
             onClick={() => onChange('sticker:' + id)}
           >
-            <SymbolIcon icon={'sticker:' + id} size={58} />
+            <SymbolIcon icon={'sticker:' + id} size={52} />
             <small>{id}</small>
           </button>
         ))}
