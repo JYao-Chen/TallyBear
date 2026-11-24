@@ -175,6 +175,7 @@ export async function executeJob(job: any) {
         profileContext: b.profileContext,
         deviceTime: b.deviceTime,
         useHistory: b.useHistory,
+        thinking: b.thinking === true,
         language: b.language,
         book: job.book_id,
         user,

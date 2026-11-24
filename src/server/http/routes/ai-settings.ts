@@ -16,7 +16,7 @@ export function settingsRoutes(assistant: boolean): Route[] {
       auth: 'admin',
       handler: async () => {
         const { rows } = await db.query(
-          `SELECT base_url AS "baseUrl",model,vision_model AS "visionModel",true AS "hasKey" FROM ${table} WHERE id=1`,
+          `SELECT base_url AS "baseUrl",model,vision_model AS "visionModel",thinking_enabled AS "thinkingEnabled",true AS "hasKey" FROM ${table} WHERE id=1`,
         );
         return NextResponse.json(rows[0] || {});
       },
@@ -35,13 +35,14 @@ export function settingsRoutes(assistant: boolean): Route[] {
             model: name,
             visionModel: name,
             key: z.string().max(500).optional(),
+            thinkingEnabled: z.boolean().default(false),
           })
           .parse(body);
         const old = (await db.query(`SELECT encrypted_key FROM ${table} WHERE id=1`)).rows[0];
         if (!b.key && !old) throw new Failure('首次配置需要填写API Key');
         await db.query(
-          `INSERT INTO ${table} VALUES(1,$1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET base_url=$1,model=$2,vision_model=$3,encrypted_key=$4`,
-          [b.baseUrl, b.model, b.visionModel, b.key ? encrypt(b.key) : old.encrypted_key],
+          `INSERT INTO ${table}(id,base_url,model,vision_model,encrypted_key,thinking_enabled) VALUES(1,$1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET base_url=$1,model=$2,vision_model=$3,encrypted_key=$4,thinking_enabled=$5`,
+          [b.baseUrl, b.model, b.visionModel, b.key ? encrypt(b.key) : old.encrypted_key, b.thinkingEnabled],
         );
         return NextResponse.json({ ok: true });
       },

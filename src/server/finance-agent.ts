@@ -595,6 +595,7 @@ type FinanceToolContext = {
   analysisBooks?: string[];
   deviceTime?: string;
   useHistory?: boolean;
+  thinking?: boolean;
   language?: 'en' | 'zh-CN';
   book: string;
   user: User;
@@ -963,6 +964,7 @@ export async function executeFinanceTool(
         { deviceTime: ctx.deviceTime, text: b.text, images, useHistory: false, language: ctx.language },
         {
           signal: ctx.signal,
+          thinking: ctx.thinking === true,
           checkpoint: receiptCheckpoint(ctx, usePrevious),
           onStage: s => ctx.emit?.('status', s),
         },
@@ -1037,6 +1039,7 @@ export async function executeFinanceTool(
         },
         {
           signal: ctx.signal,
+          thinking: ctx.thinking === true,
           checkpoint: receiptCheckpoint(ctx, usePrevious),
           onStage: s => ctx.emit?.('status', s),
           onReasoning: delta => {
@@ -1283,6 +1286,7 @@ export type FinanceContext = {
   previousActions?: ChatAction[];
   deviceTime?: string;
   useHistory?: boolean;
+  thinking?: boolean;
   language?: 'en' | 'zh-CN';
   book: string;
   user: User;
@@ -1605,6 +1609,7 @@ Help complete forms conversationally: entries, recurring subscriptions, presets,
               artifacts.thinking = updateThinking(artifacts.thinking, event);
               ctx.emit('thinking', event);
             },
+            ctx.thinking === true,
           );
           completed = true;
         } finally {

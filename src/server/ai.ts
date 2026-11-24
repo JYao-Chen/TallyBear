@@ -10,7 +10,19 @@ export type ModelProgress = {
   onStage?: (stage: string) => void;
   onDelta?: (text: string) => void;
   signal?: AbortSignal;
+  thinking?: boolean;
 };
+
+export function thinkingRequestParams(
+  baseUrl: string,
+  model: string,
+  enabled: boolean,
+): Record<string, unknown> {
+  if (baseUrl.includes('aliyuncs.com') || /^qwen/i.test(model)) return { enable_thinking: enabled };
+  if (baseUrl.includes('api.openai.com') || /^(gpt-5|gpt-6|o[134])/i.test(model))
+    return { reasoning_effort: enabled ? 'medium' : 'none' };
+  return { thinking: { type: enabled ? 'enabled' : 'disabled' } };
+}
 export type ModelScope = 'recognition' | 'assistant';
 const modelScope = new AsyncLocalStorage<ModelScope>();
 export function withModelScope<T>(scope: ModelScope, run: () => T) {
@@ -47,8 +59,13 @@ export async function callModel(prompt: string, image?: string | string[], progr
     );
   const imageCount = image ? (typeof image === 'string' ? 1 : image.length) : 0,
     timeout = imageCount ? Math.min(300000, 120000 + imageCount * 30000) : 120000,
+    selectedModel = imageCount ? cfg.vision_model : cfg.model,
+    thinking = progress.thinking ?? Boolean(cfg.thinking_enabled),
     lowReasoning =
-      imageCount && cfg.base_url.includes('dashscope.aliyuncs.com') && /^qwen3\.8/i.test(cfg.vision_model)
+      !thinking &&
+      imageCount &&
+      cfg.base_url.includes('dashscope.aliyuncs.com') &&
+      /^qwen3\.8/i.test(cfg.vision_model)
         ? { reasoning_effort: 'low' }
         : {};
   let response: Response;
@@ -57,7 +74,7 @@ export async function callModel(prompt: string, image?: string | string[], progr
       method: 'POST',
       headers: { Authorization: 'Bearer ' + decrypt(cfg.encrypted_key), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: imageCount ? cfg.vision_model : cfg.model,
+        model: selectedModel,
         messages: [
           {
             role: 'system',
@@ -80,6 +97,7 @@ export async function callModel(prompt: string, image?: string | string[], progr
           },
         ],
         temperature: 0.1,
+        ...thinkingRequestParams(cfg.base_url, selectedModel, thinking),
         ...lowReasoning,
         ...(progress.onDelta || progress.onReasoning ? { stream: true } : {}),
       }),
@@ -142,6 +160,7 @@ export async function chatCompletion(
   signal: AbortSignal,
   vision = false,
   onReasoning?: (s: string) => void,
+  thinking = false,
 ) {
   const cfg = await modelSettings();
   if (!cfg)
@@ -149,23 +168,25 @@ export async function chatCompletion(
       modelScope.getStore() === 'assistant' ? '请管理员先配置AI助手模型' : '请管理员先配置账单识别模型',
       409,
     );
+  const selectedModel = vision ? cfg.vision_model : cfg.model;
   const response = await fetch(cfg.base_url.replace(/\/$/, '') + '/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + decrypt(cfg.encrypted_key), 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: vision ? cfg.vision_model : cfg.model,
+      model: selectedModel,
       messages,
       tools,
       tool_choice: 'auto',
       stream: true,
       temperature: 0.2,
+      ...thinkingRequestParams(cfg.base_url, selectedModel, thinking),
     }),
     signal,
   });
   if (!response.ok)
     throw new Failure(`对话模型调用失败（HTTP ${response.status}），请确认模型支持工具调用`, 502);
   const message = await consumeChatResponse(response, onDelta, onReasoning);
-  return { message, model: vision ? cfg.vision_model : cfg.model };
+  return { message, model: selectedModel };
 }
 export async function consumeChatResponse(
   response: Response,

@@ -2876,5 +2876,11 @@
   "记忆详情": "Memory details",
   "来源依据": "Evidence & sources",
   "家庭成员 ({0})": "Members ({0})",
-  "家庭账本 ({0})": "Ledgers ({0})"
+  "家庭账本 ({0})": "Ledgers ({0})",
+  "开启思考模式": "Enable thinking mode",
+  "开启后，账单文字与截图识别将启用模型深度思考，复杂账单更准确但耗时略长。": "When enabled, receipt text and image recognition uses model deep thinking, improving complex receipts at slightly higher latency.",
+  "思考": "Think",
+  "已开启思考模式，点击关闭": "Thinking mode enabled; click to disable",
+  "点击开启思考模式": "Click to enable thinking mode",
+  "思考模式": "Thinking"
 }

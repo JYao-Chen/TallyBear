@@ -82,6 +82,29 @@
 .composerAttachmentStatus {
   color: var(--accent);
 }
+.composerToggle.composerToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.composerToggle.composerToggle:hover:not(:disabled) {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+.composerToggle.composerToggle[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .check {
   flex-direction: row;
   align-items: center;

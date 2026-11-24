@@ -777,6 +777,7 @@ export type ModelConfig = {
   visionModel: string;
   key: string;
   hasKey: boolean;
+  thinkingEnabled?: boolean;
 };
 
 export function ModelSettingsPanel({
@@ -817,7 +818,14 @@ export function ModelSettingsPanel({
       <ListRow
         leading={<Icon size={20} />}
         title={title}
-        end={<>{config.model || tr('尚未配置')} ›</>}
+        end={
+          <>
+            {config.model
+              ? config.model + (!assistant && config.thinkingEnabled ? ' · ' + tr('思考模式') : '')
+              : tr('尚未配置')}{' '}
+            ›
+          </>
+        }
         onClick={() => {
           setError('');
           setTested(false);
@@ -895,6 +903,21 @@ export function ModelSettingsPanel({
                 onChange={e => setDraft({ ...draft, key: e.target.value })}
               />
             </label>
+            {!assistant && (
+              <>
+                <label className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(draft.thinkingEnabled)}
+                    onChange={e => setDraft({ ...draft, thinkingEnabled: e.target.checked })}
+                  />
+                  {tr('开启思考模式')}
+                </label>
+                <small className={styles.muted}>
+                  {tr('开启后，账单文字与截图识别将启用模型深度思考，复杂账单更准确但耗时略长。')}
+                </small>
+              </>
+            )}
             <div className={styles.sheetActions}>
               <Button type="submit" variant="primary" disabled={busy}>
                 {tr(assistant ? '保存助手模型' : '保存识别模型')}

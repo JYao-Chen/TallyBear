@@ -127,8 +127,14 @@ export function FinanceChat({
   const { theme } = useTheme();
   const [profileContext, setProfileContext] = useState<ProfileContext>();
   const [useHistory, setUseHistory] = useState(true),
+    [thinking, setThinking] = useState(false),
     [uploading, setUploading] = useState(false),
     [showLatest, setShowLatest] = useState(false);
+  useEffect(() => {
+    try {
+      setThinking(localStorage.getItem('tallybear-chat-thinking') === '1');
+    } catch {}
+  }, []);
   const [list, setList] = useState<{ id: string; title: string; updated_at: string }[]>([]),
     [reports, setReports] = useState<Report[]>([]),
     [id, setId] = useState(''),
@@ -388,6 +394,7 @@ export function FinanceChat({
           profileContext: useHistory ? profileContext : undefined,
           deviceTime: deviceDateTime(),
           useHistory,
+          thinking,
           operation: 'send',
           actionId: replyAction?.id,
           id: current,
@@ -967,6 +974,13 @@ export function FinanceChat({
             onUploading={setUploading}
             useHistory={useHistory}
             onHistory={setUseHistory}
+            thinking={thinking}
+            onThinking={v => {
+              setThinking(v);
+              try {
+                localStorage.setItem('tallybear-chat-thinking', v ? '1' : '0');
+              } catch {}
+            }}
             onSend={() => send()}
             onBackground={() => abort.current?.abort()}
             onError={setError}

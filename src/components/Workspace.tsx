@@ -291,6 +291,7 @@ export default function Workspace({ children }: { children?: ReactNode }) {
     visionModel: '',
     key: '',
     hasKey: false,
+    thinkingEnabled: false,
   };
   const [config, setConfig] = useState<ModelConfig>(emptyModelConfig),
     [assistantConfig, setAssistantConfig] = useState<ModelConfig>(emptyModelConfig);

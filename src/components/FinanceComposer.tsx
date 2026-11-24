@@ -11,6 +11,7 @@ import {
   X,
   LoaderCircle,
   ArrowRight,
+  Brain,
 } from 'lucide-react';
 import { useI18n } from './LanguageProvider';
 import { uploadReceipt } from '@/lib/upload-receipt';
@@ -28,6 +29,8 @@ export function FinanceComposer({
   onUploading,
   useHistory,
   onHistory,
+  thinking,
+  onThinking,
   onSend,
   onBackground,
   onError,
@@ -46,6 +49,8 @@ export function FinanceComposer({
   onUploading: (v: boolean) => void;
   useHistory: boolean;
   onHistory: (v: boolean) => void;
+  thinking: boolean;
+  onThinking: (v: boolean) => void;
   onSend: () => void;
   onBackground: () => void;
   onError: (s: string) => void;
@@ -222,6 +227,20 @@ export function FinanceComposer({
                 {locationControl}
               </div>
             </details>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className={styles.composerToggle}
+              aria-pressed={thinking}
+              disabled={busy}
+              aria-label={tr('开启思考模式')}
+              title={tr(thinking ? '已开启思考模式，点击关闭' : '点击开启思考模式')}
+              onClick={() => onThinking(!thinking)}
+            >
+              <Brain size={16} aria-hidden="true" />
+              <span>{tr('思考')}</span>
+            </Button>
             {scopeControl}
             {(long || expanded) && (
               <Button

@@ -145,6 +145,7 @@ export async function financeChat(
       actionId: uuid.optional(),
       deviceTime: z.string().max(30).optional(),
       useHistory: z.boolean().default(false),
+      thinking: z.boolean().default(false),
       language: z.enum(['en', 'zh-CN']).default('zh-CN'),
       requestId: uuid,
       text: z.string().max(12000),

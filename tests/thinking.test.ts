@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { consumeChatResponse } from '../src/server/ai';
+import { consumeChatResponse, thinkingRequestParams } from '../src/server/ai';
 import { updateThinking } from '../src/lib/thinking';
 import { runFinanceAgent } from '../src/server/finance-agent';
 import type { chatCompletion } from '../src/server/ai';
@@ -99,6 +99,57 @@ test('模型流中断时保留思考片段并标记中断，不放入正文', as
     assert.equal((e as any).partial.artifacts.thinking[0].text, '已收到测试片段');
     assert.equal((e as any).partial.artifacts.thinking[0].status, 'stopped');
     assert.equal(emitted.filter(e => e.event === 'thinking').length, 2);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('thinkingRequestParams 按接口地址与模型家族映射思考参数', () => {
+  assert.deepEqual(thinkingRequestParams('https://api.tu-zi.com/v1', 'deepseek-v4.1-flash-1017', true), {
+    thinking: { type: 'enabled' },
+  });
+  assert.deepEqual(thinkingRequestParams('https://api.tu-zi.com/v1', 'deepseek-v4.1-flash-1017', false), {
+    thinking: { type: 'disabled' },
+  });
+  assert.deepEqual(
+    thinkingRequestParams('https://dashscope.aliyuncs.com/compatible-mode/v1', 'qwen3.5-plus', false),
+    { enable_thinking: false },
+  );
+  assert.deepEqual(thinkingRequestParams('https://api.openai.com/v1', 'gpt-5.4', true), {
+    reasoning_effort: 'medium',
+  });
+  assert.deepEqual(thinkingRequestParams('https://api.tu-zi.com/v1', 'gpt-6-luna', false), {
+    reasoning_effort: 'none',
+  });
+});
+
+test('runFinanceAgent 将上下文 thinking 标志透传给对话模型', async () => {
+  const originalQuery = db.query;
+  (db as any).query = async () => ({ rows: [{ id: 'fixed', name: '测试账本' }], rowCount: 1 });
+  const received: (boolean | undefined)[] = [];
+  const model: typeof chatCompletion = async (_m, _t, _d, _s, _v, _r, thinking) => {
+    received.push(thinking);
+    return { message: { role: 'assistant', content: 'ok' }, model: 'test-model' };
+  };
+  try {
+    for (const thinking of [false, true]) {
+      await runFinanceAgent(
+        {
+          book: 'fixed',
+          user: { id: 'u', name: '测试', username: 'u', admin: false, avatar: '', theme: 'minimal' },
+          question: '测试',
+          month: '2026-09',
+          history: [],
+          images: [],
+          thinking,
+          signal: new AbortController().signal,
+          emit: () => {},
+        },
+        model,
+        async () => ({}),
+      );
+    }
+    assert.deepEqual(received, [false, true]);
   } finally {
     db.query = originalQuery;
   }
